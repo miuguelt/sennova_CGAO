@@ -3,9 +3,9 @@ import {
   BarChart3, Users, FolderOpen, Layers, GraduationCap,
   Calendar, Award, FileText, Settings, Menu, Bell,
   User, LogOut, Lightbulb, Search, Command, X,
-  Home, Briefcase, MoreHorizontal
+  Home, Briefcase, MoreHorizontal, Book
 } from 'lucide-react';
-import { NotificacionesAPI } from '../../api/index.js';
+import { NotificacionesAPI } from '../../api/notificaciones';
 import Badge from '../ui/Badge';
 
 const PRIORIDAD_CLASS = {

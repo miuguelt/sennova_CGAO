@@ -3,7 +3,7 @@
  * Gestión de currículos LAC (Colciencias)
  */
 
-import { API_URL, fetchAPI } from './config.js';
+import { API_URL, fetchAPI } from './config';
 
 const API_BASE = '/cvlac';
 

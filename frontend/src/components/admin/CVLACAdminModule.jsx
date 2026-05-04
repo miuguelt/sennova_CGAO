@@ -3,7 +3,9 @@ import {
   FileText, Loader2, CheckCircle2, AlertTriangle, XCircle,
   Users, Search, User, ExternalLink, Edit2, X, Save, Bell, RefreshCw,
 } from 'lucide-react';
-import { CVLACAPI, UsuariosAPI, NotificacionesAPI } from '../../api/index.js';
+import { CVLACAPI } from '../../api/cvlac';
+import { UsuariosAPI } from '../../api/usuarios';
+import { NotificacionesAPI } from '../../api/notificaciones';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';

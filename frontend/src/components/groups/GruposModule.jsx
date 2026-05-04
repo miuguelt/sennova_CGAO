@@ -5,8 +5,9 @@ import {
   Loader2, Trash2, MoreVertical, Shield, Award, 
   Info, ArrowUpRight, Zap, UserPlus, Target
 } from 'lucide-react';
-import { GruposAPI, UsuariosAPI } from '../../api/index.js';
-import useClickOutside from '../../hooks/useClickOutside.js';
+import { GruposAPI } from '../../api/grupos';
+import { UsuariosAPI } from '../../api/usuarios';
+import useClickOutside from '../../hooks/useClickOutside';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';

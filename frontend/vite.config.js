@@ -1,11 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   server: {
     port: 3005,
-    open: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
@@ -14,17 +19,10 @@ export default defineConfig({
       },
     },
   },
-  esbuild: {
-    include: /\.[jt]sx?$/,
-    exclude: [],
-    loader: 'tsx'
-  },
-  optimizeDeps: {
-    esbuildOptions: {
-      loader: {
-        '.js': 'jsx',
-        '.jsx': 'jsx'
-      }
-    }
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    minify: 'esbuild',
+    chunkSizeWarningLimit: 1600,
   }
 })

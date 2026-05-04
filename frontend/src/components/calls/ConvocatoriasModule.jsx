@@ -7,7 +7,7 @@ import {
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
-import { ConvocatoriasAPI } from '../../api';
+import { ConvocatoriasAPI } from '../../api/convocatorias';
 
 const StatusBadge = ({ status }) => {
   const configs = {

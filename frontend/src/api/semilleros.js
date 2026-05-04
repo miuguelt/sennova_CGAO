@@ -1,4 +1,4 @@
-import { fetchAPI } from './config.js';
+import { fetchAPI } from './config';
 
 /**
  * Servicio de Semilleros de Investigación

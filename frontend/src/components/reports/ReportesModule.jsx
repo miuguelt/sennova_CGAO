@@ -7,7 +7,8 @@ import {
   Search, Calendar, Filter, ArrowUpRight, CheckCircle2,
   Table as TableIcon, Download, Info, Globe
 } from 'lucide-react';
-import { ReportesAPI, DashboardAPI } from '../../api';
+import { ReportesAPI } from '../../api/reportes';
+import { DashboardAPI } from '../../api/dashboard';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';

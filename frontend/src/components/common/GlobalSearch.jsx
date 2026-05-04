@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, Folder, User, Users, FileText, Command, ArrowRight, Loader2 } from 'lucide-react';
-import { DashboardAPI } from '../../api/index.js';
+import { DashboardAPI } from '../../api/dashboard';
 
 const TYPE_ICONS = {
   proyecto:     <Folder   size={18} className="text-blue-500" />,

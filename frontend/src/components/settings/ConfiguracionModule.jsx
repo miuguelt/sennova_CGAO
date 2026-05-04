@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { 
   User, Shield, Bell, Database, Globe, 
   Lock, Save, RefreshCw, LogOut, CheckCircle2,
-  Cpu, HardDrive, activity, Zap, Key, 
+  Cpu, HardDrive, Activity, Zap, Key, 
   Eye, EyeOff, Trash2, Smartphone, Mail,
   ExternalLink, Download, AlertTriangle
 } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
-import { AuthAPI } from '../../api';
+import { AuthAPI } from '../../api/auth';
 
 const SidebarItem = ({ id, label, icon: Icon, active, onClick }) => (
   <button

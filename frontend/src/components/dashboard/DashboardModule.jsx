@@ -14,7 +14,7 @@ import {
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
-import { DashboardAPI } from '../../api';
+import { DashboardAPI } from '../../api/dashboard';
 
 const StatCard = ({ title, value, icon: Icon, color, trend, subtitle }) => (
   <Card className="p-6 relative overflow-hidden group hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 border-0 ring-1 ring-slate-100">

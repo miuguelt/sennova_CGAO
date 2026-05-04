@@ -5,7 +5,8 @@ import {
   FileText, MessageSquare, AlertCircle, CheckCircle2,
   MoreVertical, Calendar, Loader2
 } from 'lucide-react';
-import { BitacoraAPI, ProyectosAPI } from '../../api';
+import { BitacoraAPI } from '../../api/bitacora';
+import { ProyectosAPI } from '../../api/proyectos';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';

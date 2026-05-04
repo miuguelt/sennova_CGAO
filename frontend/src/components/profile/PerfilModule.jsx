@@ -3,7 +3,7 @@ import {
   Edit2, Save, Loader2, AlertCircle, CheckCircle, ExternalLink,
   FileText, Eye, Trash2, Upload, Hash, X,
 } from 'lucide-react';
-import { AuthAPI, CVLACAPI, DocumentosAPI, API_URL } from '../../api/index.js';
+import { AuthAPI, CVLACAPI, DocumentosAPI, API_URL } from '../../api';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Input from '../ui/Input';

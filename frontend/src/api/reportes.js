@@ -3,7 +3,7 @@
  * Generación de reportes consolidados para reportes a nivel nacional
  */
 
-import { API_URL, fetchAPI } from './config.js';
+import { API_URL, fetchAPI } from './config';
 
 const API_BASE = '/reportes';
 

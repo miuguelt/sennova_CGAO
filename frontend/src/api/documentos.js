@@ -1,4 +1,4 @@
-import { fetchAPI, API_URL } from './config.js';
+import { fetchAPI, API_URL } from './config';
 
 /**
  * Servicio de Documentos

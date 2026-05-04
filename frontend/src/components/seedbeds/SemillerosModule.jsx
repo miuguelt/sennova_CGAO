@@ -7,7 +7,8 @@ import {
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
-import { SemillerosAPI, GruposAPI } from '../../api';
+import { SemillerosAPI } from '../../api/semilleros';
+import { GruposAPI } from '../../api/grupos';
 
 const SemilleroCard = ({ semillero, onEdit, onAddAprendiz }) => (
   <Card className="group hover:shadow-xl transition-all duration-300">

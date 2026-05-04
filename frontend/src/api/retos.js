@@ -1,4 +1,4 @@
-import { fetchAPI } from './config.js';
+import { fetchAPI } from './config';
 
 export const RetosAPI = {
   list: () => fetchAPI('/retos'),

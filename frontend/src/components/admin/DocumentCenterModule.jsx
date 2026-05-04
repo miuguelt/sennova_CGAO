@@ -9,7 +9,7 @@ import {
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
-import { DocumentosAPI } from '../../api';
+import { DocumentosAPI } from '../../api/documentos';
 
 const FileIcon = ({ type, size = 24 }) => {
   if (type?.includes('pdf')) return <FileText className="text-rose-500" size={size} />;

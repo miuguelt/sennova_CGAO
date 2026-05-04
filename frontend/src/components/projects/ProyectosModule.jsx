@@ -10,7 +10,9 @@ import {
   ResponsiveContainer, BarChart as ReBarChart, 
   Bar, XAxis, YAxis, CartesianGrid 
 } from 'recharts';
-import { ProyectosAPI, UsersAPI, RetosAPI } from '../../api/index.js';
+import { ProyectosAPI } from '../../api/proyectos';
+import { UsersAPI } from '../../api/auth';
+import { RetosAPI } from '../../api/retos';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';

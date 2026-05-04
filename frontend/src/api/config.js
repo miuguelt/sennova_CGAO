@@ -2,8 +2,8 @@
  * Configuración de la API SENNOVA
  */
 
-// URL del backend (cambiar según el entorno)
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// URL del backend (Hardcoded para debug)
+export const API_URL = 'http://localhost:8000';
 
 // Headers por defecto
 export const getHeaders = () => {
@@ -29,7 +29,6 @@ export async function fetchAPI(endpoint, options = {}) {
   try {
     const response = await fetch(url, config);
     
-    // Manejar 401 - Token expirado
     if (response.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -44,7 +43,6 @@ export async function fetchAPI(endpoint, options = {}) {
       throw new Error(error.detail || error.message || 'Error en la petición');
     }
     
-    // Si no hay contenido (204), retornar null
     if (response.status === 204) return null;
     
     return await response.json();

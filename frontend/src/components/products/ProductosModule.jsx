@@ -7,7 +7,8 @@ import {
   TrendingUp, BarChart, Info, Zap, ArrowUpRight,
   Link as LinkIcon, Calendar
 } from 'lucide-react';
-import { ProductosAPI, ProyectosAPI } from '../../api';
+import { ProductosAPI } from '../../api/productos';
+import { ProyectosAPI } from '../../api/proyectos';
 import useClickOutside from '../../hooks/useClickOutside';
 import Button from '../ui/Button';
 import Card from '../ui/Card';

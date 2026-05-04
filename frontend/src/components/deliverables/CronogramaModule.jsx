@@ -5,7 +5,8 @@ import {
   Trash2, User, Folder, Loader2, CheckSquare, ListTodo,
   TrendingUp, CalendarDays, ArrowUpRight, Send, AlertTriangle
 } from 'lucide-react';
-import { EntregablesAPI, ProyectosAPI } from '../../api';
+import { EntregablesAPI } from '../../api/entregables';
+import { ProyectosAPI } from '../../api/proyectos';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';

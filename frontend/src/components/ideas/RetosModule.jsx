@@ -5,7 +5,7 @@ import {
   Mail, MessageSquare, Clock, AlertCircle, Info,
   ExternalLink, Building2, Globe, Laptop, Zap
 } from 'lucide-react';
-import { RetosAPI } from '../../api/index';
+import { RetosAPI } from '../../api/retos';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';

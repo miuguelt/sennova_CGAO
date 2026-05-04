@@ -7,7 +7,7 @@ import {
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
-import { UsuariosAPI } from '../../api';
+import { UsuariosAPI } from '../../api/usuarios';
 
 const UserCard = ({ user, onEdit, onViewActivity }) => (
   <Card className="p-5 flex flex-col gap-4 group hover:border-emerald-500 transition-colors">

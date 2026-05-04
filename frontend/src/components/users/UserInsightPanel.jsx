@@ -16,7 +16,7 @@ import Badge from '../ui/Badge';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
-import { DashboardAPI as StatsAPI } from '../../api/index';
+import { DashboardAPI as StatsAPI } from '../../api';
 
 const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
   const [activeTab, setActiveTab] = useState('overview');
