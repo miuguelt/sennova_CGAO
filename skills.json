@@ -1,0 +1,9 @@
+{
+  "project_skills": [
+    "devbrain-universal",
+    "mcp-gpu-bridge",
+    "mcp-ai",
+    "mcp-core"
+  ],
+  "auto_start": true
+}

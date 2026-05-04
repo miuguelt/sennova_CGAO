@@ -1,0 +1,177 @@
+{
+  "name": "sennova-cgao",
+  "version": "2.0.0",
+  "description": "Sistema de Gestión de Proyectos de Investigación SENNOVA CGAO",
+  "type": "docker-compose",
+  "services": {
+    "postgres": {
+      "image": "postgres:15-alpine",
+      "environment": [
+        "POSTGRES_DB=sennova",
+        "POSTGRES_USER=sennova",
+        "POSTGRES_PASSWORD=${DB_PASSWORD}"
+      ],
+      "volumes": [
+        "postgres_data:/var/lib/postgresql/data"
+      ],
+      "healthcheck": {
+        "test": ["CMD-SHELL", "pg_isready -U sennova -d sennova"],
+        "interval": "10s",
+        "timeout": "5s",
+        "retries": 5
+      }
+    },
+    "backend": {
+      "build": {
+        "context": "./backend",
+        "dockerfile": "Dockerfile"
+      },
+      "environment": [
+        "DATABASE_URL=postgresql://sennova:${DB_PASSWORD}@postgres:5432/sennova",
+        "JWT_SECRET=${JWT_SECRET}",
+        "JWT_ALGORITHM=HS256",
+        "JWT_EXPIRATION_HOURS=24",
+        "APP_NAME=SENNOVA CGAO API",
+        "DEBUG=false",
+        "ALLOWED_ORIGINS=${ALLOWED_ORIGINS}",
+        "INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL}",
+        "INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD}"
+      ],
+      "ports": [
+        "8000:8000"
+      ],
+      "depends_on": [
+        "postgres"
+      ],
+      "volumes": [
+        "sennova_storage:/app/storage"
+      ],
+      "healthcheck": {
+        "test": ["CMD", "curl", "-f", "http://localhost:8000/health"],
+        "interval": "30s",
+        "timeout": "10s",
+        "retries": 3
+      }
+    },
+    "frontend": {
+      "build": {
+        "context": "./frontend",
+        "dockerfile": "Dockerfile"
+      },
+      "environment": [
+        "VITE_API_URL=${VITE_API_URL}"
+      ],
+      "ports": [
+        "3000:80"
+      ],
+      "depends_on": [
+        "backend"
+      ]
+    },
+    "pgadmin": {
+      "image": "dpage/pgadmin4:latest",
+      "environment": [
+        "PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}",
+        "PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}",
+        "PGADMIN_CONFIG_SERVER_MODE=False"
+      ],
+      "volumes": [
+        "pgadmin_data:/var/lib/pgadmin"
+      ],
+      "depends_on": [
+        "postgres"
+      ]
+    },
+    "backup": {
+      "image": "postgres:15-alpine",
+      "environment": [
+        "PGPASSWORD=${DB_PASSWORD}"
+      ],
+      "volumes": [
+        "backup_data:/backups"
+      ],
+      "command": "sh -c 'echo \"0 */6 * * * pg_dump -h postgres -U sennova sennova > /backups/sennova_$(date +%Y%m%d_%H%M%S).sql && find /backups -name *.sql -mtime +7 -delete\" | crontab - && crond -f'",
+      "depends_on": [
+        "postgres"
+      ]
+    }
+  },
+  "volumes": [
+    "postgres_data",
+    "pgadmin_data",
+    "backup_data",
+    "sennova_storage"
+  ],
+  "env_variables": [
+    {
+      "name": "DB_PASSWORD",
+      "description": "Contraseña de PostgreSQL - Mínimo 12 caracteres recomendado",
+      "required": true,
+      "default": "sennova_secure_password_2024"
+    },
+    {
+      "name": "JWT_SECRET",
+      "description": "Secret key para JWT tokens - Mínimo 32 caracteres, cambiar en producción",
+      "required": true,
+      "default": "your-super-secret-jwt-key-change-this-in-production-immediately"
+    },
+    {
+      "name": "ALLOWED_ORIGINS",
+      "description": "Orígenes permitidos para CORS (coma separado). Incluir dominio de Coolify",
+      "required": false,
+      "default": "https://your-domain.coolify.app,http://localhost:5173"
+    },
+    {
+      "name": "VITE_API_URL",
+      "description": "URL del backend API para el frontend",
+      "required": false,
+      "default": "https://api-your-domain.coolify.app"
+    },
+    {
+      "name": "INITIAL_ADMIN_EMAIL",
+      "description": "Email del usuario administrador inicial",
+      "required": false,
+      "default": "admin@sena.edu.co"
+    },
+    {
+      "name": "INITIAL_ADMIN_PASSWORD",
+      "description": "Contraseña del usuario administrador inicial - Cambiar en producción",
+      "required": false,
+      "default": "admin_secure_password_2024"
+    },
+    {
+      "name": "PGADMIN_EMAIL",
+      "description": "Email para pgAdmin",
+      "required": false,
+      "default": "admin@sena.edu.co"
+    },
+    {
+      "name": "PGADMIN_PASSWORD",
+      "description": "Contraseña para pgAdmin",
+      "required": false,
+      "default": "pgadmin_secure_password_2024"
+    }
+  ],
+  "persistent_volumes": [
+    {
+      "name": "postgres_data",
+      "mount_path": "/var/lib/postgresql/data",
+      "description": "Datos de PostgreSQL - NO BORRAR"
+    },
+    {
+      "name": "pgadmin_data",
+      "mount_path": "/var/lib/pgadmin",
+      "description": "Configuración de pgAdmin"
+    },
+    {
+      "name": "backup_data",
+      "mount_path": "/backups",
+      "description": "Backups automáticos de PostgreSQL"
+    },
+    {
+      "name": "sennova_storage",
+      "mount_path": "/app/storage",
+      "description": "Almacenamiento de documentos del sistema SENNOVA"
+    }
+  ]
+}

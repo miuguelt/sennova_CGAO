@@ -1,0 +1,162 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # PostgreSQL Database
+  # ==========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: sennova-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sennova
+      POSTGRES_USER: sennova
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sennova123}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sennova -d sennova"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sennova-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # Backend FastAPI
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sennova-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://sennova:${DB_PASSWORD:-sennova123}@postgres:5432/sennova
+      JWT_SECRET: ${JWT_SECRET:-sennova-secret-key-change-in-production}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRATION_HOURS: 24
+      APP_NAME: SENNOVA CGAO API
+      DEBUG: "false"
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/app/app  # Hot reload en desarrollo
+      - sennova_storage:/app/storage # Persistencia de documentos
+    networks:
+      - sennova-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # pgAdmin - Admin de PostgreSQL
+  # ==========================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: sennova-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@sena.edu.co}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - sennova-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # Frontend React
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+    container_name: sennova-frontend
+    restart: unless-stopped
+    ports:
+      - "3005:80"
+    depends_on:
+      - backend
+    networks:
+      - sennova-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # Backup Automático
+  # ==========================================
+  backup:
+    image: postgres:15-alpine
+    container_name: sennova-backup
+    environment:
+      PGPASSWORD: ${DB_PASSWORD:-sennova123}
+    volumes:
+      - backup_data:/backups
+    command: >
+      sh -c '
+        echo "0 */6 * * * pg_dump -h postgres -U sennova sennova > /backups/sennova_$$(date +\%Y\%m\%d_\%H\%M\%S).sql && find /backups -name '*.sql' -mtime +7 -delete" | crontab - && crond -f
+      '
+    depends_on:
+      - postgres
+    networks:
+      - sennova-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+
+# ==========================================
+# Volúmenes
+# ==========================================
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  backup_data:
+    driver: local
+  sennova_storage:
+    driver: local
+
+# ==========================================
+# Redes
+# ==========================================
+networks:
+  sennova-network:
+    driver: bridge

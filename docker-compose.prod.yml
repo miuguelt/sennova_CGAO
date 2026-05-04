@@ -1,0 +1,193 @@
+# ==========================================
+# SENNOVA CGAO - Docker Compose Producción
+# Optimizado para Coolify y despliegue en producción
+# ==========================================
+
+version: '3.8'
+
+services:
+  # ==========================================
+  # PostgreSQL Database
+  # ==========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: sennova-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sennova
+      POSTGRES_USER: sennova
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sennova -d sennova"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sennova-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # En producción no exponemos el puerto externamente
+    # Solo accesible desde la red interna
+
+  # ==========================================
+  # Backend FastAPI
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sennova-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://sennova:${DB_PASSWORD}@postgres:5432/sennova
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRATION_HOURS: 24
+      APP_NAME: SENNOVA CGAO API
+      DEBUG: "false"
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@sena.edu.co}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-changeme123}
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - sennova_storage:/app/storage
+    networks:
+      - sennova-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Recursos recomendados para producción
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # ==========================================
+  # Frontend React (Nginx)
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL}
+    container_name: sennova-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    networks:
+      - sennova-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # ==========================================
+  # pgAdmin - Admin de PostgreSQL (Opcional)
+  # Descomentar si se necesita en producción
+  # ==========================================
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: sennova-pgadmin
+  #   restart: unless-stopped
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+  #     PGADMIN_CONFIG_SERVER_MODE: "False"
+  #   expose:
+  #     - "80"
+  #   volumes:
+  #     - pgadmin_data:/var/lib/pgadmin
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - sennova-network
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+
+  # ==========================================
+  # Backup Automático (Opcional)
+  # ==========================================
+  backup:
+    image: postgres:15-alpine
+    container_name: sennova-backup
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - backup_data:/backups
+    command: >
+      sh -c '
+        apk add --no-cache curl &&
+        echo "0 */6 * * * pg_dump -h postgres -U sennova sennova > /backups/sennova_$$(date +\%Y\%m\%d_\%H\%M\%S).sql && find /backups -name '*.sql' -mtime +7 -delete" | crontab - &&
+        crond -f -l 2
+      '
+    depends_on:
+      - postgres
+    networks:
+      - sennova-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+# ==========================================
+# Volúmenes Persistentes
+# ==========================================
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  backup_data:
+    driver: local
+  sennova_storage:
+    driver: local
+
+# ==========================================
+# Redes
+# ==========================================
+networks:
+  sennova-network:
+    driver: bridge
