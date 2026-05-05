@@ -4,7 +4,7 @@ import {
   Filter, Search, ArrowRight, Info, ExternalLink,
   ChevronRight, Calendar, Loader2, Mail
 } from 'lucide-react';
-import { NotificacionesAPI } from '../../api';
+import { NotificacionesAPI } from '../../api/notificaciones';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
