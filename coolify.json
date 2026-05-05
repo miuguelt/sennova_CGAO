@@ -142,9 +142,9 @@
     },
     {
       "name": "VITE_BACKEND_URL",
-      "description": "URL interna del backend en Docker (http://sennova-backend:8000)",
+      "description": "URL interna del backend en Docker (http://backend:8000)",
       "required": false,
-      "default": "http://sennova-backend:8000"
+      "default": "http://backend:8000"
     },
     {
       "name": "CVLAC_BASE_URL",

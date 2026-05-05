@@ -52,9 +52,9 @@ services:
       dockerfile: Dockerfile
       args:
         # En producción con proxy nginx, usamos ruta relativa /api
-        # El proxy redirige /api → http://sennova-backend:8000 (comunicación interna)
+        # El proxy redirige /api → http://backend:8000 (comunicación interna)
         - VITE_API_URL=${VITE_API_URL:-/api}
-        - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://sennova-backend:8000}
+        - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://backend:8000}
     container_name: sennova-frontend
     restart: unless-stopped
     expose:
@@ -62,7 +62,7 @@ services:
     environment:
       # Variables en runtime para referencia (build ya está hecho)
       - API_URL=/api
-      - BACKEND_INTERNAL_URL=http://sennova-backend:8000
+      - BACKEND_INTERNAL_URL=http://backend:8000
     networks:
       - coolify
     depends_on:
