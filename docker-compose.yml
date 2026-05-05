@@ -10,7 +10,9 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL}
-      JWT_SECRET: ${JWT_SECRET:-sennova-secret-key-change-in-production}
+      # JWT_SECRET: Generar con 'openssl rand -base64 32'
+      # En Coolify: configurar variable de entorno JWT_SECRET
+      JWT_SECRET: ${JWT_SECRET}
       JWT_ALGORITHM: HS256
       JWT_EXPIRATION_HOURS: 24
       APP_NAME: SENNOVA CGAO API
