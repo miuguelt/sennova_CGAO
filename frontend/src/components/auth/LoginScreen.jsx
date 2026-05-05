@@ -28,12 +28,29 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail) {
+      setError('Ingresa tu correo institucional');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setError('Ingresa un correo institucional válido');
+      return;
+    }
+
+    if (!password) {
+      setError('Ingresa tu contraseña');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
       if (isLogin) {
-        const result = await onLogin(email, password);
+        const result = await onLogin(cleanEmail, password);
         if (!result.success) setError(result.error);
       } else {
         if (!nombre.trim()) {
@@ -41,7 +58,7 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
           setLoading(false);
           return;
         }
-        const result = await onRegister({ email, password, nombre });
+        const result = await onRegister({ email: cleanEmail, password, nombre: nombre.trim() });
         if (!result.success) {
           setError(result.error);
         } else {
@@ -113,7 +130,7 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <Input
                 label="Nombre completo"

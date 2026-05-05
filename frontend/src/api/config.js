@@ -20,6 +20,19 @@ export const getHeaders = () => {
   };
 };
 
+const getErrorMessage = (error, fallback) => {
+  const detail = error?.detail;
+
+  if (Array.isArray(detail)) {
+    return detail.map((item) => item.msg || item.message).filter(Boolean).join('. ') || fallback;
+  }
+
+  if (typeof detail === 'string') return detail;
+  if (typeof error?.message === 'string') return error.message;
+
+  return fallback;
+};
+
 // Fetch con manejo de errores
 export async function fetchAPI(endpoint, options = {}) {
   const url = `${API_URL}${endpoint}`;
@@ -46,7 +59,7 @@ export async function fetchAPI(endpoint, options = {}) {
       const error = await response.json().catch(() => ({ 
         detail: `Error ${response.status}: ${response.statusText}` 
       }));
-      throw new Error(error.detail || error.message || 'Error en la petición');
+      throw new Error(getErrorMessage(error, 'Error en la petición'));
     }
     
     if (response.status === 204) return null;
