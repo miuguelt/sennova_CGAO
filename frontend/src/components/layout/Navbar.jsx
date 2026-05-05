@@ -240,10 +240,10 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
                   )}
                 </div>
                 <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block" />
-                <div className="hidden sm:flex items-center gap-3 pl-2 pr-1 py-1 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-sm transition-all cursor-pointer">
+                <button type="button" onClick={() => onNavigate('perfil')} className="hidden sm:flex items-center gap-3 pl-2 pr-1 py-1 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
                   <div className="text-right leading-none"><p className="text-xs font-black text-slate-900">{currentUser?.nombre?.split(' ')[0]}</p><p className="text-[10px] text-slate-400 font-bold uppercase">{currentUser?.rol}</p></div>
                   <div className="w-9 h-9 bg-gradient-to-tr from-emerald-600 to-emerald-400 rounded-xl flex items-center justify-center text-xs font-black text-white shadow-inner">{currentUser?.nombre?.charAt(0)}</div>
-                </div>
+                </button>
                 <button onClick={onLogout} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Cerrar sesión"><LogOut size={20} /></button>
               </div>
             </div>

@@ -14,6 +14,8 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import TextArea from '../ui/TextArea';
 
+const selectValue = (eventOrValue) => eventOrValue?.target ? eventOrValue.target.value : eventOrValue;
+
 const ESTADOS = [
   { value: 'pendiente',         label: 'Pendiente',         color: 'text-slate-500',   bg: 'bg-slate-100' },
   { value: 'en_desarrollo',    label: 'En Desarrollo',     color: 'text-blue-600',    bg: 'bg-blue-100' },
@@ -344,7 +346,7 @@ const CronogramaModule = ({ currentUser, onNotify }) => {
                   label="Fase del Proyecto" 
                   options={['Fase I', 'Fase II', 'Fase III', 'Fase Final'].map(f => ({value: f, label: f}))}
                   value={formData.fase}
-                  onChange={(val) => setFormData({...formData, fase: val})}
+                  onChange={(val) => setFormData({...formData, fase: selectValue(val)})}
                 />
                 <Input 
                   label="Fecha Límite" 
@@ -357,7 +359,7 @@ const CronogramaModule = ({ currentUser, onNotify }) => {
                 label="Proyecto Vinculado" 
                 options={proyectos.map(p => ({value: p.id, label: p.nombre_corto || p.nombre}))}
                 value={formData.proyecto_id}
-                onChange={(val) => setFormData({...formData, proyecto_id: val})}
+                onChange={(val) => setFormData({...formData, proyecto_id: selectValue(val)})}
                 required
               />
               <TextArea label="Instrucciones / Descripción" value={formData.descripcion} onChange={(e) => setFormData({...formData, descripcion: e.target.value})} rows={4} />

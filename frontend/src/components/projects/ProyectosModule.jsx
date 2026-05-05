@@ -132,6 +132,8 @@ const TIPOLOGIA_OPTIONS = [
   { value: 'Modernización',  label: 'Modernización' },
 ];
 
+const controlValue = (eventOrValue) => eventOrValue?.target ? eventOrValue.target.value : eventOrValue;
+
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 const Skeleton = () => (
   <div className="flex gap-6 animate-pulse overflow-hidden">
@@ -307,6 +309,9 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   // Manejar acción inicial (ej: abrir formulario de creación)
   useEffect(() => {
     if (initialAction === 'create') {
+      setFormData(EMPTY_FORM);
+      setIsEditing(false);
+      setFormTab('basic');
       setShowForm(true);
       onActionHandled?.();
     }
@@ -461,7 +466,14 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     }
   };
 
-  const patch = (field) => (e) => setFormData(prev => ({ ...prev, [field]: e.target.value }));
+  const patch = (field) => (eventOrValue) => setFormData(prev => ({ ...prev, [field]: controlValue(eventOrValue) }));
+
+  const openCreateForm = () => {
+    setFormData(EMPTY_FORM);
+    setIsEditing(false);
+    setFormTab('basic');
+    setShowForm(true);
+  };
 
   const filtered = proyectos.filter(p => {
     const haySearch = !searchTerm || (p.nombre + (p.nombre_corto ?? '') + (p.codigo_sgps ?? ''))
@@ -509,7 +521,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
             </button>
           </div>
           <div className="w-px h-5 bg-slate-200 mx-1" aria-hidden="true" />
-          <Button onClick={() => setShowForm(true)} variant="sena" size="sm" className="px-4 py-2">
+          <Button onClick={openCreateForm} variant="sena" size="sm" className="px-4 py-2">
             <Plus size={16} /> <span className="hidden sm:inline">Nuevo Proyecto</span><span className="sm:hidden">Nuevo</span>
           </Button>
         </div>

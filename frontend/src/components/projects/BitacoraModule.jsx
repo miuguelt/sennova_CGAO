@@ -22,6 +22,7 @@ const CATEGORIAS = [
 ];
 
 const getCat = (v) => CATEGORIAS.find(c => c.value === v) || CATEGORIAS[0];
+const selectValue = (eventOrValue) => eventOrValue?.target ? eventOrValue.target.value : eventOrValue;
 
 const BitacoraModule = ({ currentUser, onNotify }) => {
   const [proyectos, setProyectos] = useState([]);
@@ -63,6 +64,11 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
   };
 
   const handleSubmit = async () => {
+    if (!selectedProjectId) {
+      onNotify?.('Selecciona o crea un proyecto antes de registrar una bitácora', 'warning');
+      return;
+    }
+
     if (!formData.titulo || !formData.contenido) {
       onNotify?.('Por favor completa todos los campos', 'warning');
       return;
@@ -116,7 +122,12 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => { setShowForm(true); setIsEditing(false); setFormData({ titulo: '', contenido: '', categoria: 'técnica' }); }} variant="sena">
+          <Button
+            onClick={() => { setShowForm(true); setIsEditing(false); setFormData({ titulo: '', contenido: '', categoria: 'técnica' }); }}
+            variant="sena"
+            disabled={!selectedProjectId}
+            title={!selectedProjectId ? 'Crea o selecciona un proyecto primero' : undefined}
+          >
             <Plus size={18} className="mr-2" /> Nueva Entrada
           </Button>
         </div>
@@ -249,7 +260,7 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
                   label="Categoría" 
                   options={CATEGORIAS}
                   value={formData.categoria}
-                  onChange={(val) => setFormData({...formData, categoria: val})}
+                  onChange={(val) => setFormData({...formData, categoria: selectValue(val)})}
                 />
               </div>
               <TextArea 

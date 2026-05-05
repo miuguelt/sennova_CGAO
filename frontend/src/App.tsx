@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/layout/Navbar';
 import LoginScreen from './components/auth/LoginScreen';
@@ -18,17 +18,42 @@ import CVLACAdminModule from './components/admin/CVLACAdminModule';
 import DocumentCenterModule from './components/admin/DocumentCenterModule';
 import PerfilModule from './components/profile/PerfilModule';
 import NotificacionesModule from './components/notifications/NotificacionesModule';
+import GlobalSearch from './components/common/GlobalSearch';
+import QuickActionHub from './components/common/QuickActionHub';
 import { Toaster, toast } from 'react-hot-toast';
 
 function AppContent() {
   const { currentUser, login, register, logout, updateUser } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
 
   const onNotify = (message, type = 'success') => {
     if (type === 'success') toast.success(message);
     else if (type === 'error') toast.error(message);
     else toast(message);
   };
+
+  useEffect(() => {
+    const onKeydown = (event) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const key = event.key.toLowerCase();
+
+      if (key === 'k') {
+        event.preventDefault();
+        setIsSearchOpen(true);
+      }
+
+      if (key === 'j') {
+        event.preventDefault();
+        setIsQuickActionsOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', onKeydown);
+    return () => window.removeEventListener('keydown', onKeydown);
+  }, []);
 
   if (!currentUser) {
     return (
@@ -53,14 +78,51 @@ function AppContent() {
     );
   }
 
+  const navigateTo = (view) => {
+    setCurrentView(view);
+  };
+
+  const handleModuleAction = ({ module, form }) => {
+    setPendingAction({ module, form });
+    setCurrentView(module);
+  };
+
+  const handleActionHandled = () => {
+    setPendingAction(null);
+  };
+
+  const handleSearchNavigate = (result) => {
+    const routeByType = {
+      proyecto: 'proyectos',
+      proyectos: 'proyectos',
+      investigador: 'investigadores',
+      investigadores: 'investigadores',
+      grupo: 'grupos',
+      grupos: 'grupos',
+      producto: 'productos',
+      productos: 'productos',
+    };
+
+    const routeByUrl = {
+      '/proyectos': 'proyectos',
+      '/investigadores': 'investigadores',
+      '/grupos': 'grupos',
+      '/productos': 'productos',
+    };
+
+    const nextView = routeByUrl[result?.url] || routeByType[result?.type] || 'dashboard';
+    setCurrentView(nextView);
+  };
+
   const renderView = () => {
-    const props = { currentUser, onNotify, onNavigate: setCurrentView };
+    const props = { currentUser, onNotify, onNavigate: navigateTo };
+    const actionFor = (module) => (pendingAction?.module === module ? pendingAction.form : undefined);
     
     switch (currentView) {
-      case 'dashboard':      return <DashboardModule {...props} />;
+      case 'dashboard':      return <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} />;
       case 'perfil':         return <PerfilModule {...props} onUpdateUser={updateUser} />;
-      case 'proyectos':      return <ProyectosModule {...props} />;
-      case 'mis-proyectos':  return <ProyectosModule {...props} />;
+      case 'proyectos':      return <ProyectosModule {...props} initialAction={actionFor('proyectos')} onActionHandled={handleActionHandled} />;
+      case 'mis-proyectos':  return <ProyectosModule {...props} initialAction={actionFor('mis-proyectos')} onActionHandled={handleActionHandled} />;
       case 'investigadores': return <InvestigadoresModule {...props} />;
       case 'productos':      return <ProductosModule {...props} />;
       case 'mis-productos':  return <ProductosModule {...props} />;
@@ -86,12 +148,23 @@ function AppContent() {
       <Navbar 
         currentUser={currentUser} 
         currentModule={currentView} 
-        onNavigate={setCurrentView} 
+        onNavigate={navigateTo} 
         onLogout={logout} 
+        onOpenSearch={() => setIsSearchOpen(true)}
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
         {renderView()}
       </main>
+      <GlobalSearch
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onNavigate={handleSearchNavigate}
+      />
+      <QuickActionHub
+        isOpen={isQuickActionsOpen}
+        onClose={() => setIsQuickActionsOpen(false)}
+        onAction={handleModuleAction}
+      />
     </div>
   );
 }

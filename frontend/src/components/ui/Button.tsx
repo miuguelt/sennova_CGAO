@@ -3,11 +3,12 @@ import { cn } from "@/lib/utils";
 
 const Button = React.forwardRef(({ className, variant = "primary", size = "md", ...props }, ref) => {
   const variants = {
-    primary: "bg-[#39A900] text-white hover:bg-[#2e8800]",
+    primary: "bg-[#39A900] text-white hover:bg-[#2e8800] shadow-sm",
+    sena: "bg-[#39A900] text-white hover:bg-[#2e8800] shadow-sm",
     secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200",
-    outline: "border border-gray-300 bg-transparent hover:bg-gray-50",
-    ghost: "hover:bg-gray-100 hover:text-gray-900",
-    danger: "bg-red-600 text-white hover:bg-red-700",
+    outline: "border border-gray-300 bg-white text-gray-900 hover:bg-gray-50",
+    ghost: "text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+    danger: "bg-red-600 text-white hover:bg-red-700 shadow-sm",
   };
 
   const sizes = {
@@ -20,7 +21,7 @@ const Button = React.forwardRef(({ className, variant = "primary", size = "md", 
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:opacity-100",
         variants[variant],
         sizes[size],
         className
