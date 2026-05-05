@@ -12,7 +12,7 @@ description: Sistema de Gestión de Proyectos de Investigación SENNOVA CGAO
 type: docker-compose
 
 # Servicios
-docker_compose_file: docker-compose.prod.yml
+docker_compose_file: docker-compose.yml
 
 # Variables de entorno requeridas
 environment:
@@ -54,4 +54,4 @@ notes: |
   1. JWT_SECRET: Mínimo 32 caracteres, cambiar en producción
   2. DB_PASSWORD: Contraseña fuerte para PostgreSQL
   3. ALLOWED_ORIGINS: Incluir dominios de Coolify separados por comas
-  4. VITE_API_URL: URL completa del backend (https://api-tudominio.com)
+  4. VITE_API_URL: usar /api para que el frontend pase por el proxy interno de Nginx
