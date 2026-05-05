@@ -116,7 +116,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
           >
             <Search size={18} className="text-slate-400" />
             <span>Búsqueda Global</span>
-            <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 bg-slate-100 text-[10px] rounded-md ml-4 text-slate-400">Ctrl K</kbd>
+            <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 bg-slate-200 text-[10px] rounded-md ml-4 text-slate-700 font-mono">Ctrl K</kbd>
           </button>
           <Button variant="sena" className="h-12 px-8 rounded-2xl shadow-xl shadow-emerald-600/20" onClick={onNewProject}>
             <Plus size={20} className="mr-2" strokeWidth={3} /> Nuevo Proyecto
@@ -169,11 +169,11 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
               <div className="flex gap-4">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-[10px] font-bold text-slate-500">Proyectos</span>
+                  <span className="text-[10px] font-bold text-slate-600">Proyectos</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                  <span className="text-[10px] font-bold text-slate-500">Productos</span>
+                  <span className="text-[10px] font-bold text-slate-600">Productos</span>
                 </div>
               </div>
             </div>

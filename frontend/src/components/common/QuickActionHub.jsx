@@ -97,15 +97,15 @@ const QuickActionHub = ({ isOpen, onClose, onAction }) => {
 
         {/* Footer */}
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between pb-safe">
-          <div className="hidden sm:flex items-center gap-4 text-xs text-slate-400 font-medium">
+          <div className="hidden sm:flex items-center gap-4 text-xs text-slate-600 font-medium">
             <span className="flex items-center gap-1.5">
-              <kbd className="px-1.5 py-0.5 bg-slate-200 rounded text-[10px] font-bold border border-slate-300" aria-hidden="true">Ctrl</kbd>
+              <kbd className="px-1.5 py-0.5 bg-slate-300 rounded text-[10px] font-bold border border-slate-400 text-slate-700" aria-hidden="true">Ctrl</kbd>
               <span>+</span>
-              <kbd className="px-1.5 py-0.5 bg-slate-200 rounded text-[10px] font-bold border border-slate-300" aria-hidden="true">J</kbd>
+              <kbd className="px-1.5 py-0.5 bg-slate-300 rounded text-[10px] font-bold border border-slate-400 text-slate-700" aria-hidden="true">J</kbd>
               <span>para abrir</span>
             </span>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700/60 uppercase tracking-widest mx-auto sm:mx-0">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 uppercase tracking-widest mx-auto sm:mx-0">
             <LayoutGrid size={13} aria-hidden="true" />
             <span>SISTEMA SENNOVA CGAO</span>
           </div>
