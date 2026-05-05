@@ -4,7 +4,8 @@ import {
   Lock, Save, RefreshCw, LogOut, CheckCircle2,
   Cpu, HardDrive, Activity, Zap, Key, 
   Eye, EyeOff, Trash2, Smartphone, Mail,
-  ExternalLink, Download, AlertTriangle
+  ExternalLink, Download, AlertTriangle,
+  ChevronRight, Calendar, Clock
 } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -110,7 +111,7 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
                   <div className="flex flex-col md:flex-row items-center gap-8 mb-10 pb-10 border-b border-slate-50">
                     <div className="relative group">
                       <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-3xl font-black shadow-2xl shadow-emerald-500/20 transform group-hover:rotate-6 transition-transform">
-                        {profile.nombre.charAt(0)}
+                        {(profile.nombre || '?').charAt(0)}
                       </div>
                       <button type="button" className="absolute -bottom-2 -right-2 p-2 bg-white rounded-xl shadow-lg border border-slate-100 text-slate-600 hover:text-emerald-600 transition-colors">
                         <Smartphone size={16} />
