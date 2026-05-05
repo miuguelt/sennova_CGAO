@@ -84,7 +84,8 @@ def validate_production_settings(settings: Settings):
                 UserWarning
             )
         
-        if "sennova123" in settings.DB_PASSWORD or len(settings.DB_PASSWORD) < 12:
+        # Solo validar DB_PASSWORD si no se usa DATABASE_URL (que ya contiene la contraseña)
+        if not settings.DATABASE_URL and ("sennova123" in settings.DB_PASSWORD or len(settings.DB_PASSWORD) < 12):
             raise ValueError(
                 "🚨 DB_PASSWORD no es segura para producción. "
                 "Debe tener mínimo 12 caracteres y no ser el valor por defecto."
