@@ -3,7 +3,10 @@ import {
   Edit2, Save, Loader2, AlertCircle, CheckCircle, ExternalLink,
   FileText, Eye, Trash2, Upload, Hash, X,
 } from 'lucide-react';
-import { AuthAPI, CVLACAPI, DocumentosAPI, API_URL, CVLAC_URL_PLACEHOLDER, CVLAC_BASE_URL } from '../../api';
+import { AuthAPI } from '../../api/auth';
+import { CVLACAPI } from '../../api/cvlac';
+import { DocumentosAPI } from '../../api/documentos';
+import { API_URL, CVLAC_URL_PLACEHOLDER, CVLAC_BASE_URL } from '../../api/config';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Input from '../ui/Input';
@@ -22,11 +25,15 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
   const [validandoURL, setValidandoURL] = useState(false);
   const [urlValida,    setUrlValida]    = useState(null);
 
-  useEffect(() => { loadUser(); loadCVDocument(); }, [currentUser.id]);
+  useEffect(() => {
+    setUser(currentUser);
+    loadUser();
+    loadCVDocument();
+  }, [currentUser.id]);
 
   useEffect(() => {
-    if (user.cvLacUrl?.includes('scienti')) validarURL(user.cvLacUrl);
-  }, [user.cvLacUrl]);
+    if (user.cv_lac_url?.includes('scienti')) validarURL(user.cv_lac_url);
+  }, [user.cv_lac_url]);
 
   const notify = (text, type = 'success') => {
     setMessage({ text, type });
@@ -73,7 +80,17 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const updated = await onUpdateUser(user);
+      const payload = {
+        nombre: user.nombre,
+        rol_sennova: user.rol_sennova || null,
+        nivel_academico: user.nivel_academico || null,
+        horas_mensuales: user.horas_mensuales || null,
+        meses_vinculacion: user.meses_vinculacion || null,
+        cv_lac_url: user.cv_lac_url || null,
+        estado_cv_lac: user.estado_cv_lac || null,
+        lineas_investigacion: user.lineas_investigacion || [],
+      };
+      const updated = await onUpdateUser(payload);
       setUser(updated);
       setEditing(false);
       notify('Perfil actualizado correctamente');
@@ -92,7 +109,7 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
     try {
       await CVLACAPI.subirPDF(file, currentUser.id);
       await loadCVDocument();
-      setUser({ ...user, estadoCvLac: 'actualizado' });
+      setUser({ ...user, estado_cv_lac: 'Actualizado' });
       notify('CVLAC subido correctamente');
     } catch (err) {
       notify('Error al subir CV: ' + err.message, 'error');
@@ -105,7 +122,7 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
     try {
       await DocumentosAPI.delete(cvDocument.id);
       setCvDocument(null);
-      setUser({ ...user, estadoCvLac: 'sin CVLAC' });
+      setUser({ ...user, estado_cv_lac: 'sin CVLAC' });
       notify('CVLAC eliminado');
     } catch (err) {
       notify('Error al eliminar CV: ' + err.message, 'error');
@@ -165,15 +182,15 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
               <Select
                 label="Rol SENNOVA"
                 options={['', 'Investigador Experto', 'Instructor Investigador', 'Responsable de Proyecto'].map(e => ({ value: e, label: e || 'Selecciona...' }))}
-                value={user.rolSENNOVA || ''}
-                onChange={(e) => setUser({ ...user, rolSENNOVA: e.target.value })}
+                value={user.rol_sennova || ''}
+                onChange={(e) => setUser({ ...user, rol_sennova: e.target.value })}
                 disabled={!editing}
               />
               <Select
                 label="Nivel académico"
                 options={['', 'Técnico', 'Tecnólogo', 'Pregrado', 'Especialización', 'Maestría', 'Doctorado'].map(e => ({ value: e, label: e || 'Selecciona...' }))}
-                value={user.nivelAcademico || ''}
-                onChange={(e) => setUser({ ...user, nivelAcademico: e.target.value })}
+                value={user.nivel_academico || ''}
+                onChange={(e) => setUser({ ...user, nivel_academico: e.target.value })}
                 disabled={!editing}
               />
               <Input label="Teléfono"   value={user.telefono  || ''} onChange={(e) => setUser({ ...user, telefono:  e.target.value })} disabled={!editing} />
@@ -187,8 +204,8 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Sede"     value={user.sede     || 'CGAO Vélez'} disabled />
               <Input label="Regional" value={user.regional || 'Santander'}  disabled />
-              <Input label="Horas mensuales"       type="number" value={user.horasMensuales   || ''} onChange={(e) => setUser({ ...user, horasMensuales:   parseInt(e.target.value) })} disabled={!editing} />
-              <Input label="Meses de vinculación"  type="number" value={user.mesesVinculacion || ''} onChange={(e) => setUser({ ...user, mesesVinculacion: parseInt(e.target.value) })} disabled={!editing} />
+              <Input label="Horas mensuales"       type="number" value={user.horas_mensuales   || ''} onChange={(e) => setUser({ ...user, horas_mensuales:   e.target.value ? parseInt(e.target.value) : null })} disabled={!editing} />
+              <Input label="Meses de vinculación"  type="number" value={user.meses_vinculacion || ''} onChange={(e) => setUser({ ...user, meses_vinculacion: e.target.value ? parseInt(e.target.value) : null })} disabled={!editing} />
             </div>
           </Card>
         </div>
@@ -212,15 +229,15 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
                   <input
                     id="cvlac-url"
                     type="url"
-                    value={user.cvLacUrl || ''}
-                    onChange={(e) => setUser({ ...user, cvLacUrl: e.target.value })}
+                    value={user.cv_lac_url || ''}
+                    onChange={(e) => setUser({ ...user, cv_lac_url: e.target.value })}
                     disabled={!editing}
                     className={`flex-1 px-3 py-2 border rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 transition-colors disabled:bg-slate-50 disabled:text-slate-500 ${urlBorderClass}`}
                     placeholder={CVLAC_URL_PLACEHOLDER}
                   />
-                  {user.cvLacUrl && (
+                  {user.cv_lac_url && (
                     <a
-                      href={user.cvLacUrl}
+                      href={user.cv_lac_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
@@ -240,15 +257,15 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
               {/* Estado badge */}
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-2">Estado CVLAC</p>
-                <Badge variant={ESTADO_VARIANT[user.estadoCvLac] ?? 'danger'} dot>
-                  {user.estadoCvLac || 'sin CVLAC'}
+                <Badge variant={ESTADO_VARIANT[String(user.estado_cv_lac || '').toLowerCase()] ?? 'danger'} dot>
+                  {user.estado_cv_lac || 'sin CVLAC'}
                 </Badge>
                 {editing && (
                   <Select
                     label=""
                     options={['actualizado', 'desactualizado', 'sin CVLAC'].map(e => ({ value: e, label: e }))}
-                    value={user.estadoCvLac || 'sin CVLAC'}
-                    onChange={(e) => setUser({ ...user, estadoCvLac: e.target.value })}
+                    value={user.estado_cv_lac || 'sin CVLAC'}
+                    onChange={(e) => setUser({ ...user, estado_cv_lac: e.target.value })}
                     className="mt-2"
                   />
                 )}
@@ -313,13 +330,13 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
           <Card className="p-5">
             <h3 className="text-sm font-semibold text-slate-900 mb-4">Líneas de Investigación</h3>
             <div className="space-y-2">
-              {(user.lineasInvestigacion || []).map((linea, idx) => (
+              {(user.lineas_investigacion || []).map((linea, idx) => (
                 <div key={idx} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-100">
                   <Hash size={13} className="text-slate-400 flex-shrink-0" aria-hidden="true" />
                   <span className="text-sm flex-1 min-w-0 truncate">{linea}</span>
                   {editing && (
                     <button
-                      onClick={() => setUser({ ...user, lineasInvestigacion: user.lineasInvestigacion.filter((_, i) => i !== idx) })}
+                      onClick={() => setUser({ ...user, lineas_investigacion: user.lineas_investigacion.filter((_, i) => i !== idx) })}
                       className="ml-auto text-rose-400 hover:text-rose-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 rounded"
                       aria-label={`Eliminar línea "${linea}"`}
                     >
@@ -335,7 +352,7 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-colors"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && e.target.value.trim()) {
-                      setUser({ ...user, lineasInvestigacion: [...(user.lineasInvestigacion || []), e.target.value.trim()] });
+                      setUser({ ...user, lineas_investigacion: [...(user.lineas_investigacion || []), e.target.value.trim()] });
                       e.target.value = '';
                     }
                   }}

@@ -6,7 +6,7 @@ import {
 import { CVLACAPI } from '../../api/cvlac';
 import { UsuariosAPI } from '../../api/usuarios';
 import { NotificacionesAPI } from '../../api/notificaciones';
-import { CVLAC_URL_PLACEHOLDER } from '../../api';
+import { CVLAC_URL_PLACEHOLDER } from '../../api/config';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';

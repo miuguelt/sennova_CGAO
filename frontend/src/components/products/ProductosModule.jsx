@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { ProductosAPI } from '../../api/productos';
 import { ProyectosAPI } from '../../api/proyectos';
-import { CVLAC_URL_PLACEHOLDER } from '../../api';
+import { CVLAC_URL_PLACEHOLDER } from '../../api/config';
 import useClickOutside from '../../hooks/useClickOutside';
 import Button from '../ui/Button';
 import Card from '../ui/Card';

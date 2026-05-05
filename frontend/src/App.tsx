@@ -16,10 +16,12 @@ import CronogramaModule from './components/deliverables/CronogramaModule';
 import RetosModule from './components/ideas/RetosModule';
 import CVLACAdminModule from './components/admin/CVLACAdminModule';
 import DocumentCenterModule from './components/admin/DocumentCenterModule';
+import PerfilModule from './components/profile/PerfilModule';
+import NotificacionesModule from './components/notifications/NotificacionesModule';
 import { Toaster, toast } from 'react-hot-toast';
 
 function AppContent() {
-  const { currentUser, login, register, logout, updateCurrentUser } = useAuth();
+  const { currentUser, login, register, logout, updateUser } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
 
   const onNotify = (message, type = 'success') => {
@@ -56,19 +58,25 @@ function AppContent() {
     
     switch (currentView) {
       case 'dashboard':      return <DashboardModule {...props} />;
+      case 'perfil':         return <PerfilModule {...props} onUpdateUser={updateUser} />;
       case 'proyectos':      return <ProyectosModule {...props} />;
+      case 'mis-proyectos':  return <ProyectosModule {...props} />;
       case 'investigadores': return <InvestigadoresModule {...props} />;
       case 'productos':      return <ProductosModule {...props} />;
+      case 'mis-productos':  return <ProductosModule {...props} />;
       case 'grupos':         return <GruposModule {...props} />;
       case 'semilleros':     return <SemillerosModule {...props} />;
       case 'convocatorias':  return <ConvocatoriasModule {...props} />;
       case 'reportes':       return <ReportesModule {...props} />;
-      case 'configuracion':  return <ConfiguracionModule {...props} onUpdateUser={updateCurrentUser} />;
+      case 'configuracion':  return <ConfiguracionModule {...props} onUpdateUser={updateUser} />;
       case 'bitacora':       return <BitacoraModule {...props} />;
       case 'cronograma':     return <CronogramaModule {...props} />;
       case 'retos':          return <RetosModule {...props} />;
+      case 'notificaciones': return <NotificacionesModule {...props} />;
       case 'cvlac_admin':    return <CVLACAdminModule {...props} />;
+      case 'cvlac-admin':    return <CVLACAdminModule {...props} />;
       case 'documentos':     return <DocumentCenterModule {...props} />;
+      case 'biblioteca':     return <DocumentCenterModule {...props} />;
       default:               return <DashboardModule {...props} />;
     }
   };
@@ -77,7 +85,7 @@ function AppContent() {
     <div className="min-h-screen bg-[#F8FAFC]">
       <Navbar 
         currentUser={currentUser} 
-        currentView={currentView} 
+        currentModule={currentView} 
         onNavigate={setCurrentView} 
         onLogout={logout} 
       />
