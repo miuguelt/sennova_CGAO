@@ -3,6 +3,7 @@ Router de Integración CVLAC
 Gestión de currículos LAC (Colciencias) e importación de datos
 """
 
+import os
 import re
 from datetime import datetime
 from typing import List, Optional
@@ -15,6 +16,9 @@ from app.database import get_db
 from app.models import User, Documento, Producto
 from app.schemas import DocumentoResponse
 
+# URL base de CVLAC desde variable de entorno (con valor por defecto)
+CVLAC_BASE_URL = os.getenv('CVLAC_BASE_URL', 'http://scienti.colciencias.gov.co:8084')
+
 router = APIRouter(
     prefix="/cvlac",
     tags=["Integración CVLAC"]
@@ -24,8 +28,10 @@ router = APIRouter(
 @router.get("/validar-url")
 def validar_url_cvlac(url: str):
     """Valida si una URL de CVLAC tiene el formato correcto."""
-    # Patrón CVLAC: http://scienti.colciencias.gov.co:8084/cvlac/visualizador/generarCurriculoCv.do?cod_rh=XXXXX
-    patron = r'^https?://scienti\.colciencias\.gov\.co:\d+/cvlac/visualizador/generarCurriculoCv\.do\?cod_rh=\d+$'
+    # Patrón CVLAC construido desde variable de entorno
+    # Ejemplo: http://scienti.colciencias.gov.co:8084/cvlac/visualizador/generarCurriculoCv.do?cod_rh=XXXXX
+    escaped_base = re.escape(CVLAC_BASE_URL)
+    patron = rf'^https?://{escaped_base.replace("http://", "").replace("https://", "")}/cvlac/visualizador/generarCurriculoCv\.do\?cod_rh=\d+$'
     
     es_valida = bool(re.match(patron, url))
     
@@ -40,7 +46,7 @@ def validar_url_cvlac(url: str):
         "url": url,
         "es_valida": es_valida,
         "cod_rh": cod_rh,
-        "mensaje": "URL válida" if es_valida else "Formato de URL CVLAC no reconocido. Debe ser: http://scienti.colciencias.gov.co:8084/cvlac/visualizador/generarCurriculoCv.do?cod_rh=XXXXX"
+        "mensaje": "URL válida" if es_valida else f"Formato de URL CVLAC no reconocido. Debe ser: {CVLAC_BASE_URL}/cvlac/visualizador/generarCurriculoCv.do?cod_rh=XXXXX"
     }
 
 

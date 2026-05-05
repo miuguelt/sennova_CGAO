@@ -1,9 +1,16 @@
 /**
  * API Client para SENNOVA Backend
  * FastAPI + PostgreSQL
+ * REGLA ANTI-HARDCODING: Todas las configuraciones desde variables de entorno
  */
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// URL base de CVLAC desde variable de entorno
+export const CVLAC_BASE_URL = import.meta.env.VITE_CVLAC_BASE_URL || 'http://scienti.colciencias.gov.co:8084';
+
+// Placeholder para URL de CVLAC
+export const CVLAC_URL_PLACEHOLDER = `${CVLAC_BASE_URL}/cvlac/...`;
 
 // ==========================================
 // UTILIDADES

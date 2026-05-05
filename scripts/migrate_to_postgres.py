@@ -12,9 +12,9 @@ sys.path.append(backend_dir)
 from app.database import Base
 from app.models import User, Grupo, Semillero, Aprendiz, Convocatoria, Proyecto, Producto, Documento, Entregable, Notificacion, Actividad
 
-# Configuración
-SQLITE_URL = "sqlite:///./backend/sennova.db"
-POSTGRES_URL = "postgresql+psycopg://postgres:sennova123@127.0.0.1:5432/sennova"
+# Configuración desde variables de entorno
+SQLITE_URL = os.getenv('SQLITE_URL', 'sqlite:///./backend/sennova.db')
+POSTGRES_URL = os.getenv('DATABASE_URL', 'postgresql+psycopg://postgres:sennova123@127.0.0.1:5432/sennova')
 
 def migrate():
     print(f"🚀 Iniciando migración de {SQLITE_URL} a {POSTGRES_URL}...")

@@ -6,6 +6,7 @@ import {
 import { CVLACAPI } from '../../api/cvlac';
 import { UsuariosAPI } from '../../api/usuarios';
 import { NotificacionesAPI } from '../../api/notificaciones';
+import { CVLAC_URL_PLACEHOLDER } from '../../api';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
@@ -339,7 +340,7 @@ const CVLACAdminModule = ({ currentUser, onNotify }) => {
                   value={selectedUser.cvLacUrl || ''}
                   onChange={(e) => setSelectedUser({ ...selectedUser, cvLacUrl: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                  placeholder="https://scienti.colciencias.gov.co:8084/cvlac/..."
+                  placeholder={CVLAC_URL_PLACEHOLDER}
                 />
               </div>
             </div>

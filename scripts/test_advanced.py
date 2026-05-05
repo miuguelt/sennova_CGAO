@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Test avanzado de funcionalidades SENNOVA CGAO"""
+import os
 import requests
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.getenv('API_URL', 'http://localhost:8000')
 
 def test_advanced():
     # Login

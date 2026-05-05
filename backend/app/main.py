@@ -4,6 +4,8 @@ Sistema de Gestión de Investigación del CGAO Vélez
 FastAPI + PostgreSQL
 """
 
+import os
+
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
@@ -52,14 +54,19 @@ app = FastAPI(
 async def health_check():
     return {"status": "ok", "version": "2.0.0"}
 
-# Configurar orígenes permitidos
+# Configurar orígenes permitidos desde variables de entorno
+# REGLA ANTI-HARDCODING: Todos los orígenes deben venir de ALLOWED_ORIGINS
 all_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")] if settings.ALLOWED_ORIGINS else []
-BASE_ORIGINS = [
-    "http://localhost:3110", "http://localhost:3100", "http://localhost:3001", "http://localhost:3005",
-    "http://127.0.0.1:3110", "http://127.0.0.1:3100", "http://127.0.0.1:3001", "http://127.0.0.1:3005",
-    "http://[::1]:3110", "http://[::1]:3100", "http://[::1]:3001", "http://[::1]:3005"
-]
-ALLOWED_ORIGINS_LIST = list(set(all_origins + BASE_ORIGINS))
+
+# Orígenes adicionales para desarrollo (solo si DEBUG=true)
+additional_origins = []
+if settings.DEBUG:
+    # En desarrollo, permitir orígenes locales adicionales desde variable de entorno
+    extra_origins = os.getenv("ADDITIONAL_CORS_ORIGINS", "")
+    if extra_origins:
+        additional_origins = [o.strip() for o in extra_origins.split(",") if o.strip()]
+
+ALLOWED_ORIGINS_LIST = list(set(all_origins + additional_origins))
 
 # En modo DEBUG permitimos todo para facilitar el desarrollo híbrido
 IF_DEBUG_ALLOW_ALL = ["*"] if settings.DEBUG else ALLOWED_ORIGINS_LIST
@@ -179,9 +186,12 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+    # Usar HOST desde variable de entorno o default
+    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", "8000"))
     uvicorn.run(
         "app.main:app",
-        host="127.0.0.1",
-        port=8000,
+        host=host,
+        port=port,
         reload=settings.DEBUG
     )

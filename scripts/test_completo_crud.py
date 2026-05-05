@@ -3,11 +3,12 @@
 Test completo de CRUD para todas las tablas de SENNOVA CGAO
 Genera reporte en formato de tabla
 """
+import os
 import requests
 import json
 from datetime import datetime
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.getenv('API_URL', 'http://localhost:8000')
 
 class Colors:
     GREEN = "\033[92m"

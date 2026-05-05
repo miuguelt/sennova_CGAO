@@ -2,10 +2,11 @@
 """
 Script para poblar la base de datos SENNOVA CGAO con datos de ejemplo
 """
+import os
 import requests
 import json
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.getenv('API_URL', 'http://localhost:8000')
 
 def login():
     """Login como admin y obtener token"""

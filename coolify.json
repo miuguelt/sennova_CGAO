@@ -34,6 +34,10 @@
         "APP_NAME=SENNOVA CGAO API",
         "DEBUG=false",
         "ALLOWED_ORIGINS=${ALLOWED_ORIGINS}",
+        "ADDITIONAL_CORS_ORIGINS=${ADDITIONAL_CORS_ORIGINS}",
+        "HOST=0.0.0.0",
+        "PORT=8000",
+        "CVLAC_BASE_URL=${CVLAC_BASE_URL}",
         "INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL}",
         "INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD}"
       ],
@@ -56,10 +60,13 @@
     "frontend": {
       "build": {
         "context": "./frontend",
-        "dockerfile": "Dockerfile"
+        "dockerfile": "Dockerfile",
+        "args": {
+          "VITE_API_URL": "${VITE_API_URL:-/api}"
+        }
       },
       "environment": [
-        "VITE_API_URL=${VITE_API_URL}"
+        "VITE_API_URL=${VITE_API_URL:-/api}"
       ],
       "ports": [
         "3000:80"
@@ -117,15 +124,33 @@
     },
     {
       "name": "ALLOWED_ORIGINS",
-      "description": "Orígenes permitidos para CORS (coma separado). Incluir dominio de Coolify",
+      "description": "Orígenes permitidos para CORS (coma separado). Solo dominios externos necesitan estar aquí. Con proxy nginx no es necesario incluir el frontend.",
       "required": false,
-      "default": "https://your-domain.coolify.app,http://localhost:5173"
+      "default": "https://sennova.enlinea.sbs"
     },
     {
       "name": "VITE_API_URL",
-      "description": "URL del backend API para el frontend",
+      "description": "URL de la API para el frontend. Usar '/api' para proxy interno (recomendado) o URL completa del backend si se usa CORS",
       "required": false,
-      "default": "https://api-your-domain.coolify.app"
+      "default": "/api"
+    },
+    {
+      "name": "VITE_CVLAC_BASE_URL",
+      "description": "URL base del servicio CVLAC de Colciencias para placeholders",
+      "required": false,
+      "default": "http://scienti.colciencias.gov.co:8084"
+    },
+    {
+      "name": "VITE_BACKEND_URL",
+      "description": "URL interna del backend en Docker (http://sennova-backend:8000)",
+      "required": false,
+      "default": "http://sennova-backend:8000"
+    },
+    {
+      "name": "CVLAC_BASE_URL",
+      "description": "URL base del servicio CVLAC para validación en backend",
+      "required": false,
+      "default": "http://scienti.colciencias.gov.co:8084"
     },
     {
       "name": "INITIAL_ADMIN_EMAIL",

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { ProductosAPI } from '../../api/productos';
 import { ProyectosAPI } from '../../api/proyectos';
+import { CVLAC_URL_PLACEHOLDER } from '../../api';
 import useClickOutside from '../../hooks/useClickOutside';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
@@ -582,7 +583,7 @@ const ProductosModule = ({ currentUser, onNotify }) => {
                   </p>
                   <Input 
                     label="URL de CVLAC" 
-                    placeholder="http://scienti.colciencias.gov.co:8084/cvlac/..." 
+                    placeholder={CVLAC_URL_PLACEHOLDER} 
                     value={cvlacUrl}
                     onChange={(e) => setCvlacUrl(e.target.value)}
                   />

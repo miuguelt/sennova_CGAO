@@ -3,7 +3,7 @@ import {
   Edit2, Save, Loader2, AlertCircle, CheckCircle, ExternalLink,
   FileText, Eye, Trash2, Upload, Hash, X,
 } from 'lucide-react';
-import { AuthAPI, CVLACAPI, DocumentosAPI, API_URL } from '../../api';
+import { AuthAPI, CVLACAPI, DocumentosAPI, API_URL, CVLAC_URL_PLACEHOLDER, CVLAC_BASE_URL } from '../../api';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Input from '../ui/Input';
@@ -216,7 +216,7 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
                     onChange={(e) => setUser({ ...user, cvLacUrl: e.target.value })}
                     disabled={!editing}
                     className={`flex-1 px-3 py-2 border rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 transition-colors disabled:bg-slate-50 disabled:text-slate-500 ${urlBorderClass}`}
-                    placeholder="https://scienti.colciencias.gov.co:8084/cvlac/..."
+                    placeholder={CVLAC_URL_PLACEHOLDER}
                   />
                   {user.cvLacUrl && (
                     <a
@@ -232,7 +232,7 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
                 </div>
                 {urlValida === false && (
                   <p className="text-xs text-rose-600 mt-1">
-                    URL inválida. Formato esperado: scienti.colciencias.gov.co:8084/cvlac/visualizador/...
+                    URL inválida. Formato esperado: {CVLAC_BASE_URL.replace('http://', '').replace('https://', '')}/cvlac/visualizador/...
                   </p>
                 )}
               </div>

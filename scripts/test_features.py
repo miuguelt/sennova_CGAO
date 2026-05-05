@@ -1,7 +1,12 @@
+"""
+Test de features SENNOVA CGAO
+REGLA ANTI-HARDCODING: Usar variable de entorno o default
+"""
+import os
 import requests
 import json
 
-BASE_URL = 'http://localhost:8000'
+BASE_URL = os.getenv('API_URL', 'http://localhost:8000')
 
 try:
     # 1. Login

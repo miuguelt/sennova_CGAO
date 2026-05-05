@@ -15,15 +15,23 @@ services:
       JWT_EXPIRATION_HOURS: 24
       APP_NAME: SENNOVA CGAO API
       DEBUG: "false"
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      # CORS: Solo el dominio público del frontend
+      # La comunicación interna (Nginx → Backend) usa proxy, no CORS
+      # En Coolify: https://sennova.enlinea.sbs
+      # En local: http://localhost:5173
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://sennova.enlinea.sbs}
+      CVLAC_BASE_URL: ${CVLAC_BASE_URL:-http://scienti.colciencias.gov.co:8084}
+      HOST: ${HOST:-0.0.0.0}
+      PORT: ${PORT:-8000}
     expose:
-      - 8000
+      - ${PORT:-8000}
     volumes:
       - sennova_storage:/app/storage # Persistencia de documentos
     networks:
       - coolify
+    # Healthcheck usa variable PORT para ser consistente con la configuración
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      test: [ "CMD", "sh", "-c", "curl -f http://localhost:${PORT:-8000}/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -41,13 +49,22 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+        # En producción con proxy nginx, usamos ruta relativa /api
+        # El proxy redirige /api → http://sennova-backend:8000 (comunicación interna)
+        - VITE_API_URL=${VITE_API_URL:-/api}
+        - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://sennova-backend:8000}
     container_name: sennova-frontend
     restart: unless-stopped
     expose:
       - 80
+    environment:
+      # Variables en runtime para referencia (build ya está hecho)
+      - API_URL=/api
+      - BACKEND_INTERNAL_URL=http://sennova-backend:8000
     networks:
       - coolify
+    depends_on:
+      - backend
     logging:
       driver: "json-file"
       options:

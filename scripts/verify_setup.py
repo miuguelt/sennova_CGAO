@@ -4,10 +4,14 @@ Script de verificación del sistema SENNOVA CGAO.
 Verifica que el backend y frontend estén configurados correctamente.
 """
 
+import os
 import sys
 import subprocess
 import json
 from pathlib import Path
+
+# Configuración desde variables de entorno
+BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
 
 def check_color(text, color):
     """Add color to terminal output"""
@@ -169,17 +173,17 @@ def main():
     print(check_color("\n🌐 Backend API:", "blue"))
     
     checks_total += 1
-    success, stdout, _ = run_command("curl -s http://localhost:8000/health")
+    success, stdout, _ = run_command(f"curl -s {BACKEND_URL}/health")
     if success and '"status"' in stdout:
-        print(check_color("✅ Backend corriendo en localhost:8000", "green"))
+        print(check_color(f"✅ Backend corriendo en {BACKEND_URL}", "green"))
         checks_passed += 1
         
         # Intentar obtener más info
-        success, docs, _ = run_command("curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/docs")
+        success, docs, _ = run_command(f"curl -s -o /dev/null -w '%{{http_code}}' {BACKEND_URL}/docs")
         if success and docs.strip() == "200":
             print(check_color("   ✅ API Docs disponible en /docs", "green"))
     else:
-        print(check_color("⚠️ Backend no responde en localhost:8000", "yellow"))
+        print(check_color(f"⚠️ Backend no responde en {BACKEND_URL}", "yellow"))
         print(check_color("   Para iniciar: cd backend && uvicorn app.main:app --reload", "yellow"))
     
     # ============================================

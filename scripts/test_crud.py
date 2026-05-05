@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Test completo de CRUD SENNOVA CGAO"""
+import os
 import requests
 import json
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.getenv('API_URL', 'http://localhost:8000')
 
 def test_all():
     # Login

@@ -2,8 +2,14 @@
  * Configuración de la API SENNOVA
  */
 
-// URL del backend (Hardcoded para debug)
-export const API_URL = 'http://localhost:8000';
+// URL del backend - Usa variable de entorno Vite o fallback a localhost
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// URL base de CVLAC desde variable de entorno
+export const CVLAC_BASE_URL = import.meta.env.VITE_CVLAC_BASE_URL || 'http://scienti.colciencias.gov.co:8084';
+
+// Placeholder para URL de CVLAC
+export const CVLAC_URL_PLACEHOLDER = `${CVLAC_BASE_URL}/cvlac/...`;
 
 // Headers por defecto
 export const getHeaders = () => {
