@@ -138,7 +138,7 @@
       "name": "VITE_CVLAC_BASE_URL",
       "description": "URL base del servicio CVLAC de Colciencias para placeholders",
       "required": false,
-      "default": "http://scienti.colciencias.gov.co:8084"
+      "default": "https://scienti.minciencias.gov.co"
     },
     {
       "name": "VITE_BACKEND_URL",
@@ -150,7 +150,7 @@
       "name": "CVLAC_BASE_URL",
       "description": "URL base del servicio CVLAC para validación en backend",
       "required": false,
-      "default": "http://scienti.colciencias.gov.co:8084"
+      "default": "https://scienti.minciencias.gov.co"
     },
     {
       "name": "INITIAL_ADMIN_EMAIL",

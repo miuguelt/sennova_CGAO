@@ -6,7 +6,7 @@
 export const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // URL base de CVLAC desde variable de entorno
-export const CVLAC_BASE_URL = import.meta.env.VITE_CVLAC_BASE_URL || 'http://scienti.colciencias.gov.co:8084';
+export const CVLAC_BASE_URL = import.meta.env.VITE_CVLAC_BASE_URL || 'https://scienti.minciencias.gov.co';
 
 // Placeholder para URL de CVLAC
 export const CVLAC_URL_PLACEHOLDER = `${CVLAC_BASE_URL}/cvlac/...`;

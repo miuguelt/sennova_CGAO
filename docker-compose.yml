@@ -22,7 +22,7 @@ services:
       # En Coolify: https://sennova.enlinea.sbs
       # En local: http://localhost:5173
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://sennova.enlinea.sbs}
-      CVLAC_BASE_URL: ${CVLAC_BASE_URL:-http://scienti.colciencias.gov.co:8084}
+      CVLAC_BASE_URL: ${CVLAC_BASE_URL:-https://scienti.minciencias.gov.co}
       HOST: ${HOST:-0.0.0.0}
       PORT: ${PORT:-8000}
     expose:

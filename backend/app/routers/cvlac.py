@@ -17,7 +17,7 @@ from app.models import User, Documento, Producto
 from app.schemas import DocumentoResponse
 
 # URL base de CVLAC desde variable de entorno (con valor por defecto)
-CVLAC_BASE_URL = os.getenv('CVLAC_BASE_URL', 'http://scienti.colciencias.gov.co:8084')
+CVLAC_BASE_URL = os.getenv('CVLAC_BASE_URL', 'https://scienti.minciencias.gov.co')
 
 router = APIRouter(
     prefix="/cvlac",
