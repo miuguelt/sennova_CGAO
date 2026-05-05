@@ -217,7 +217,7 @@ const DocumentCenterModule = ({ onNotify }) => {
                     {doc.nombre_archivo}
                   </p>
                   <Badge variant="outline" className="text-[8px] font-black uppercase shrink-0 py-0.5 px-1.5 border-slate-100 bg-slate-50 text-slate-400">
-                    {doc.content_type.split('/')[1] || 'FILE'}
+                    {(doc.content_type || '').split('/')[1] || 'FILE'}
                   </Badge>
                 </div>
                 

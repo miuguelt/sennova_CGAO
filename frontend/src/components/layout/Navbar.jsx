@@ -242,8 +242,8 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
                 </div>
                 <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block" />
                 <button type="button" onClick={() => onNavigate('perfil')} className="hidden sm:flex items-center gap-3 pl-2 pr-1 py-1 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
-                  <div className="text-right leading-none"><p className="text-xs font-black text-slate-900">{currentUser?.nombre?.split(' ')[0]}</p><p className="text-[10px] text-slate-400 font-bold uppercase">{currentUser?.rol}</p></div>
-                  <div className="w-9 h-9 bg-gradient-to-tr from-emerald-600 to-emerald-400 rounded-xl flex items-center justify-center text-xs font-black text-white shadow-inner">{currentUser?.nombre?.charAt(0)}</div>
+                  <div className="text-right leading-none"><p className="text-xs font-black text-slate-900">{(currentUser?.nombre || '').split(' ')[0]}</p><p className="text-[10px] text-slate-400 font-bold uppercase">{currentUser?.rol}</p></div>
+                  <div className="w-9 h-9 bg-gradient-to-tr from-emerald-600 to-emerald-400 rounded-xl flex items-center justify-center text-xs font-black text-white shadow-inner">{(currentUser?.nombre || '?').charAt(0)}</div>
                 </button>
                 <button onClick={onLogout} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Cerrar sesión"><LogOut size={20} /></button>
               </div>
@@ -259,7 +259,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 blur-2xl" />
             <button onClick={() => setMenuOpen(false)} className="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors"><X size={18} /></button>
             <div className="relative z-10">
-              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-xl font-bold text-emerald-700 shadow-xl mb-4">{currentUser?.nombre?.charAt(0)}</div>
+              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-xl font-bold text-emerald-700 shadow-xl mb-4">{(currentUser?.nombre || '?').charAt(0)}</div>
               <h2 className="font-bold text-lg leading-tight">{currentUser?.nombre}</h2>
               <p className="text-emerald-400 text-xs font-bold uppercase tracking-wider mt-1">{currentUser?.rol}</p>
             </div>

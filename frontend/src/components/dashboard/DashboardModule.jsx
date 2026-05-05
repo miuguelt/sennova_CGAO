@@ -102,7 +102,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
             <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.3em]">Centro de Operaciones</span>
           </div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none">
-            Hola, {currentUser?.nombre?.split(' ')[0] || 'Investigador'}
+            Hola, {(currentUser?.nombre || '').split(' ')[0] || 'Investigador'}
           </h1>
           <p className="text-slate-500 mt-3 font-medium max-w-md leading-relaxed">
             Tienes <span className="text-indigo-600 font-bold">{stats.tareas_criticas?.proximas?.length || 0} entregables</span> programados para esta semana. Sigue impulsando la ciencia.

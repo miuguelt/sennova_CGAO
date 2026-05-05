@@ -293,7 +293,7 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
           <div className="px-8 py-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-5">
-                <div className="w-16 h-16 bg-emerald-600 text-white rounded-2xl flex items-center justify-center font-bold text-2xl shadow-lg ring-4 ring-emerald-50">{user.nombre?.charAt(0)}</div>
+                <div className="w-16 h-16 bg-emerald-600 text-white rounded-2xl flex items-center justify-center font-bold text-2xl shadow-lg ring-4 ring-emerald-50">{(user?.nombre || '?').charAt(0)}</div>
                 <div>
                   <div className="flex items-center gap-2"><h2 className="text-2xl font-black text-slate-900">{user.nombre}</h2><Badge variant="success">Verificado</Badge></div>
                   <p className="text-slate-500 flex items-center gap-2 mt-1"><Mail size={14} /> {user.email} • <Shield size={14} /> {user.rol}</p>
