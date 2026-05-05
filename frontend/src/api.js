@@ -4,7 +4,7 @@
  * REGLA ANTI-HARDCODING: Todas las configuraciones desde variables de entorno
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // URL base de CVLAC desde variable de entorno
 export const CVLAC_BASE_URL = import.meta.env.VITE_CVLAC_BASE_URL || 'http://scienti.colciencias.gov.co:8084';
