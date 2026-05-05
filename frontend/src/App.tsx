@@ -15,6 +15,7 @@ import BitacoraModule from './components/projects/BitacoraModule';
 import CronogramaModule from './components/deliverables/CronogramaModule';
 import RetosModule from './components/ideas/RetosModule';
 import CVLACAdminModule from './components/admin/CVLACAdminModule';
+import AuditoriaModule from './components/admin/AuditoriaModule';
 import DocumentCenterModule from './components/admin/DocumentCenterModule';
 import PerfilModule from './components/profile/PerfilModule';
 import NotificacionesModule from './components/notifications/NotificacionesModule';
@@ -57,7 +58,7 @@ function AppContent() {
 
   if (!currentUser) {
     return (
-      <LoginScreen 
+      <LoginScreen
         onLogin={async (e, p) => {
           try {
             await login(e, p);
@@ -74,6 +75,7 @@ function AppContent() {
             return { success: false, error: err.message };
           }
         }}
+        apiError={null}
       />
     );
   }
@@ -137,9 +139,10 @@ function AppContent() {
       case 'notificaciones': return <NotificacionesModule {...props} />;
       case 'cvlac_admin':    return <CVLACAdminModule {...props} />;
       case 'cvlac-admin':    return <CVLACAdminModule {...props} />;
+      case 'auditoria':      return currentUser?.rol === 'admin' ? <AuditoriaModule {...props} /> : <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} />;
       case 'documentos':     return <DocumentCenterModule {...props} />;
       case 'biblioteca':     return <DocumentCenterModule {...props} />;
-      default:               return <DashboardModule {...props} />;
+      default:               return <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} />;
     }
   };
 

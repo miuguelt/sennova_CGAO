@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, Search, UserPlus, Filter, Mail, 
+import {
+  Users, Search, UserPlus, Filter, Mail,
   MapPin, GraduationCap, ExternalLink, Activity,
-  MoreVertical, Edit, ShieldCheck
+  MoreVertical, Edit, ShieldCheck, X, Loader2, Save
 } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
 import { UsuariosAPI } from '../../api/usuarios';
 
 const UserCard = ({ user, onEdit, onViewActivity }) => (
@@ -65,6 +67,18 @@ const InvestigadoresModule = ({ onNotify }) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState({ rol: '', sede: '' });
+  const [showForm, setShowForm] = useState(false);
+  const [showAuditModal, setShowAuditModal] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userActivity, setUserActivity] = useState([]);
+  const [formData, setFormData] = useState({
+    nombre: '',
+    email: '',
+    rol: 'investigador',
+    password: ''
+  });
+  const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -87,11 +101,40 @@ const InvestigadoresModule = ({ onNotify }) => {
   }, []);
 
   const filteredUsers = users.filter(u => {
-    const matchesSearch = u.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          u.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = u.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          u.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRol = filter.rol ? u.rol === filter.rol : true;
     return matchesSearch && matchesRol;
   });
+
+  const handleAddUser = async () => {
+    setSaving(true);
+    try {
+      await UsuariosAPI.create(formData);
+      onNotify?.('Investigador creado exitosamente', 'success');
+      setShowForm(false);
+      setFormData({ nombre: '', email: '', rol: 'investigador', password: '' });
+      loadData();
+    } catch (err) {
+      onNotify?.('Error al crear investigador: ' + err.message, 'error');
+    }
+    setSaving(false);
+  };
+
+  const handleViewActivity = async (user) => {
+    setSelectedUser(user);
+    setShowActivityModal(true);
+    try {
+      const activity = await UsuariosAPI.getActividad(user.id);
+      setUserActivity(activity || []);
+    } catch (err) {
+      onNotify?.('Error al cargar actividad', 'error');
+      setUserActivity([]);
+    }
+  };
+
+  const adminsCount = users.filter(u => u.rol === 'admin').length;
+  const investigadoresCount = users.filter(u => u.rol === 'investigador').length;
 
   if (loading) {
     return (
@@ -114,10 +157,10 @@ const InvestigadoresModule = ({ onNotify }) => {
             Directorio centralizado del talento humano de investigación. Gestiona roles, perfiles académicos y vinculaciones institucionales.
           </p>
           <div className="flex flex-wrap gap-3 mt-6">
-            <Button variant="primary" className="bg-slate-900 hover:bg-slate-800">
+            <Button variant="primary" className="bg-slate-900 hover:bg-slate-800" onClick={() => setShowForm(true)}>
               <UserPlus size={18} className="mr-2" /> Agregar Investigador
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => setShowAuditModal(true)}>
               <ShieldCheck size={18} className="mr-2" /> Auditoría de Roles
             </Button>
           </div>
@@ -170,14 +213,154 @@ const InvestigadoresModule = ({ onNotify }) => {
       {/* User Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredUsers.map(user => (
-          <UserCard 
-            key={user.id} 
-            user={user} 
-            onEdit={() => {}} 
-            onViewActivity={(u) => console.log('Activity', u.id)} 
+          <UserCard
+            key={user.id}
+            user={user}
+            onEdit={() => {}}
+            onViewActivity={handleViewActivity}
           />
         ))}
       </div>
+
+      {/* Modal Agregar Investigador */}
+      {showForm && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <Card className="w-full max-w-lg animate-scaleIn">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900">Agregar Investigador</h3>
+              <button onClick={() => setShowForm(false)} className="p-2 hover:bg-slate-100 rounded-lg">
+                <X size={20} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <Input
+                label="Nombre completo"
+                value={formData.nombre}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                required
+              />
+              <Input
+                label="Email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+              />
+              <Select
+                label="Rol"
+                options={[
+                  { value: 'investigador', label: 'Investigador' },
+                  { value: 'admin', label: 'Administrador' }
+                ]}
+                value={formData.rol}
+                onChange={(e) => setFormData({ ...formData, rol: e.target.value })}
+              />
+              <Input
+                label="Contraseña temporal"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                required
+              />
+            </div>
+            <div className="p-6 border-t border-slate-100 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
+              <Button variant="primary" onClick={handleAddUser} disabled={saving || !formData.nombre || !formData.email || !formData.password}>
+                {saving ? <Loader2 size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
+                Guardar
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Modal Auditoría de Roles */}
+      {showAuditModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <Card className="w-full max-w-lg animate-scaleIn">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900">Auditoría de Roles</h3>
+              <button onClick={() => setShowAuditModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
+                <X size={20} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                  <p className="text-3xl font-bold text-emerald-700">{adminsCount}</p>
+                  <p className="text-sm text-emerald-600 font-medium">Administradores</p>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                  <p className="text-3xl font-bold text-blue-700">{investigadoresCount}</p>
+                  <p className="text-sm text-blue-600 font-medium">Investigadores</p>
+                </div>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                <p className="text-sm font-bold text-slate-700 mb-3">Resumen por Rol</p>
+                {users.map(u => (
+                  <div key={u.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
+                        {u.nombre.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">{u.nombre}</p>
+                        <p className="text-xs text-slate-500">{u.email}</p>
+                      </div>
+                    </div>
+                    <Badge variant={u.rol === 'admin' ? 'danger' : 'success'}>
+                      {u.rol}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-100 flex justify-end">
+              <Button variant="primary" onClick={() => setShowAuditModal(false)}>Cerrar</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Modal Ver Actividad */}
+      {showActivityModal && selectedUser && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <Card className="w-full max-w-lg animate-scaleIn">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Actividad de {selectedUser.nombre}</h3>
+                <p className="text-sm text-slate-500">{selectedUser.email}</p>
+              </div>
+              <button onClick={() => setShowActivityModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
+                <X size={20} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6 max-h-80 overflow-y-auto">
+              {userActivity.length === 0 ? (
+                <div className="text-center py-8">
+                  <Activity size={48} className="mx-auto text-slate-300 mb-3" />
+                  <p className="text-slate-500">No hay actividad registrada para este usuario.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {userActivity.map((act, idx) => (
+                    <div key={idx} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="primary" className="text-xs">{act.tipo_accion}</Badge>
+                        <span className="text-xs text-slate-400">{new Date(act.created_at).toLocaleDateString()}</span>
+                      </div>
+                      <p className="text-sm text-slate-700 mt-2">{act.descripcion}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t border-slate-100 flex justify-end">
+              <Button variant="primary" onClick={() => setShowActivityModal(false)}>Cerrar</Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

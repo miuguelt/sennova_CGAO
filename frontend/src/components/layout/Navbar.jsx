@@ -124,6 +124,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
       label: 'Sistema',
       items: [
         { id: 'cvlac-admin',   label: 'Control CVLAC', icon: FileText },
+        { id: 'auditoria',     label: 'Auditoría Completa', icon: Shield },
         { id: 'biblioteca',    label: 'Biblioteca',    icon: Layers },
         { id: 'configuracion', label: 'Configuración', icon: Settings },
       ]

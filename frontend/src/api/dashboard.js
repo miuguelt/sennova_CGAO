@@ -22,4 +22,12 @@ export const DashboardAPI = {
   analyticsEvolucion: (meses = 12) => fetchAPI(`/stats/analytics/evolucion?meses=${meses}`),
 
   globalSearch: (q) => fetchAPI(`/stats/search/global?q=${encodeURIComponent(q)}`),
+
+  // Auditoría del sistema
+  getAuditLogs: (skip = 0, limit = 100, method = '') => {
+    const params = new URLSearchParams({ skip: String(skip), limit: String(limit) });
+    if (method) params.append('method', method);
+    return fetchAPI(`/stats/audit/logs?${params}`);
+  },
+  getAuditSummary: () => fetchAPI('/stats/audit/summary'),
 };

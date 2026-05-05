@@ -13,7 +13,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Badge from '../ui/Badge';
 
-const ESTADO_VARIANT = { actualizado: 'success', desactualizado: 'warning' };
+const ESTADO_VARIANT = { 'Actualizado': 'success', 'Desactualizado': 'warning', 'Sin CVLAC': 'danger' };
 
 const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
   const [user,         setUser]         = useState(currentUser);
@@ -257,14 +257,18 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
               {/* Estado badge */}
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-2">Estado CVLAC</p>
-                <Badge variant={ESTADO_VARIANT[String(user.estado_cv_lac || '').toLowerCase()] ?? 'danger'} dot>
-                  {user.estado_cv_lac || 'sin CVLAC'}
+                <Badge variant={ESTADO_VARIANT[user.estado_cv_lac] || 'danger'} dot>
+                  {user.estado_cv_lac || 'Sin CVLAC'}
                 </Badge>
                 {editing && (
                   <Select
                     label=""
-                    options={['actualizado', 'desactualizado', 'sin CVLAC'].map(e => ({ value: e, label: e }))}
-                    value={user.estado_cv_lac || 'sin CVLAC'}
+                    options={[
+                      { value: 'Actualizado', label: 'Actualizado' },
+                      { value: 'Desactualizado', label: 'Desactualizado' },
+                      { value: 'Sin CVLAC', label: 'Sin CVLAC' }
+                    ]}
+                    value={user.estado_cv_lac || 'Sin CVLAC'}
                     onChange={(e) => setUser({ ...user, estado_cv_lac: e.target.value })}
                     className="mt-2"
                   />

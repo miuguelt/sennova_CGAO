@@ -11,7 +11,7 @@ import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 
-const ESTADO_VARIANT = { actualizado: 'success', desactualizado: 'warning' };
+const ESTADO_VARIANT = { 'Actualizado': 'success', 'Desactualizado': 'warning', 'Sin CVLAC': 'danger' };
 
 const CVLACAdminModule = ({ currentUser, onNotify }) => {
   const [usuarios,         setUsuarios]         = useState([]);
@@ -34,7 +34,7 @@ const CVLACAdminModule = ({ currentUser, onNotify }) => {
         UsuariosAPI.list(),
         CVLACAPI.resumenSistema(),
       ]);
-      setUsuarios(todosUsuarios.filter(u => u.isActive !== false));
+      setUsuarios(todosUsuarios.filter(u => u.is_active !== false));
       setResumen(resumenSistema);
     } catch (err) {
       onNotify?.('Error al cargar datos CVLAC: ' + err.message, 'error');
@@ -56,12 +56,12 @@ const CVLACAdminModule = ({ currentUser, onNotify }) => {
     setEnviandoAlertas(false);
   };
 
-  const handleUpdateEstado = async (userId, nuevoEstado, cvLacUrl = null) => {
+  const handleUpdateEstado = async (userId, nuevoEstado, cv_lac_url = null) => {
     setSaving(true);
     try {
       await UsuariosAPI.update(userId, {
-        estadoCvLac: nuevoEstado,
-        ...(cvLacUrl && { cvLacUrl }),
+        estado_cv_lac: nuevoEstado,
+        ...(cv_lac_url && { cv_lac_url }),
       });
       await loadData();
       setShowEditModal(false);
@@ -79,15 +79,15 @@ const CVLACAdminModule = ({ currentUser, onNotify }) => {
       u.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesEstado =
       estadoFilter === 'todos' ||
-      (estadoFilter === 'sin'           && (!u.estadoCvLac || u.estadoCvLac === 'sin CVLAC')) ||
-      (estadoFilter === 'actualizado'   && u.estadoCvLac === 'actualizado') ||
-      (estadoFilter === 'desactualizado'&& u.estadoCvLac === 'desactualizado');
+      (estadoFilter === 'sin'           && (!u.estado_cv_lac || u.estado_cv_lac === 'Sin CVLAC')) ||
+      (estadoFilter === 'actualizado'   && u.estado_cv_lac === 'Actualizado') ||
+      (estadoFilter === 'desactualizado'&& u.estado_cv_lac === 'Desactualizado');
     return matchesSearch && matchesEstado;
   });
 
-  const usuariosSinCVLAC       = usuarios.filter(u => !u.estadoCvLac || u.estadoCvLac === 'sin CVLAC');
-  const usuariosActualizados   = usuarios.filter(u => u.estadoCvLac === 'actualizado');
-  const usuariosDesactualizados= usuarios.filter(u => u.estadoCvLac === 'desactualizado');
+  const usuariosSinCVLAC       = usuarios.filter(u => !u.estado_cv_lac || u.estado_cv_lac === 'Sin CVLAC');
+  const usuariosActualizados   = usuarios.filter(u => u.estado_cv_lac === 'Actualizado');
+  const usuariosDesactualizados= usuarios.filter(u => u.estado_cv_lac === 'Desactualizado');
 
   if (loading) return (
     <div className="p-12 text-center">
@@ -264,14 +264,14 @@ const CVLACAdminModule = ({ currentUser, onNotify }) => {
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600">{u.email}</td>
                   <td className="px-4 py-3">
-                    <Badge variant={ESTADO_VARIANT[u.estadoCvLac] ?? 'danger'}>
-                      {u.estadoCvLac || 'sin CVLAC'}
+                    <Badge variant={ESTADO_VARIANT[u.estado_cv_lac] || 'danger'}>
+                      {u.estado_cv_lac || 'Sin CVLAC'}
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
-                    {u.cvLacUrl ? (
+                    {u.cv_lac_url ? (
                       <a
-                        href={u.cvLacUrl}
+                        href={u.cv_lac_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-emerald-600 hover:text-emerald-700 flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
@@ -323,13 +323,13 @@ const CVLACAdminModule = ({ currentUser, onNotify }) => {
                 <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="edit-estado">Estado CVLAC</label>
                 <select
                   id="edit-estado"
-                  value={selectedUser.estadoCvLac || 'sin CVLAC'}
-                  onChange={(e) => setSelectedUser({ ...selectedUser, estadoCvLac: e.target.value })}
+                  value={selectedUser.estado_cv_lac || 'Sin CVLAC'}
+                  onChange={(e) => setSelectedUser({ ...selectedUser, estado_cv_lac: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 bg-white"
                 >
-                  <option value="actualizado">Actualizado</option>
-                  <option value="desactualizado">Desactualizado</option>
-                  <option value="sin CVLAC">Sin CVLAC</option>
+                  <option value="Actualizado">Actualizado</option>
+                  <option value="Desactualizado">Desactualizado</option>
+                  <option value="Sin CVLAC">Sin CVLAC</option>
                 </select>
               </div>
               <div>
@@ -337,8 +337,8 @@ const CVLACAdminModule = ({ currentUser, onNotify }) => {
                 <input
                   id="edit-url"
                   type="url"
-                  value={selectedUser.cvLacUrl || ''}
-                  onChange={(e) => setSelectedUser({ ...selectedUser, cvLacUrl: e.target.value })}
+                  value={selectedUser.cv_lac_url || ''}
+                  onChange={(e) => setSelectedUser({ ...selectedUser, cv_lac_url: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                   placeholder={CVLAC_URL_PLACEHOLDER}
                 />
@@ -348,7 +348,7 @@ const CVLACAdminModule = ({ currentUser, onNotify }) => {
               <Button variant="secondary" onClick={() => setShowEditModal(false)}>Cancelar</Button>
               <Button
                 variant="sena"
-                onClick={() => handleUpdateEstado(selectedUser.id, selectedUser.estadoCvLac, selectedUser.cvLacUrl)}
+                onClick={() => handleUpdateEstado(selectedUser.id, selectedUser.estado_cv_lac, selectedUser.cv_lac_url)}
                 disabled={saving}
               >
                 {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} aria-hidden="true" />}

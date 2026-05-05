@@ -40,6 +40,7 @@ def _make_user_dict(user: User, db: Session = None) -> dict:
         "regional": user.regional,
         "is_active": user.is_active,
         "cv_lac_url": user.cv_lac_url,
+        "estado_cv_lac": user.estado_cv_lac,
         "cv_pdf_id": cv_pdf_id,
         "nivel_academico": user.nivel_academico,
         "rol_sennova": user.rol_sennova,

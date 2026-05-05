@@ -3,6 +3,7 @@ Router de Estadísticas
 Dashboard y estadísticas del sistema
 """
 
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -400,12 +401,12 @@ def global_search(
         (User.nombre.ilike(search_filter)) | 
         (User.email.ilike(search_filter))
     ).limit(5).all()
-    
+
     for u in usuarios:
         results.append({
             "id": str(u.id),
             "title": u.nombre,
-            "subtitle": f"Investigador - {u.rol_sennova or u.rol}",
+            "subtitle": f"Investigador - {getattr(u, 'rol_sennova', None) or getattr(u, 'rol', 'Sin rol')}",
             "type": "investigador",
             "icon": "user",
             "url": f"/investigadores"
@@ -444,3 +445,79 @@ def global_search(
         })
         
     return {"results": results}
+
+
+@router.get("/audit/logs")
+def get_audit_logs(
+    skip: int = 0,
+    limit: int = 100,
+    method: Optional[str] = None,
+    user_id: Optional[str] = None,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Obtener logs de auditoría del sistema (solo admin)."""
+    from app.models import AuditLog
+
+    query = db.query(AuditLog).order_by(AuditLog.created_at.desc())
+
+    if method:
+        query = query.filter(AuditLog.method == method.upper())
+    if user_id:
+        query = query.filter(AuditLog.user_id == user_id)
+
+    total = query.count()
+    logs = query.offset(skip).limit(limit).all()
+
+    return {
+        "total": total,
+        "logs": [{
+            "id": str(log.id),
+            "user_id": str(log.user_id) if log.user_id else None,
+            "user_email": log.user.email if log.user else "Sistema",
+            "user_nombre": log.user.nombre if log.user else "N/A",
+            "method": log.method,
+            "endpoint": log.endpoint,
+            "status_code": log.status_code,
+            "ip_address": log.ip_address,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+            "payload_snapshot": log.payload_snapshot
+        } for log in logs]
+    }
+
+
+@router.get("/audit/summary")
+def get_audit_summary(
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Obtener resumen de auditoría del sistema (solo admin)."""
+    from app.models import AuditLog
+    from sqlalchemy import func
+
+    hoy = datetime.now(timezone.utc)
+    hace_7_dias = hoy - timedelta(days=7)
+    hace_30_dias = hoy - timedelta(days=30)
+
+    # Conteos por método
+    por_metodo = db.query(
+        AuditLog.method,
+        func.count(AuditLog.id).label('count')
+    ).group_by(AuditLog.method).all()
+
+    # Conteos por día (últimos 7 días)
+    por_dia = db.query(
+        func.date(AuditLog.created_at).label('fecha'),
+        func.count(AuditLog.id).label('count')
+    ).filter(AuditLog.created_at >= hace_7_dias).group_by(
+        func.date(AuditLog.created_at)
+    ).order_by(func.date(AuditLog.created_at)).all()
+
+    return {
+        "total_logs": db.query(AuditLog).count(),
+        "logs_ultimos_7_dias": db.query(AuditLog).filter(AuditLog.created_at >= hace_7_dias).count(),
+        "logs_ultimos_30_dias": db.query(AuditLog).filter(AuditLog.created_at >= hace_30_dias).count(),
+        "por_metodo": [{"method": m.method, "count": m.count} for m in por_metodo],
+        "por_dia": [{"fecha": str(d.fecha), "count": d.count} for d in por_dia],
+        "ultimos_logs": db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(5).count()
+    }
