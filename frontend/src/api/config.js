@@ -20,6 +20,19 @@ export const getHeaders = () => {
   };
 };
 
+const normalizePath = (value) => `/${String(value || '').replace(/^\/+/, '')}`;
+
+const buildApiUrl = (endpoint) => {
+  const base = API_URL.replace(/\/+$/, '');
+  const path = normalizePath(endpoint);
+  const normalizedBase = normalizePath(base);
+
+  if (/^https?:\/\//i.test(endpoint)) return endpoint;
+  if (path === normalizedBase || path.startsWith(`${normalizedBase}/`)) return path;
+
+  return `${base}${path}`;
+};
+
 const getErrorMessage = (error, fallback) => {
   const detail = error?.detail;
 
@@ -35,7 +48,7 @@ const getErrorMessage = (error, fallback) => {
 
 // Fetch con manejo de errores
 export async function fetchAPI(endpoint, options = {}) {
-  const url = `${API_URL}${endpoint}`;
+  const url = buildApiUrl(endpoint);
   
   const config = {
     ...options,

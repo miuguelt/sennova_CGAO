@@ -21,6 +21,19 @@ from app.models import (
 router = APIRouter(prefix="/stats", tags=["Estadísticas"])
 
 
+def calcular_progreso_entregables(entregables_query):
+    """Calcula progreso para relaciones dinámicas o listas de entregables."""
+    if hasattr(entregables_query, "count") and hasattr(entregables_query, "filter"):
+        total = entregables_query.count()
+        aprobados = entregables_query.filter(Entregable.estado == "aprobado").count()
+    else:
+        entregables = list(entregables_query or [])
+        total = len(entregables)
+        aprobados = len([e for e in entregables if e.estado == "aprobado"])
+
+    return int((aprobados / total * 100)) if total > 0 else 0
+
+
 @router.get("/dashboard")
 def get_dashboard_stats(
     current_user: User = Depends(get_current_user),
@@ -331,10 +344,9 @@ def get_user_impact(
         "proyectos_lista": [{
             "id": str(p.id),
             "nombre": p.nombre_corto or p.nombre,
-            "rol": "Líder" if p.owner_id == uid else "Coinvestigador",
+            "rol": "Líder" if str(p.owner_id) == uid else "Coinvestigador",
             "estado": p.estado,
-            # Progreso real basado en sus propios entregables
-            "progreso": int((len([e for e in p.entregables if e.estado == 'aprobado']) / len(p.entregables) * 100)) if p.entregables else 0,
+            "progreso": calcular_progreso_entregables(p.entregables),
             "presupuesto": p.presupuesto_total or 0,
             "inicio": p.created_at.date()
         } for p in todos_los_proyectos],

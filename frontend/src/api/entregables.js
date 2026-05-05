@@ -3,9 +3,9 @@
  * Gestión de entregables y cronograma de proyectos
  */
 
-import { API_URL, fetchAPI } from './config';
+import { fetchAPI } from './config';
 
-const API_BASE = `${API_URL}/entregables`;
+const API_BASE = '/entregables';
 
 export const EntregablesAPI = {
   /**

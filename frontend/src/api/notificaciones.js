@@ -3,9 +3,9 @@
  * Sistema de alertas in-app
  */
 
-import { API_URL, fetchAPI } from './config';
+import { fetchAPI } from './config';
 
-const API_BASE = `${API_URL}/notificaciones`;
+const API_BASE = '/notificaciones';
 
 export const NotificacionesAPI = {
   /**
