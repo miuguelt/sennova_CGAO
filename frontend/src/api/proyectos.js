@@ -31,4 +31,6 @@ export const ProyectosAPI = {
   removeEquipo: (proyectoId, userId) => fetchAPI(`/proyectos/${proyectoId}/equipo/${userId}`, {
     method: 'DELETE',
   }),
+
+  checkLiquidacion: (id) => fetchAPI(`/proyectos/${id}/liquidar/check`),
 };

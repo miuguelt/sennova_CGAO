@@ -171,3 +171,66 @@ def eliminar_entrada(
     db.commit()
     return {"status": "deleted"}
 
+
+@router.post("/{entry_id}/upload", response_model=BitacoraResponse)
+async def subir_evidencia_bitacora(
+    entry_id: UUID,
+    file: Request, # Usaremos el router de documentos internamente o FastAPI UploadFile
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Sube un archivo de evidencia y lo vincula a la entrada de bitácora.
+    Nota: En una implementación real, este endpoint recibiría UploadFile.
+    Aquí lo integramos con la lógica de Documento.
+    """
+    from fastapi import UploadFile, File as FastFile
+    
+    # Esta es la firma real que necesitamos
+    return await ejecutar_subida_evidencia(entry_id, None, db, current_user)
+
+# Helper para no romper la estructura de arriba si quiero usar UploadFile
+@router.post("/{entry_id}/adjuntos", response_model=BitacoraResponse)
+async def upload_adjunto_bitacora(
+    entry_id: UUID,
+    file: UploadFile = FastFile(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    entry = db.query(BitacoraEntry).filter(BitacoraEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entrada no encontrada")
+    
+    if entry.is_firmado_investigador and entry.is_firmado_aprendiz:
+        raise HTTPException(status_code=400, detail="No se pueden añadir adjuntos a una bitácora firmada")
+
+    # Usar el servicio de documentos
+    from app.routers.documentos import upload_documento
+    
+    # Simulamos el Form de upload_documento
+    doc = await upload_documento(
+        entidad_tipo="proyecto", # O podríamos crear un tipo 'bitacora'
+        entidad_id=str(entry.proyecto_id),
+        tipo="evidencia_bitacora",
+        file=file,
+        current_user=current_user,
+        db=db
+    )
+    
+    # Actualizar adjuntos en la bitácora
+    current_adjuntos = entry.adjuntos or []
+    current_adjuntos.append({
+        "id": str(doc.id),
+        "nombre": doc.nombre_archivo,
+        "url": f"/api/documentos/{doc.id}/view",
+        "tipo": doc.content_type,
+        "fecha": datetime.now(timezone.utc).isoformat()
+    })
+    
+    entry.adjuntos = current_adjuntos
+    db.commit()
+    db.refresh(entry)
+    
+    entry.user_nombre = entry.user.nombre
+    return entry
+

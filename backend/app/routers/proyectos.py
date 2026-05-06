@@ -56,20 +56,23 @@ def list_proyectos(
     result = []
     for p in proyectos:
         equipo = []
+        # Obtener los datos de la tabla de asociación de una sola vez para este proyecto
+        stmt = proyecto_equipo.select().where(proyecto_equipo.c.proyecto_id == str(p.id))
+        equipo_res = db.execute(stmt).fetchall()
+        
+        # Crear un mapa para acceso rápido
+        equipo_map = {str(row.user_id): row for row in equipo_res}
+        
         for m in p.equipo:
-            # Buscar info de la tabla de asociación
-            eq_info = db.execute(
-                proyecto_equipo.select().where(
-                    proyecto_equipo.c.proyecto_id == str(p.id),
-                    proyecto_equipo.c.user_id == str(m.id)
-                )
-            ).fetchone()
+            info = equipo_map.get(str(m.id))
             equipo.append({
                 "id": str(m.id),
                 "nombre": m.nombre,
                 "email": m.email,
-                "rol_en_proyecto": eq_info.rol_en_proyecto if eq_info else None,
-                "horas_dedicadas": eq_info.horas_dedicadas if eq_info else None
+                "rol_en_proyecto": info.rol_en_proyecto if info else "Miembro",
+                "horas_dedicadas": info.horas_dedicadas if info else 0,
+                "ficha": getattr(m, 'ficha', None),
+                "programa_formacion": getattr(m, 'programa_formacion', None)
             })
         
         result.append({
@@ -120,19 +123,21 @@ def get_proyecto(
     
     # Construir respuesta manualmente
     equipo = []
+    # Obtener los datos de la tabla de asociación
+    stmt = proyecto_equipo.select().where(proyecto_equipo.c.proyecto_id == str(proyecto.id))
+    equipo_res = db.execute(stmt).fetchall()
+    equipo_map = {str(row.user_id): row for row in equipo_res}
+
     for m in proyecto.equipo:
-        eq_info = db.execute(
-            proyecto_equipo.select().where(
-                proyecto_equipo.c.proyecto_id == str(proyecto.id),
-                proyecto_equipo.c.user_id == str(m.id)
-            )
-        ).fetchone()
+        info = equipo_map.get(str(m.id))
         equipo.append({
             "id": str(m.id),
             "nombre": m.nombre,
             "email": m.email,
-            "rol_en_proyecto": eq_info.rol_en_proyecto if eq_info else None,
-            "horas_dedicadas": eq_info.horas_dedicadas if eq_info else None
+            "rol_en_proyecto": info.rol_en_proyecto if info else "Miembro",
+            "horas_dedicadas": info.horas_dedicadas if info else 0,
+            "ficha": getattr(m, 'ficha', None),
+            "programa_formacion": getattr(m, 'programa_formacion', None)
         })
     
     return {
@@ -276,6 +281,16 @@ def update_proyecto(
         raise HTTPException(status_code=403, detail="Sin permiso para editar")
     
     update_data = proyecto_update.dict(exclude_unset=True)
+    
+    # Validación de Liquidación (Finalizado)
+    if update_data.get("estado") == "Finalizado":
+        check = check_liquidacion(proyecto_id, db, current_user)
+        if not check["can_liquidate"]:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"No se puede finalizar el proyecto. {check['message']}"
+            )
+
     for field, value in update_data.items():
         if field != "equipo":  # Equipo se maneja separado
             # Si el campo es convocatoria_id, asegurar que sea string para SQLite
@@ -298,6 +313,56 @@ def update_proyecto(
 
     # Retornar el detalle completo (usando el mismo formato que get_proyecto)
     return get_proyecto(proyecto_id, current_user, db)
+
+
+@router.get("/{proyecto_id}/liquidar/check")
+def check_liquidacion(
+    proyecto_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Verifica si un proyecto cumple con todos los requisitos para ser liquidado (Finalizado).
+    """
+    proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
+    if not proyecto:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    
+    # 1. Verificación de Productos
+    productos_verificados = [p for p in proyecto.productos if p.is_verificado]
+    min_productos = 1 if proyecto.tipologia == "Red" else 2
+    ok_productos = len(productos_verificados) >= min_productos
+    
+    # 2. Verificación de Bitácoras (Firmas)
+    bitacoras = proyecto.bitacora
+    firmas_completas = all(b.is_firmado_investigador and b.is_firmado_aprendiz for b in bitacoras) if bitacoras else True
+    ok_bitacoras = firmas_completas
+    
+    # 3. Informe Final
+    informe_final = db.query(Documento).filter(
+        Documento.entidad_tipo == "proyecto",
+        Documento.entidad_id == str(proyecto.id),
+        Documento.tipo == "informe_final"
+    ).first()
+    ok_informe = informe_final is not None
+    
+    # 4. Presupuesto (Debe tener un valor asignado)
+    ok_presupuesto = (proyecto.presupuesto_total or 0) > 0
+    
+    checklist = [
+        {"id": "productos", "label": f"Productos Verificados ({len(productos_verificados)}/{min_productos})", "status": ok_productos},
+        {"id": "bitacoras", "label": "Bitácoras con Firmas Digitales Completas", "status": ok_bitacoras},
+        {"id": "informe", "label": "Informe Final Técnico Cargado", "status": ok_informe},
+        {"id": "presupuesto", "label": "Presupuesto Asignado y Reportado", "status": ok_presupuesto}
+    ]
+    
+    can_liquidate = all(item["status"] for item in checklist)
+    
+    return {
+        "can_liquidate": can_liquidate,
+        "checklist": checklist,
+        "message": "Proyecto apto para liquidación" if can_liquidate else "Faltan requisitos para el cierre técnico"
+    }
 
 
 @router.delete("/{proyecto_id}")

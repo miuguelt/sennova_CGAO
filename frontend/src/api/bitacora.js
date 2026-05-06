@@ -16,6 +16,13 @@ export const BitacoraAPI = {
     sign: (id, data = {}) => fetchAPI(`/bitacora/${id}/sign`, {
         method: 'POST',
         body: JSON.stringify(data)
+    }),
+    uploadAdjunto: (id, formData) => fetchAPI(`/bitacora/${id}/adjuntos`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            // fetchAPI manejará el Content-Type si es FormData
+            'Accept': 'application/json'
+        }
     })
-
 };

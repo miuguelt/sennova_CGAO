@@ -148,15 +148,16 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [memberForm, setMemberForm] = useState({ user_id: '', rol: 'Aprendiz' });
-  const [dragOver, setDragOver] = useState(false);
-  const [isPoolVisible, setIsPoolVisible] = useState(false);
-  const [usuarios, setUsuarios] = useState([]);
+  const [isPoolVisible,    setIsPoolVisible]    = useState(false);
+  const [usuarios,         setUsuarios]         = useState([]);
   const [selectedSemillero, setSelectedSemillero] = useState(null);
-  const [showMemberModal, setShowMemberModal] = useState(false);
-  const [aprendices, setAprendices] = useState([]);
-  const [investigadores, setInvestigadores] = useState([]);
-  const [memberType, setMemberType] = useState('aprendiz'); // 'aprendiz' or 'investigador'
-  const [linkMode, setLinkMode] = useState('existing'); // 'existing' or 'new'
+  const [showMemberModal,  setShowMemberModal]  = useState(false);
+  const [aprendices,       setAprendices]       = useState([]);
+  const [investigadores,   setInvestigadores]   = useState([]);
+  const [talentTab,        setTalentTab]        = useState('aprendices'); 
+  const [memberToLink,     setMemberToLink]     = useState(null);
+  const [linkingRole,      setLinkingRole]      = useState('Aprendiz');
+  const [linkMode,         setLinkMode]         = useState('existing'); 
   const [aprendizForm, setAprendizForm] = useState({ 
     user_id: '', 
     estado: 'activo',
@@ -716,190 +717,188 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                       <UserPlus size={14} className={memberType === 'aprendiz' ? 'text-indigo-600' : 'text-emerald-600'} /> 
                       Vincular Nuevo {memberType === 'aprendiz' ? 'Aprendiz' : 'Investigador'}
+                  {/* Role/Hours Prompt Overlay for Semillero */}
+                  {memberToLink && (
+                    <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-md flex flex-col items-center justify-center p-8 animate-fadeIn text-center rounded-[2rem]">
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg ${talentTab === 'aprendices' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                        <Users size={32} />
+                      </div>
+                      <h4 className="text-sm font-black text-slate-900 mb-1">Vincular a {memberToLink.nombre}</h4>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">Configuración de Rol</p>
+                      
+                      <div className="w-full max-w-xs space-y-4">
+                        <div className="space-y-1.5 text-left">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Rol en el Semillero</label>
+                          <select 
+                            value={linkingRole}
+                            onChange={(e) => setLinkingRole(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                          >
+                            {talentTab === 'aprendices' 
+                              ? <option value="Aprendiz">Aprendiz Investigador</option>
+                              : ROLES_SEMILLERO.map(r => <option key={r.value} value={r.value}>{r.label}</option>)
+                            }
+                          </select>
+                        </div>
+
+                        <div className="flex gap-3 pt-4">
+                          <Button variant="secondary" className="flex-1" onClick={() => setMemberToLink(null)}>Cancelar</Button>
+                          <Button variant="sena" className="flex-1" onClick={async () => {
+                            try {
+                              if (talentTab === 'aprendices') {
+                                await SemillerosAPI.addAprendiz(selectedSemillero.id, { user_id: memberToLink.id, estado: 'activo' });
+                              } else {
+                                await SemillerosAPI.addInvestigador(selectedSemillero.id, { user_id: memberToLink.id, rol_en_semillero: linkingRole });
+                              }
+                              onNotify?.('Integrante vinculado correctamente', 'success');
+                              setMemberToLink(null);
+                              const [data, semData] = await Promise.all([
+                                SemillerosAPI.listAprendices(selectedSemillero.id),
+                                SemillerosAPI.get(selectedSemillero.id)
+                              ]);
+                              setAprendices(data || []);
+                              setInvestigadores(semData.investigadores || []);
+                              loadData();
+                            } catch (err) {
+                              onNotify?.('Error al vincular: ' + err.message, 'error');
+                            }
+                          }}>Vincular</Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <UserPlus size={14} className={talentTab === 'aprendices' ? 'text-indigo-600' : 'text-emerald-600'} /> Vincular Talento
                     </p>
-                    <button 
-                      onClick={() => setIsPoolVisible(!isPoolVisible)}
-                      className={`text-[10px] font-black uppercase hover:underline ${memberType === 'aprendiz' ? 'text-indigo-600' : 'text-emerald-600'}`}
-                    >
-                      {isPoolVisible ? 'Cerrar Panel de Arrastre' : 'Abrir Panel de Arrastre'}
+                    <button onClick={() => setIsPoolVisible(!isPoolVisible)} className={`text-[10px] font-black uppercase hover:underline ${talentTab === 'aprendices' ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                      {isPoolVisible ? 'Cerrar Directorio' : 'Abrir Pool'}
                     </button>
                   </div>
 
-                  {/* Floating Talent Pool for Dragging (Inline) */}
-                  {isPoolVisible && (
-                    <div className="mb-6 bg-slate-100/50 p-4 rounded-2xl border border-slate-200/50 animate-fadeIn">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                          <Hand size={14} /> Talento Disponible (Arrastra hacia el recuadro)
-                        </span>
+                  <div className="flex flex-col gap-4">
+                    {talentTab === 'aprendices' && (
+                      <div className="flex bg-slate-100 p-1 rounded-xl mb-2">
+                        <button onClick={() => setLinkMode('existing')} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'existing' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}>Vincular Existente</button>
+                        <button onClick={() => setLinkMode('new')} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'new' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}>Registrar y Vincular</button>
                       </div>
-                      <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto scrollbar-thin p-1">
-                        {usuarios
-                          .filter(u => {
-                            if (memberType === 'aprendiz') return !aprendices.some(a => a.user_id === u.id);
-                            return !investigadores.some(inv => inv.id === u.id);
-                          })
-                          .map(u => (
-                            <div 
-                              key={u.id}
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, u)}
-                              className="px-3 py-2 bg-white border border-slate-200 rounded-xl cursor-grab active:cursor-grabbing hover:border-indigo-400 hover:shadow-sm transition-all text-[10px] font-bold text-slate-700 flex items-center gap-2"
-                            >
-                              <div className="w-5 h-5 rounded-lg bg-slate-100 flex items-center justify-center text-[8px] font-black">{u.nombre.charAt(0)}</div>
-                              <span className="truncate max-w-[120px]">{u.nombre}</span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
+                    )}
 
-                  {memberType === 'aprendiz' ? (
-                    <>
-                      <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
-                        <button 
-                          onClick={() => setLinkMode('existing')}
-                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'existing' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
-                        >
-                          Vincular Existente
-                        </button>
-                        <button 
-                          onClick={() => setLinkMode('new')}
-                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'new' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
-                        >
-                          Registrar y Vincular
-                        </button>
-                      </div>
-
-                      {linkMode === 'existing' ? (
-                        <div className="grid grid-cols-1 gap-4 mb-4">
-                          <Select 
-                            label="Seleccionar Usuario"
-                            placeholder="Buscar por nombre..."
-                            options={usuarios.map(u => ({ value: u.id, label: `${u.nombre} (${u.email})` }))}
-                            value={aprendizForm.user_id}
-                            onChange={e => setAprendizForm({...aprendizForm, user_id: e.target.value})}
-                          />
+                    <div className="p-5 bg-slate-900 rounded-2xl space-y-4 shadow-xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl -mr-12 -mt-12" />
+                      
+                      {linkMode === 'new' && talentTab === 'aprendices' ? (
+                        <div className="space-y-4 relative z-10">
+                           <div className="grid grid-cols-2 gap-3">
+                              <input placeholder="Email" className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white" value={aprendizForm.email} onChange={e => setAprendizForm({...aprendizForm, email: e.target.value})} />
+                              <input placeholder="Nombre" className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white" value={aprendizForm.nombre} onChange={e => setAprendizForm({...aprendizForm, nombre: e.target.value})} />
+                           </div>
+                           <Button variant="sena" className="w-full h-10 text-[10px]" onClick={handleAddAprendiz}>Registrar Aprendiz</Button>
                         </div>
                       ) : (
-                        <div className="space-y-4 mb-4 animate-fadeIn">
-                          <div className="grid grid-cols-2 gap-4">
-                            <Input label="Email" type="email" placeholder="correo@sena.edu.co" value={aprendizForm.email} onChange={e => setAprendizForm({...aprendizForm, email: e.target.value})} />
-                            <Input label="Nombre Completo" placeholder="Juan Pérez" value={aprendizForm.nombre} onChange={e => setAprendizForm({...aprendizForm, nombre: e.target.value})} />
+                        <div className="relative z-10 flex gap-3">
+                          <select 
+                            className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer"
+                            onChange={(e) => {
+                              const u = usuarios.find(usr => usr.id === e.target.value);
+                              if (u) {
+                                setMemberToLink(u);
+                                setLinkingRole(talentTab === 'aprendices' ? 'Aprendiz' : 'Investigador');
+                              }
+                              e.target.value = ""; 
+                            }}
+                            value=""
+                          >
+                            <option value="">Buscar en el directorio CGAO...</option>
+                            {usuarios
+                              .filter(u => !aprendices.some(a => a.user_id === u.id) && !investigadores.some(inv => inv.id === u.id))
+                              .filter(u => talentTab === 'aprendices' ? (u.ficha || u.programa_formacion) : (!u.ficha && !u.programa_formacion))
+                              .map(u => (
+                                <option key={u.id} value={u.id}>{u.nombre} {u.ficha ? `(Ficha: ${u.ficha})` : ''}</option>
+                              ))}
+                          </select>
+                          <div className={`hidden sm:flex items-center px-4 rounded-xl text-[10px] font-black uppercase tracking-widest ${talentTab === 'aprendices' ? 'bg-indigo-600' : 'bg-emerald-600'} text-white`}>
+                            <Plus size={16} />
                           </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <Input label="Documento" placeholder="1098..." value={aprendizForm.documento} onChange={e => setAprendizForm({...aprendizForm, documento: e.target.value})} />
-                            <Input label="Ficha" placeholder="267..." value={aprendizForm.ficha} onChange={e => setAprendizForm({...aprendizForm, ficha: e.target.value})} />
-                          </div>
-                          <Input label="Programa de Formación" placeholder="ADSO, Cocina, etc." value={aprendizForm.programa_formacion} onChange={e => setAprendizForm({...aprendizForm, programa_formacion: e.target.value})} />
                         </div>
                       )}
-                    </>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-4 mb-4 animate-fadeIn">
-                      <Select 
-                        label="Seleccionar Investigador"
-                        placeholder="Buscar por nombre..."
-                        options={usuarios.filter(u => u.rol === 'investigador' || u.rol === 'admin').map(u => ({ value: u.id, label: `${u.nombre} (${u.email})` }))}
-                        value={investigadorForm.user_id}
-                        onChange={e => setInvestigadorForm({...investigadorForm, user_id: e.target.value})}
-                      />
-                      <Select 
-                        label="Rol en el Semillero"
-                        options={ROLES_SEMILLERO}
-                        value={investigadorForm.rol_en_semillero}
-                        onChange={e => setInvestigadorForm({...investigadorForm, rol_en_semillero: e.target.value})}
-                      />
                     </div>
-                  )}
-
-                  <div className="flex gap-2 mt-6">
-                    <Button 
-                      variant="sena" 
-                      className={`flex-1 py-3 ${memberType === 'aprendiz' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`} 
-                      onClick={handleAddAprendiz}
-                    >
-                      {memberType === 'aprendiz' 
-                        ? (linkMode === 'existing' ? 'Vincular Aprendiz' : 'Registrar y Vincular') 
-                        : 'Vincular Investigador'}
-                    </Button>
                   </div>
                 </div>
 
-                {memberType === 'aprendiz' ? (
-                  <div className="space-y-3 pb-10">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Aprendices Vinculados ({aprendices.length})</h4>
+                <div className="space-y-6 pb-10">
+                  {/* Aprendices List */}
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <GraduationCap size={14} className="text-indigo-500" /> Aprendices Vinculados ({aprendices.length})
+                    </h4>
                     {aprendices.length === 0 ? (
-                      <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
-                        <Users size={32} className="mx-auto text-slate-300 mb-3" />
-                        <p className="text-slate-400 font-bold text-sm italic">No hay aprendices registrados.</p>
+                      <div className="p-8 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-100 text-center">
+                        <p className="text-[10px] text-slate-400 font-black uppercase">Sin aprendices</p>
                       </div>
                     ) : (
-                      aprendices.map(a => (
-                        <div key={a.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-indigo-300 hover:shadow-md transition-all">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm">
-                              {(a.nombre || '?').charAt(0)}
+                      <div className="grid grid-cols-1 gap-3">
+                        {aprendices.map(a => (
+                          <div key={a.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 text-white flex items-center justify-center font-black text-lg shadow-lg shadow-indigo-500/20">
+                                {(a.nombre || '?').charAt(0)}
+                              </div>
+                              <div>
+                                <p className="text-sm font-black text-slate-900 group-hover:text-indigo-700 transition-colors">{a.nombre}</p>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
+                                  {a.programa || 'Sin programa'} • Ficha: {a.ficha || 'N/A'}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-black text-slate-900">{a.nombre}</p>
-                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-                                DOC: {a.documento || 'N/A'} • {a.programa || 'Sin programa'}
-                              </p>
+                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => handleGenerateCertificate(a)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl" title="Generar Certificado"><Award size={18} /></button>
+                              <button onClick={() => handleRemoveAprendiz(a.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl" title="Desvincular"><Trash2 size={18} /></button>
                             </div>
                           </div>
-                          <div className="flex gap-2">
-                            <button 
-                              onClick={() => handleGenerateCertificate(a)} 
-                              className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                              title="Generar Certificado"
-                            >
-                              <Award size={18} />
-                            </button>
-                            <button onClick={() => handleRemoveAprendiz(a.id)} className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </div>
-                      ))
+                        ))}
+                      </div>
                     )}
                   </div>
-                ) : (
-                  <div className="space-y-3 pb-10">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Equipo de Investigadores ({investigadores.length})</h4>
+
+                  {/* Investigadores List */}
+                  <div className="space-y-4 pt-6 border-t border-slate-100">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <Shield size={14} className="text-emerald-500" /> Equipo de Investigadores ({investigadores.length})
+                    </h4>
                     {investigadores.length === 0 ? (
-                      <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
-                        <Shield size={32} className="mx-auto text-slate-300 mb-3" />
-                        <p className="text-slate-400 font-bold text-sm italic">No hay investigadores vinculados.</p>
+                      <div className="p-8 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-100 text-center">
+                        <p className="text-[10px] text-slate-400 font-black uppercase">Sin investigadores</p>
                       </div>
                     ) : (
-                      investigadores.map(inv => (
-                        <div key={inv.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-emerald-300 hover:shadow-md transition-all">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-sm">
-                              {(inv.nombre || '?').charAt(0)}
+                      <div className="grid grid-cols-1 gap-3">
+                        {investigadores.map(inv => (
+                          <div key={inv.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl hover:border-emerald-300 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-300">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-black text-lg shadow-lg shadow-emerald-500/20">
+                                {(inv.nombre || '?').charAt(0)}
+                              </div>
+                              <div>
+                                <p className="text-sm font-black text-slate-900 group-hover:text-emerald-700 transition-colors">{inv.nombre}</p>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
+                                  {inv.rol_en_semillero} • {inv.email}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-black text-slate-900">{inv.nombre}</p>
-                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-                                {inv.rol_en_semillero} • {inv.email}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
                             <button 
                               onClick={() => handleRemoveInvestigador(inv.id)} 
-                              className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                              className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
                               disabled={inv.id === selectedSemillero.owner_id}
                             >
                               <Trash2 size={18} />
                             </button>
                           </div>
-                        </div>
-                      ))
+                        ))}
+                      </div>
                     )}
                   </div>
-                )}
+                </div>
               </div>
             </div>
             

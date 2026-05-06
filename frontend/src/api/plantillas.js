@@ -18,6 +18,14 @@ export const PlantillasAPI = {
     fetchAPI(`/plantillas/usuarios/${userId}/reporte-mensual`),
 
   // Presupuesto
-  generarReportePresupuesto: (proyectoId) => 
+  getReportePresupuesto: (proyectoId) => 
     fetchAPI(`/plantillas/proyectos/${proyectoId}/presupuesto-detalle`),
+
+  // Certificados Masivos
+  getCertificadosMasivos: (proyectoId) => 
+    fetchAPI(`/plantillas/proyectos/${proyectoId}/certificados-masivos`),
+
+  // Bitácora
+  getBitacoraOficial: (proyectoId) => 
+    fetchAPI(`/plantillas/proyectos/${proyectoId}/bitacora-oficial`),
 };

@@ -106,8 +106,11 @@ const GruposModule = ({ currentUser, onNotify }) => {
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [grupoSemilleros, setGrupoSemilleros] = useState([]);
   const [loadingSemilleros, setLoadingSemilleros] = useState(false);
-  const [isPoolVisible, setIsPoolVisible] = useState(false);
-  const [dragOverGroup, setDragOverGroup] = useState(false);
+  const [isPoolVisible,    setIsPoolVisible]    = useState(false);
+  const [dragOverGroup,     setDragOverGroup]     = useState(false);
+  const [talentTab,        setTalentTab]        = useState('investigadores');
+  const [memberToLink,     setMemberToLink]     = useState(null);
+  const [linkingRole,      setLinkingRole]      = useState('Investigador');
   
   // Stats
   const [activeTab, setActiveTab] = useState('overview');
@@ -803,25 +806,100 @@ const GruposModule = ({ currentUser, onNotify }) => {
                   onDragLeave={() => setDragOverGroup(false)}
                   onDrop={handleGroupDrop}
                 >
-                  {/* Talent Pool Floating Sidebar for Group */}
+                  {/* Talent Pool Floating Sidebar for Group 2.0 */}
                   {isPoolVisible && (
-                    <div className="absolute left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-200 z-50 shadow-2xl flex flex-col animate-slideInLeft rounded-l-[2rem]">
-                      <div className="p-4 bg-indigo-700 text-white flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest">Talento Disponible</span>
-                        <button onClick={() => setIsPoolVisible(false)}><X size={14} /></button>
+                    <div className="absolute left-0 top-0 bottom-0 w-full sm:w-72 bg-white border-r border-slate-200 z-50 shadow-2xl flex flex-col animate-slideInLeft rounded-l-[2rem] overflow-hidden ring-1 ring-slate-200">
+                      <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Zap size={14} className="text-emerald-400" />
+                          <span className="text-[10px] font-black uppercase tracking-widest">Talento Disponible</span>
+                        </div>
+                        <button onClick={() => setIsPoolVisible(false)} className="p-1 hover:bg-white/10 rounded-lg"><X size={14} /></button>
                       </div>
-                      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                        {usuarios.filter(u => !integrantes.some(m => m.id === u.id)).map(u => (
+
+                      {/* Sidebar Tabs */}
+                      <div className="flex bg-slate-50 p-1 border-b border-slate-100">
+                        <button 
+                          onClick={() => setTalentTab('investigadores')}
+                          className={`flex-1 py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${talentTab === 'investigadores' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
+                        >
+                          Investigadores
+                        </button>
+                        <button 
+                          onClick={() => setTalentTab('aprendices')}
+                          className={`flex-1 py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${talentTab === 'aprendices' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                        >
+                          Aprendices
+                        </button>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/30">
+                        {usuarios
+                          .filter(u => !integrantes.some(m => m.id === u.id))
+                          .filter(u => talentTab === 'aprendices' ? (u.ficha || u.programa_formacion) : (!u.ficha && !u.programa_formacion))
+                          .map(u => (
                           <div 
                             key={u.id}
                             draggable
                             onDragStart={(e) => handleDragUserStart(e, u)}
-                            className="p-3 bg-white border border-slate-200 rounded-2xl cursor-grab active:cursor-grabbing hover:border-indigo-400 hover:shadow-md transition-all text-xs font-bold text-slate-700 flex items-center gap-3"
+                            onClick={() => {
+                              setMemberToLink(u);
+                              setLinkingRole(talentTab === 'aprendices' ? 'Aprendiz' : 'Investigador');
+                            }}
+                            className="group p-3 bg-white border border-slate-100 rounded-2xl cursor-grab active:cursor-grabbing hover:border-emerald-400 hover:shadow-md transition-all flex items-center justify-between gap-3"
                           >
-                            <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-[10px] font-black">{u.nombre.charAt(0)}</div>
-                            <span className="truncate">{u.nombre}</span>
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${talentTab === 'aprendices' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                {u.nombre.charAt(0)}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-black text-slate-700 truncate">{u.nombre}</p>
+                                <p className="text-[9px] text-slate-400 font-bold truncate opacity-0 group-hover:opacity-100 transition-opacity">Click para vincular</p>
+                              </div>
+                            </div>
+                            <Plus size={14} className="text-slate-300 group-hover:text-emerald-500" />
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Role/Hours Prompt Overlay for Group */}
+                  {memberToLink && (
+                    <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-md flex flex-col items-center justify-center p-8 animate-fadeIn text-center rounded-[2rem]">
+                      <div className="w-16 h-16 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/10">
+                        <Users size={32} />
+                      </div>
+                      <h4 className="text-sm font-black text-slate-900 mb-1">Vincular a {memberToLink.nombre}</h4>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">Configuración de Rol</p>
+                      
+                      <div className="w-full max-w-xs space-y-4">
+                        <div className="space-y-1.5 text-left">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Rol en el Grupo</label>
+                          <select 
+                            value={linkingRole}
+                            onChange={(e) => setLinkingRole(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                          >
+                            {ROLES_GRUPO.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                          </select>
+                        </div>
+
+                        <div className="flex gap-3 pt-4">
+                          <Button variant="secondary" className="flex-1" onClick={() => setMemberToLink(null)}>Cancelar</Button>
+                          <Button variant="sena" className="flex-1" onClick={async () => {
+                            try {
+                              await GruposAPI.addMember(selectedGrupo.id, { user_id: memberToLink.id, rol: linkingRole });
+                              onNotify?.('Integrante vinculado correctamente', 'success');
+                              setMemberToLink(null);
+                              const m = await GruposAPI.getMembers(selectedGrupo.id);
+                              setIntegrantes(m || []);
+                              loadData();
+                            } catch (err) {
+                              onNotify?.('Error al vincular: ' + err.message, 'error');
+                            }
+                          }}>Vincular</Button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -831,74 +909,84 @@ const GruposModule = ({ currentUser, onNotify }) => {
                       <UserPlus size={14} className="text-emerald-600" /> Vincular Integrante
                     </p>
                     <button onClick={() => setIsPoolVisible(!isPoolVisible)} className="text-[10px] font-black text-indigo-600 uppercase hover:underline">
-                      {isPoolVisible ? 'Ocultar Pool' : 'Abrir Panel de Arrastre'}
+                      {isPoolVisible ? 'Cerrar Directorio' : 'Vincular Talento'}
                     </button>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <Select 
-                      label="Seleccionar Investigador"
-                      options={usuarios.map(u => ({ value: u.id, label: u.nombre }))}
-                      value={memberForm.user_id}
-                      onChange={e => setMemberForm({...memberForm, user_id: e.target.value})}
-                    />
-                    <Select 
-                      label="Rol en el Grupo"
-                      options={ROLES_GRUPO}
-                      value={memberForm.rol}
-                      onChange={e => setMemberForm({...memberForm, rol: e.target.value})}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="sena" className="flex-1 py-3" onClick={handleAddMember} disabled={!memberForm.user_id}>
-                      Vincular Manualmente
-                    </Button>
-                    <div className="hidden md:flex items-center px-4 bg-white border border-slate-200 rounded-2xl text-[10px] font-black text-slate-400 uppercase">
-                      O arrastra aquí
+                  <div className="flex flex-col gap-4">
+                    <div className="p-5 bg-slate-900 rounded-2xl space-y-4 shadow-xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl -mr-12 -mt-12" />
+                      <div className="relative z-10 flex gap-3">
+                        <select 
+                          className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none cursor-pointer"
+                          onChange={(e) => {
+                            const u = usuarios.find(usr => usr.id === e.target.value);
+                            if (u) {
+                              setMemberToLink(u);
+                              setLinkingRole(u.ficha ? 'Aprendiz' : 'Investigador');
+                            }
+                            e.target.value = ""; 
+                          }}
+                          value=""
+                        >
+                          <option value="">Buscar en el directorio CGAO...</option>
+                          {usuarios.filter(u => !integrantes.some(m => m.id === u.id)).map(u => (
+                            <option key={u.id} value={u.id}>{u.nombre} {u.ficha ? `(Aprendiz)` : ''}</option>
+                          ))}
+                        </select>
+                        <div className="hidden sm:flex items-center px-4 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">
+                          <Plus size={16} />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-3 pb-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Directorio de Integrantes ({integrantes.length})</h4>
-                    <button className="text-[10px] font-bold text-emerald-600 hover:underline uppercase">Exportar Lista</button>
+                <div className="space-y-4 pb-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <Activity size={14} /> Directorio de Integrantes ({integrantes.length})
+                    </h4>
                   </div>
                   
                   {integrantes.length === 0 ? (
-                    <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
-                      <Users size={32} className="mx-auto text-slate-300 mb-3" />
-                      <p className="text-slate-400 font-bold text-sm italic">No hay investigadores vinculados.</p>
+                    <div className="text-center py-16 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-100">
+                      <Users size={48} className="mx-auto text-slate-200 mb-4" />
+                      <p className="text-slate-400 font-black text-xs uppercase tracking-widest">Sin investigadores vinculados</p>
+                      <p className="text-[10px] text-slate-400 mt-1 italic">Vincule talento para comenzar el registro de producción</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 gap-3">
+                    <div className="grid grid-cols-1 gap-4">
                       {integrantes.map(i => (
-                        <div key={i.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-emerald-300 hover:shadow-md transition-all">
+                        <div key={i.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300">
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-sm">
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shadow-lg ${i.rol_en_grupo === 'Aprendiz' ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-indigo-500/20' : 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-emerald-500/20'}`}>
                               {i.nombre?.charAt(0)}
                             </div>
                             <div>
-                              <p className="text-sm font-black text-slate-900 group-hover:text-emerald-700 transition-colors">{i.nombre}</p>
-                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-                                {i.email} • <span className="text-emerald-600">{i.rol_en_grupo || 'Miembro'}</span>
-                              </p>
+                              <p className="text-sm font-black text-slate-900 group-hover:text-indigo-700 transition-colors">{i.nombre}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline" className={`text-[9px] border-slate-100 uppercase font-black tracking-tighter ${i.rol_en_grupo === 'Aprendiz' ? 'text-indigo-600 bg-indigo-50/50' : 'text-emerald-600 bg-emerald-50/50'}`}>
+                                  {i.rol_en_grupo || 'Miembro'}
+                                </Badge>
+                                <span className="text-[9px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-tighter">
+                                  {i.email}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                          <div className="flex gap-1">
-                             <button 
-                                type="button"
-                                onClick={() => {
-                                  if (window.confirm(`¿Desvincular a ${i.nombre}?`)) {
-                                    handleRemoveMember(i.id);
-                                  }
-                                }} 
-                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                                title="Desvincular"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm(`¿Desvincular a ${i.nombre}?`)) {
+                                handleRemoveMember(i.id);
+                              }
+                            }} 
+                            className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                            title="Desvincular"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         </div>
                       ))}
                     </div>

@@ -147,12 +147,33 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
         </div>
         <div className="flex gap-2">
           <Button
-            onClick={() => { setShowForm(true); setIsEditing(false); setFormData({ titulo: '', contenido: '', categoria: 'técnica' }); }}
+            onClick={() => { setShowForm(true); setIsEditing(false); setFormData({ titulo: '', contenido: '', categoria: 'técnica', adjuntos: [] }); }}
             variant="sena"
             disabled={!selectedProjectId}
             title={!selectedProjectId ? 'Crea o selecciona un proyecto primero' : undefined}
           >
             <Plus size={18} className="mr-2" /> Nueva Entrada
+          </Button>
+          <Button
+            onClick={async () => {
+              try {
+                setLoading(true);
+                const { PlantillasAPI } = await import('../../api/plantillas');
+                const { PDFGenerator } = await import('../../utils/pdfGenerator');
+                const data = await PlantillasAPI.getBitacoraOficial(selectedProjectId);
+                PDFGenerator.generateBitacoraReport(data);
+                onNotify?.('Reporte de bitácora generado', 'success');
+              } catch (err) {
+                onNotify?.('Error al exportar: ' + err.message, 'error');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            variant="outline"
+            disabled={!selectedProjectId || entries.length === 0}
+            className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+          >
+            <FileText size={18} className="mr-2" /> Exportar PDF
           </Button>
         </div>
       </div>
@@ -282,8 +303,11 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
                     {/* Multimedia Gallery */}
                     {entry.adjuntos && entry.adjuntos.length > 0 && (
                       <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {entry.adjuntos.map((url, idx) => {
-                          const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+                        {entry.adjuntos.map((adj, idx) => {
+                          const url = typeof adj === 'string' ? adj : adj.url;
+                          const tipo = typeof adj === 'string' ? '' : adj.tipo;
+                          const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)$/i) || tipo?.startsWith('image/');
+                          
                           return (
                             <a 
                               key={idx} 
@@ -297,7 +321,7 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
                               ) : (
                                 <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4">
                                   <FileText size={24} className="text-slate-400" />
-                                  <span className="text-[10px] font-black text-slate-500 uppercase truncate w-full text-center">Ver Adjunto</span>
+                                  <span className="text-[10px] font-black text-slate-500 uppercase truncate w-full text-center">{typeof adj === 'string' ? 'Ver Adjunto' : adj.nombre}</span>
                                 </div>
                               )}
                               <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center">
@@ -389,39 +413,51 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                   <Paperclip size={14} className="text-indigo-500" /> Evidencias Multimedia (URLs)
                 </h3>
-                <div className="flex gap-2">
                   <Input 
-                    placeholder="Pega la URL de una imagen o documento (S3/Cloudinary/Repo)..." 
-                    value={mediaUrl}
-                    onChange={(e) => setMediaUrl(e.target.value)}
+                    type="file"
                     className="flex-1"
-                  />
-                  <Button 
-                    variant="outline" 
-                    className="shrink-0"
-                    onClick={() => {
-                      if (!mediaUrl) return;
-                      setFormData({...formData, adjuntos: [...(formData.adjuntos || []), mediaUrl]});
-                      setMediaUrl('');
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file || !formData.id && !isEditing) {
+                        if (!isEditing) onNotify?.('Guarda la entrada primero para subir adjuntos', 'info');
+                        return;
+                      }
+                      
+                      try {
+                        const fd = new FormData();
+                        fd.append('file', file);
+                        const updatedEntry = await BitacoraAPI.uploadAdjunto(formData.id, fd);
+                        setFormData(updatedEntry);
+                        onNotify?.('Archivo subido con éxito', 'success');
+                        loadEntries();
+                      } catch (err) {
+                        onNotify?.('Error al subir: ' + err.message, 'error');
+                      }
                     }}
-                  >
-                    Agregar
-                  </Button>
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1 italic">* Los adjuntos se vinculan automáticamente al seleccionar el archivo (solo en edición).</p>
                 </div>
                 
                 {formData.adjuntos?.length > 0 && (
-                  <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    {formData.adjuntos.map((url, idx) => (
-                      <div key={idx} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-200">
-                        <img src={url} alt="Preview" className="w-full h-full object-cover" onError={(e) => { e.target.src = 'https://placehold.co/400x225?text=Archivo'; }} />
-                        <button 
-                          onClick={() => setFormData({...formData, adjuntos: formData.adjuntos.filter((_, i) => i !== idx)})}
-                          className="absolute top-1 right-1 p-1 bg-rose-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    {formData.adjuntos.map((adj, idx) => {
+                      const isImage = adj.tipo?.startsWith('image/');
+                      return (
+                        <div key={idx} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-200 bg-white">
+                          {isImage ? (
+                            <img src={adj.url} alt={adj.nombre} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center p-2">
+                              <FileText size={24} className="text-slate-300 mb-1" />
+                              <p className="text-[8px] font-bold text-slate-500 truncate w-full text-center">{adj.nombre}</p>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <a href={adj.url} target="_blank" rel="noreferrer" className="p-1.5 bg-white rounded-lg text-slate-900"><ExternalLink size={14} /></a>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

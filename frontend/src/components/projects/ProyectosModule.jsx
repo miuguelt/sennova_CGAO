@@ -3,7 +3,7 @@ import {
   Plus, Search, FolderOpen, X, Users, Calendar, Trash2,
   DollarSign, ChevronRight, Clock, Send, CheckCircle2, AlertCircle, User, Loader2,
   LayoutGrid, List as ListIcon, MoreVertical, Edit2, Filter, ArrowRight, Award, FileText,
-  MapPin, Package, Settings, Zap, Target, Clock3, CheckCircle
+  MapPin, Package, Settings, Zap, Target, Clock3, CheckCircle, ShieldCheck, Check
 } from 'lucide-react';
 import { 
   PieChart, Pie, Cell, Tooltip as ReTooltip, 
@@ -23,6 +23,7 @@ import Select from '../ui/Select';
 import TextArea from '../ui/TextArea';
 import StatusBadge from '../ui/StatusBadge';
 import useClickOutside from '../../hooks/useClickOutside';
+import { PDFGenerator } from '../../utils/pdfGenerator';
 
 // ─── Gantt Component ──────────────────────────────────────────────────────────
 const ProjectTimeline = ({ entregables = [] }) => {
@@ -258,6 +259,8 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [retosDisponibles, setRetosDisponibles] = useState([]);
   const [loading,          setLoading]          = useState(true);
   const [viewMode,         setViewMode]         = useState('kanban');
+  const [showLiquidation,  setShowLiquidation]  = useState(false);
+  const [liqChecklist,     setLiqChecklist]     = useState(null);
   const [showForm,         setShowForm]         = useState(false);
   const [selectedProyecto, setSelectedProyecto] = useState(null);
   const [isDetailOpen,     setIsDetailOpen]     = useState(false);
@@ -268,10 +271,12 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [activeTab,        setActiveTab]        = useState('summary');
   const [menuOpenId,       setMenuOpenId]       = useState(null);
   const [isEditing,        setIsEditing]        = useState(false);
-  const [usuarios,         setUsuarios]         = useState([]);
-  const [semilleros,       setSemilleros]       = useState([]);
   const [isPoolVisible,    setIsPoolVisible]    = useState(false);
   const [dragOverTeam,     setDragOverTeam]     = useState(false);
+  const [talentTab,        setTalentTab]        = useState('investigadores'); // 'investigadores' or 'aprendices'
+  const [memberToLink,     setMemberToLink]     = useState(null); // Para el mini-formulario de vinculación
+  const [linkingRole,      setLinkingRole]      = useState('Investigador');
+  const [linkingHours,     setLinkingHours]     = useState(20);
   const [formTab,           setFormTab]          = useState('basic'); // 'basic', 'tech', 'budget'
   const menuRef = React.useRef(null);
 
@@ -414,14 +419,15 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     }
   };
 
-  const handleAddMember = async (userId) => {
+  const handleAddMember = async (userId, rol = 'Investigador', horas = 20) => {
     if (!userId) return;
     try {
-      await ProyectosAPI.addEquipo(selectedProyecto.id, userId, 'Investigador', 20);
+      await ProyectosAPI.addEquipo(selectedProyecto.id, userId, rol, horas);
       onNotify?.('Miembro añadido al equipo', 'success');
       // Actualizar localmente
       const pActualizado = await ProyectosAPI.get(selectedProyecto.id);
       setSelectedProyecto(pActualizado);
+      setMemberToLink(null);
       loadData();
     } catch (err) {
       onNotify?.('Error al añadir miembro: ' + err.message, 'error');
@@ -478,6 +484,63 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       loadData();
     } catch (err) {
       onNotify?.('Error al generar cronograma: ' + err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const handleGenerateCertificates = async () => {
+    if (!selectedProyecto) return;
+    try {
+      setLoading(true);
+      const dataMasiva = await PlantillasAPI.getCertificadosMasivos(selectedProyecto.id);
+      
+      if (!dataMasiva || dataMasiva.length === 0) {
+        onNotify?.('No hay integrantes para certificar', 'warning');
+        return;
+      }
+
+      onNotify?.(`Iniciando descarga de ${dataMasiva.length} certificados...`, 'info');
+      
+      // Generar uno por uno (jsPDF gatilla la descarga)
+      for (const certData of dataMasiva) {
+        PDFGenerator.generateProjectCertificate(certData);
+      }
+
+      onNotify?.('Certificados generados exitosamente', 'success');
+    } catch (err) {
+      onNotify?.('Error al generar certificados: ' + err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const handleOpenLiquidation = async () => {
+    if (!selectedProyecto) return;
+    try {
+      setLoading(true);
+      const data = await ProyectosAPI.checkLiquidacion(selectedProyecto.id);
+      setLiqChecklist(data);
+      setShowLiquidation(true);
+    } catch (err) {
+      onNotify?.('Error al verificar liquidación: ' + err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFinalizeProject = async () => {
+    try {
+      setLoading(true);
+      await ProyectosAPI.update(selectedProyecto.id, { estado: 'Finalizado' });
+      onNotify?.('Proyecto finalizado y liquidado exitosamente', 'success');
+      setShowLiquidation(false);
+      setSelectedProyecto(null);
+      loadData();
+    } catch (err) {
+      onNotify?.('Error al finalizar: ' + err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -601,7 +664,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
       {/* ── Kanban ── */}
       {viewMode === 'kanban' ? (
-        <div className="flex gap-4 md:gap-5 overflow-x-auto pb-6 -mx-4 px-4 sm:mx-0 sm:px-0 min-h-[60vh] snap-x scroll-pl-4 scrollbar-thin">
+        <div className="flex gap-4 md:gap-5 overflow-x-auto pb-6 -mx-4 px-4 sm:mx-0 sm:px-0 min-h-[60vh] snap-x scroll-pl-4 scrollbar-hide md:scrollbar-thin">
           {STATES.map(state => {
             const cards = byState(state);
             return (
@@ -855,29 +918,19 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                           className="h-8 text-[10px] font-black uppercase tracking-widest border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                           onClick={async () => {
                             try {
-                              await PlantillasAPI.generarReportePresupuesto(selectedProyecto.id);
-                              onNotify?.('Reporte de presupuesto generado en el servidor', 'success');
-                              PDFGenerator.generateMonthlyReport({
-                                investigador: currentUser,
-                                periodo: 'Reporte Presupuestal 2026',
-                                resumen: { 
-                                  proyectos_activos: 1, 
-                                  productos_generados: selectedProyecto.total_productos || 0, 
-                                  cumplimiento: 100 
-                                },
-                                detalle_actividades: Object.entries(selectedProyecto.presupuesto_detallado || {}).map(([k, v]) => ({
-                                  fecha: 'Vigencia Actual',
-                                  accion: k.toUpperCase(),
-                                  desc: `Asignación: $${v.toLocaleString('es-CO')}`
-                                })),
-                                metas_proximo_mes: ['Ejecución eficiente del gasto', 'Cierre administrativo']
-                              });
+                              setLoading(true);
+                              const data = await PlantillasAPI.getReportePresupuesto(selectedProyecto.id);
+                              PDFGenerator.generateBudgetReport(data);
+                              onNotify?.('Reporte financiero generado con éxito', 'success');
                             } catch (err) {
-                              onNotify?.('Error: ' + err.message, 'error');
+                              onNotify?.('Error al generar reporte: ' + err.message, 'error');
+                            } finally {
+                              setLoading(false);
                             }
                           }}
                         >
-                          <DollarSign size={12} className="mr-1.5" /> Exportar Presupuesto
+                          {loading ? <Loader2 className="animate-spin mr-1.5" size={12} /> : <DollarSign size={12} className="mr-1.5" />} 
+                          Exportar Presupuesto
                         </Button>
                       </div>
                     </section>
@@ -897,69 +950,167 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                 )}
 
                 {activeTab === 'team' && (
-                  <section className="animate-fadeIn">
-                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                      <Users size={12} /> Equipo de Investigación
-                    </h3>
-                    <div className="space-y-4 relative">
-                      
-                      {/* Talent Pool Sidebar for Project Team */}
+                  <section className="animate-fadeIn space-y-8">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <Users size={12} /> Equipo de Investigación
+                      </h3>
+                      <Button 
+                        variant={isPoolVisible ? 'secondary' : 'outline'} 
+                        size="sm" 
+                        className="h-8 text-[10px] font-black uppercase tracking-widest"
+                        onClick={() => setIsPoolVisible(!isPoolVisible)}
+                      >
+                        {isPoolVisible ? 'Cerrar Directorio' : 'Vincular Talento'}
+                      </Button>
+                    </div>
+
+                    <div className="relative">
+                      {/* Talent Pool Sidebar 2.0 */}
                       {isPoolVisible && (
-                        <div className="absolute left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-100 z-50 shadow-2xl flex flex-col animate-slideInLeft rounded-r-3xl">
-                          <div className="p-4 bg-emerald-600 text-white flex items-center justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-widest">Talento CGAO</span>
-                            <button onClick={() => setIsPoolVisible(false)}><X size={14} /></button>
+                        <div className="absolute left-0 top-0 bottom-0 w-full sm:w-72 bg-white border-r border-slate-100 z-50 shadow-2xl flex flex-col animate-slideInLeft rounded-r-3xl overflow-hidden ring-1 ring-slate-200">
+                          <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Zap size={14} className="text-emerald-400" />
+                              <span className="text-[10px] font-black uppercase tracking-widest">Talento CGAO</span>
+                            </div>
+                            <button onClick={() => setIsPoolVisible(false)} className="p-1 hover:bg-white/10 rounded-lg"><X size={14} /></button>
                           </div>
-                          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                            {usuarios.filter(u => !selectedProyecto.equipo?.some(m => m.id === u.id)).map(u => (
+                          
+                          {/* Sidebar Tabs */}
+                          <div className="flex bg-slate-50 p-1 border-b border-slate-100">
+                            <button 
+                              onClick={() => setTalentTab('investigadores')}
+                              className={`flex-1 py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${talentTab === 'investigadores' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
+                            >
+                              Investigadores
+                            </button>
+                            <button 
+                              onClick={() => setTalentTab('aprendices')}
+                              className={`flex-1 py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${talentTab === 'aprendices' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                            >
+                              Aprendices
+                            </button>
+                          </div>
+
+                          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/30">
+                            {usuarios
+                              .filter(u => !selectedProyecto.equipo?.some(m => m.id === u.id))
+                              .filter(u => talentTab === 'aprendices' ? (u.ficha || u.programa_formacion) : (!u.ficha && !u.programa_formacion))
+                              .map(u => (
                               <div 
                                 key={u.id}
                                 draggable
                                 onDragStart={(e) => handleDragUserStart(e, u)}
-                                className="p-3 bg-slate-50 border border-slate-100 rounded-2xl cursor-grab active:cursor-grabbing hover:border-emerald-400 hover:bg-white hover:shadow-md transition-all text-[11px] font-black text-slate-700 flex items-center gap-3"
+                                onClick={() => {
+                                  setMemberToLink(u);
+                                  setLinkingRole(talentTab === 'aprendices' ? 'Aprendiz' : 'Investigador');
+                                }}
+                                className="group p-3 bg-white border border-slate-100 rounded-2xl cursor-grab active:cursor-grabbing hover:border-emerald-400 hover:shadow-md transition-all flex items-center justify-between gap-3"
                               >
-                                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">{u.nombre.charAt(0)}</div>
-                                <span className="truncate">{u.nombre}</span>
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${talentTab === 'aprendices' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                    {u.nombre.charAt(0)}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-[11px] font-black text-slate-700 truncate">{u.nombre}</p>
+                                    <p className="text-[9px] text-slate-400 font-bold truncate opacity-0 group-hover:opacity-100 transition-opacity">Click para vincular</p>
+                                  </div>
+                                </div>
+                                <Plus size={14} className="text-slate-300 group-hover:text-emerald-500" />
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
 
+                      {/* Role/Hours Prompt Overlay */}
+                      {memberToLink && (
+                        <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-md flex flex-col items-center justify-center p-8 animate-fadeIn text-center">
+                          <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/10">
+                            <Users size={32} />
+                          </div>
+                          <h4 className="text-sm font-black text-slate-900 mb-1">Vincular a {memberToLink.nombre}</h4>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">Configuración de Rol</p>
+                          
+                          <div className="w-full max-w-xs space-y-4">
+                            <div className="space-y-1.5 text-left">
+                              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Rol en el Proyecto</label>
+                              <select 
+                                value={linkingRole}
+                                onChange={(e) => setLinkingRole(e.target.value)}
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
+                              >
+                                <option value="Investigador Principal">Investigador Principal</option>
+                                <option value="Coinvestigador">Coinvestigador</option>
+                                <option value="Investigador">Investigador</option>
+                                <option value="Aprendiz">Aprendiz</option>
+                                <option value="Asesor">Asesor</option>
+                                <option value="Experto Técnico">Experto Técnico</option>
+                              </select>
+                            </div>
+
+                            <div className="space-y-1.5 text-left">
+                              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Horas Semanales</label>
+                              <input 
+                                type="number"
+                                value={linkingHours}
+                                onChange={(e) => setLinkingHours(parseInt(e.target.value) || 0)}
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
+                              />
+                            </div>
+
+                            <div className="flex gap-3 pt-4">
+                              <Button variant="secondary" className="flex-1" onClick={() => setMemberToLink(null)}>Cancelar</Button>
+                              <Button variant="sena" className="flex-1" onClick={() => handleAddMember(memberToLink.id, linkingRole, linkingHours)}>Vincular</Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Project Team List */}
                       <div 
-                        className={`grid grid-cols-1 gap-3 p-4 rounded-[2rem] border-2 border-dashed transition-all ${dragOverTeam ? 'border-emerald-500 bg-emerald-50 scale-[1.01]' : 'border-slate-100'}`}
+                        className={`grid grid-cols-1 gap-4 p-6 rounded-[2.5rem] border-2 border-dashed transition-all min-h-[300px] ${dragOverTeam ? 'border-emerald-500 bg-emerald-50 scale-[1.01]' : 'border-slate-100'}`}
                         onDragOver={(e) => { e.preventDefault(); setDragOverTeam(true); }}
                         onDragLeave={() => setDragOverTeam(false)}
-                        onDrop={handleTeamDrop}
+                        onDrop={async (e) => {
+                          e.preventDefault();
+                          setDragOverTeam(false);
+                          const userId = e.dataTransfer.getData('userId');
+                          const user = usuarios.find(u => u.id === userId);
+                          if (user) {
+                            setMemberToLink(user);
+                            setLinkingRole(user.ficha ? 'Aprendiz' : 'Investigador');
+                          }
+                        }}
                       >
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Integrantes Actuales</p>
-                          <button onClick={() => setIsPoolVisible(!isPoolVisible)} className="text-[10px] font-black text-emerald-600 uppercase hover:underline">
-                            {isPoolVisible ? 'Ocultar Pool' : 'Arrastrar Miembros'}
-                          </button>
-                        </div>
-                        {(selectedProyecto.equipo || []).length === 0 && (
-                          <div className="py-10 text-center text-slate-400 italic text-xs">No hay miembros vinculados.</div>
+                        {(selectedProyecto.equipo || []).length === 0 && !memberToLink && (
+                          <div className="flex flex-col items-center justify-center py-10 opacity-40">
+                            <Users size={48} className="text-slate-300 mb-4" />
+                            <p className="text-xs text-slate-400 font-black uppercase tracking-widest">Sin miembros vinculados</p>
+                            <p className="text-[10px] text-slate-400 mt-1 italic">Arrastra talentos aquí para comenzar</p>
+                          </div>
                         )}
+                        
                         {selectedProyecto.equipo?.map(m => (
-                          <div key={m.id} className="group flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300">
+                          <div key={m.id} className="group flex items-center justify-between p-4 bg-white rounded-3xl border border-slate-100 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-300">
                             <div className="flex items-center gap-4">
                               <div className="relative">
-                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-emerald-500/20">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-lg ${m.rol_en_proyecto === 'Aprendiz' ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-indigo-500/20' : 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-emerald-500/20'}`}>
                                   {m.nombre.charAt(0)}
                                 </div>
                                 <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-50">
-                                  <CheckCircle2 size={12} className="text-emerald-500" />
+                                  <ShieldCheck size={12} className="text-emerald-500" />
                                 </div>
                               </div>
                               <div className="min-w-0">
                                 <p className="text-sm font-black text-slate-800 truncate">{m.nombre}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <Badge variant="outline" className="text-[10px] border-emerald-100 text-emerald-600 bg-emerald-50/30 uppercase font-bold tracking-tighter">
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge variant="outline" className={`text-[9px] border-slate-100 uppercase font-black tracking-tighter ${m.rol_en_proyecto === 'Aprendiz' ? 'text-indigo-600 bg-indigo-50/50' : 'text-emerald-600 bg-emerald-50/50'}`}>
                                     {m.rol_en_proyecto || 'Investigador'}
                                   </Badge>
-                                  <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                    <Clock size={10} /> 20h/sem
+                                  <span className="text-[9px] font-black text-slate-400 flex items-center gap-1 uppercase">
+                                    <Clock size={10} /> {m.horas_dedicadas || 20}H/Sem
                                   </span>
                                 </div>
                               </div>
@@ -974,37 +1125,65 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                           </div>
                         ))}
                       </div>
+                    </div>
 
-                      <div className="p-5 bg-slate-50/80 backdrop-blur-sm border border-slate-200/50 rounded-3xl space-y-4 shadow-inner">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] block">Añadir Investigador</label>
-                          <Users size={14} className="text-emerald-500" />
+                    {/* Certificates Section (Strategic Addition) */}
+                    <Card className="p-6 border-0 bg-slate-50 border-slate-100 rounded-[2.5rem] space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-amber-100 text-amber-600 rounded-xl">
+                          <Trophy size={20} />
                         </div>
-                        <div className="flex gap-2">
-                          <div className="relative flex-1">
-                            <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <select 
-                              className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all appearance-none cursor-pointer shadow-sm"
-                              onChange={(e) => {
-                                if (e.target.value) {
-                                  handleAddMember(e.target.value);
-                                  e.target.value = ""; // Reset
-                                }
-                              }}
-                              value=""
-                            >
-                              <option value="">Buscar en el directorio de usuarios...</option>
-                              {usuarios.filter(u => !selectedProyecto.equipo?.some(m => m.id === u.id)).map(u => (
-                                <option key={u.id} value={u.id}>{u.nombre}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="p-2.5 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20 flex items-center justify-center">
-                            <Plus size={20} strokeWidth={3} />
-                          </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reconocimiento</p>
+                          <h4 className="text-xs font-black text-slate-900">Certificación de Participación</h4>
                         </div>
-                        <p className="text-[10px] text-slate-400 italic px-1">Tip: El nuevo miembro se añadirá con rol de Investigador por defecto.</p>
                       </div>
+                      <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                        Genera certificados automáticos para los integrantes del equipo que hayan cumplido con sus entregables.
+                      </p>
+                      <Button 
+                        variant="sena" 
+                        size="sm" 
+                        className="w-full h-10 text-[10px] font-black uppercase tracking-widest mt-2"
+                        onClick={handleOpenLiquidation}
+                        disabled={selectedProyecto.estado === 'Finalizado'}
+                      >
+                        {selectedProyecto.estado === 'Finalizado' ? 'Proyecto Liquidado' : 'Liquidar Proyecto'}
+                      </Button>
+                    </Card>
+
+                    {/* Summary Tab Content */}
+
+                    {/* Quick Search Directory */}
+                    <div className="p-6 bg-slate-900 rounded-[2rem] space-y-4 shadow-2xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
+                      <div className="flex items-center justify-between relative z-10">
+                        <label className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] block">Directorio Global CGAO</label>
+                        <Search size={14} className="text-emerald-500" />
+                      </div>
+                      <div className="relative z-10">
+                        <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <select 
+                          className="w-full pl-10 pr-4 py-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-xs font-bold text-white focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none cursor-pointer shadow-inner"
+                          onChange={(e) => {
+                            const u = usuarios.find(usr => usr.id === e.target.value);
+                            if (u) {
+                              setMemberToLink(u);
+                              setLinkingRole(u.ficha ? 'Aprendiz' : 'Investigador');
+                            }
+                            e.target.value = ""; 
+                          }}
+                          value=""
+                        >
+                          <option value="">Seleccionar investigador o aprendiz...</option>
+                          {usuarios.filter(u => !selectedProyecto.equipo?.some(m => m.id === u.id)).map(u => (
+                            <option key={u.id} value={u.id}>{u.nombre} {u.ficha ? `(Ficha: ${u.ficha})` : ''}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <p className="text-[9px] text-slate-500 font-medium italic px-1 relative z-10">
+                        * Los aprendices vinculados deben pertenecer a semilleros activos para certificación automática.
+                      </p>
                     </div>
                   </section>
                 )}
@@ -1209,6 +1388,84 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               <Button variant="secondary" onClick={() => { setShowForm(false); setIsEditing(false); setFormData(EMPTY_FORM); }} className="w-full sm:w-auto justify-center">Cancelar</Button>
               <Button variant="sena" onClick={handleSave} disabled={!formData.nombre.trim()} className="w-full sm:w-auto justify-center shadow-lg shadow-emerald-200">
                 {isEditing ? 'Guardar Cambios' : 'Crear Proyecto'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ── Liquidation Checklist Modal ── */}
+      {showLiquidation && liqChecklist && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-fadeIn">
+          <Card className="w-full max-w-lg shadow-2xl animate-scaleIn border-0 overflow-hidden bg-white">
+            <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-8 text-white relative">
+              <button 
+                onClick={() => setShowLiquidation(false)} 
+                className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-all"
+              >
+                <X size={20} />
+              </button>
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-emerald-500 text-white rounded-2xl shadow-lg shadow-emerald-500/20">
+                  <ShieldCheck size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black tracking-tight">Liquidación Técnica</h2>
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">Verificación de requisitos SENNOVA</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8 space-y-6">
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                Para finalizar oficialmente este proyecto y emitir los certificados, el sistema debe validar los siguientes requisitos institucionales:
+              </p>
+
+              <div className="space-y-3">
+                {liqChecklist.checklist.map((item) => (
+                  <div 
+                    key={item.id} 
+                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${item.status ? 'bg-emerald-50/50 border-emerald-100' : 'bg-rose-50/50 border-rose-100'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-1.5 rounded-lg ${item.status ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                        {item.status ? <Check size={14} /> : <AlertCircle size={14} />}
+                      </div>
+                      <span className={`text-xs font-bold ${item.status ? 'text-emerald-700' : 'text-rose-700'}`}>
+                        {item.label}
+                      </span>
+                    </div>
+                    {item.status ? (
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[8px]">CUMPLIDO</Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-rose-50 text-rose-600 border-rose-100 text-[8px]">PENDIENTE</Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {!liqChecklist.can_liquidate && (
+                <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3">
+                  <AlertCircle className="text-amber-500 shrink-0" size={18} />
+                  <p className="text-[10px] font-bold text-amber-700 leading-normal">
+                    IMPORTANTE: El proyecto no puede ser liquidado hasta que se cumplan todos los puntos del checklist. 
+                    Por favor verifica los productos pendientes y las firmas de bitácora.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setShowLiquidation(false)}>
+                Cerrar
+              </Button>
+              <Button 
+                variant="primary" 
+                className="flex-1" 
+                disabled={!liqChecklist.can_liquidate || loading}
+                onClick={handleFinalizeProject}
+              >
+                {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : 'Finalizar Proyecto'}
               </Button>
             </div>
           </Card>

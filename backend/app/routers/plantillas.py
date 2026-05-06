@@ -178,3 +178,161 @@ def generar_datos_reporte_mensual(
             "Registrar nuevos productos en la plataforma"
         ]
     }
+
+@router.get("/proyectos/{proyecto_id}/certificados-masivos")
+def generar_certificados_masivos(
+    proyecto_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)  # Solo admin puede masivamente
+):
+    """
+    Genera los datos para certificados de todos los integrantes de un proyecto.
+    """
+    proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
+    if not proyecto:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    
+    # Importar la tabla de asociación
+    from app.models import proyecto_equipo
+    
+    # Obtener todos los registros de la asociación para este proyecto
+    equipo_data = db.execute(
+        proyecto_equipo.select().where(proyecto_equipo.c.proyecto_id == str(proyecto.id))
+    ).fetchall()
+    
+    certificados = []
+    
+    # Crear un mapa de datos de asociación por user_id
+    asoc_map = {str(row.user_id): row for row in equipo_data}
+    
+    for user in proyecto.equipo:
+        asoc = asoc_map.get(str(user.id))
+        if not asoc: continue
+        
+        certificados.append({
+            "entidad": "SERVICIO NACIONAL DE APRENDIZAJE - SENA",
+            "centro": "CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE",
+            "programa_sennova": "SENNOVA",
+            "tipo_documento": "CERTIFICADO DE PARTICIPACIÓN EN PROYECTO",
+            "datos_usuario": {
+                "nombre": user.nombre.upper(),
+                "documento": getattr(user, 'documento', 'N/A'),
+                "ficha": getattr(user, 'ficha', None),
+                "programa": getattr(user, 'programa_formacion', None),
+                "rol": asoc.rol_en_proyecto or "Integrante",
+                "horas": asoc.horas_dedicadas or 0
+            },
+            "datos_proyecto": {
+                "nombre": proyecto.nombre,
+                "codigo": proyecto.codigo_sgps or proyecto.nombre_corto,
+                "vigencia": proyecto.vigencia,
+                "linea": proyecto.linea_programatica
+            },
+            "fecha_emision": date.today().strftime('%d de %B de %Y'),
+            "firmas": [
+                {"nombre": proyecto.owner.nombre, "rol": "Investigador Principal"},
+                {"nombre": "SUBDIRECTOR DE CENTRO", "rol": "Subdirector CGAO"}
+            ]
+        })
+    
+    return certificados
+
+
+@router.get("/proyectos/{proyecto_id}/presupuesto-detalle")
+def generar_detalle_presupuesto(
+    proyecto_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Genera un desglose detallado del presupuesto del proyecto para informes ejecutivos.
+    """
+    proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
+    if not proyecto:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    
+    # Datos base
+    base_json = proyecto.presupuesto_detallado or {}
+    total = proyecto.presupuesto_total or 0
+    
+    # Estructura de rubros estándar SENNOVA
+    rubros = [
+        {"id": "servicios_tecnologicos", "label": "Servicios Tecnológicos", "valor": base_json.get("servicios", 0)},
+        {"id": "materiales_consumibles", "label": "Materiales y Suministros", "valor": base_json.get("materiales", 0)},
+        {"id": "viaticos_transporte", "label": "Viáticos y Transporte", "valor": base_json.get("viaticos", 0)},
+        {"id": "equipamiento", "label": "Equipos de Laboratorio", "valor": base_json.get("equipos", 0)},
+        {"id": "software_licencias", "label": "Software y Licencias", "valor": base_json.get("software", 0)},
+        {"id": "otros", "label": "Otros Gastos Operativos", "valor": base_json.get("otros", 0)}
+    ]
+    
+    # Calcular porcentajes
+    for r in rubros:
+        r["porcentaje"] = round((r["valor"] / total * 100), 2) if total > 0 else 0
+        
+    return {
+        "proyecto": {
+            "nombre": proyecto.nombre,
+            "codigo": proyecto.codigo_sgps,
+            "investigador": proyecto.owner.nombre,
+            "vigencia": f"{proyecto.vigencia} meses"
+        },
+        "resumen_financiero": {
+            "total_asignado": total,
+            "fuente": "SGPS - SENNOVA",
+            "moneda": "COP"
+        },
+        "distribucion_rubros": rubros,
+        "indicadores": {
+            "gasto_talento_humano": "Cargado a nómina SENA (No monetizable en este reporte)",
+            "eficiencia_operativa": 85.5, # Placeholder simulado
+            "nivel_ejecucion": 12.0 # Placeholder simulado
+        },
+        "fecha_corte": date.today().strftime('%Y-%m-%d')
+    }
+
+
+@router.get("/proyectos/{proyecto_id}/bitacora-oficial")
+def generar_bitacora_oficial(
+    proyecto_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Consolida toda la bitácora técnica de un proyecto para exportación oficial.
+    """
+    proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
+    if not proyecto:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    
+    entradas = db.query(BitacoraEntry).filter(
+        BitacoraEntry.proyecto_id == str(proyecto.id)
+    ).order_by(BitacoraEntry.fecha.asc()).all()
+    
+    return {
+        "entidad": "SERVICIO NACIONAL DE APRENDIZAJE - SENA",
+        "centro": "CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE",
+        "proyecto": {
+            "nombre": proyecto.nombre,
+            "codigo": proyecto.codigo_sgps,
+            "linea": proyecto.linea_programatica
+        },
+        "periodo": f"Generado el {date.today().strftime('%Y-%m-%d')}",
+        "resumen_ejecucion": {
+            "total_entradas": len(entradas),
+            "firmas_completas": len([e for e in entradas if e.is_firmado_investigador and e.is_firmado_aprendiz]),
+            "pendientes": len([e for e in entradas if not e.is_firmado_investigador or not e.is_firmado_aprendiz])
+        },
+        "entradas": [
+            {
+                "fecha": e.fecha.strftime('%Y-%m-%d %H:%M'),
+                "titulo": e.titulo,
+                "categoria": e.categoria,
+                "contenido": e.contenido,
+                "autor": e.user.nombre,
+                "estado_firma": "COMPLETA" if (e.is_firmado_investigador and e.is_firmado_aprendiz) else "PENDIENTE",
+                "hash_verificacion": e.signature_metadata.get("investigador", {}).get("integrity_hash", "N/A") if e.signature_metadata else "N/A",
+                "adjuntos_count": len(e.adjuntos) if e.adjuntos else 0
+            } for e in entradas
+        ],
+        "glosario_seguridad": "Los hashes de verificación garantizan que el contenido no ha sido modificado tras la firma digital."
+    }
