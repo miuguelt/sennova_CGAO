@@ -82,6 +82,56 @@ def import_cvlac(
     }
 
 
+@router.get("/validar-url")
+def validar_cvlac_url(url: str):
+    """Valida si una URL pertenece a Scienti CVLaC."""
+    is_valid = "scienti.minciencias.gov.co" in url.lower() or "cvlac" in url.lower()
+    return {"valid": is_valid, "url": url}
+
+
+@router.post("/subir-pdf")
+def subir_cvlac_pdf(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint para subir el PDF del CVLaC.
+    En esta fase se registra que el usuario ha intentado actualizar su perfil.
+    """
+    current_user.estado_cv_lac = "En revisión"
+    db.commit()
+    return {"message": "CVLaC recibido correctamente y en proceso de revisión"}
+
+
+@router.get("/usuarios/sin-cvlac")
+def get_usuarios_sin_cvlac(
+    db: Session = Depends(get_db)
+):
+    """Lista usuarios que no han actualizado su CVLaC."""
+    usuarios = db.query(User).filter(
+        User.rol == "investigador",
+        User.estado_cv_lac == "No actualizado"
+    ).all()
+    return usuarios
+
+
+@router.get("/usuarios/{user_id}/estado")
+def get_user_cvlac_status(
+    user_id: str,
+    db: Session = Depends(get_db)
+):
+    """Obtiene el estado detallado del CVLaC para un usuario específico."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return {
+        "user_id": user.id,
+        "estado": user.estado_cv_lac,
+        "cv_lac_url": user.cv_lac_url,
+        "ultima_actualizacion": user.updated_at
+    }
+
+
 @router.get("/resumen-sistema")
 def get_cvlac_resumen(
     current_user: User = Depends(get_current_user),
