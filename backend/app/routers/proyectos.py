@@ -90,6 +90,7 @@ def list_proyectos(
             "presupuesto_detallado": p.presupuesto_detallado or {},
             "linea_programatica": p.linea_programatica,
             "reto_origen_id": str(p.reto_origen_id) if p.reto_origen_id else None,
+            "semillero_id": str(p.semillero_id) if p.semillero_id else None,
             "convocatoria_id": str(p.convocatoria_id) if p.convocatoria_id else None,
             "owner_id": str(p.owner_id),
             "owner": None,
@@ -152,6 +153,7 @@ def get_proyecto(
         "presupuesto_detallado": proyecto.presupuesto_detallado or {},
         "linea_programatica": proyecto.linea_programatica,
         "reto_origen_id": str(proyecto.reto_origen_id) if proyecto.reto_origen_id else None,
+        "semillero_id": str(proyecto.semillero_id) if proyecto.semillero_id else None,
         "convocatoria_id": str(proyecto.convocatoria_id) if proyecto.convocatoria_id else None,
         "owner_id": str(proyecto.owner_id),
         "owner": None,
@@ -190,6 +192,7 @@ def create_proyecto(
         presupuesto_detallado=proyecto_data.presupuesto_detallado,
         linea_programatica=proyecto_data.linea_programatica,
         reto_origen_id=str(proyecto_data.reto_origen_id) if proyecto_data.reto_origen_id else None,
+        semillero_id=str(proyecto_data.semillero_id) if proyecto_data.semillero_id else None,
         convocatoria_id=convocatoria_id_str,
         owner_id=str(current_user.id)
     )
@@ -244,6 +247,7 @@ def create_proyecto(
         "presupuesto_detallado": proyecto.presupuesto_detallado or {},
         "linea_programatica": proyecto.linea_programatica,
         "reto_origen_id": str(proyecto.reto_origen_id) if proyecto.reto_origen_id else None,
+        "semillero_id": str(proyecto.semillero_id) if proyecto.semillero_id else None,
         "convocatoria_id": str(proyecto.convocatoria_id) if proyecto.convocatoria_id else None,
         "owner_id": str(proyecto.owner_id),
         "owner": None,
@@ -399,3 +403,37 @@ def remove_proyecto_miembro(
     db.commit()
     
     return {"message": "Miembro eliminado correctamente"}
+@router.post("/{proyecto_id}/generate-budget-template")
+def generate_budget_template(
+    proyecto_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Genera una estructura base de presupuesto según la tipología del proyecto."""
+    proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
+    if not proyecto:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    
+    if not check_proyecto_access(proyecto, current_user):
+        raise HTTPException(status_code=403, detail="Sin acceso")
+
+    # Plantillas base de rubros SENNOVA
+    rubros_base = [
+        {"categoria": "Talento Humano", "item": "Investigador Principal", "valor": 0, "descripcion": "Honorarios o descarga horaria"},
+        {"categoria": "Materiales", "item": "Insumos de Laboratorio", "valor": 0, "descripcion": "Materiales consumibles"},
+        {"categoria": "Equipos", "item": "Adquisición de Equipos", "valor": 0, "descripcion": "Maquinaria o hardware especializado"},
+        {"categoria": "Software", "item": "Licencias de Software", "valor": 0, "descripcion": "Suscripciones o licencias perpetuas"},
+        {"categoria": "Servicios", "item": "Servicios Tecnológicos", "valor": 0, "descripcion": "Pruebas externas o asesorías"},
+        {"categoria": "Viajes", "item": "Viáticos y Salidas de Campo", "valor": 0, "descripcion": "Transporte y estadía"},
+    ]
+    
+    # Ajustar según tipología
+    if proyecto.tipologia == "Innovación":
+        rubros_base.append({"categoria": "Propiedad Intelectual", "item": "Registro de Patente/Marca", "valor": 0, "descripcion": "Costos notariales y de registro"})
+    elif proyecto.tipologia == "Modernización":
+        rubros_base.append({"categoria": "Infraestructura", "item": "Adecuaciones Locativas", "valor": 0, "descripcion": "Mejoras al ambiente de formación"})
+
+    proyecto.presupuesto_detallado = {"items": rubros_base, "total_estimado": 0}
+    db.commit()
+    
+    return {"status": "template_generated", "items_count": len(rubros_base)}

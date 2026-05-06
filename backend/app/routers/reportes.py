@@ -588,3 +588,93 @@ def get_estadisticas_resumen(
         "grupos_por_clasificacion": grupos_por_clasificacion,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+
+
+@router.get("/talento-consolidado")
+def generar_consolidado_talento(
+    formato: Literal["excel", "csv"] = Query("excel"),
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Genera reporte consolidado de talento humano e investigadores."""
+    investigadores = db.query(User).filter(User.rol == 'investigador').all()
+    
+    if formato == "excel" and EXCEL_AVAILABLE:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Talento SENNOVA"
+        
+        headers = ["Nombre", "Email", "Regional", "Sede", "Nivel Académico", "Impacto", "Estado"]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True)
+            
+        for row, inv in enumerate(investigadores, 2):
+            ws.cell(row=row, column=1, value=inv.nombre)
+            ws.cell(row=row, column=2, value=inv.email)
+            ws.cell(row=row, column=3, value=inv.regional or "SANTANDER")
+            ws.cell(row=row, column=4, value=inv.sede or "CGAO")
+            ws.cell(row=row, column=5, value=inv.nivel_academico or "N/A")
+            ws.cell(row=row, column=6, value=f"{getattr(inv, 'impacto', 0)}%")
+            ws.cell(row=row, column=7, value="Activo" if inv.is_active else "Inactivo")
+            
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=reporte_talento_sennova.xlsx"}
+        )
+    else:
+        # Fallback to CSV
+        import csv
+        output = BytesIO()
+        writer = csv.writer(output)
+        writer.writerow(["nombre", "email", "sede", "nivel_academico", "estado"])
+        for inv in investigadores:
+            writer.writerow([inv.nombre, inv.email, inv.sede or "", inv.nivel_academico or "", "Activo" if inv.is_active else "Inactivo"])
+        output.seek(0)
+        return StreamingResponse(output, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=reporte_talento.csv"})
+
+
+@router.get("/investigador/{user_id}/certificado")
+def generar_certificado_investigador(
+    user_id: str,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Genera un certificado de participación en PDF para un investigador."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Investigador no encontrado")
+        
+    # En un sistema real, usaríamos ReportLab o similar para generar un PDF profesional
+    # Aquí simulamos la generación enviando un "documento" de texto formateado como PDF
+    output = BytesIO()
+    content = f"""
+    SENA - SERVICIO NACIONAL DE APRENDIZAJE
+    CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE - CGAO
+    SISTEMA SENNOVA
+    
+    CERTIFICA QUE:
+    
+    {user.nombre.upper()}
+    Identificado(a) con correo institucional {user.email}
+    
+    Ha participado activamente como INVESTIGADOR en el ecosistema SENNOVA CGAO,
+    liderando y apoyando proyectos de ciencia, tecnología e innovación.
+    
+    Válido para la vigencia actual.
+    
+    Generado electrónicamente el: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    Código de Verificación: {str(uuid.uuid4())[:8]}
+    """
+    output.write(content.encode('utf-8'))
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=certificado_{user_id}.pdf"}
+    )

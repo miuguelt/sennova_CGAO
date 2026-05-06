@@ -19,6 +19,7 @@ import TextArea from '../ui/TextArea';
 import { DashboardAPI as StatsAPI } from '../../api/dashboard';
 import { ProyectosAPI } from '../../api/proyectos';
 import { SemillerosAPI } from '../../api/semilleros';
+import { ReportesAPI } from '../../api/reportes';
 
 const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -482,7 +483,22 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
 
           <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center print:hidden">
              <div className="flex gap-2">
-               <Button variant="outline" size="sm" onClick={() => window.print()}><Download size={16} className="mr-2" /> Exportar Perfil</Button>
+               <Button variant="outline" size="sm" onClick={() => window.print()}><Download size={16} className="mr-2" /> Imprimir</Button>
+               <Button 
+                variant="outline" 
+                size="sm" 
+                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                onClick={async () => {
+                  try {
+                    await ReportesAPI.descargarCertificadoInvestigador(user.id);
+                    onNotify?.('Certificado generado correctamente', 'success');
+                  } catch (err) {
+                    onNotify?.('Error generando certificado: ' + err.message, 'error');
+                  }
+                }}
+               >
+                 <Award size={16} className="mr-2" /> Certificado
+               </Button>
                <Button variant="outline" size="sm"><Edit3 size={16} className="mr-2" /> Editar Datos</Button>
              </div>
              <Button variant="primary" onClick={onClose}>Cerrar Panel</Button>

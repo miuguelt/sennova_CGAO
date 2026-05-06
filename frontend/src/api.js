@@ -191,6 +191,11 @@ export const ProyectosAPI = {
       method: 'DELETE',
     });
   },
+
+  /**
+   * Genera plantilla de presupuesto basada en tipología
+   */
+  generarPresupuesto: (id) => fetchWithAuth(`/proyectos/${id}/generate-budget-template`, { method: 'POST' }),
 };
 
 // ==========================================
@@ -367,6 +372,15 @@ export const ProductosAPI = {
   stats: () => fetchWithAuth('/productos/stats/resumen'),
   
   misProductos: () => fetchWithAuth('/productos/mis-productos/list'),
+  
+  /**
+   * Genera productos proyectados para un proyecto basados en su tipología
+   */
+  generarDesdePlantilla: (proyectoId) => {
+    return fetchWithAuth(`/productos/proyecto/${proyectoId}/generate-template`, {
+      method: 'POST'
+    });
+  }
 };
 
 // ==========================================

@@ -78,5 +78,14 @@ export const EntregablesAPI = {
    */
   async alertasProximos(dias = 15) {
     return fetchAPI(`${API_BASE}/alertas/proximos?dias=${dias}`);
+  },
+
+  /**
+   * Genera automáticamente hitos para un proyecto basados en su tipología
+   */
+  async generarDesdePlantilla(proyectoId) {
+    return fetchAPI(`${API_BASE}/proyecto/${proyectoId}/generate-template`, {
+      method: 'POST'
+    });
   }
 };

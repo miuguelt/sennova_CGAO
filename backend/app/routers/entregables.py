@@ -426,3 +426,82 @@ def entregables_proximos(
         "dias_consulta": dias,
         "entregables": result
     }
+@router.post("/proyecto/{proyecto_id}/generate-template")
+def generar_cronograma_base(
+    proyecto_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Genera automáticamente hitos y entregables basados en la tipología del proyecto."""
+    proyecto = db.query(Proyecto).filter(Proyecto.id == proyecto_id).first()
+    if not proyecto:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    
+    if not puede_editar_entregables(proyecto, current_user):
+        raise HTTPException(status_code=403, detail="No tienes permiso para modificar este proyecto")
+    
+    # Verificar si ya tiene entregables
+    existentes = db.query(Entregable).filter(Entregable.proyecto_id == proyecto_id).count()
+    if existentes > 0:
+        raise HTTPException(status_code=400, detail="El proyecto ya cuenta con hitos programados")
+
+    # Definir Plantillas
+    PLANTILLAS = {
+        "Investigación": [
+            {"fase": "Fase I", "titulo": "Estado del Arte y Marco Teórico", "tipo": "informe", "offset_dias": 60},
+            {"fase": "Fase II", "titulo": "Metodología y Captura de Datos", "tipo": "informe", "offset_dias": 120},
+            {"fase": "Fase III", "titulo": "Desarrollo de Prototipo/Software", "tipo": "producto", "offset_dias": 180},
+            {"fase": "Final", "titulo": "Informe Final y Artículo", "tipo": "informe", "offset_dias": 240},
+        ],
+        "Innovación": [
+            {"fase": "Fase I", "titulo": "Diagnóstico y Requerimientos", "tipo": "informe", "offset_dias": 45},
+            {"fase": "Fase II", "titulo": "Diseño de Solución Tecnológica", "tipo": "documento", "offset_dias": 90},
+            {"fase": "Fase III", "titulo": "Pruebas Piloto y Validación", "tipo": "producto", "offset_dias": 150},
+            {"fase": "Final", "titulo": "Transferencia de Conocimiento", "tipo": "documento", "offset_dias": 210},
+        ],
+        "Modernización": [
+            {"fase": "Fase I", "titulo": "Especificaciones Técnicas de Compra", "tipo": "documento", "offset_dias": 30},
+            {"fase": "Fase II", "titulo": "Instalación y Puesta en Marcha", "tipo": "informe", "offset_dias": 90},
+            {"fase": "Final", "titulo": "Capacitación y Cierre Técnico", "tipo": "evaluacion", "offset_dias": 150},
+        ],
+        "Cultura": [
+            {"fase": "Fase I", "titulo": "Plan de Divulgación y Talleres", "tipo": "documento", "offset_dias": 30},
+            {"fase": "Fase II", "titulo": "Ejecución de Eventos Masivos", "tipo": "evaluacion", "offset_dias": 120},
+            {"fase": "Final", "titulo": "Memoria de Impacto Regional", "tipo": "informe", "offset_dias": 180},
+        ]
+    }
+
+    # Seleccionar plantilla (por defecto Investigación si no coincide)
+    tipo = proyecto.tipologia or "Investigación"
+    hitos = next((v for k, v in PLANTILLAS.items() if k.lower() in tipo.lower()), PLANTILLAS["Investigación"])
+    
+    # Fecha base (hoy)
+    fecha_base = datetime.now(timezone.utc).date()
+    
+    nuevos_entregables = []
+    for h in hitos:
+        fecha_hito = fecha_base + timedelta(days=h["offset_dias"])
+        entregable = Entregable(
+            proyecto_id=proyecto_id,
+            fase=h["fase"],
+            titulo=h["titulo"],
+            tipo=h["tipo"],
+            fecha_entrega=fecha_hito,
+            fecha_recordatorio_15d=fecha_hito - timedelta(days=15),
+            fecha_recordatorio_3d=fecha_hito - timedelta(days=3),
+            responsable_id=proyecto.owner_id,
+            estado='pendiente'
+        )
+        db.add(entregable)
+        nuevos_entregables.append(entregable)
+
+    db.commit()
+    
+    # Log
+    log_actividad(
+        db, current_user.id, "generate_cronograma", 
+        f"Generó cronograma automático ({len(hitos)} hitos) para proyecto: {proyecto.nombre_corto or proyecto.id}",
+        entidad_tipo="proyecto", entidad_id=proyecto_id
+    )
+
+    return {"message": f"Cronograma generado exitosamente ({len(hitos)} hitos)", "count": len(hitos)}

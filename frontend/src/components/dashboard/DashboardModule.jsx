@@ -15,6 +15,8 @@ import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import { DashboardAPI } from '../../api/dashboard';
+import { PlantillasAPI } from '../../api/plantillas';
+import { PDFGenerator } from '../../utils/pdfGenerator';
 import UserInsightPanel from '../users/UserInsightPanel';
 
 const StatCard = ({ title, value, icon: Icon, color, trend, subtitle }) => (
@@ -40,7 +42,7 @@ const StatCard = ({ title, value, icon: Icon, color, trend, subtitle }) => (
   </Card>
 );
 
-const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) => {
+const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, onModuleAction }) => {
   const [data, setData] = useState(null);
   const [evolution, setEvolution] = useState([]);
   const [showInsight, setShowInsight] = useState(false);
@@ -73,6 +75,19 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
     };
     loadAllData();
   }, [currentUser]);
+
+  const handleGenerateMonthlyReport = async () => {
+    try {
+      setLoading(true);
+      const data = await PlantillasAPI.getReporteMensual(currentUser.id);
+      PDFGenerator.generateMonthlyReport(data);
+      onNotify?.('Reporte generado y descargado exitosamente', 'success');
+    } catch (err) {
+      onNotify?.('Error al generar reporte PDF', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -122,17 +137,97 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
             <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 bg-slate-200 text-[10px] rounded-md ml-4 text-slate-700 font-mono">Ctrl K</kbd>
           </button>
           <button 
-            onClick={() => onNavigate('reportes')}
-            className="flex items-center gap-3 px-6 py-3 bg-white/80 hover:bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 transition-all shadow-sm hover:shadow-md"
+            onClick={handleGenerateMonthlyReport}
+            className="flex items-center gap-3 px-6 py-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-2xl text-sm font-bold text-indigo-700 transition-all shadow-sm hover:shadow-md"
           >
-            <BarChart3 size={18} className="text-emerald-500" />
-            <span>Analíticas</span>
+            <FileText size={18} className="text-indigo-500" />
+            <span>Reporte Mensual</span>
           </button>
           <Button variant="sena" className="h-12 px-8 rounded-2xl shadow-xl shadow-emerald-600/20" onClick={onNewProject}>
             <Plus size={20} className="mr-2" strokeWidth={3} /> Nuevo Proyecto
           </Button>
         </div>
       </div>
+
+      {/* ── AI Recommendations ── */}
+      {userImpact && (
+        <Card className="p-0 border-0 bg-gradient-to-r from-indigo-900 to-slate-900 text-white overflow-hidden shadow-2xl relative group">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-1000" />
+          <div className="flex flex-col lg:flex-row items-stretch">
+            <div className="p-8 lg:w-2/3 space-y-6 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
+                  <Sparkles size={20} fill="currentColor" />
+                </div>
+                <h3 className="text-xl font-black tracking-tight">Recomendaciones Estratégicas AI</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(userImpact.cumplimiento < 90 || stats.tareas_criticas?.vencidas?.length > 0) && (
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex gap-4 items-start hover:bg-white/10 transition-colors">
+                    <div className="p-2 bg-rose-500/20 text-rose-400 rounded-lg"><AlertCircle size={18} /></div>
+                    <div>
+                      <p className="text-sm font-bold">Optimizar Cumplimiento</p>
+                      <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                        Tienes {stats.tareas_criticas?.vencidas?.length || 0} tareas vencidas. Resolverlas hoy subirá tu impacto un {Math.min(10, 100 - userImpact.cumplimiento)}%.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {userImpact.productos_count / Math.max(1, userImpact.proyectos_count) < 2 && (
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex gap-4 items-start hover:bg-white/10 transition-colors">
+                    <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg"><Zap size={18} /></div>
+                    <div>
+                      <p className="text-sm font-bold">Impulsar Producción</p>
+                      <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                        Tu ratio de productos por proyecto está por debajo del promedio (3.5). Considera registrar bitácoras o software.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex gap-4 items-start hover:bg-white/10 transition-colors">
+                  <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg"><Target size={18} /></div>
+                  <div>
+                    <p className="text-sm font-bold">Nueva Convocatoria</p>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                      Se detectó una convocatoria abierta afín a tus líneas. ¡Podrías postular una nueva propuesta!
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex gap-4 items-start hover:bg-white/10 transition-colors">
+                  <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-lg"><Users size={18} /></div>
+                  <div>
+                    <p className="text-sm font-bold">Gestión de Talento</p>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                      Tus semilleros han estado inactivos en registros esta semana. Revisa los avances con tus aprendices.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-8 lg:w-1/3 bg-white/5 border-l border-white/5 flex flex-col justify-center items-center text-center space-y-4">
+              <div className="relative">
+                <svg className="w-24 h-24 transform -rotate-90">
+                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-white/10" />
+                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={251.2} strokeDashoffset={251.2 - (251.2 * (userImpact.cumplimiento || 0)) / 100} className="text-emerald-500" strokeLinecap="round" />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center text-xl font-black">{userImpact.cumplimiento}%</div>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">Nivel de Desempeño</p>
+                <p className="text-[10px] text-emerald-400 font-black uppercase tracking-tighter mt-1">Óptimo para el Centro</p>
+              </div>
+              <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 w-full" onClick={() => onModuleAction({ module: 'proyectos', form: 'list' })}>
+                Optimizar Ahora
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* ── Stats Grid ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -158,10 +253,17 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
           subtitle="Basado en metas logradas"
         />
         <StatCard 
+          title="Aprendices Vinculados" 
+          value={stats.aprendices?.total || 0} 
+          icon={GraduationCap} 
+          color="bg-rose-500"
+          subtitle="En semilleros activos"
+        />
+        <StatCard 
           title="Presupuesto Bajo Gestión" 
           value={`$${((userImpact?.presupuesto_total || 0) / 1e6).toFixed(1)}M`} 
           icon={Zap} 
-          color="bg-rose-500"
+          color="bg-amber-500"
           subtitle="Presupuesto total liderado"
         />
       </div>
@@ -250,9 +352,13 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
               <div className="divide-y divide-slate-50">
                 {stats?.tareas_criticas?.vencidas?.length > 0 ? (
                   stats.tareas_criticas.vencidas.map(task => (
-                    <div key={task.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div 
+                      key={task.id} 
+                      className="p-4 flex items-center justify-between hover:bg-slate-50 transition-all cursor-pointer group/task"
+                      onClick={() => onModuleAction({ module: 'cronograma', initialData: { proyecto_id: task.proyecto_id } })}
+                    >
                       <div>
-                        <p className="text-sm font-bold text-slate-800">{task.titulo}</p>
+                        <p className="text-sm font-bold text-slate-800 group-hover/task:text-indigo-600 transition-colors">{task.titulo}</p>
                         <p className="text-[10px] text-slate-400 font-bold uppercase">{task.proyecto}</p>
                       </div>
                       <p className="text-xs font-bold text-rose-500 tabular-nums">{new Date(task.fecha).toLocaleDateString()}</p>
@@ -277,9 +383,13 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
               <div className="divide-y divide-slate-50">
                 {stats?.tareas_criticas?.proximas?.length > 0 ? (
                   stats.tareas_criticas.proximas.map(task => (
-                    <div key={task.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div 
+                      key={task.id} 
+                      className="p-4 flex items-center justify-between hover:bg-slate-50 transition-all cursor-pointer group/task"
+                      onClick={() => onModuleAction({ module: 'cronograma', initialData: { proyecto_id: task.proyecto_id } })}
+                    >
                       <div>
-                        <p className="text-sm font-bold text-slate-800">{task.titulo}</p>
+                        <p className="text-sm font-bold text-slate-800 group-hover/task:text-indigo-600 transition-colors">{task.titulo}</p>
                         <p className="text-[10px] text-slate-400 font-bold uppercase">{task.proyecto}</p>
                       </div>
                       <p className="text-xs font-bold text-indigo-500 tabular-nums">{new Date(task.fecha).toLocaleDateString()}</p>
@@ -351,13 +461,22 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
             </div>
             <div className="divide-y divide-slate-50 max-h-[350px] overflow-y-auto scrollbar-thin">
               {(stats?.historial_reciente || []).map((item) => (
-                <div key={item.id} className="flex gap-4 p-3 rounded-2xl hover:bg-slate-50 transition-all cursor-pointer group">
+                <div 
+                  key={item.id} 
+                  className="flex gap-4 p-3 rounded-2xl hover:bg-slate-50 transition-all cursor-pointer group"
+                  onClick={() => {
+                    if (item.user_id) {
+                      setSelectedUser({ id: item.user_id, nombre: item.usuario });
+                      setShowInsight(true);
+                    }
+                  }}
+                >
                   <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 group-hover:bg-white group-hover:shadow-md transition-all">
                     <div className="w-2 h-2 rounded-full bg-emerald-500" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-slate-900 font-bold truncate">
-                      <span className="text-indigo-600">{item.usuario}</span> {item.descripcion}
+                      <span className="text-indigo-600 group-hover:underline">{item.usuario}</span> {item.descripcion}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">{item.accion}</span>

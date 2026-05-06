@@ -17,7 +17,12 @@ from app.config import get_settings
 from app.database import engine, Base, get_db
 from app.auth import get_current_user, get_current_admin, get_password_hash
 from app.models import User
-from app.routers import auth, proyectos, grupos, semilleros, convocatorias, productos, documentos, usuarios, stats, reportes, entregables, notificaciones, cvlac, retos, bitacora, maintenance
+from app.routers import (
+    auth, proyectos, grupos, semilleros, convocatorias, 
+    productos, documentos, usuarios, stats, reportes, 
+    entregables, notificaciones, cvlac, retos, bitacora, 
+    maintenance, audit, plantillas
+)
 from app.middlewares.audit import AuditMiddleware
 
 settings = get_settings()
@@ -50,9 +55,6 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-@app.get("/health")
-async def health_check():
-    return {"status": "ok", "version": "2.0.0"}
 
 # Configurar orígenes permitidos desde variables de entorno
 # REGLA ANTI-HARDCODING: Todos los orígenes deben venir de ALLOWED_ORIGINS
@@ -161,6 +163,8 @@ app.include_router(cvlac.router)
 app.include_router(retos.router)
 app.include_router(bitacora.router)
 app.include_router(maintenance.router)
+app.include_router(audit.router)
+app.include_router(plantillas.router)
 
 
 # ==========================================

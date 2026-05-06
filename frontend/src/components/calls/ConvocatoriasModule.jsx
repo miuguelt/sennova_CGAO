@@ -124,7 +124,7 @@ const ConvocatoriaCard = ({ convocatoria, onEdit, onDelete, onDetail }) => {
   );
 };
 
-const ConvocatoriasModule = ({ currentUser, onNotify }) => {
+const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
   const [convocatorias, setConvocatorias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -360,16 +360,25 @@ const ConvocatoriasModule = ({ currentUser, onNotify }) => {
 
               <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
                 <Button variant="secondary" className="flex-1" onClick={() => setDetailOpen(false)}>Cerrar</Button>
-                <Button 
-                  variant="primary" 
-                  className="flex-1 bg-slate-900 hover:bg-black"
-                  onClick={() => {
-                    onNotify('Redirigiendo a registro de proyectos...', 'info');
-                    // Aquí se navegaría a Proyectos con la convocatoria seleccionada
-                  }}
-                >
-                  Postular Proyecto
-                </Button>
+                {selectedConvocatoria.estado === 'abierta' && (
+                  <Button 
+                    variant="primary" 
+                    className="flex-1 bg-slate-900 hover:bg-black"
+                    onClick={() => {
+                      onModuleAction({ 
+                        module: 'proyectos', 
+                        form: 'create', 
+                        initialData: { 
+                          convocatoria_id: selectedConvocatoria.id,
+                          nombre: `Propuesta para: ${selectedConvocatoria.nombre}`,
+                          linea_investigacion: selectedConvocatoria.nombre.includes('I+D') ? 'Investigación Aplicada' : 'Innovación'
+                        } 
+                      });
+                    }}
+                  >
+                    Postular Proyecto
+                  </Button>
+                )}
               </div>
             </div>
           </div>

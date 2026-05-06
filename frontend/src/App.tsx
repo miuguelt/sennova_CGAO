@@ -13,6 +13,7 @@ import ReportesModule from './components/reports/ReportesModule';
 import ConfiguracionModule from './components/settings/ConfiguracionModule';
 import BitacoraModule from './components/projects/BitacoraModule';
 import CronogramaModule from './components/deliverables/CronogramaModule';
+import PresupuestoModule from './components/projects/PresupuestoModule';
 import RetosModule from './components/ideas/RetosModule';
 import CVLACAdminModule from './components/admin/CVLACAdminModule';
 import AuditoriaModule from './components/admin/AuditoriaModule';
@@ -121,7 +122,7 @@ function AppContent() {
     const actionFor = (module) => (pendingAction?.module === module ? { form: pendingAction.form, data: pendingAction.initialData } : undefined);
     
     switch (currentView) {
-      case 'dashboard':      return <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} />;
+      case 'dashboard':      return <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} onModuleAction={handleModuleAction} />;
       case 'perfil':         return <PerfilModule {...props} onUpdateUser={updateUser} />;
       case 'proyectos':      return <ProyectosModule {...props} initialAction={actionFor('proyectos')} onActionHandled={handleActionHandled} />;
       case 'mis-proyectos':  return <ProyectosModule {...props} initialAction={actionFor('mis-proyectos')} onActionHandled={handleActionHandled} />;
@@ -133,8 +134,9 @@ function AppContent() {
       case 'convocatorias':  return <ConvocatoriasModule {...props} />;
       case 'reportes':       return <ReportesModule {...props} />;
       case 'configuracion':  return <ConfiguracionModule {...props} onUpdateUser={updateUser} />;
-      case 'bitacora':       return <BitacoraModule {...props} />;
+      case 'bitacora':       return <BitacoraModule {...props} initialAction={actionFor('bitacora')} onActionHandled={handleActionHandled} />;
       case 'cronograma':     return <CronogramaModule {...props} />;
+      case 'presupuesto':    return <PresupuestoModule {...props} initialAction={actionFor('presupuesto')} onActionHandled={handleActionHandled} />;
       case 'retos':          return <RetosModule {...props} onModuleAction={handleModuleAction} />;
       case 'notificaciones': return <NotificacionesModule {...props} />;
       case 'cvlac_admin':    return <CVLACAdminModule {...props} />;

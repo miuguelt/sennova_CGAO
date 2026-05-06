@@ -32,6 +32,24 @@ def listar_bitacora(
         
     return entries
 
+@router.get("/{entry_id}", response_model=BitacoraResponse)
+def obtener_entrada(
+    entry_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Obtiene una entrada específica de bitácora."""
+    entry = db.query(BitacoraEntry).filter(BitacoraEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entrada no encontrada")
+    
+    # Verificar acceso al proyecto
+    if not entry.proyecto:
+        raise HTTPException(status_code=404, detail="Proyecto no asociado")
+        
+    entry.user_nombre = entry.user.nombre
+    return entry
+
 @router.post("/", response_model=BitacoraResponse)
 def crear_entrada(
     entry_in: BitacoraCreate,

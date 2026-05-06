@@ -20,6 +20,8 @@ import Select from '../ui/Select';
 import { SemillerosAPI } from '../../api/semilleros';
 import { GruposAPI } from '../../api/grupos';
 import { UsuariosAPI } from '../../api/usuarios';
+import { PlantillasAPI } from '../../api/plantillas';
+import { PDFGenerator } from '../../utils/pdfGenerator';
 import useClickOutside from '../../hooks/useClickOutside';
 
 const ESTADOS = [
@@ -145,7 +147,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
   const [selectedSemillero, setSelectedSemillero] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [aprendices, setAprendices] = useState([]);
-  const [aprendizForm, setAprendizForm] = useState({ nombre: '', documento: '', email: '', programa_formacion: '', ficha: '' });
+  const [aprendizForm, setAprendizForm] = useState({ nombre: '', documento: '', email: '', programa: '', ficha: '', estado: 'activo' });
   const [semilleroStats, setSemilleroStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
@@ -240,16 +242,26 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
   };
 
   const handleAddAprendiz = async () => {
-    if (!aprendizForm.nombre || !aprendizForm.documento) return;
+    if (!aprendizForm.nombre && !aprendizForm.documento) return;
     try {
       await SemillerosAPI.addAprendiz(selectedSemillero.id, aprendizForm);
       onNotify('Aprendiz vinculado', 'success');
-      setAprendizForm({ nombre: '', documento: '', email: '', programa_formacion: '', ficha: '' });
+      setAprendizForm({ nombre: '', documento: '', email: '', programa: '', ficha: '', estado: 'activo' });
       const data = await SemillerosAPI.listAprendices(selectedSemillero.id);
       setAprendices(data || []);
       loadData();
     } catch {
       onNotify('Error al vincular aprendiz', 'error');
+    }
+  };
+
+  const handleGenerateCertificate = async (aprendiz) => {
+    try {
+      const data = await PlantillasAPI.getDatosCertificado(selectedSemillero.id, aprendiz.id);
+      PDFGenerator.generateCertificate(data);
+      onNotify('Certificado generado y descargado', 'success');
+    } catch {
+      onNotify('Error al generar certificado PDF', 'error');
     }
   };
 
@@ -648,22 +660,36 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                     </button>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <Select 
-                      label="Seleccionar Investigador"
-                      options={usuarios.map(u => ({ value: u.id, label: u.nombre }))}
-                      value={memberForm.user_id}
-                      onChange={e => setMemberForm({...memberForm, user_id: e.target.value})}
+                    <Input 
+                      label="Documento / Ficha"
+                      placeholder="Ej: 1098..."
+                      value={aprendizForm.documento}
+                      onChange={e => setAprendizForm({...aprendizForm, documento: e.target.value})}
                     />
                     <Input 
-                      label="Rol / Especialidad"
-                      placeholder="Ej: Programador, Diseñador..."
-                      value={memberForm.rol}
-                      onChange={e => setMemberForm({...memberForm, rol: e.target.value})}
+                      label="Nombre Completo (si no es usuario)"
+                      placeholder="Ej: Juan Pérez"
+                      value={aprendizForm.nombre}
+                      onChange={e => setAprendizForm({...aprendizForm, nombre: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <Select 
+                      label="O vincular usuario existente"
+                      options={usuarios.map(u => ({ value: u.id, label: u.nombre }))}
+                      value={aprendizForm.user_id}
+                      onChange={e => setAprendizForm({...aprendizForm, user_id: e.target.value})}
+                    />
+                    <Input 
+                      label="Programa de Formación"
+                      placeholder="Ej: ADSO"
+                      value={aprendizForm.programa}
+                      onChange={e => setAprendizForm({...aprendizForm, programa: e.target.value})}
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="sena" className="flex-1 py-3" onClick={handleAddMember} disabled={!memberForm.user_id}>
-                      Vincular Manualmente
+                    <Button variant="sena" className="flex-1 py-3" onClick={handleAddAprendiz}>
+                      Vincular Aprendiz
                     </Button>
                     <div className="hidden md:flex items-center px-4 bg-white border border-slate-200 rounded-xl text-[10px] font-black text-slate-400 uppercase">
                       O arrastra desde el panel
@@ -683,18 +709,27 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                       <div key={a.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-emerald-300 hover:shadow-md transition-all">
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-sm">
-                            {(a.nombre || a.user_nombre || '?').charAt(0)}
+                            {(a.nombre || '?').charAt(0)}
                           </div>
                           <div>
-                            <p className="text-sm font-black text-slate-900">{a.nombre || a.user_nombre}</p>
+                            <p className="text-sm font-black text-slate-900">{a.nombre}</p>
                             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-                              Ficha: {a.ficha || 'N/A'} • {a.rol || 'Aprendiz'}
+                              DOC: {a.documento || 'N/A'} • {a.programa || 'Sin programa'}
                             </p>
                           </div>
                         </div>
-                        <button onClick={() => handleRemoveAprendiz(a.id)} className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
-                          <Trash2 size={18} />
-                        </button>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleGenerateCertificate(a)} 
+                            className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title="Generar Certificado"
+                          >
+                            <Award size={18} />
+                          </button>
+                          <button onClick={() => handleRemoveAprendiz(a.id)} className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}

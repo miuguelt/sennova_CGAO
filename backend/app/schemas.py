@@ -43,6 +43,10 @@ class UserBase(BaseModel):
     rol_sennova: Optional[str] = None
     nivel_academico: Optional[str] = None
     cv_lac_url: Optional[str] = None
+    documento: Optional[str] = None
+    celular: Optional[str] = None
+    ficha: Optional[str] = None
+    programa_formacion: Optional[str] = None
 
 
 class UserCreate(UserBase):
@@ -61,6 +65,10 @@ class UserUpdate(BaseModel):
     sede: Optional[str] = None
     regional: Optional[str] = None
     is_active: Optional[bool] = None
+    documento: Optional[str] = None
+    celular: Optional[str] = None
+    ficha: Optional[str] = None
+    programa_formacion: Optional[str] = None
 
 
 class UserResponse(UserBase):
@@ -137,10 +145,12 @@ class GrupoResponse(GrupoBase):
 # ==========================================
 
 class AprendizBase(BaseModel):
-    nombre: str
-    ficha: str
+    nombre: Optional[str] = None
+    documento: Optional[str] = None
+    ficha: Optional[str] = None
     programa: Optional[str] = None
     estado: str = "activo"
+    user_id: Optional[UUID] = None
 
 
 class AprendizCreate(AprendizBase):
@@ -152,11 +162,17 @@ class AprendizUpdate(BaseModel):
     ficha: Optional[str] = None
     programa: Optional[str] = None
     estado: Optional[str] = None
+    user_id: Optional[UUID] = None
 
 
 class AprendizResponse(AprendizBase):
     id: UUID
     semillero_id: UUID
+    user_id: Optional[UUID] = None
+    user_nombre: Optional[str] = None
+    documento: Optional[str] = None
+    ficha: Optional[str] = None
+    programa: Optional[str] = None
     fecha_ingreso: date
 
     class Config:
@@ -261,6 +277,7 @@ class ProyectoBase(BaseModel):
     presupuesto_detallado: Optional[dict] = None
     linea_programatica: Optional[str] = None
     reto_origen_id: Optional[UUID] = None
+    semillero_id: Optional[UUID] = None
 
 
 class ProyectoCreate(ProyectoBase):
@@ -286,6 +303,7 @@ class ProyectoUpdate(BaseModel):
     presupuesto_detallado: Optional[dict] = None
     linea_programatica: Optional[str] = None
     reto_origen_id: Optional[UUID] = None
+    semillero_id: Optional[UUID] = None
 
 
 class EquipoMiembroInfo(BaseModel):
@@ -302,6 +320,7 @@ class ProyectoResponse(ProyectoBase):
     owner: Optional[UserResponse] = None
     convocatoria_id: Optional[UUID] = None
     convocatoria: Optional[ConvocatoriaResponse] = None
+    semillero: Optional['SemilleroBase'] = None
     equipo: List[EquipoMiembroInfo] = []
     total_equipo: int = 0
     total_productos: int = 0
@@ -547,6 +566,21 @@ class ActividadResponse(ActividadBase):
         from_attributes = True
 
 
+class AuditLogResponse(BaseModel):
+    id: UUID
+    user_id: Optional[UUID] = None
+    user_nombre: Optional[str] = None
+    method: str
+    endpoint: str
+    status_code: int
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # ==========================================
 # BITACORA SCHEMAS
 # ==========================================
@@ -556,6 +590,7 @@ class BitacoraBase(BaseModel):
     contenido: str
     categoria: str = "técnica" # técnica, administrativa, observación, resultado
     fecha: Optional[datetime] = None
+    adjuntos: Optional[List[str]] = None
 
 class BitacoraCreate(BitacoraBase):
     proyecto_id: UUID
@@ -565,6 +600,7 @@ class BitacoraUpdate(BaseModel):
     contenido: Optional[str] = None
     categoria: Optional[str] = None
     fecha: Optional[datetime] = None
+    adjuntos: Optional[List[str]] = None
 
 class BitacoraResponse(BitacoraBase):
     id: UUID

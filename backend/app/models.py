@@ -96,6 +96,12 @@ class User(Base):
     sede = Column(String(100))
     regional = Column(String(100))
     
+    # Campos específicos para aprendices (si aplica)
+    documento = Column(String(20), unique=True, index=True)
+    celular = Column(String(20))
+    ficha = Column(String(50))
+    programa_formacion = Column(String(255))
+    
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -155,22 +161,49 @@ class Semillero(Base):
     grupo = relationship("Grupo", back_populates="semilleros")
     owner = relationship("User", back_populates="semilleros_creados", foreign_keys=[owner_id])
     aprendices = relationship("Aprendiz", back_populates="semillero", cascade="all, delete-orphan")
+    proyectos = relationship("Proyecto", back_populates="semillero")
 
 
 class Aprendiz(Base):
     __tablename__ = "aprendices"
     
     id = get_uuid_column(primary_key=True, default=uuid.uuid4)
-    nombre = Column(String(255), nullable=False)
-    ficha = Column(String(50), nullable=False)
+    # Estos campos se usan como fallback si no hay user_id
+    nombre = Column(String(255))
+    ficha = Column(String(50))
     programa = Column(String(255))
+    documento = Column(String(20))
+    
     estado = Column(String(50), default='activo')
-    fecha_ingreso = Column(Date, default=lambda: datetime.now(timezone.utc))
+    fecha_ingreso = Column(Date, default=lambda: datetime.now(timezone.utc).date())
     
     semillero_id = get_uuid_column(ForeignKey("semilleros.id"), nullable=False)
+    user_id = get_uuid_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    # El aprendiz hereda datos del usuario si está vinculado
+    @property
+    def info_consolidada(self):
+        if self.user:
+            return {
+                "nombre": self.user.nombre,
+                "email": self.user.email,
+                "documento": self.user.documento or self.documento,
+                "ficha": self.user.ficha or self.ficha,
+                "programa": self.user.programa_formacion or self.programa,
+                "celular": self.user.celular
+            }
+        return {
+            "nombre": self.nombre,
+            "email": "Sin correo",
+            "documento": self.documento,
+            "ficha": self.ficha,
+            "programa": self.programa,
+            "celular": "N/A"
+        }
     
     # Relaciones
     semillero = relationship("Semillero", back_populates="aprendices")
+    user = relationship("User")
 
 
 class Convocatoria(Base):
@@ -216,8 +249,9 @@ class Proyecto(Base):
     presupuesto_detallado = Column(JSON)  # { "materiales": 0, "viaticos": 0, "servicios": 0, ... }
     linea_programatica = Column(String(100))  # Ej: 65, 82, etc.
     
-    # Vinculación con Retos
+    # Vinculación con Retos y Semilleros
     reto_origen_id = get_uuid_column(ForeignKey("retos.id"))
+    semillero_id = get_uuid_column(ForeignKey("semilleros.id"))
     
     convocatoria_id = get_uuid_column(ForeignKey("convocatorias.id"))
     owner_id = get_uuid_column(ForeignKey("users.id"), nullable=False)
@@ -228,6 +262,7 @@ class Proyecto(Base):
     
     # Relaciones
     convocatoria = relationship("Convocatoria", back_populates="proyectos")
+    semillero = relationship("Semillero", back_populates="proyectos")
     owner = relationship("User", back_populates="proyectos_creados", foreign_keys=[owner_id])
     equipo = relationship("User", secondary=proyecto_equipo, back_populates="proyectos_miembro")
     productos = relationship("Producto", back_populates="proyecto")
@@ -416,6 +451,12 @@ class BitacoraEntry(Base):
     titulo = Column(String(255), nullable=False)
     contenido = Column(Text, nullable=False)
     categoria = Column(String(50)) # técnica, administrativa, observación, resultado
+    adjuntos = Column(JSON, nullable=True) # Lista de URLs o metadatos de archivos
+    
+    # Firma Digital
+    is_firmado = Column(Boolean, default=False)
+    hash_firma = Column(String(64))
+    fecha_firma = Column(DateTime)
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     

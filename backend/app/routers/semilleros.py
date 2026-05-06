@@ -168,14 +168,19 @@ def delete_semillero(
 # ==========================================
 
 def _make_aprendiz_dict(aprendiz: Aprendiz) -> dict:
-    """Convierte un objeto Aprendiz a diccionario."""
+    """Convierte un objeto Aprendiz a diccionario usando info_consolidada."""
+    info = aprendiz.info_consolidada
     return {
         "id": str(aprendiz.id),
-        "nombre": aprendiz.nombre,
-        "ficha": aprendiz.ficha,
-        "programa": aprendiz.programa,
+        "nombre": info["nombre"],
+        "documento": info["documento"],
+        "email": info["email"],
+        "ficha": info["ficha"],
+        "programa": info["programa"],
+        "celular": info["celular"],
         "estado": aprendiz.estado,
         "semillero_id": str(aprendiz.semillero_id),
+        "user_id": str(aprendiz.user_id) if aprendiz.user_id else None,
         "fecha_ingreso": aprendiz.fecha_ingreso
     }
 
@@ -210,14 +215,35 @@ def add_aprendiz(
     if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
     
+    # Lógica inteligente: Si no hay user_id pero hay documento, buscar usuario
+    if not aprendiz_data.user_id and aprendiz_data.documento:
+        user = db.query(User).filter(User.documento == aprendiz_data.documento).first()
+        if user:
+            aprendiz_data.user_id = user.id
+
     aprendiz = Aprendiz(
         nombre=aprendiz_data.nombre,
+        documento=aprendiz_data.documento,
         ficha=aprendiz_data.ficha,
         programa=aprendiz_data.programa,
         estado=aprendiz_data.estado,
-        semillero_id=str(semillero.id)
+        semillero_id=str(semillero.id),
+        user_id=str(aprendiz_data.user_id) if aprendiz_data.user_id else None
     )
     
+    # Si viene user_id, asegurar que el nombre y ficha sean los del usuario
+    if aprendiz.user_id:
+        user = db.query(User).filter(User.id == str(aprendiz.user_id)).first()
+        if user:
+            if not aprendiz.nombre: aprendiz.nombre = user.nombre
+            if not aprendiz.ficha: aprendiz.ficha = user.ficha
+            if not aprendiz.programa: aprendiz.programa = user.programa_formacion
+            if not aprendiz.documento: aprendiz.documento = user.documento
+    
+    # Validaciones mínimas
+    if not aprendiz.nombre and not aprendiz.user_id: 
+        aprendiz.nombre = "Aprendiz sin nombre"
+
     db.add(aprendiz)
     db.commit()
     db.refresh(aprendiz)

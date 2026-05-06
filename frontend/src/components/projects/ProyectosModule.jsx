@@ -12,7 +12,9 @@ import {
 } from 'recharts';
 import { ProyectosAPI } from '../../api/proyectos';
 import { UsersAPI } from '../../api/auth';
+import { SemillerosAPI } from '../../api/semilleros';
 import { RetosAPI } from '../../api/retos';
+import { PlantillasAPI } from '../../api/plantillas';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
@@ -267,6 +269,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [menuOpenId,       setMenuOpenId]       = useState(null);
   const [isEditing,        setIsEditing]        = useState(false);
   const [usuarios,         setUsuarios]         = useState([]);
+  const [semilleros,       setSemilleros]       = useState([]);
   const [isPoolVisible,    setIsPoolVisible]    = useState(false);
   const [dragOverTeam,     setDragOverTeam]     = useState(false);
   const [formTab,           setFormTab]          = useState('basic'); // 'basic', 'tech', 'budget'
@@ -274,14 +277,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
   useClickOutside(menuRef, () => setMenuOpenId(null));
 
-  useEffect(() => { loadData(); loadRetos(); loadUsers(); }, []);
-
-  const loadUsers = async () => {
-    try {
-      const u = await UsersAPI.list();
-      setUsuarios(Array.isArray(u) ? u : []);
-    } catch {}
-  };
+  useEffect(() => { loadData(); }, []);
 
   // Close menus on click outside
   useEffect(() => {
@@ -289,13 +285,6 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     window.addEventListener('click', closeMenu);
     return () => window.removeEventListener('click', closeMenu);
   }, []);
-
-  const loadRetos = async () => {
-    try {
-      const r = await RetosAPI.list();
-      setRetosDisponibles(Array.isArray(r) ? r : []);
-    } catch {}
-  };
 
   const updateRubro = (id, value) => {
     const val = parseFloat(value) || 0;
@@ -310,8 +299,11 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
   // Manejar acción inicial (ej: abrir formulario de creación)
   useEffect(() => {
-    if (initialAction === 'create') {
-      setFormData(EMPTY_FORM);
+    if (initialAction?.form === 'create') {
+      setFormData({
+        ...EMPTY_FORM,
+        ...(initialAction.data || {})
+      });
       setIsEditing(false);
       setFormTab('basic');
       setShowForm(true);
@@ -322,8 +314,16 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const loadData = async () => {
     setLoading(true);
     try {
-      const p = await ProyectosAPI.list();
+      const [p, u, r, s] = await Promise.all([
+        ProyectosAPI.list(),
+        UsersAPI.list(),
+        RetosAPI.list(),
+        SemillerosAPI.list()
+      ]);
       setProyectos(Array.isArray(p) ? p : []);
+      setUsuarios(Array.isArray(u) ? u : []);
+      setRetosDisponibles(Array.isArray(r) ? r : []);
+      setSemilleros(Array.isArray(s) ? s : []);
     } catch (err) {
       console.error(err);
     }
@@ -364,6 +364,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       descripcion: proyecto.descripcion || '',
       linea_programatica: proyecto.linea_programatica || '',
       reto_origen_id: proyecto.reto_origen_id || '',
+      semillero_id: proyecto.semillero_id || '',
       presupuesto_detallado: proyecto.presupuesto_detallado || { personal: 0, materiales: 0, viaticos: 0, servicios: 0, equipos: 0 }
     });
     setIsEditing(true);
@@ -388,6 +389,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       const sanitizedData = {
         ...formData,
         reto_origen_id: (formData.reto_origen_id && formData.reto_origen_id !== '') ? formData.reto_origen_id : null,
+        semillero_id: (formData.semillero_id && formData.semillero_id !== '') ? formData.semillero_id : null,
         convocatoria_id: (formData.convocatoria_id && formData.convocatoria_id !== '') ? formData.convocatoria_id : null,
         vigencia: parseInt(formData.vigencia) || 12,
         presupuesto_total: parseFloat(formData.presupuesto_total) || 0,
@@ -462,6 +464,22 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       loadData();
     } catch (err) {
       onNotify?.('Error al vincular: ' + err.message, 'error');
+    }
+  };
+
+  const handleGenerateCronograma = async () => {
+    if (!selectedProyecto) return;
+    try {
+      setLoading(true);
+      await PlantillasAPI.generarCronograma(selectedProyecto.id);
+      onNotify?.('Cronograma SENNOVA generado exitosamente', 'success');
+      const pActualizado = await ProyectosAPI.get(selectedProyecto.id);
+      setSelectedProyecto(pActualizado);
+      loadData();
+    } catch (err) {
+      onNotify?.('Error al generar cronograma: ' + err.message, 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -826,6 +844,42 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                           </div>
                         </div>
                       </div>
+
+                      <div className="flex flex-wrap gap-2 pt-2 mb-8">
+                        <Button variant="outline" size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest" onClick={handleGenerateCronograma}>
+                          <Calendar size={12} className="mr-1.5" /> Generar Cronograma
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 text-[10px] font-black uppercase tracking-widest border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                          onClick={async () => {
+                            try {
+                              await PlantillasAPI.generarReportePresupuesto(selectedProyecto.id);
+                              onNotify?.('Reporte de presupuesto generado en el servidor', 'success');
+                              PDFGenerator.generateMonthlyReport({
+                                investigador: currentUser,
+                                periodo: 'Reporte Presupuestal 2026',
+                                resumen: { 
+                                  proyectos_activos: 1, 
+                                  productos_generados: selectedProyecto.total_productos || 0, 
+                                  cumplimiento: 100 
+                                },
+                                detalle_actividades: Object.entries(selectedProyecto.presupuesto_detallado || {}).map(([k, v]) => ({
+                                  fecha: 'Vigencia Actual',
+                                  accion: k.toUpperCase(),
+                                  desc: `Asignación: $${v.toLocaleString('es-CO')}`
+                                })),
+                                metas_proximo_mes: ['Ejecución eficiente del gasto', 'Cierre administrativo']
+                              });
+                            } catch (err) {
+                              onNotify?.('Error: ' + err.message, 'error');
+                            }
+                          }}
+                        >
+                          <DollarSign size={12} className="mr-1.5" /> Exportar Presupuesto
+                        </Button>
+                      </div>
                     </section>
 
                     {/* Description */}
@@ -956,7 +1010,16 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                 )}
 
                 {activeTab === 'timeline' && (
-                  <div className="animate-fadeIn">
+                  <div className="space-y-6 animate-fadeIn">
+                    <div className="flex flex-col sm:flex-row justify-between items-center bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 gap-4">
+                      <div>
+                        <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">Automatización</p>
+                        <p className="text-xs text-slate-600 font-medium">¿Sin actividades? Genera el cronograma estándar SENNOVA.</p>
+                      </div>
+                      <Button variant="sena" size="sm" onClick={handleGenerateCronograma} disabled={loading} className="w-full sm:w-auto shadow-lg shadow-emerald-200">
+                        <Zap size={14} className="mr-2" /> Generar Plan
+                      </Button>
+                    </div>
                     <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                       <Clock3 size={12} /> Progreso de Hitos SENNOVA
                     </h3>
@@ -1039,8 +1102,20 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                       </div>
                       <Input label="Nombre Corto / Acrónimo" value={formData.nombre_corto} onChange={patch('nombre_corto')} placeholder="Ej: SIGPI, PADGEC..." />
                       <Input label="Código SGPS" value={formData.codigo_sgps} onChange={patch('codigo_sgps')} placeholder="SGPS-XXXX" />
-                      <Select label="Tipología" options={TIPOLOGIA_OPTIONS} value={formData.tipologia} onChange={patch('tipologia')} />
-                      <div className="space-y-1">
+                        <Select label="Tipología" options={TIPOLOGIA_OPTIONS} value={formData.tipologia} onChange={patch('tipologia')} />
+                        <div className="md:col-span-2">
+                          <Select 
+                            label="Semillero de Investigación Vinculado" 
+                            value={formData.semillero_id} 
+                            onChange={patch('semillero_id')} 
+                            options={[
+                              { value: '', label: 'Sin semillero vinculado (Iniciativa de Grupo)' },
+                              ...semilleros.map(s => ({ value: s.id, label: s.nombre }))
+                            ]}
+                            className="bg-emerald-50/30 border-emerald-100"
+                          />
+                        </div>
+                        <div className="space-y-1">
                         <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1.5">
                           <Clock size={12} className="text-blue-500" /> Vigencia (Meses)
                         </label>

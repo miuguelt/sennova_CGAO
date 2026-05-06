@@ -88,6 +88,7 @@ const ProductosModule = ({ currentUser, onNotify }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [proyectoFilter, setProyectoFilter] = useState('');
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -167,6 +168,26 @@ const ProductosModule = ({ currentUser, onNotify }) => {
     }
   };
 
+  const handleGenerateTemplate = async () => {
+    if (!proyectoFilter) {
+      onNotify?.('Selecciona un proyecto para proyectar sus resultados automáticos', 'warning');
+      return;
+    }
+    
+    const project = proyectos.find(p => p.id === proyectoFilter);
+    if (!window.confirm(`¿Deseas generar los productos proyectados para "${project?.nombre_corto || project?.nombre}" según su tipología?`)) return;
+    
+    setLoading(true);
+    try {
+      await ProductosAPI.generarDesdePlantilla(proyectoFilter);
+      onNotify?.('Productos proyectados generados exitosamente', 'success');
+      loadData();
+    } catch (err) {
+      onNotify?.('Error al generar plantilla: ' + err.message, 'error');
+    }
+    setLoading(false);
+  };
+
   const patch = (f) => (e) => {
     const val = e?.target ? e.target.value : e;
     setFormData(prev => ({ ...prev, [f]: val }));
@@ -176,7 +197,8 @@ const ProductosModule = ({ currentUser, onNotify }) => {
     const matchSearch = !searchTerm || (p.nombre || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchTipo   = !tipoFilter  || p.tipo === tipoFilter;
     const matchStatus = !statusFilter || (statusFilter === 'verificado' ? p.is_verificado : !p.is_verificado);
-    return matchSearch && matchTipo && matchStatus;
+    const matchProj   = !proyectoFilter || p.proyecto_id === proyectoFilter;
+    return matchSearch && matchTipo && matchStatus && matchProj;
   });
 
   // Action Menu Component
@@ -232,6 +254,11 @@ const ProductosModule = ({ currentUser, onNotify }) => {
           </div>
         </div>
         <div className="flex gap-2">
+          {proyectoFilter && filtered.length === 0 && (
+            <Button onClick={handleGenerateTemplate} variant="outline" className="border-indigo-200 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 transition-all">
+              <Zap size={18} className="mr-2" /> Auto-Proyectar Resultados
+            </Button>
+          )}
           <Button onClick={() => setShowImportModal(true)} variant="outline" className="border-indigo-200 text-indigo-700 bg-white/50">
             <Globe size={18} className="mr-2" /> Importar CVLAC
           </Button>
@@ -280,6 +307,14 @@ const ProductosModule = ({ currentUser, onNotify }) => {
             <option value="">Todos los Estados</option>
             <option value="verificado">Verificados</option>
             <option value="pendiente">Pendientes</option>
+          </select>
+          <select
+            value={proyectoFilter}
+            onChange={(e) => setProyectoFilter(e.target.value)}
+            className="px-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none min-w-[200px]"
+          >
+            <option value="">Todos los Proyectos</option>
+            {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre_corto || p.nombre}</option>)}
           </select>
         </div>
       </div>
@@ -628,11 +663,12 @@ const ProductosModule = ({ currentUser, onNotify }) => {
                   onClick={async () => {
                     setIsImporting(true);
                     try {
-                      // Mocking the scraping and importing for demonstration
-                      // In a real scenario, we would call a backend service that does this
-                      const results = { importados: 5, errores: 2 };
-                      setImportResults(results);
-                      onNotify?.('Importación finalizada', 'success');
+                      const res = await ProductosAPI.importCVLaC(cvlacUrl);
+                      setImportResults({
+                        importados: res.importados,
+                        errores: res.errores
+                      });
+                      onNotify?.(res.message, 'success');
                       loadData();
                     } catch (err) {
                       onNotify?.('Error en importación: ' + err.message, 'error');

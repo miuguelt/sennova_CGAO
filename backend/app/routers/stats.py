@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 from app.models import (
     User, Proyecto, Grupo, Semillero, 
     Producto, Convocatoria, Documento,
-    Entregable, Notificacion, Actividad, Aprendiz
+    Entregable, Notificacion, Actividad, Aprendiz, Reto
 )
 
 router = APIRouter(prefix="/stats", tags=["Estadísticas"])
@@ -55,7 +55,11 @@ def get_dashboard_stats(
             "total": db.query(Producto).count(),
             "verificados": db.query(Producto).filter(Producto.is_verificado == True).count()
         },
-        "investigadores": db.query(User).filter(User.rol == "investigador", User.is_active == True).count()
+        "investigadores": db.query(User).filter(User.rol == "investigador", User.is_active == True).count(),
+        "aprendices": {
+            "total": db.query(Aprendiz).count(),
+            "activos": db.query(Aprendiz).filter(Aprendiz.estado == "activo").count()
+        }
     }
     
     # 2. Entregables Críticos (Acción Inmediata)
@@ -469,12 +473,6 @@ def global_search(
             "url": f"/grupos"
         })
         
-    # 4. Buscar Productos
-    productos = db.query(Producto).filter(
-        (Producto.nombre.ilike(search_filter)) | 
-        (Producto.tipo.ilike(search_filter))
-    ).limit(5).all()
-    
     for pr in productos:
         results.append({
             "id": str(pr.id),
@@ -483,6 +481,38 @@ def global_search(
             "type": "producto",
             "icon": "file-text",
             "url": f"/productos"
+        })
+
+    # 5. Buscar Semilleros
+    semilleros = db.query(Semillero).filter(
+        (Semillero.nombre.ilike(search_filter)) | 
+        (Semillero.linea_investigacion.ilike(search_filter))
+    ).limit(5).all()
+
+    for s in semilleros:
+        results.append({
+            "id": str(s.id),
+            "title": s.nombre,
+            "subtitle": f"Semillero - {s.estado}",
+            "type": "semillero",
+            "icon": "users",
+            "url": f"/semilleros"
+        })
+
+    # 6. Buscar Retos
+    retos = db.query(Reto).filter(
+        (Reto.titulo.ilike(search_filter)) | 
+        (Reto.descripcion.ilike(search_filter))
+    ).limit(5).all()
+
+    for r in retos:
+        results.append({
+            "id": str(r.id),
+            "title": r.titulo,
+            "subtitle": f"Reto - {r.estado}",
+            "type": "reto",
+            "icon": "lightbulb",
+            "url": f"/retos"
         })
         
     return {"results": results}

@@ -3,7 +3,8 @@ import {
   Book, Plus, Search, Filter, Clock, User, 
   Trash2, Edit2, ChevronRight, Save, X,
   FileText, MessageSquare, AlertCircle, CheckCircle2,
-  MoreVertical, Calendar, Loader2, Zap
+  MoreVertical, Calendar, Loader2, Zap, Image as ImageIcon,
+  Paperclip, ExternalLink, PlayCircle
 } from 'lucide-react';
 import { BitacoraAPI } from '../../api/bitacora';
 import { ProyectosAPI } from '../../api/proyectos';
@@ -25,13 +26,14 @@ const CATEGORIAS = [
 const getCat = (v) => CATEGORIAS.find(c => c.value === v) || CATEGORIAS[0];
 const selectValue = (eventOrValue) => eventOrValue?.target ? eventOrValue.target.value : eventOrValue;
 
-const BitacoraModule = ({ currentUser, onNotify }) => {
+const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled }) => {
   const [proyectos, setProyectos] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ titulo: '', contenido: '', categoria: 'técnica' });
+  const [formData, setFormData] = useState({ titulo: '', contenido: '', categoria: 'técnica', adjuntos: [] });
+  const [mediaUrl, setMediaUrl] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showInsight, setShowInsight] = useState(false);
@@ -39,6 +41,14 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
   useEffect(() => {
     loadProyectos();
   }, []);
+
+  useEffect(() => {
+    if (initialAction?.form === 'create') {
+      setShowForm(true);
+      setIsEditing(false);
+      onActionHandled?.();
+    }
+  }, [initialAction, onActionHandled]);
 
   useEffect(() => {
     if (selectedProjectId) loadEntries();
@@ -85,7 +95,8 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
         onNotify?.('Nueva entrada registrada', 'success');
       }
       setShowForm(false);
-      setFormData({ titulo: '', contenido: '', categoria: 'técnica' });
+      setFormData({ titulo: '', contenido: '', categoria: 'técnica', adjuntos: [] });
+      setMediaUrl('');
       setIsEditing(false);
       loadEntries();
     } catch (err) {
@@ -112,7 +123,19 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
 
   const handleSign = async (entryId) => {
     try {
+      const entry = entries.find(e => e.id === entryId);
+      if (!entry) return;
+
       const hash = btoa(Math.random().toString()).substring(0, 32).toUpperCase();
+      const signedContent = entry.contenido + `\n\n[Firma Digital SENNOVA: ${hash}]`;
+      
+      await BitacoraAPI.update(entryId, { 
+        ...entry, 
+        contenido: signedContent,
+        is_firmado: true,
+        hash_firma: hash 
+      });
+
       onNotify?.('Firma digital generada y vinculada: SENNOVA-' + hash, 'success');
       loadEntries();
     } catch (err) {
@@ -131,7 +154,7 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
           </div>
           <div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">Bitácora de Investigación</h1>
-            <p className="text-sm text-slate-500 font-medium">Registro técnico y diario de campo digital</p>
+            <p className="text-sm text-slate-500 font-medium">Registro técnico y diario de campo digital con soporte multimedia</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -220,6 +243,36 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
                       </p>
                     </div>
 
+                    {/* Multimedia Gallery */}
+                    {entry.adjuntos && entry.adjuntos.length > 0 && (
+                      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {entry.adjuntos.map((url, idx) => {
+                          const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+                          return (
+                            <a 
+                              key={idx} 
+                              href={url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="group/media relative aspect-video rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 block"
+                            >
+                              {isImage ? (
+                                <img src={url} alt="Evidencia" className="w-full h-full object-cover group-hover/media:scale-110 transition-transform duration-500" />
+                              ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4">
+                                  <FileText size={24} className="text-slate-400" />
+                                  <span className="text-[10px] font-black text-slate-500 uppercase truncate w-full text-center">Ver Adjunto</span>
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center">
+                                <ExternalLink size={20} className="text-white" />
+                              </div>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
                       <div 
                         className="flex items-center gap-3 cursor-pointer hover:bg-slate-100 p-1 rounded-lg transition-colors"
@@ -294,6 +347,48 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
                 rows={10} 
                 required
               />
+
+              {/* Multimedia Upload Support */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <Paperclip size={14} className="text-indigo-500" /> Evidencias Multimedia (URLs)
+                </h3>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="Pega la URL de una imagen o documento (S3/Cloudinary/Repo)..." 
+                    value={mediaUrl}
+                    onChange={(e) => setMediaUrl(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button 
+                    variant="outline" 
+                    className="shrink-0"
+                    onClick={() => {
+                      if (!mediaUrl) return;
+                      setFormData({...formData, adjuntos: [...(formData.adjuntos || []), mediaUrl]});
+                      setMediaUrl('');
+                    }}
+                  >
+                    Agregar
+                  </Button>
+                </div>
+                
+                {formData.adjuntos?.length > 0 && (
+                  <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    {formData.adjuntos.map((url, idx) => (
+                      <div key={idx} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-200">
+                        <img src={url} alt="Preview" className="w-full h-full object-cover" onError={(e) => { e.target.src = 'https://placehold.co/400x225?text=Archivo'; }} />
+                        <button 
+                          onClick={() => setFormData({...formData, adjuntos: formData.adjuntos.filter((_, i) => i !== idx)})}
+                          className="absolute top-1 right-1 p-1 bg-rose-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">

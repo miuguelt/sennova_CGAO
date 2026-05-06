@@ -31,4 +31,12 @@ export const ProductosAPI = {
   stats: () => fetchAPI('/productos/stats/resumen'),
 
   misProductos: () => fetchAPI('/productos/mis-productos/list'),
+  
+  importCVLaC: (url) => fetchAPI(`/cvlac/import?url=${encodeURIComponent(url)}`, {
+    method: 'POST',
+  }),
+
+  generarDesdePlantilla: (proyectoId) => fetchAPI(`/productos/proyecto/${proyectoId}/generate-template`, {
+    method: 'POST',
+  }),
 };

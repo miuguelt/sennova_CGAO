@@ -296,3 +296,77 @@ def get_mis_productos(
     ).order_by(Producto.created_at.desc()).all()
     
     return productos
+@router.post("/proyecto/{proyecto_id}/generate-template")
+def generar_productos_base(
+    proyecto_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Genera automáticamente productos placeholder basados en la tipología del proyecto."""
+    proyecto = db.query(Proyecto).filter(Proyecto.id == proyecto_id).first()
+    if not proyecto:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    
+    # Verificar acceso al proyecto
+    has_access = (
+        current_user.rol == "admin" or
+        str(proyecto.owner_id) == str(current_user.id) or
+        any(str(m.id) == str(current_user.id) for m in proyecto.equipo)
+    )
+    if not has_access:
+        raise HTTPException(status_code=403, detail="Sin acceso al proyecto")
+
+    # Verificar si ya tiene productos
+    existentes = db.query(Producto).filter(Producto.proyecto_id == proyecto_id).count()
+    if existentes > 0:
+        raise HTTPException(status_code=400, detail="El proyecto ya cuenta con productos registrados")
+
+    # Definir Plantillas Institucionales (Placeholders)
+    PLANTILLAS = {
+        "Investigación": [
+            {"tipo": "articulo", "nombre": "Artículo de Investigación (Publicación Q1/Q2)", "desc": "Resultado principal de la investigación para revista indexada."},
+            {"tipo": "ponencia", "nombre": "Ponencia en Evento Internacional", "desc": "Divulgación de resultados en congreso especializado."},
+            {"tipo": "capitulo_libro", "nombre": "Capítulo de Libro de Investigación", "desc": "Consolidación teórica y resultados finales."}
+        ],
+        "Innovación": [
+            {"tipo": "software", "nombre": "Registro de Software / Aplicativo", "desc": "Desarrollo tecnológico funcional resultante del proyecto."},
+            {"tipo": "prototipo", "nombre": "Prototipo Industrial / Funcional", "desc": "Validación en entorno relevante o cuasi-real."},
+            {"tipo": "manual", "nombre": "Manual de Usuario y Guía Técnica", "desc": "Documentación para la transferencia tecnológica."}
+        ],
+        "Modernización": [
+            {"tipo": "informe", "nombre": "Informe de Impacto Tecnológico", "desc": "Evaluación de la mejora en la capacidad instalada del centro."},
+            {"tipo": "video", "nombre": "Video de Transferencia de Conocimiento", "desc": "Material audiovisual para la formación profesional."}
+        ],
+        "Cultura": [
+            {"tipo": "video", "nombre": "Video de Apropiación Social del Conocimiento", "desc": "Divulgación de resultados para la comunidad general."},
+            {"tipo": "ponencia", "nombre": "Taller de Divulgación y Sensibilización", "desc": "Evento de transferencia a actores locales."}
+        ]
+    }
+
+    # Seleccionar plantilla
+    tipo = proyecto.tipologia or "Investigación"
+    items = next((v for k, v in PLANTILLAS.items() if k.lower() in tipo.lower()), PLANTILLAS["Investigación"])
+    
+    nuevos_productos = []
+    for item in items:
+        producto = Producto(
+            tipo=item["tipo"],
+            nombre=f"[PROYECTADO] {item['nombre']}",
+            descripcion=item["desc"],
+            proyecto_id=proyecto_id,
+            owner_id=str(current_user.id),
+            is_verificado=False
+        )
+        db.add(producto)
+        nuevos_productos.append(producto)
+
+    db.commit()
+    
+    # Log
+    log_actividad(
+        db, current_user.id, "generate_products", 
+        f"Generó productos automáticos ({len(items)}) para proyecto: {proyecto.nombre_corto or proyecto.id}",
+        entidad_tipo="proyecto", entidad_id=proyecto_id
+    )
+
+    return {"message": f"Productos proyectados generados exitosamente ({len(items)})", "count": len(items)}

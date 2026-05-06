@@ -140,5 +140,46 @@ export const ReportesAPI = {
     }
     
     return response.json();
+  },
+
+  /**
+   * Genera reporte de talento humano (investigadores) en Excel
+   */
+  async descargarConsolidadoTalento(formato = 'excel') {
+    const params = new URLSearchParams();
+    params.append('formato', formato);
+    
+    const response = await fetch(`${API_URL}${API_BASE}/talento-consolidado?${params}`, {
+      headers: getAuthHeaders()
+    });
+    
+    if (!response.ok) {
+      throw new Error('Error generando reporte de talento');
+    }
+    
+    const blob = await response.blob();
+    const filename = `consolidado_talento_sennova.${formato === 'excel' ? 'xlsx' : 'csv'}`;
+    
+    downloadBlob(blob, filename);
+    return { success: true, filename };
+  },
+
+  /**
+   * Genera certificado de participación de investigador en PDF
+   */
+  async descargarCertificadoInvestigador(userId) {
+    const response = await fetch(`${API_URL}${API_BASE}/investigador/${userId}/certificado`, {
+      headers: getAuthHeaders()
+    });
+    
+    if (!response.ok) {
+      throw new Error('Error generando certificado');
+    }
+    
+    const blob = await response.blob();
+    const filename = `certificado_investigacion_${userId}.pdf`;
+    
+    downloadBlob(blob, filename);
+    return { success: true, filename };
   }
 };

@@ -3,7 +3,7 @@ import {
   Calendar, CheckCircle2, AlertCircle, Clock, Plus, 
   Search, Filter, ChevronRight, MoreVertical, Edit2, 
   Trash2, User, Folder, Loader2, CheckSquare, ListTodo,
-  TrendingUp, CalendarDays, ArrowUpRight, Send, AlertTriangle
+  TrendingUp, CalendarDays, ArrowUpRight, Send, AlertTriangle, Zap
 } from 'lucide-react';
 import { EntregablesAPI } from '../../api/entregables';
 import { ProyectosAPI } from '../../api/proyectos';
@@ -36,7 +36,7 @@ const EMPTY_FORM = {
   responsable_id: '',
 };
 
-const CronogramaModule = ({ currentUser, onNotify }) => {
+const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandled }) => {
   const [entregables, setEntregables] = useState([]);
   const [proyectos, setProyectos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +51,13 @@ const CronogramaModule = ({ currentUser, onNotify }) => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (initialAction?.data?.proyecto_id) {
+      setFilterProyecto(initialAction.data.proyecto_id);
+      onActionHandled?.();
+    }
+  }, [initialAction, onActionHandled]);
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -62,6 +69,26 @@ const CronogramaModule = ({ currentUser, onNotify }) => {
       setProyectos(pData || []);
     } catch (err) {
       onNotify?.('Error al cargar cronograma', 'error');
+    }
+    setLoading(false);
+  };
+
+  const handleGenerateTemplate = async () => {
+    if (!filterProyecto) {
+      onNotify?.('Selecciona un proyecto para generar su cronograma automático', 'warning');
+      return;
+    }
+    
+    const project = proyectos.find(p => p.id === filterProyecto);
+    if (!window.confirm(`¿Generar cronograma automático para "${project?.nombre_corto || project?.nombre}" basado en su tipología (${project?.tipologia || 'Investigación'})?`)) return;
+    
+    setLoading(true);
+    try {
+      await EntregablesAPI.generarDesdePlantilla(filterProyecto);
+      onNotify?.('Cronograma institucional generado exitosamente', 'success');
+      loadData();
+    } catch (err) {
+      onNotify?.('Error al generar plantilla: ' + err.message, 'error');
     }
     setLoading(false);
   };
@@ -132,6 +159,11 @@ const CronogramaModule = ({ currentUser, onNotify }) => {
           </div>
         </div>
         <div className="flex gap-2">
+          {filterProyecto && filtered.length === 0 && (
+            <Button onClick={handleGenerateTemplate} variant="outline" className="border-indigo-200 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 transition-all">
+              <Zap size={18} className="mr-2" /> Auto-Generar Hitos
+            </Button>
+          )}
           <Button onClick={handleCreate} variant="sena" className="shadow-lg shadow-emerald-200/50">
             <Plus size={18} className="mr-2" /> Programar Entregable
           </Button>
@@ -263,6 +295,11 @@ const CronogramaModule = ({ currentUser, onNotify }) => {
                       {e.estado === 'en_desarrollo' && (
                         <Button variant="sena" size="sm" onClick={() => handleCambiarEstado(e.id, 'enviado')}>
                           Enviar <Send size={14} className="ml-1" />
+                        </Button>
+                      )}
+                      {e.estado === 'enviado' && currentUser?.rol === 'admin' && (
+                        <Button variant="success" size="sm" onClick={() => handleCambiarEstado(e.id, 'aprobado')}>
+                          Aprobar <CheckCircle2 size={14} className="ml-1" />
                         </Button>
                       )}
                       <button 

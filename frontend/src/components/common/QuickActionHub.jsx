@@ -1,15 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 import {
   FolderPlus, UserPlus, Award, Calendar, FilePlus,
-  Zap, X, Command, ChevronRight, LayoutGrid,
+  Zap, X, Command, ChevronRight, LayoutGrid, Book,
 } from 'lucide-react';
 
 const ACTIONS = [
   { id: 'new-project', label: 'Nuevo Proyecto',       desc: 'Iniciar formulación SGPS',          Icon: FolderPlus, iconCls: 'bg-blue-50 text-blue-600',    module: 'proyectos',      form: 'create' },
   { id: 'new-product', label: 'Reportar Producto',     desc: 'Artículos, software o prototipos',  Icon: Award,      iconCls: 'bg-amber-50 text-amber-600',   module: 'productos',      form: 'create' },
+  { id: 'new-log',     label: 'Registrar Bitácora',   desc: 'Diario de campo y avances',         Icon: Book,       iconCls: 'bg-indigo-50 text-indigo-600', module: 'bitacora',      form: 'create' },
   { id: 'new-user',    label: 'Invitar Investigador',  desc: 'Añadir talento al centro',          Icon: UserPlus,   iconCls: 'bg-emerald-50 text-emerald-700',module: 'investigadores', form: 'create' },
   { id: 'new-call',    label: 'Crear Convocatoria',    desc: 'Abrir nueva línea de fomento',      Icon: Calendar,   iconCls: 'bg-rose-50 text-rose-600',     module: 'convocatorias',  form: 'create' },
-  { id: 'upload-doc',  label: 'Subir Documento',       desc: 'Actas, contratos o guías',          Icon: FilePlus,   iconCls: 'bg-indigo-50 text-indigo-600', module: 'documentos',     form: 'upload' },
+  { id: 'upload-doc',  label: 'Subir Documento',       desc: 'Actas, contratos o guías',          Icon: FilePlus,   iconCls: 'bg-violet-50 text-violet-600', module: 'documentos',     form: 'upload' },
 ];
 
 const QuickActionHub = ({ isOpen, onClose, onAction }) => {

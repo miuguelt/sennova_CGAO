@@ -15,6 +15,18 @@ router = APIRouter(prefix="/retos", tags=["Banco de Retos"])
 def listar_retos(db: Session = Depends(get_db)):
     return db.query(Reto).order_by(Reto.created_at.desc()).all()
 
+@router.get("/{reto_id}", response_model=RetoResponse)
+def obtener_reto(reto_id: str, db: Session = Depends(get_db)):
+    try:
+        uid = uuid.UUID(reto_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID de reto inválido")
+        
+    reto = db.query(Reto).filter(Reto.id == uid).first()
+    if not reto:
+        raise HTTPException(status_code=404, detail="Reto no encontrado")
+    return reto
+
 @router.post("", response_model=RetoResponse, status_code=201)
 def crear_reto(
     reto: RetoCreate, 
