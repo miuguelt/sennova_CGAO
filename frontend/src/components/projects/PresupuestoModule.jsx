@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   DollarSign, PieChart, Plus, Trash2, Edit2, 
   ChevronRight, Save, X, Briefcase, Package, 
-  Cpu, Globe, Truck, Tool, Zap, Loader2,
+  Cpu, Globe, Truck, Wrench, Zap, Loader2,
   TrendingUp, BarChart3, AlertCircle, CheckCircle2
 } from 'lucide-react';
 import { ProyectosAPI } from '../../api/proyectos';
@@ -20,7 +20,7 @@ const CATEGORIAS = [
   { value: 'Software',        icon: Zap,       color: 'text-amber-600', bg: 'bg-amber-50' },
   { value: 'Servicios',       icon: Globe,     color: 'text-rose-600', bg: 'bg-rose-50' },
   { value: 'Viajes',          icon: Truck,     color: 'text-slate-600', bg: 'bg-slate-50' },
-  { value: 'Otros',           icon: Tool,      color: 'text-slate-600', bg: 'bg-slate-50' },
+  { value: 'Otros',           icon: Wrench,    color: 'text-slate-600', bg: 'bg-slate-50' },
 ];
 
 const getCatInfo = (cat) => CATEGORIAS.find(c => c.value === cat) || CATEGORIAS[6];
