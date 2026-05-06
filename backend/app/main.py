@@ -80,7 +80,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
-    expose_headers=["*"],
 )
 
 # Registro de Auditoría Estricta
