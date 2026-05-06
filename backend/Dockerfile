@@ -19,8 +19,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Crear directorio de almacenamiento persistente
 RUN mkdir -p /app/storage && chmod 755 /app/storage
 
-# Copiar código
+# Copiar código y scripts
 COPY app/ ./app/
+COPY scripts/ ./scripts/
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
 # Variables de entorno
 ENV PYTHONUNBUFFERED=1
@@ -33,5 +36,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Comando de inicio
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Punto de entrada para asegurar integridad de BD y luego iniciar App
+ENTRYPOINT ["./entrypoint.sh"]
