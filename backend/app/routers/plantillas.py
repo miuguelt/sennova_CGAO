@@ -9,7 +9,7 @@ from app.auth import get_current_user, get_current_admin
 from app.database import get_db
 from app.models import (
     Proyecto, User, Semillero, Aprendiz, Entregable, 
-    Producto, Documento
+    Producto, Documento, Actividad
 )
 from app.utils import log_actividad
 
