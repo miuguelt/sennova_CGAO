@@ -168,42 +168,36 @@ class Aprendiz(Base):
     __tablename__ = "aprendices"
     
     id = get_uuid_column(primary_key=True, default=uuid.uuid4)
-    # Estos campos se usan como fallback si no hay user_id
-    nombre = Column(String(255))
-    ficha = Column(String(50))
-    programa = Column(String(255))
-    documento = Column(String(20))
     
-    estado = Column(String(50), default='activo')
+    # Datos de vinculación específicos del semillero
+    estado = Column(String(50), default='activo') # activo, egresado, retirado
     fecha_ingreso = Column(Date, default=lambda: datetime.now(timezone.utc).date())
+    fecha_egreso = Column(Date, nullable=True)
     
-    semillero_id = get_uuid_column(ForeignKey("semilleros.id"), nullable=False)
-    user_id = get_uuid_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # Llaves foráneas
+    semillero_id = get_uuid_column(ForeignKey("semilleros.id", ondelete="CASCADE"), nullable=False)
+    user_id = get_uuid_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
-    # El aprendiz hereda datos del usuario si está vinculado
-    @property
-    def info_consolidada(self):
-        if self.user:
-            return {
-                "nombre": self.user.nombre,
-                "email": self.user.email,
-                "documento": self.user.documento or self.documento,
-                "ficha": self.user.ficha or self.ficha,
-                "programa": self.user.programa_formacion or self.programa,
-                "celular": self.user.celular
-            }
-        return {
-            "nombre": self.nombre,
-            "email": "Sin correo",
-            "documento": self.documento,
-            "ficha": self.ficha,
-            "programa": self.programa,
-            "celular": "N/A"
-        }
-    
     # Relaciones
     semillero = relationship("Semillero", back_populates="aprendices")
-    user = relationship("User")
+    user = relationship("User", backref="perfil_aprendiz")
+
+    @property
+    def info_consolidada(self):
+        """Mantiene compatibilidad con código que espera un objeto plano con info del usuario."""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "nombre": self.user.nombre,
+            "email": self.user.email,
+            "documento": self.user.documento,
+            "ficha": self.user.ficha,
+            "programa": self.user.programa_formacion,
+            "celular": self.user.celular,
+            "estado": self.estado,
+            "fecha_ingreso": self.fecha_ingreso
+        }
+
 
 
 class Convocatoria(Base):
@@ -445,7 +439,7 @@ class BitacoraEntry(Base):
     
     id = get_uuid_column(primary_key=True, default=uuid.uuid4)
     proyecto_id = get_uuid_column(ForeignKey("proyectos.id", ondelete="CASCADE"), nullable=False)
-    user_id = get_uuid_column(ForeignKey("users.id"), nullable=False)
+    user_id = get_uuid_column(ForeignKey("users.id"), nullable=False) # Creador de la entrada
     
     fecha = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     titulo = Column(String(255), nullable=False)
@@ -453,16 +447,22 @@ class BitacoraEntry(Base):
     categoria = Column(String(50)) # técnica, administrativa, observación, resultado
     adjuntos = Column(JSON, nullable=True) # Lista de URLs o metadatos de archivos
     
-    # Firma Digital
-    is_firmado = Column(Boolean, default=False)
-    hash_firma = Column(String(64))
-    fecha_firma = Column(DateTime)
+    # Sistema de Firma Digital Dual
+    is_firmado_investigador = Column(Boolean, default=False)
+    fecha_firma_investigador = Column(DateTime)
+    
+    is_firmado_aprendiz = Column(Boolean, default=False)
+    fecha_firma_aprendiz = Column(DateTime)
+    
+    # Evidencia técnica de la firma (Hash, IP, UserAgent)
+    signature_metadata = Column(JSON, nullable=True) 
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relaciones
     proyecto = relationship("Proyecto", back_populates="bitacora")
     user = relationship("User")
+
 
 
 class AuditLog(Base):

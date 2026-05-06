@@ -12,5 +12,10 @@ export const BitacoraAPI = {
     }),
     delete: (id) => fetchAPI(`/bitacora/${id}`, {
         method: 'DELETE'
+    }),
+    sign: (id, data = {}) => fetchAPI(`/bitacora/${id}/sign`, {
+        method: 'POST',
+        body: JSON.stringify(data)
     })
+
 };

@@ -4,7 +4,7 @@ import {
   Trash2, Edit2, ChevronRight, Save, X,
   FileText, MessageSquare, AlertCircle, CheckCircle2,
   MoreVertical, Calendar, Loader2, Zap, Image as ImageIcon,
-  Paperclip, ExternalLink, PlayCircle
+  Paperclip, ExternalLink, PlayCircle, ShieldCheck, Lock
 } from 'lucide-react';
 import { BitacoraAPI } from '../../api/bitacora';
 import { ProyectosAPI } from '../../api/proyectos';
@@ -123,23 +123,11 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
 
   const handleSign = async (entryId) => {
     try {
-      const entry = entries.find(e => e.id === entryId);
-      if (!entry) return;
-
-      const hash = btoa(Math.random().toString()).substring(0, 32).toUpperCase();
-      const signedContent = entry.contenido + `\n\n[Firma Digital SENNOVA: ${hash}]`;
-      
-      await BitacoraAPI.update(entryId, { 
-        ...entry, 
-        contenido: signedContent,
-        is_firmado: true,
-        hash_firma: hash 
-      });
-
-      onNotify?.('Firma digital generada y vinculada: SENNOVA-' + hash, 'success');
+      await BitacoraAPI.sign(entryId);
+      onNotify?.('Entrada firmada digitalmente con éxito', 'success');
       loadEntries();
     } catch (err) {
-      onNotify?.('Error al firmar: ' + err.message, 'error');
+      onNotify?.('Error al firmar: ' + (err.response?.data?.detail || err.message), 'error');
     }
   };
 
@@ -214,33 +202,81 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
                         <h3 className="text-lg font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{entry.titulo}</h3>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => handleSign(entry.id)}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl transition-all border border-emerald-200 group/sign"
-                          title="Firma Electrónica SENNOVA"
-                        >
-                          <Zap size={14} className="group-hover/sign:fill-emerald-500 transition-all" />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Firmar</span>
-                        </button>
-                        <button 
-                          onClick={() => handleEdit(entry)}
-                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(entry.id)}
-                          className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        {/* Botón de Firma Condicional */}
+                        {((currentUser.rol !== 'aprendiz' && !entry.is_firmado_investigador) || 
+                          (currentUser.rol === 'aprendiz' && !entry.is_firmado_aprendiz)) && (
+                          <button 
+                            onClick={() => handleSign(entry.id)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl transition-all border border-emerald-200 group/sign"
+                            title="Generar Firma Digital SENNOVA"
+                          >
+                            <ShieldCheck size={14} className="group-hover/sign:scale-110 transition-all" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Firmar Registro</span>
+                          </button>
+                        )}
+                        
+                        {!entry.is_firmado_investigador && !entry.is_firmado_aprendiz && (
+                          <>
+                            <button 
+                              onClick={() => handleEdit(entry)}
+                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(entry.id)}
+                              className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </>
+                        )}
+
+                        {(entry.is_firmado_investigador || entry.is_firmado_aprendiz) && (
+                          <div className="flex items-center gap-1 p-2 bg-slate-50 text-slate-400 rounded-xl border border-slate-100" title="Registro Protegido">
+                            <Lock size={14} />
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    <div className="prose prose-slate max-w-none">
+                    <div className="prose prose-slate max-w-none mb-6">
                       <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap font-medium">
                         {entry.contenido}
                       </p>
+                    </div>
+
+                    {/* Status de Firma Dual */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${entry.is_firmado_investigador ? 'bg-emerald-50/30 border-emerald-100' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-xl ${entry.is_firmado_investigador ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-200 text-slate-400'}`}>
+                            <ShieldCheck size={16} />
+                          </div>
+                          <div>
+                            <p className={`text-[10px] font-black uppercase tracking-tighter ${entry.is_firmado_investigador ? 'text-emerald-700' : 'text-slate-500'}`}>Investigador / Instructor</p>
+                            <p className="text-[9px] font-medium text-slate-400">
+                              {entry.is_firmado_investigador ? `Firmado: ${new Date(entry.fecha_firma_investigador).toLocaleDateString()}` : 'Pendiente de firma'}
+                            </p>
+                          </div>
+                        </div>
+                        {entry.is_firmado_investigador && <CheckCircle2 size={14} className="text-emerald-500" />}
+                      </div>
+
+                      <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${entry.is_firmado_aprendiz ? 'bg-indigo-50/30 border-indigo-100' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-xl ${entry.is_firmado_aprendiz ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-200' : 'bg-slate-200 text-slate-400'}`}>
+                            <User size={16} />
+                          </div>
+                          <div>
+                            <p className={`text-[10px] font-black uppercase tracking-tighter ${entry.is_firmado_aprendiz ? 'text-indigo-700' : 'text-slate-500'}`}>Talento / Aprendiz</p>
+                            <p className="text-[9px] font-medium text-slate-400">
+                              {entry.is_firmado_aprendiz ? `Firmado: ${new Date(entry.fecha_firma_aprendiz).toLocaleDateString()}` : 'Pendiente de firma'}
+                            </p>
+                          </div>
+                        </div>
+                        {entry.is_firmado_aprendiz && <CheckCircle2 size={14} className="text-indigo-500" />}
+                      </div>
                     </div>
 
                     {/* Multimedia Gallery */}

@@ -147,7 +147,19 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
   const [selectedSemillero, setSelectedSemillero] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [aprendices, setAprendices] = useState([]);
-  const [aprendizForm, setAprendizForm] = useState({ nombre: '', documento: '', email: '', programa: '', ficha: '', estado: 'activo' });
+  const [linkMode, setLinkMode] = useState('existing'); // 'existing' or 'new'
+  const [aprendizForm, setAprendizForm] = useState({ 
+    user_id: '', 
+    estado: 'activo',
+    // Fields for 'new' mode (User + Link)
+    email: '',
+    nombre: '',
+    password: 'password123', // Default or random
+    documento: '',
+    celular: '',
+    ficha: '',
+    programa_formacion: ''
+  });
   const [semilleroStats, setSemilleroStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
@@ -242,16 +254,34 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
   };
 
   const handleAddAprendiz = async () => {
-    if (!aprendizForm.nombre && !aprendizForm.documento) return;
     try {
-      await SemillerosAPI.addAprendiz(selectedSemillero.id, aprendizForm);
-      onNotify('Aprendiz vinculado', 'success');
-      setAprendizForm({ nombre: '', documento: '', email: '', programa: '', ficha: '', estado: 'activo' });
+      if (linkMode === 'existing') {
+        if (!aprendizForm.user_id) {
+          onNotify('Debe seleccionar un usuario', 'warning');
+          return;
+        }
+        await SemillerosAPI.addAprendiz(selectedSemillero.id, {
+          user_id: aprendizForm.user_id,
+          estado: aprendizForm.estado
+        });
+      } else {
+        if (!aprendizForm.email || !aprendizForm.nombre) {
+          onNotify('Email y nombre son obligatorios', 'warning');
+          return;
+        }
+        await SemillerosAPI.addAprendizFull(selectedSemillero.id, aprendizForm);
+      }
+      
+      onNotify('Aprendiz vinculado exitosamente', 'success');
+      setAprendizForm({ 
+        user_id: '', estado: 'activo', email: '', nombre: '', 
+        password: 'password123', documento: '', celular: '', ficha: '', programa_formacion: '' 
+      });
       const data = await SemillerosAPI.listAprendices(selectedSemillero.id);
       setAprendices(data || []);
       loadData();
-    } catch {
-      onNotify('Error al vincular aprendiz', 'error');
+    } catch (err) {
+      onNotify('Error al vincular aprendiz: ' + (err.response?.data?.detail || err.message), 'error');
     }
   };
 
@@ -659,42 +689,51 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                       {isPoolVisible ? 'Cerrar Panel de Arrastre' : 'Abrir Panel de Arrastre'}
                     </button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <Input 
-                      label="Documento / Ficha"
-                      placeholder="Ej: 1098..."
-                      value={aprendizForm.documento}
-                      onChange={e => setAprendizForm({...aprendizForm, documento: e.target.value})}
-                    />
-                    <Input 
-                      label="Nombre Completo (si no es usuario)"
-                      placeholder="Ej: Juan Pérez"
-                      value={aprendizForm.nombre}
-                      onChange={e => setAprendizForm({...aprendizForm, nombre: e.target.value})}
-                    />
+                  <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+                    <button 
+                      onClick={() => setLinkMode('existing')}
+                      className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'existing' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
+                    >
+                      Vincular Existente
+                    </button>
+                    <button 
+                      onClick={() => setLinkMode('new')}
+                      className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'new' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
+                    >
+                      Registrar y Vincular
+                    </button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <Select 
-                      label="O vincular usuario existente"
-                      options={usuarios.map(u => ({ value: u.id, label: u.nombre }))}
-                      value={aprendizForm.user_id}
-                      onChange={e => setAprendizForm({...aprendizForm, user_id: e.target.value})}
-                    />
-                    <Input 
-                      label="Programa de Formación"
-                      placeholder="Ej: ADSO"
-                      value={aprendizForm.programa}
-                      onChange={e => setAprendizForm({...aprendizForm, programa: e.target.value})}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="sena" className="flex-1 py-3" onClick={handleAddAprendiz}>
-                      Vincular Aprendiz
-                    </Button>
-                    <div className="hidden md:flex items-center px-4 bg-white border border-slate-200 rounded-xl text-[10px] font-black text-slate-400 uppercase">
-                      O arrastra desde el panel
+
+                  {linkMode === 'existing' ? (
+                    <div className="grid grid-cols-1 gap-4 mb-4">
+                      <Select 
+                        label="Seleccionar Usuario"
+                        placeholder="Buscar por nombre..."
+                        options={usuarios.map(u => ({ value: u.id, label: `${u.nombre} (${u.email})` }))}
+                        value={aprendizForm.user_id}
+                        onChange={e => setAprendizForm({...aprendizForm, user_id: e.target.value})}
+                      />
                     </div>
+                  ) : (
+                    <div className="space-y-4 mb-4 animate-fadeIn">
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input label="Email" type="email" placeholder="correo@sena.edu.co" value={aprendizForm.email} onChange={e => setAprendizForm({...aprendizForm, email: e.target.value})} />
+                        <Input label="Nombre Completo" placeholder="Juan Pérez" value={aprendizForm.nombre} onChange={e => setAprendizForm({...aprendizForm, nombre: e.target.value})} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input label="Documento" placeholder="1098..." value={aprendizForm.documento} onChange={e => setAprendizForm({...aprendizForm, documento: e.target.value})} />
+                        <Input label="Ficha" placeholder="267..." value={aprendizForm.ficha} onChange={e => setAprendizForm({...aprendizForm, ficha: e.target.value})} />
+                      </div>
+                      <Input label="Programa de Formación" placeholder="ADSO, Cocina, etc." value={aprendizForm.programa_formacion} onChange={e => setAprendizForm({...aprendizForm, programa_formacion: e.target.value})} />
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 mt-6">
+                    <Button variant="sena" className="flex-1 py-3" onClick={handleAddAprendiz}>
+                      {linkMode === 'existing' ? 'Vincular Usuario' : 'Registrar y Vincular'}
+                    </Button>
                   </div>
+
                 </div>
 
                 <div className="space-y-3 pb-10">

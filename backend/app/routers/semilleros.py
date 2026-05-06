@@ -167,11 +167,15 @@ def delete_semillero(
 # GESTIÓN DE APRENDICES
 # ==========================================
 
+from app.schemas import AprendizFullCreate, UserCreate
+from app.repositories.user_repository import UserRepository
+
 def _make_aprendiz_dict(aprendiz: Aprendiz) -> dict:
     """Convierte un objeto Aprendiz a diccionario usando info_consolidada."""
     info = aprendiz.info_consolidada
     return {
         "id": str(aprendiz.id),
+        "user_id": str(aprendiz.user_id),
         "nombre": info["nombre"],
         "documento": info["documento"],
         "email": info["email"],
@@ -180,8 +184,8 @@ def _make_aprendiz_dict(aprendiz: Aprendiz) -> dict:
         "celular": info["celular"],
         "estado": aprendiz.estado,
         "semillero_id": str(aprendiz.semillero_id),
-        "user_id": str(aprendiz.user_id) if aprendiz.user_id else None,
-        "fecha_ingreso": aprendiz.fecha_ingreso
+        "fecha_ingreso": aprendiz.fecha_ingreso,
+        "fecha_egreso": aprendiz.fecha_egreso
     }
 
 
@@ -206,7 +210,7 @@ def add_aprendiz(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Agregar aprendiz a un semillero."""
+    """Agregar un usuario existente como aprendiz a un semillero."""
     semillero = db.query(Semillero).filter(Semillero.id == str(semillero_id)).first()
     if not semillero:
         raise HTTPException(status_code=404, detail="Semillero no encontrado")
@@ -215,38 +219,81 @@ def add_aprendiz(
     if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
     
-    # Lógica inteligente: Si no hay user_id pero hay documento, buscar usuario
-    if not aprendiz_data.user_id and aprendiz_data.documento:
-        user = db.query(User).filter(User.documento == aprendiz_data.documento).first()
-        if user:
-            aprendiz_data.user_id = user.id
+    # Verificar que el usuario existe
+    user = db.query(User).filter(User.id == str(aprendiz_data.user_id)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    # Verificar si ya es aprendiz en este semillero
+    existente = db.query(Aprendiz).filter(
+        Aprendiz.user_id == str(user.id),
+        Aprendiz.semillero_id == str(semillero.id)
+    ).first()
+    if existente:
+        raise HTTPException(status_code=400, detail="El usuario ya está vinculado a este semillero")
 
     aprendiz = Aprendiz(
-        nombre=aprendiz_data.nombre,
-        documento=aprendiz_data.documento,
-        ficha=aprendiz_data.ficha,
-        programa=aprendiz_data.programa,
-        estado=aprendiz_data.estado,
         semillero_id=str(semillero.id),
-        user_id=str(aprendiz_data.user_id) if aprendiz_data.user_id else None
+        user_id=str(user.id),
+        estado=aprendiz_data.estado,
+        fecha_ingreso=aprendiz_data.fecha_ingreso or datetime.now(timezone.utc).date()
     )
     
-    # Si viene user_id, asegurar que el nombre y ficha sean los del usuario
-    if aprendiz.user_id:
-        user = db.query(User).filter(User.id == str(aprendiz.user_id)).first()
-        if user:
-            if not aprendiz.nombre: aprendiz.nombre = user.nombre
-            if not aprendiz.ficha: aprendiz.ficha = user.ficha
-            if not aprendiz.programa: aprendiz.programa = user.programa_formacion
-            if not aprendiz.documento: aprendiz.documento = user.documento
-    
-    # Validaciones mínimas
-    if not aprendiz.nombre and not aprendiz.user_id: 
-        aprendiz.nombre = "Aprendiz sin nombre"
-
     db.add(aprendiz)
     db.commit()
     db.refresh(aprendiz)
+    
+    log_actividad(db, current_user.id, "vincular_aprendiz", f"Vinculó a {user.nombre} al semillero {semillero.nombre}")
+    
+    return _make_aprendiz_dict(aprendiz)
+
+
+@router.post("/{semillero_id}/aprendices/full", status_code=201)
+def create_full_aprendiz(
+    semillero_id: str,
+    data: AprendizFullCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Crea un usuario nuevo y lo vincula como aprendiz en un solo paso."""
+    semillero = db.query(Semillero).filter(Semillero.id == str(semillero_id)).first()
+    if not semillero:
+        raise HTTPException(status_code=404, detail="Semillero no encontrado")
+    
+    # Solo admin o owner pueden agregar aprendices
+    if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+
+    # 1. Crear el usuario
+    repo = UserRepository(db)
+    if repo.get_by_email(data.email):
+        raise HTTPException(status_code=400, detail="Email ya registrado")
+    
+    user_create = UserCreate(
+        email=data.email,
+        nombre=data.nombre,
+        password=data.password,
+        rol="aprendiz",
+        documento=data.documento,
+        celular=data.celular,
+        ficha=data.ficha,
+        programa_formacion=data.programa_formacion
+    )
+    user = repo.create(user_create)
+
+    # 2. Crear el registro de aprendiz
+    aprendiz = Aprendiz(
+        semillero_id=str(semillero.id),
+        user_id=str(user.id),
+        estado=data.estado,
+        fecha_ingreso=datetime.now(timezone.utc).date()
+    )
+    
+    db.add(aprendiz)
+    db.commit()
+    db.refresh(aprendiz)
+    
+    log_actividad(db, current_user.id, "crear_vincular_aprendiz", f"Creó y vinculó a {user.nombre} al semillero {semillero.nombre}")
     
     return _make_aprendiz_dict(aprendiz)
 
@@ -259,14 +306,7 @@ def update_aprendiz(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Actualizar datos de un aprendiz."""
-    semillero = db.query(Semillero).filter(Semillero.id == str(semillero_id)).first()
-    if not semillero:
-        raise HTTPException(status_code=404, detail="Semillero no encontrado")
-    
-    if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Sin permiso")
-    
+    """Actualizar estado de vinculación de un aprendiz."""
     aprendiz = db.query(Aprendiz).filter(
         Aprendiz.id == str(aprendiz_id),
         Aprendiz.semillero_id == str(semillero_id)
@@ -274,6 +314,9 @@ def update_aprendiz(
     
     if not aprendiz:
         raise HTTPException(status_code=404, detail="Aprendiz no encontrado")
+    
+    if current_user.rol != "admin" and str(aprendiz.semillero.owner_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Sin permiso")
     
     update_data = aprendiz_data.dict(exclude_unset=True)
     for field, value in update_data.items():
@@ -291,14 +334,7 @@ def delete_aprendiz(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Eliminar aprendiz de un semillero."""
-    semillero = db.query(Semillero).filter(Semillero.id == str(semillero_id)).first()
-    if not semillero:
-        raise HTTPException(status_code=404, detail="Semillero no encontrado")
-    
-    if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Sin permiso")
-    
+    """Eliminar vinculación de aprendiz (no elimina el usuario)."""
     aprendiz = db.query(Aprendiz).filter(
         Aprendiz.id == str(aprendiz_id),
         Aprendiz.semillero_id == str(semillero_id)
@@ -307,7 +343,11 @@ def delete_aprendiz(
     if not aprendiz:
         raise HTTPException(status_code=404, detail="Aprendiz no encontrado")
     
+    if current_user.rol != "admin" and str(aprendiz.semillero.owner_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    
     db.delete(aprendiz)
     db.commit()
     
-    return {"message": "Aprendiz eliminado"}
+    return {"message": "Vinculación de aprendiz eliminada"}
+

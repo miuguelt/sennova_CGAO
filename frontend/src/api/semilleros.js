@@ -31,6 +31,12 @@ export const SemillerosAPI = {
     body: JSON.stringify(data),
   }),
 
+  addAprendizFull: (semilleroId, data) => fetchAPI(`/semilleros/${semilleroId}/aprendices/full`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+
+
   updateAprendiz: (semilleroId, aprendizId, data) => fetchAPI(`/semilleros/${semilleroId}/aprendices/${aprendizId}`, {
     method: 'PUT',
     body: JSON.stringify(data),

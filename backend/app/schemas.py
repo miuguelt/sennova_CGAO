@@ -145,35 +145,45 @@ class GrupoResponse(GrupoBase):
 # ==========================================
 
 class AprendizBase(BaseModel):
-    nombre: Optional[str] = None
-    documento: Optional[str] = None
-    ficha: Optional[str] = None
-    programa: Optional[str] = None
+    user_id: UUID
     estado: str = "activo"
-    user_id: Optional[UUID] = None
+    fecha_ingreso: Optional[date] = None
+    fecha_egreso: Optional[date] = None
 
 
-class AprendizCreate(AprendizBase):
-    pass
+class AprendizCreate(BaseModel):
+    user_id: UUID
+    semillero_id: UUID
+    estado: str = "activo"
+    fecha_ingreso: Optional[date] = None
+
+
+class AprendizFullCreate(BaseModel):
+    """Schema for creating both a User and an Aprendiz record in one go."""
+    email: EmailStr
+    nombre: str
+    password: str = Field(..., min_length=6)
+    documento: Optional[str] = None
+    celular: Optional[str] = None
+    ficha: Optional[str] = None
+    programa_formacion: Optional[str] = None
+    semillero_id: UUID
+    estado: str = "activo"
 
 
 class AprendizUpdate(BaseModel):
-    nombre: Optional[str] = None
-    ficha: Optional[str] = None
-    programa: Optional[str] = None
     estado: Optional[str] = None
-    user_id: Optional[UUID] = None
+    fecha_egreso: Optional[date] = None
 
 
-class AprendizResponse(AprendizBase):
+class AprendizResponse(BaseModel):
     id: UUID
     semillero_id: UUID
-    user_id: Optional[UUID] = None
-    user_nombre: Optional[str] = None
-    documento: Optional[str] = None
-    ficha: Optional[str] = None
-    programa: Optional[str] = None
+    user_id: UUID
+    user: Optional[UserResponse] = None
+    estado: str
     fecha_ingreso: date
+    fecha_egreso: Optional[date] = None
 
     class Config:
         from_attributes = True
@@ -590,7 +600,7 @@ class BitacoraBase(BaseModel):
     contenido: str
     categoria: str = "técnica" # técnica, administrativa, observación, resultado
     fecha: Optional[datetime] = None
-    adjuntos: Optional[List[str]] = None
+    adjuntos: Optional[List[dict]] = None # Soporta lista de metadatos de archivos
 
 class BitacoraCreate(BitacoraBase):
     proyecto_id: UUID
@@ -600,14 +610,26 @@ class BitacoraUpdate(BaseModel):
     contenido: Optional[str] = None
     categoria: Optional[str] = None
     fecha: Optional[datetime] = None
-    adjuntos: Optional[List[str]] = None
+    adjuntos: Optional[List[dict]] = None
+
+class BitacoraSignRequest(BaseModel):
+    pin: Optional[str] = None # Para futura validación extra si se desea
+    evidence: Optional[dict] = None
 
 class BitacoraResponse(BitacoraBase):
     id: UUID
     proyecto_id: UUID
     user_id: UUID
-    created_at: datetime
     user_nombre: Optional[str] = None
+    
+    is_firmado_investigador: bool = False
+    fecha_firma_investigador: Optional[datetime] = None
+    
+    is_firmado_aprendiz: bool = False
+    fecha_firma_aprendiz: Optional[datetime] = None
+    
+    signature_metadata: Optional[dict] = None
+    created_at: datetime
 
     class Config:
         from_attributes = True
