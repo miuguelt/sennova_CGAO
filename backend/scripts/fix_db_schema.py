@@ -18,6 +18,13 @@ def fix_schema():
             ("ficha", "VARCHAR(50)"),
             ("programa_formacion", "VARCHAR(255)")
         ],
+        "proyectos": [
+            ("semillero_id", "UUID" if "postgresql" in engine.url.drivername else "VARCHAR(36)")
+        ],
+        "aprendices": [
+            ("user_id", "UUID" if "postgresql" in engine.url.drivername else "VARCHAR(36)"),
+            ("fecha_egreso", "DATE")
+        ],
         "bitacora_entries": [
             ("is_firmado_investigador", "BOOLEAN DEFAULT FALSE"),
             ("fecha_firma_investigador", "TIMESTAMP"),
