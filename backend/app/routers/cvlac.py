@@ -80,3 +80,30 @@ def import_cvlac(
         "errores": errores,
         "message": f"Sincronización finalizada: {importados} productos nuevos."
     }
+
+
+@router.get("/resumen-sistema")
+def get_cvlac_resumen(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene un resumen global del estado de CVLaC en el sistema.
+    Solo accesible para administradores o investigadores (según política).
+    """
+    total_usuarios = db.query(User).filter(User.rol == "investigador").count()
+    actualizados = db.query(User).filter(
+        User.rol == "investigador", 
+        User.estado_cv_lac == "Actualizado"
+    ).count()
+    
+    pendientes = total_usuarios - actualizados
+    porcentaje = (actualizados / total_usuarios * 100) if total_usuarios > 0 else 0
+    
+    return {
+        "total_investigadores": total_usuarios,
+        "actualizados": actualizados,
+        "pendientes": pendientes,
+        "porcentaje_cumplimiento": round(porcentaje, 1),
+        "ultima_actualizacion_global": datetime.now().isoformat()
+    }
