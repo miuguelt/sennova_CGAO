@@ -6,7 +6,8 @@ from datetime import datetime
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import User, Producto, log_actividad
+from app.models import User, Producto
+from app.utils import log_actividad
 
 router = APIRouter(prefix="/cvlac", tags=["CVLaC Integration"])
 
