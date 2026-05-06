@@ -127,23 +127,25 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
           </p>
         </div>
         
-        <div className="flex items-center gap-3 relative z-10">
-          <button 
+        <div className="flex flex-wrap items-center gap-3 relative z-10">
+          <Button 
+            variant="outline"
             onClick={onOpenSearch}
-            className="flex items-center gap-3 px-6 py-3 bg-white/80 hover:bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 transition-all shadow-sm hover:shadow-md"
+            className="px-6 bg-white/80 hover:bg-white"
           >
             <Search size={18} className="text-slate-400" />
             <span>Búsqueda Global</span>
             <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 bg-slate-200 text-[10px] rounded-md ml-4 text-slate-700 font-mono">Ctrl K</kbd>
-          </button>
-          <button 
+          </Button>
+          <Button 
+            variant="indigo"
             onClick={handleGenerateMonthlyReport}
-            className="flex items-center gap-3 px-6 py-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-2xl text-sm font-bold text-indigo-700 transition-all shadow-sm hover:shadow-md"
+            className="px-6"
           >
-            <FileText size={18} className="text-indigo-500" />
+            <FileText size={18} />
             <span>Reporte Mensual</span>
-          </button>
-          <Button variant="sena" className="h-12 px-8 rounded-2xl shadow-xl shadow-emerald-600/20" onClick={onNewProject}>
+          </Button>
+          <Button variant="sena" className="px-8 shadow-xl shadow-emerald-600/20" onClick={onNewProject}>
             <Plus size={20} className="mr-2" strokeWidth={3} /> Nuevo Proyecto
           </Button>
         </div>
@@ -489,9 +491,13 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 </div>
               ))}
             </div>
-            <button className="w-full py-4 text-xs font-bold text-slate-500 hover:text-emerald-600 bg-slate-50/50 uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+            <Button 
+              variant="ghost" 
+              className="w-full py-6 rounded-none text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-emerald-600 bg-slate-50/50"
+              onClick={() => onModuleAction?.({ module: 'auditoria' })}
+            >
               Ver Auditoría Completa <ChevronRight size={14} />
-            </button>
+            </Button>
           </Card>
         </div>
       </div>

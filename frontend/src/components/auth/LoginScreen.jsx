@@ -176,7 +176,7 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
               type="submit"
               variant="sena"
               size="lg"
-              className="w-full mt-1"
+              className="w-full mt-2"
               disabled={loading}
             >
               {loading && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}

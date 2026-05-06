@@ -83,10 +83,10 @@ const AuditoriaModule = ({ onNotify }) => {
           </div>
           
           <div className="flex gap-3">
-            <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800" onClick={loadData}>
+            <Button variant="outline" onClick={loadData}>
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             </Button>
-            <Button variant="sena" className="bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black">
+            <Button variant="sena" className="px-8">
               <Download size={18} className="mr-2" /> Exportar Logs
             </Button>
           </div>
@@ -124,15 +124,15 @@ const AuditoriaModule = ({ onNotify }) => {
           <div className="flex p-1.5 bg-slate-100 rounded-2xl w-full max-w-md border border-slate-200">
             <button 
               onClick={() => setActiveTab('actividades')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'actividades' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'actividades' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
             >
-              <Activity size={16} /> Actividades
+              <Activity size={14} /> Actividades
             </button>
             <button 
               onClick={() => setActiveTab('técnicos')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'técnicos' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'técnicos' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
             >
-              <Terminal size={16} /> Logs Técnicos
+              <Terminal size={14} /> Logs Técnicos
             </button>
           </div>
 

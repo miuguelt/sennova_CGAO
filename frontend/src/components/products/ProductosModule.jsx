@@ -213,26 +213,27 @@ const ProductosModule = ({ currentUser, onNotify }) => {
         ref={menuRef}
         className="absolute right-0 mt-2 w-48 bg-white/90 backdrop-blur-md rounded-xl shadow-xl border border-slate-200/60 py-2 z-30 animate-scaleIn origin-top-right"
       >
-        <button onClick={() => { setSelectedProducto(producto); setIsDetailOpen(true); setMenuOpenId(null); }} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2 transition-colors">
-          <Info size={14} /> Ver Ficha Técnica
-        </button>
+        <Button variant="ghost" onClick={() => { setSelectedProducto(producto); setIsDetailOpen(true); setMenuOpenId(null); }} className="w-full justify-start px-4 py-2 rounded-none text-xs font-bold">
+          <Info size={14} className="mr-2" /> Ver Ficha Técnica
+        </Button>
         {currentUser?.rol === 'admin' && (
-          <button 
+          <Button 
+            variant="ghost"
             onClick={() => handleToggleVerificar(producto.id, producto.is_verificado)} 
-            className={`w-full text-left px-4 py-2 text-xs font-bold flex items-center gap-2 transition-colors border-t border-slate-100 mt-1 pt-2 ${producto.is_verificado ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
+            className={`w-full justify-start px-4 py-2 rounded-none text-xs font-bold border-t border-slate-100 ${producto.is_verificado ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
           >
-            {producto.is_verificado ? <X size={14} /> : <CheckCircle2 size={14} />}
+            {producto.is_verificado ? <X size={14} className="mr-2" /> : <CheckCircle2 size={14} className="mr-2" />}
             {producto.is_verificado ? 'Revocar Verificación' : 'Verificar Producto'}
-          </button>
+          </Button>
         )}
         {(currentUser?.rol === 'admin' || currentUser?.id === producto.owner_id) && (
           <>
-            <button onClick={() => handleOpenEdit(producto)} className="w-full text-left px-4 py-2 text-xs font-bold text-amber-700 hover:bg-amber-50 flex items-center gap-2 transition-colors border-t border-slate-100 mt-1 pt-2">
-              <Edit2 size={14} /> Editar Información
-            </button>
-            <button onClick={() => handleDelete(producto.id)} className="w-full text-left px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors border-t border-slate-100 mt-1 pt-2">
-              <Trash2 size={14} /> Eliminar Producto
-            </button>
+            <Button variant="ghost" onClick={() => handleOpenEdit(producto)} className="w-full justify-start px-4 py-2 rounded-none text-xs font-bold text-amber-700 hover:bg-amber-50 border-t border-slate-100">
+              <Edit2 size={14} className="mr-2" /> Editar Información
+            </Button>
+            <Button variant="ghost" onClick={() => handleDelete(producto.id)} className="w-full justify-start px-4 py-2 rounded-none text-xs font-bold text-rose-600 hover:bg-rose-50 border-t border-slate-100">
+              <Trash2 size={14} className="mr-2" /> Eliminar Producto
+            </Button>
           </>
         )}
       </div>
@@ -334,12 +335,14 @@ const ProductosModule = ({ currentUser, onNotify }) => {
               >
                 {/* Menu trigger */}
                 <div className="absolute top-4 right-4 z-10">
-                  <button 
+                  <Button 
+                    variant="ghost"
+                    size="icon"
                     onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === p.id ? null : p.id); }}
-                    className="p-1.5 bg-white/80 backdrop-blur-md hover:bg-white rounded-lg shadow-sm border border-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="h-8 w-8 bg-white/80 backdrop-blur-md border border-slate-100"
                   >
                     <MoreVertical size={16} />
-                  </button>
+                  </Button>
                   <ActionMenu producto={p} />
                 </div>
 
@@ -607,7 +610,9 @@ const ProductosModule = ({ currentUser, onNotify }) => {
                 <Globe size={24} className="text-indigo-400" />
                 <h2 className="text-xl font-bold">Importar desde CVLAC</h2>
               </div>
-              <button onClick={() => { setShowImportModal(false); setImportResults(null); }}><X size={24} /></button>
+              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => { setShowImportModal(false); setImportResults(null); }}>
+                <X size={24} />
+              </Button>
             </div>
             
             <div className="p-8 space-y-6">

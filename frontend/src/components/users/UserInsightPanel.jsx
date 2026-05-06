@@ -202,13 +202,13 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
   const TabButton = ({ id, label, icon: Icon }) => (
     <button
       onClick={() => setActiveTab(id)}
-      className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all border-b-2 ${
+      className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${
         activeTab === id 
-          ? 'border-emerald-500 text-emerald-600 bg-emerald-50/50' 
-          : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+          ? 'border-emerald-600 text-emerald-700 bg-emerald-50/30' 
+          : 'border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50/50'
       }`}
     >
-      <Icon size={16} />
+      <Icon size={14} />
       {label}
     </button>
   );
@@ -239,7 +239,9 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
               </div>
             </div>
             {!isEditingNested && (
-              <button onClick={() => setNestedDetail(null)} className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"><X size={18} className="text-slate-500" /></button>
+              <Button variant="ghost" size="icon" onClick={() => setNestedDetail(null)} className="h-8 w-8 rounded-lg">
+                <X size={18} className="text-slate-500" />
+              </Button>
             )}
           </div>
 
@@ -304,23 +306,29 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
           <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
             {isEditingNested ? (
               <>
-                <Button variant="outline" size="sm" onClick={() => setIsEditingNested(false)} icon={RotateCcw}>Cancelar</Button>
-                <Button variant="primary" size="sm" onClick={handleSaveNested} icon={Save}>Guardar Cambios</Button>
+                <Button variant="outline" size="sm" onClick={() => setIsEditingNested(false)}>
+                  <RotateCcw size={14} className="mr-2" /> Cancelar
+                </Button>
+                <Button variant="primary" size="sm" onClick={handleSaveNested}>
+                  <Save size={14} className="mr-2" /> Guardar Cambios
+                </Button>
               </>
             ) : (
               <>
                 <Button 
-                  variant={confirmDeleteId === data.id ? "primary" : "outline"} 
+                  variant={confirmDeleteId === data.id ? "danger" : "outline"} 
                   size="sm" 
-                  className={confirmDeleteId === data.id ? "bg-rose-600 hover:bg-rose-700 text-white border-transparent" : "text-rose-600 border-rose-100 hover:bg-rose-50"}
+                  className={confirmDeleteId === data.id ? "" : "text-rose-600 border-rose-100 hover:bg-rose-50"}
                   onClick={handleDeleteNested} 
-                  icon={Trash2}
                 >
+                  <Trash2 size={14} className="mr-2" />
                   {confirmDeleteId === data.id ? "¿Confirmar?" : `Desvincular`}
                 </Button>
                 <div className="flex-1" />
                 <Button variant="outline" size="sm" onClick={() => setNestedDetail(null)}>Cerrar</Button>
-                <Button variant="secondary" size="sm" onClick={startEditing} icon={Edit3}>Editar</Button>
+                <Button variant="secondary" size="sm" onClick={startEditing}>
+                  <Edit3 size={14} className="mr-2" /> Editar
+                </Button>
               </>
             )}
           </div>
@@ -485,9 +493,8 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
              <div className="flex gap-2">
                <Button variant="outline" size="sm" onClick={() => window.print()}><Download size={16} className="mr-2" /> Imprimir</Button>
                <Button 
-                variant="outline" 
+                variant="sena" 
                 size="sm" 
-                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                 onClick={async () => {
                   try {
                     await ReportesAPI.descargarCertificadoInvestigador(user.id);

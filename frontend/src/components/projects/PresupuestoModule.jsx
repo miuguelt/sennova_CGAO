@@ -150,7 +150,7 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
         </div>
         <div className="flex gap-2">
           {items.length === 0 && !loading && selectedProjectId && (
-            <Button onClick={handleGenerateTemplate} variant="outline" className="border-indigo-200 text-indigo-700 bg-indigo-50/50">
+            <Button onClick={handleGenerateTemplate} variant="outline">
               <Zap size={18} className="mr-2" /> Auto-Generar Rubros
             </Button>
           )}
@@ -284,7 +284,7 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
               <p className="text-slate-500 text-sm mt-1 max-w-xs mx-auto">
                 No se ha registrado el presupuesto detallado para este proyecto. Puedes usar la plantilla automática para empezar.
               </p>
-              <Button onClick={handleGenerateTemplate} variant="outline" className="mt-6 border-emerald-200 text-emerald-700">
+              <Button onClick={handleGenerateTemplate} variant="outline" className="mt-6">
                 <Zap size={18} className="mr-2" /> Generar Plantilla SENNOVA
               </Button>
             </div>
