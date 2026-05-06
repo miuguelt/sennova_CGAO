@@ -26,6 +26,7 @@ def fix_schema():
             ("fecha_egreso", "DATE")
         ],
         "bitacora_entries": [
+            ("adjuntos", "JSON"),
             ("is_firmado_investigador", "BOOLEAN DEFAULT FALSE"),
             ("fecha_firma_investigador", "TIMESTAMP"),
             ("is_firmado_aprendiz", "BOOLEAN DEFAULT FALSE"),
