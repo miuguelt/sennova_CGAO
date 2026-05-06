@@ -36,7 +36,8 @@ const ROLES_GRUPO = [
   { value: 'Líder', label: 'Líder de Grupo' },
   { value: 'Investigador', label: 'Investigador Principal' },
   { value: 'Coinvestigador', label: 'Coinvestigador' },
-  { value: 'Asesor', label: 'Asesor Externo' }
+  { value: 'Asesor', label: 'Asesor Externo' },
+  { value: 'Aprendiz', label: 'Aprendiz Investigador' }
 ];
 
 const EMPTY_FORM = {

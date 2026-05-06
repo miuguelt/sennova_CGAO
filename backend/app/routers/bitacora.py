@@ -84,10 +84,9 @@ def firmar_entrada(
         raise HTTPException(status_code=404, detail="Entrada no encontrada")
 
     # Determinar qué rol está firmando
-    # Investigador: Admin, Gestor, Instructor
-    # Aprendiz: Aprendiz
-    es_investigador = current_user.rol in ['admin', 'gestor', 'instructor']
-    es_aprendiz = current_user.rol == 'aprendiz'
+    # Investigador: Admin, Gestor, Instructor, Investigador
+    es_investigador = current_user.rol.lower() in ['admin', 'gestor', 'instructor', 'investigador']
+    es_aprendiz = current_user.rol.lower() == 'aprendiz'
 
     if not es_investigador and not es_aprendiz:
         raise HTTPException(status_code=403, detail="Su rol no está autorizado para firmar bitácoras")

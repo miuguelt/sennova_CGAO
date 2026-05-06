@@ -18,20 +18,18 @@ def _make_grupo_dict(grupo: Grupo, db: Session) -> dict:
     # Obtener integrantes con info de la tabla de asociación
     integrantes = []
     for user in grupo.integrantes:
-        # Buscar info de la tabla de asociación
-        result = db.execute(
-            grupo_integrantes.select().where(
-                grupo_integrantes.c.grupo_id == str(grupo.id),
-                grupo_integrantes.c.user_id == str(user.id)
-            )
-        ).fetchone()
+        # Buscar info de la tabla de asociación usando query standard para mayor compatibilidad
+        result = db.query(grupo_integrantes).filter(
+            grupo_integrantes.c.grupo_id == grupo.id,
+            grupo_integrantes.c.user_id == user.id
+        ).first()
         
         integrante_info = {
             "id": str(user.id),
             "nombre": user.nombre,
             "email": user.email,
             "rol_en_grupo": result.rol_en_grupo if result else "Miembro",
-            "fecha_vinculacion": result.fecha_vinculacion if result else None
+            "fecha_vinculacion": result.fecha_vinculacion.isoformat() if result and result.fecha_vinculacion else None
         }
         integrantes.append(integrante_info)
     

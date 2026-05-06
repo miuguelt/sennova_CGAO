@@ -30,6 +30,13 @@ const ESTADOS = [
   { value: 'en_convocatoria', label: 'En Convocatoria', variant: 'warning' }
 ];
 
+const ROLES_SEMILLERO = [
+  { value: 'Investigador Principal', label: 'Investigador Principal' },
+  { value: 'Coinvestigador', label: 'Coinvestigador' },
+  { value: 'Tutor', label: 'Tutor de Semillero' },
+  { value: 'Mentor', label: 'Mentor Externo' }
+];
+
 const COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 const EMPTY_FORM = {
@@ -147,6 +154,8 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
   const [selectedSemillero, setSelectedSemillero] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [aprendices, setAprendices] = useState([]);
+  const [investigadores, setInvestigadores] = useState([]);
+  const [memberType, setMemberType] = useState('aprendiz'); // 'aprendiz' or 'investigador'
   const [linkMode, setLinkMode] = useState('existing'); // 'existing' or 'new'
   const [aprendizForm, setAprendizForm] = useState({ 
     user_id: '', 
@@ -160,6 +169,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
     ficha: '',
     programa_formacion: ''
   });
+  const [investigadorForm, setInvestigadorForm] = useState({ user_id: '', rol_en_semillero: 'Coinvestigador' });
   const [semilleroStats, setSemilleroStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
@@ -245,43 +255,63 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
   const handleOpenAprendices = async (s) => {
     setSelectedSemillero(s);
     setShowMemberModal(true);
+    setMemberType('aprendiz');
     try {
-      const data = await SemillerosAPI.listAprendices(s.id);
+      const [data, semData] = await Promise.all([
+        SemillerosAPI.listAprendices(s.id),
+        SemillerosAPI.get(s.id)
+      ]);
       setAprendices(data || []);
+      setInvestigadores(semData.investigadores || []);
     } catch {
-      onNotify('Error al cargar aprendices', 'error');
+      onNotify('Error al cargar integrantes', 'error');
     }
   };
 
   const handleAddAprendiz = async () => {
     try {
-      if (linkMode === 'existing') {
-        if (!aprendizForm.user_id) {
-          onNotify('Debe seleccionar un usuario', 'warning');
-          return;
+      if (memberType === 'aprendiz') {
+        if (linkMode === 'existing') {
+          if (!aprendizForm.user_id) {
+            onNotify('Debe seleccionar un usuario', 'warning');
+            return;
+          }
+          await SemillerosAPI.addAprendiz(selectedSemillero.id, {
+            user_id: aprendizForm.user_id,
+            estado: aprendizForm.estado
+          });
+        } else {
+          if (!aprendizForm.email || !aprendizForm.nombre) {
+            onNotify('Email y nombre son obligatorios', 'warning');
+            return;
+          }
+          await SemillerosAPI.addAprendizFull(selectedSemillero.id, aprendizForm);
         }
-        await SemillerosAPI.addAprendiz(selectedSemillero.id, {
-          user_id: aprendizForm.user_id,
-          estado: aprendizForm.estado
-        });
+        onNotify('Aprendiz vinculado exitosamente', 'success');
       } else {
-        if (!aprendizForm.email || !aprendizForm.nombre) {
-          onNotify('Email y nombre son obligatorios', 'warning');
+        if (!investigadorForm.user_id) {
+          onNotify('Debe seleccionar un investigador', 'warning');
           return;
         }
-        await SemillerosAPI.addAprendizFull(selectedSemillero.id, aprendizForm);
+        await SemillerosAPI.addInvestigador(selectedSemillero.id, investigadorForm);
+        onNotify('Investigador vinculado exitosamente', 'success');
       }
       
-      onNotify('Aprendiz vinculado exitosamente', 'success');
       setAprendizForm({ 
         user_id: '', estado: 'activo', email: '', nombre: '', 
         password: 'password123', documento: '', celular: '', ficha: '', programa_formacion: '' 
       });
-      const data = await SemillerosAPI.listAprendices(selectedSemillero.id);
+      setInvestigadorForm({ user_id: '', rol_en_semillero: 'Coinvestigador' });
+      
+      const [data, semData] = await Promise.all([
+        SemillerosAPI.listAprendices(selectedSemillero.id),
+        SemillerosAPI.get(selectedSemillero.id)
+      ]);
       setAprendices(data || []);
+      setInvestigadores(semData.investigadores || []);
       loadData();
     } catch (err) {
-      onNotify('Error al vincular aprendiz: ' + (err.response?.data?.detail || err.message), 'error');
+      onNotify('Error al vincular: ' + (err.response?.data?.detail || err.message), 'error');
     }
   };
 
@@ -318,19 +348,30 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
     if (!userId || !selectedSemillero) return;
     
     try {
-      await SemillerosAPI.addAprendiz(selectedSemillero.id, { 
-        user_id: userId, 
-        rol: 'Aprendiz',
-        documento: 'S/D',
-        ficha: 'N/A',
-        programa_formacion: 'Vinculado por Arrastre'
-      });
-      onNotify?.('Aprendiz vinculado exitosamente', 'success');
-      const data = await SemillerosAPI.listAprendices(selectedSemillero.id);
+      if (memberType === 'aprendiz') {
+        await SemillerosAPI.addAprendiz(selectedSemillero.id, {
+          user_id: userId,
+          semillero_id: selectedSemillero.id,
+          estado: 'activo'
+        });
+        onNotify('Aprendiz vinculado exitosamente', 'success');
+      } else {
+        await SemillerosAPI.addInvestigador(selectedSemillero.id, {
+          user_id: userId,
+          rol_en_semillero: 'Coinvestigador'
+        });
+        onNotify('Investigador vinculado exitosamente', 'success');
+      }
+      
+      const [data, semData] = await Promise.all([
+        SemillerosAPI.listAprendices(selectedSemillero.id),
+        SemillerosAPI.get(selectedSemillero.id)
+      ]);
       setAprendices(data || []);
+      setInvestigadores(semData.investigadores || []);
       loadData();
     } catch (err) {
-      onNotify?.('Error al vincular: ' + err.message, 'error');
+      onNotify('Error al vincular: ' + (err.response?.data?.detail || err.message), 'error');
     }
   };
 
@@ -648,30 +689,23 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
 
             <div className="flex-1 overflow-y-auto flex flex-col scrollbar-thin bg-white relative">
               
-              {/* Floating Talent Pool for Dragging */}
-              {isPoolVisible && (
-                <div className="absolute left-0 top-0 bottom-0 w-64 bg-slate-50 border-r border-slate-200 z-20 shadow-xl flex flex-col animate-slideInLeft">
-                  <div className="p-4 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Talento Disponible</span>
-                    <button onClick={() => setIsPoolVisible(false)}><X size={14} /></button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                    {usuarios.filter(u => !aprendices.some(a => a.id === u.id)).map(u => (
-                      <div 
-                        key={u.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, u)}
-                        className="p-3 bg-white border border-slate-200 rounded-xl cursor-grab active:cursor-grabbing hover:border-emerald-400 hover:shadow-sm transition-all text-xs font-bold text-slate-700 flex items-center gap-2"
-                      >
-                        <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black">{u.nombre.charAt(0)}</div>
-                        <span className="truncate">{u.nombre}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div className="p-8 space-y-8 flex-1">
+                {/* Member Type Selector */}
+                <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-100 mb-6">
+                  <button 
+                    onClick={() => setMemberType('aprendiz')}
+                    className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 ${memberType === 'aprendiz' ? 'bg-white text-indigo-700 shadow-md ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    <GraduationCap size={16} /> Directorio de Aprendices
+                  </button>
+                  <button 
+                    onClick={() => setMemberType('investigador')}
+                    className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 ${memberType === 'investigador' ? 'bg-white text-emerald-700 shadow-md ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    <Users size={16} /> Equipo de Investigadores
+                  </button>
+                </div>
+
                 <div 
                   className={`bg-slate-50 p-6 rounded-3xl border-2 border-dashed transition-all ${dragOver ? 'border-emerald-500 bg-emerald-50 scale-[1.02]' : 'border-slate-100'}`}
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -680,99 +714,192 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                 >
                   <div className="flex items-center justify-between mb-4">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <UserPlus size={14} className="text-emerald-600" /> Vincular Nuevo Integrante
+                      <UserPlus size={14} className={memberType === 'aprendiz' ? 'text-indigo-600' : 'text-emerald-600'} /> 
+                      Vincular Nuevo {memberType === 'aprendiz' ? 'Aprendiz' : 'Investigador'}
                     </p>
                     <button 
                       onClick={() => setIsPoolVisible(!isPoolVisible)}
-                      className="text-[10px] font-black text-emerald-600 uppercase hover:underline"
+                      className={`text-[10px] font-black uppercase hover:underline ${memberType === 'aprendiz' ? 'text-indigo-600' : 'text-emerald-600'}`}
                     >
                       {isPoolVisible ? 'Cerrar Panel de Arrastre' : 'Abrir Panel de Arrastre'}
                     </button>
                   </div>
-                  <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
-                    <button 
-                      onClick={() => setLinkMode('existing')}
-                      className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'existing' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
-                    >
-                      Vincular Existente
-                    </button>
-                    <button 
-                      onClick={() => setLinkMode('new')}
-                      className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'new' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
-                    >
-                      Registrar y Vincular
-                    </button>
-                  </div>
 
-                  {linkMode === 'existing' ? (
-                    <div className="grid grid-cols-1 gap-4 mb-4">
-                      <Select 
-                        label="Seleccionar Usuario"
-                        placeholder="Buscar por nombre..."
-                        options={usuarios.map(u => ({ value: u.id, label: `${u.nombre} (${u.email})` }))}
-                        value={aprendizForm.user_id}
-                        onChange={e => setAprendizForm({...aprendizForm, user_id: e.target.value})}
-                      />
+                  {/* Floating Talent Pool for Dragging (Inline) */}
+                  {isPoolVisible && (
+                    <div className="mb-6 bg-slate-100/50 p-4 rounded-2xl border border-slate-200/50 animate-fadeIn">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                          <Hand size={14} /> Talento Disponible (Arrastra hacia el recuadro)
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto scrollbar-thin p-1">
+                        {usuarios
+                          .filter(u => {
+                            if (memberType === 'aprendiz') return !aprendices.some(a => a.user_id === u.id);
+                            return !investigadores.some(inv => inv.id === u.id);
+                          })
+                          .map(u => (
+                            <div 
+                              key={u.id}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, u)}
+                              className="px-3 py-2 bg-white border border-slate-200 rounded-xl cursor-grab active:cursor-grabbing hover:border-indigo-400 hover:shadow-sm transition-all text-[10px] font-bold text-slate-700 flex items-center gap-2"
+                            >
+                              <div className="w-5 h-5 rounded-lg bg-slate-100 flex items-center justify-center text-[8px] font-black">{u.nombre.charAt(0)}</div>
+                              <span className="truncate max-w-[120px]">{u.nombre}</span>
+                            </div>
+                          ))}
+                      </div>
                     </div>
+                  )}
+
+                  {memberType === 'aprendiz' ? (
+                    <>
+                      <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+                        <button 
+                          onClick={() => setLinkMode('existing')}
+                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'existing' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                        >
+                          Vincular Existente
+                        </button>
+                        <button 
+                          onClick={() => setLinkMode('new')}
+                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'new' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                        >
+                          Registrar y Vincular
+                        </button>
+                      </div>
+
+                      {linkMode === 'existing' ? (
+                        <div className="grid grid-cols-1 gap-4 mb-4">
+                          <Select 
+                            label="Seleccionar Usuario"
+                            placeholder="Buscar por nombre..."
+                            options={usuarios.map(u => ({ value: u.id, label: `${u.nombre} (${u.email})` }))}
+                            value={aprendizForm.user_id}
+                            onChange={e => setAprendizForm({...aprendizForm, user_id: e.target.value})}
+                          />
+                        </div>
+                      ) : (
+                        <div className="space-y-4 mb-4 animate-fadeIn">
+                          <div className="grid grid-cols-2 gap-4">
+                            <Input label="Email" type="email" placeholder="correo@sena.edu.co" value={aprendizForm.email} onChange={e => setAprendizForm({...aprendizForm, email: e.target.value})} />
+                            <Input label="Nombre Completo" placeholder="Juan Pérez" value={aprendizForm.nombre} onChange={e => setAprendizForm({...aprendizForm, nombre: e.target.value})} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <Input label="Documento" placeholder="1098..." value={aprendizForm.documento} onChange={e => setAprendizForm({...aprendizForm, documento: e.target.value})} />
+                            <Input label="Ficha" placeholder="267..." value={aprendizForm.ficha} onChange={e => setAprendizForm({...aprendizForm, ficha: e.target.value})} />
+                          </div>
+                          <Input label="Programa de Formación" placeholder="ADSO, Cocina, etc." value={aprendizForm.programa_formacion} onChange={e => setAprendizForm({...aprendizForm, programa_formacion: e.target.value})} />
+                        </div>
+                      )}
+                    </>
                   ) : (
-                    <div className="space-y-4 mb-4 animate-fadeIn">
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input label="Email" type="email" placeholder="correo@sena.edu.co" value={aprendizForm.email} onChange={e => setAprendizForm({...aprendizForm, email: e.target.value})} />
-                        <Input label="Nombre Completo" placeholder="Juan Pérez" value={aprendizForm.nombre} onChange={e => setAprendizForm({...aprendizForm, nombre: e.target.value})} />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input label="Documento" placeholder="1098..." value={aprendizForm.documento} onChange={e => setAprendizForm({...aprendizForm, documento: e.target.value})} />
-                        <Input label="Ficha" placeholder="267..." value={aprendizForm.ficha} onChange={e => setAprendizForm({...aprendizForm, ficha: e.target.value})} />
-                      </div>
-                      <Input label="Programa de Formación" placeholder="ADSO, Cocina, etc." value={aprendizForm.programa_formacion} onChange={e => setAprendizForm({...aprendizForm, programa_formacion: e.target.value})} />
+                    <div className="grid grid-cols-2 gap-4 mb-4 animate-fadeIn">
+                      <Select 
+                        label="Seleccionar Investigador"
+                        placeholder="Buscar por nombre..."
+                        options={usuarios.filter(u => u.rol === 'investigador' || u.rol === 'admin').map(u => ({ value: u.id, label: `${u.nombre} (${u.email})` }))}
+                        value={investigadorForm.user_id}
+                        onChange={e => setInvestigadorForm({...investigadorForm, user_id: e.target.value})}
+                      />
+                      <Select 
+                        label="Rol en el Semillero"
+                        options={ROLES_SEMILLERO}
+                        value={investigadorForm.rol_en_semillero}
+                        onChange={e => setInvestigadorForm({...investigadorForm, rol_en_semillero: e.target.value})}
+                      />
                     </div>
                   )}
 
                   <div className="flex gap-2 mt-6">
-                    <Button variant="sena" className="flex-1 py-3" onClick={handleAddAprendiz}>
-                      {linkMode === 'existing' ? 'Vincular Usuario' : 'Registrar y Vincular'}
+                    <Button 
+                      variant="sena" 
+                      className={`flex-1 py-3 ${memberType === 'aprendiz' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`} 
+                      onClick={handleAddAprendiz}
+                    >
+                      {memberType === 'aprendiz' 
+                        ? (linkMode === 'existing' ? 'Vincular Aprendiz' : 'Registrar y Vincular') 
+                        : 'Vincular Investigador'}
                     </Button>
                   </div>
-
                 </div>
 
-                <div className="space-y-3 pb-10">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Aprendices Vinculados ({aprendices.length})</h4>
-                  {aprendices.length === 0 ? (
-                    <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
-                      <Users size={32} className="mx-auto text-slate-300 mb-3" />
-                      <p className="text-slate-400 font-bold text-sm italic">No hay aprendices registrados en este semillero.</p>
-                    </div>
-                  ) : (
-                    aprendices.map(a => (
-                      <div key={a.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-emerald-300 hover:shadow-md transition-all">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-sm">
-                            {(a.nombre || '?').charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-sm font-black text-slate-900">{a.nombre}</p>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-                              DOC: {a.documento || 'N/A'} • {a.programa || 'Sin programa'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => handleGenerateCertificate(a)} 
-                            className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                            title="Generar Certificado"
-                          >
-                            <Award size={18} />
-                          </button>
-                          <button onClick={() => handleRemoveAprendiz(a.id)} className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
+                {memberType === 'aprendiz' ? (
+                  <div className="space-y-3 pb-10">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Aprendices Vinculados ({aprendices.length})</h4>
+                    {aprendices.length === 0 ? (
+                      <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
+                        <Users size={32} className="mx-auto text-slate-300 mb-3" />
+                        <p className="text-slate-400 font-bold text-sm italic">No hay aprendices registrados.</p>
                       </div>
-                    ))
-                  )}
-                </div>
+                    ) : (
+                      aprendices.map(a => (
+                        <div key={a.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-indigo-300 hover:shadow-md transition-all">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm">
+                              {(a.nombre || '?').charAt(0)}
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-slate-900">{a.nombre}</p>
+                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
+                                DOC: {a.documento || 'N/A'} • {a.programa || 'Sin programa'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => handleGenerateCertificate(a)} 
+                              className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                              title="Generar Certificado"
+                            >
+                              <Award size={18} />
+                            </button>
+                            <button onClick={() => handleRemoveAprendiz(a.id)} className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3 pb-10">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Equipo de Investigadores ({investigadores.length})</h4>
+                    {investigadores.length === 0 ? (
+                      <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
+                        <Shield size={32} className="mx-auto text-slate-300 mb-3" />
+                        <p className="text-slate-400 font-bold text-sm italic">No hay investigadores vinculados.</p>
+                      </div>
+                    ) : (
+                      investigadores.map(inv => (
+                        <div key={inv.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-emerald-300 hover:shadow-md transition-all">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-sm">
+                              {(inv.nombre || '?').charAt(0)}
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-slate-900">{inv.nombre}</p>
+                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
+                                {inv.rol_en_semillero} • {inv.email}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => handleRemoveInvestigador(inv.id)} 
+                              className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                              disabled={inv.id === selectedSemillero.owner_id}
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             

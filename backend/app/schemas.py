@@ -15,21 +15,6 @@ class BaseSchema(BaseModel):
 
 
 # ==========================================
-# AUTH SCHEMAS
-# ==========================================
-
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: "UserResponse"
-
-
-# ==========================================
 # USER SCHEMAS
 # ==========================================
 
@@ -81,10 +66,25 @@ class UserResponse(UserBase):
     estado_cv_lac: Optional[str] = None
     lineas_investigacion: Optional[List[str]] = None
     regional: Optional[str] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None  # Leniente para evitar fallos con datos nulos
 
     class Config:
         from_attributes = True
+
+
+# ==========================================
+# AUTH SCHEMAS
+# ==========================================
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
 
 
 # ==========================================
@@ -153,7 +153,7 @@ class AprendizBase(BaseModel):
 
 class AprendizCreate(BaseModel):
     user_id: UUID
-    semillero_id: UUID
+    semillero_id: Optional[UUID] = None
     estado: str = "activo"
     fecha_ingreso: Optional[date] = None
 
@@ -209,13 +209,20 @@ class SemilleroUpdate(BaseModel):
     estado: Optional[str] = None
 
 
+class SemilleroInvestigadorCreate(BaseModel):
+    user_id: UUID
+    rol_en_semillero: str = "Coinvestigador"
+
+
 class SemilleroResponse(SemilleroBase):
     id: UUID
     grupo_id: UUID
     grupo: Optional[GrupoResponse] = None
     owner_id: UUID
+    investigadores: List[dict] = []
     aprendices: List[AprendizResponse] = []
     total_aprendices: int = 0
+    total_investigadores: int = 0
     created_at: datetime
 
     class Config:

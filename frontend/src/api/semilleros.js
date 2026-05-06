@@ -46,5 +46,17 @@ export const SemillerosAPI = {
     method: 'DELETE',
   }),
 
+  // Investigadores
+  addInvestigador: (semilleroId, data) => {
+    const query = new URLSearchParams(data).toString();
+    return fetchAPI(`/semilleros/${semilleroId}/investigadores?${query}`, {
+      method: 'POST'
+    });
+  },
+
+  removeInvestigador: (semilleroId, userId) => fetchAPI(`/semilleros/${semilleroId}/investigadores/${userId}`, {
+    method: 'DELETE'
+  }),
+
   getStats: (id) => fetchAPI(`/stats/semillero/${id}/impact`),
 };

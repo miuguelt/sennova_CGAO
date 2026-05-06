@@ -45,7 +45,11 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
     sede: currentUser?.sede || '',
     regional: currentUser?.regional || '',
     nivel_academico: currentUser?.nivel_academico || '',
-    cv_lac_url: currentUser?.cv_lac_url || ''
+    cv_lac_url: currentUser?.cv_lac_url || '',
+    documento: currentUser?.documento || '',
+    celular: currentUser?.celular || '',
+    ficha: currentUser?.ficha || '',
+    programa_formacion: currentUser?.programa_formacion || ''
   });
 
   const handleBackup = async () => {
@@ -179,6 +183,42 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
                         <option value="Doctorado">Doctorado</option>
                       </select>
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Documento de Identidad</label>
+                      <input 
+                        className="w-full px-5 py-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all shadow-inner"
+                        value={profile.documento || ''}
+                        onChange={(e) => setProfile({...profile, documento: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Celular / WhatsApp</label>
+                      <input 
+                        className="w-full px-5 py-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all shadow-inner"
+                        value={profile.celular || ''}
+                        onChange={(e) => setProfile({...profile, celular: e.target.value})}
+                      />
+                    </div>
+                    {currentUser?.rol === 'aprendiz' && (
+                      <>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ficha de Caracterización</label>
+                          <input 
+                            className="w-full px-5 py-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all shadow-inner"
+                            value={profile.ficha || ''}
+                            onChange={(e) => setProfile({...profile, ficha: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Programa de Formación</label>
+                          <input 
+                            className="w-full px-5 py-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all shadow-inner"
+                            value={profile.programa_formacion || ''}
+                            onChange={(e) => setProfile({...profile, programa_formacion: e.target.value})}
+                          />
+                        </div>
+                      </>
+                    )}
                     <div className="space-y-2 md:col-span-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">URL CVLAC (Scienti)</label>
                       <div className="relative">

@@ -75,6 +75,15 @@ proyecto_equipo = Table(
     Column('horas_dedicadas', Integer)
 )
 
+semillero_investigadores = Table(
+    'semillero_investigadores',
+    Base.metadata,
+    Column('semillero_id', _uuid_type, ForeignKey('semilleros.id', ondelete='CASCADE'), primary_key=True),
+    Column('user_id', _uuid_type, ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
+    Column('rol_en_semillero', String(50), default='Coinvestigador'),
+    Column('fecha_vinculacion', Date, default=lambda: datetime.now(timezone.utc))
+)
+
 
 class User(Base):
     __tablename__ = "users"
@@ -113,6 +122,7 @@ class User(Base):
     productos_creados = relationship("Producto", back_populates="owner", lazy="dynamic", foreign_keys="Producto.owner_id")
     
     grupos_miembro = relationship("Grupo", secondary=grupo_integrantes, back_populates="integrantes")
+    semilleros_miembro = relationship("Semillero", secondary=semillero_investigadores, back_populates="investigadores")
     proyectos_miembro = relationship("Proyecto", secondary=proyecto_equipo, back_populates="equipo")
     
     # Nuevas relaciones para entregables y notificaciones
@@ -160,6 +170,7 @@ class Semillero(Base):
     # Relaciones
     grupo = relationship("Grupo", back_populates="semilleros")
     owner = relationship("User", back_populates="semilleros_creados", foreign_keys=[owner_id])
+    investigadores = relationship("User", secondary=semillero_investigadores, back_populates="semilleros_miembro")
     aprendices = relationship("Aprendiz", back_populates="semillero", cascade="all, delete-orphan")
     proyectos = relationship("Proyecto", back_populates="semillero")
 

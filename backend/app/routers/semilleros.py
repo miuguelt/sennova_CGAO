@@ -14,8 +14,26 @@ router = APIRouter(prefix="/semilleros", tags=["Semilleros de Investigación"])
 
 
 
-def _make_semillero_dict(semillero: Semillero) -> dict:
+def _make_semillero_dict(semillero: Semillero, db: Session) -> dict:
     """Convierte un objeto Semillero a diccionario para serialización correcta."""
+    # Obtener investigadores con info de la tabla de asociación
+    investigadores = []
+    from app.models import semillero_investigadores
+    for user in semillero.investigadores:
+        result = db.query(semillero_investigadores).filter(
+            semillero_investigadores.c.semillero_id == semillero.id,
+            semillero_investigadores.c.user_id == user.id
+        ).first()
+        
+        inv_info = {
+            "id": str(user.id),
+            "nombre": user.nombre,
+            "email": user.email,
+            "rol_en_semillero": result.rol_en_semillero if result else "Coinvestigador",
+            "fecha_vinculacion": result.fecha_vinculacion.isoformat() if result and result.fecha_vinculacion else None
+        }
+        investigadores.append(inv_info)
+
     return {
         "id": str(semillero.id),
         "nombre": semillero.nombre,
@@ -26,8 +44,10 @@ def _make_semillero_dict(semillero: Semillero) -> dict:
         "grupo_id": str(semillero.grupo_id),
         "grupo": None,  # Simplificado para evitar recursión
         "owner_id": str(semillero.owner_id),
+        "investigadores": investigadores,
         "aprendices": [],  # Simplificado
         "total_aprendices": len(semillero.aprendices) if semillero.aprendices else 0,
+        "total_investigadores": len(investigadores),
         "created_at": semillero.created_at
     }
 
@@ -51,7 +71,7 @@ def list_semilleros(
     
     semilleros = query.offset(skip).limit(limit).all()
     
-    return [_make_semillero_dict(s) for s in semilleros]
+    return [_make_semillero_dict(s, db) for s in semilleros]
 
 
 @router.get("/{semillero_id}")
@@ -65,7 +85,7 @@ def get_semillero(
     if not semillero:
         raise HTTPException(status_code=404, detail="Semillero no encontrado")
     
-    return _make_semillero_dict(semillero)
+    return _make_semillero_dict(semillero, db)
 
 
 @router.post("", status_code=201)
@@ -104,7 +124,7 @@ def create_semillero(
         entidad_id=str(semillero.id)
     )
     
-    return _make_semillero_dict(semillero)
+    return _make_semillero_dict(semillero, db)
 
 
 @router.put("/{semillero_id}")
@@ -140,7 +160,7 @@ def update_semillero(
         entidad_id=str(semillero.id)
     )
     
-    return _make_semillero_dict(semillero)
+    return _make_semillero_dict(semillero, db)
 
 
 @router.delete("/{semillero_id}")
@@ -350,4 +370,93 @@ def delete_aprendiz(
     db.commit()
     
     return {"message": "Vinculación de aprendiz eliminada"}
+
+
+# ==========================================
+# GESTIÓN DE INVESTIGADORES (MIEMBROS EQUIPO)
+# ==========================================
+
+@router.post("/{semillero_id}/investigadores")
+def add_investigador_semillero(
+    semillero_id: str,
+    user_id: str,
+    rol_en_semillero: str = "Coinvestigador",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Agregar investigador al semillero."""
+    semillero = db.query(Semillero).filter(Semillero.id == str(semillero_id)).first()
+    if not semillero:
+        raise HTTPException(status_code=404, detail="Semillero no encontrado")
+    
+    # Solo admin o owner pueden agregar integrantes
+    if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    from app.models import semillero_investigadores
+    from datetime import date
+    
+    # Verificar si ya es integrante
+    existing = db.query(semillero_investigadores).filter(
+        semillero_investigadores.c.semillero_id == str(semillero_id),
+        semillero_investigadores.c.user_id == str(user_id)
+    ).first()
+    
+    if existing:
+        # Actualizar rol si ya existe
+        db.execute(
+            semillero_investigadores.update().where(
+                semillero_investigadores.c.semillero_id == str(semillero_id),
+                semillero_investigadores.c.user_id == str(user_id)
+            ).values(rol_en_semillero=rol_en_semillero)
+        )
+        db.commit()
+        return {"message": "Rol de investigador actualizado"}
+    
+    db.execute(
+        semillero_investigadores.insert().values(
+            semillero_id=str(semillero.id),
+            user_id=str(user.id),
+            rol_en_semillero=rol_en_semillero,
+            fecha_vinculacion=date.today()
+        )
+    )
+    db.commit()
+    
+    return {"message": "Investigador vinculado al semillero"}
+
+
+@router.delete("/{semillero_id}/investigadores/{user_id}")
+def remove_investigador_semillero(
+    semillero_id: str,
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Remover investigador del semillero."""
+    semillero = db.query(Semillero).filter(Semillero.id == str(semillero_id)).first()
+    if not semillero:
+        raise HTTPException(status_code=404, detail="Semillero no encontrado")
+    
+    if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    
+    # No permitir remover al owner
+    if str(semillero.owner_id) == user_id:
+        raise HTTPException(status_code=400, detail="No se puede remover al líder/propietario del semillero")
+    
+    from app.models import semillero_investigadores
+    db.execute(
+        semillero_investigadores.delete().where(
+            semillero_investigadores.c.semillero_id == semillero_id,
+            semillero_investigadores.c.user_id == user_id
+        )
+    )
+    db.commit()
+    
+    return {"message": "Investigador desvinculado"}
 
