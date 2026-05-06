@@ -20,9 +20,13 @@ security = HTTPBearer()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifica una contraseña contra su hash."""
-    if isinstance(hashed_password, str):
-        hashed_password = hashed_password.encode('utf-8')
-    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password)
+    try:
+        if isinstance(hashed_password, str):
+            hashed_password = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password)
+    except Exception as e:
+        print(f"⚠️ Error verificando password: {e}")
+        return False
 
 
 def get_password_hash(password: str) -> str:
@@ -108,14 +112,19 @@ class AuthService:
     @staticmethod
     def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
         """Autentica un usuario por email y contraseña."""
-        user = db.query(User).filter(User.email == email).first()
-        if not user:
-            return None
-        if not verify_password(password, user.password_hash):
-            return None
-        if not user.is_active:
-            return None
-        return user
+        try:
+            user = db.query(User).filter(User.email == email).first()
+            if not user:
+                return None
+            if not verify_password(password, user.password_hash):
+                return None
+            if not user.is_active:
+                return None
+            return user
+        except Exception as e:
+            # Capturar errores de BD o validación para debug
+            print(f"❌ Error en authenticate_user para {email}: {e}")
+            raise e
     
     @staticmethod
     def register_user(db: Session, email: str, password: str, nombre: str, **kwargs) -> User:

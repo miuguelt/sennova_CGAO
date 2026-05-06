@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 
 from app.config import get_settings
-from app.database import engine, Base, get_db
+from app.database import engine, Base, get_db, SessionLocal
 from app.auth import get_current_user, get_current_admin, get_password_hash
 from app.models import User
 from app.routers import (
@@ -35,6 +35,29 @@ async def lifespan(app: FastAPI):
     try:
         Base.metadata.create_all(bind=engine)
         print("✅ Base de datos verificada/creada")
+        
+        # Bootstrap: Crear admin inicial si no existe
+        db = SessionLocal()
+        try:
+            from app.auth import AuthService
+            admin_email = settings.INITIAL_ADMIN_EMAIL
+            admin_user = db.query(User).filter(User.email == admin_email).first()
+            if not admin_user:
+                print(f"👤 Creando usuario administrador inicial: {admin_email}")
+                AuthService.register_user(
+                    db,
+                    email=admin_email,
+                    password=settings.INITIAL_ADMIN_PASSWORD,
+                    nombre="Administrador SENNOVA",
+                    rol="admin",
+                    sede="CGAO"
+                )
+                print("✅ Administrador creado correctamente")
+        except Exception as e:
+            print(f"⚠️ Error en bootstrap de usuario: {e}")
+        finally:
+            db.close()
+            
     except Exception as e:
         print(f"⚠️ Error inicializando BD: {e}")
     
