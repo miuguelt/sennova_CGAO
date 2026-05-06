@@ -206,10 +206,10 @@ const GruposModule = ({ currentUser, onNotify }) => {
     setFormData(prev => ({ ...prev, [f]: val }));
   };
 
-  const filtered = grupos.filter(g =>
-    g.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    g.codigo_gruplac?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    g.nombre_completo?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filtered = (grupos || []).filter(g => 
+    (g.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (g.codigo_gruplac || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (g.nombre_completo || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const ActionMenu = ({ grupo }) => {

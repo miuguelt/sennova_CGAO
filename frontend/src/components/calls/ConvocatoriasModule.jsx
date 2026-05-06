@@ -123,8 +123,8 @@ const ConvocatoriasModule = ({ currentUser, onNotify }) => {
   }, []);
 
   const filteredConvocatorias = convocatorias.filter(c => {
-    const matchesSearch = c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.numero_oe.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (c.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (c.numero_oe || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesEstado = filter.estado ? c.estado === filter.estado : true;
     const matchesAño = filter.año ? c.año.toString() === filter.año : true;
     return matchesSearch && matchesEstado && matchesAño;

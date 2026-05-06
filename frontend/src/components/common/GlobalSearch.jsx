@@ -155,7 +155,7 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
         >
           {results.length > 0 ? (
             <div className="p-2" ref={listRef}>
-              <p className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+              <p className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                 {results.length} resultado{results.length !== 1 ? 's' : ''}
               </p>
               {results.map((result, index) => {
@@ -193,7 +193,7 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
             <div className="py-14 text-center text-slate-500">
               <Search size={40} className="mx-auto text-slate-200 mb-3" aria-hidden="true" />
               <p className="font-semibold text-sm">Sin resultados para "{query}"</p>
-              <p className="text-xs text-slate-400 mt-1">Prueba con términos diferentes</p>
+              <p className="text-xs text-slate-500 mt-1">Prueba con términos diferentes</p>
             </div>
           ) : (
             <div className="py-12 px-6 text-center text-slate-400">
@@ -214,7 +214,7 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
 
         {/* Footer hint bar */}
         <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-5 text-xs text-slate-400 font-medium">
+          <div className="flex items-center gap-5 text-xs text-slate-500 font-medium">
             <span className="flex items-center gap-1.5">
               <Command size={11} aria-hidden="true" /> K — buscar
             </span>

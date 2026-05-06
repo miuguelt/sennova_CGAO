@@ -10,9 +10,13 @@ import Badge from '../ui/Badge';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import { UsuariosAPI } from '../../api/usuarios';
+import UserInsightPanel from './UserInsightPanel';
 
 const UserCard = ({ user, onEdit, onViewActivity }) => (
-  <Card className="p-5 flex flex-col gap-4 group hover:border-emerald-500 transition-colors">
+  <Card 
+    className="p-5 flex flex-col gap-4 group hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/10 transition-all cursor-pointer"
+    onClick={() => onViewActivity(user)}
+  >
     <div className="flex justify-between items-start">
       <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xl group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors uppercase">
         {user.nombre.charAt(0)}
@@ -53,6 +57,7 @@ const UserCard = ({ user, onEdit, onViewActivity }) => (
           rel="noopener noreferrer"
           className="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg hover:bg-emerald-50 transition-all"
           title="Ver CVLAC"
+          onClick={(e) => e.stopPropagation()}
         >
           <ExternalLink size={16} />
         </a>
@@ -100,9 +105,9 @@ const InvestigadoresModule = ({ onNotify }) => {
     loadData();
   }, []);
 
-  const filteredUsers = users.filter(u => {
-    const matchesSearch = u.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredUsers = (users || []).filter(u => {
+    const matchesSearch = (u.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (u.email || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRol = filter.rol ? u.rol === filter.rol : true;
     return matchesSearch && matchesRol;
   });
@@ -121,16 +126,9 @@ const InvestigadoresModule = ({ onNotify }) => {
     setSaving(false);
   };
 
-  const handleViewActivity = async (user) => {
+  const handleViewActivity = (user) => {
     setSelectedUser(user);
     setShowActivityModal(true);
-    try {
-      const activity = await UsuariosAPI.getActividad(user.id);
-      setUserActivity(activity || []);
-    } catch (err) {
-      onNotify?.('Error al cargar actividad', 'error');
-      setUserActivity([]);
-    }
   };
 
   const adminsCount = users.filter(u => u.rol === 'admin').length;
@@ -168,17 +166,17 @@ const InvestigadoresModule = ({ onNotify }) => {
         
         <div className="lg:w-1/3 grid grid-cols-2 gap-4">
           <Card className="p-6 bg-emerald-600 text-white flex flex-col justify-between">
-            <Users size={24} className="opacity-50" />
+            <Users size={24} className="opacity-70" />
             <div className="mt-4">
               <p className="text-4xl font-bold">{stats?.total || 0}</p>
-              <p className="text-xs font-bold uppercase tracking-wider opacity-80 mt-1">Total Activos</p>
+              <p className="text-xs font-bold uppercase tracking-wider opacity-95 mt-1">Total Activos</p>
             </div>
           </Card>
           <Card className="p-6 bg-blue-600 text-white flex flex-col justify-between">
-            <GraduationCap size={24} className="opacity-50" />
+            <GraduationCap size={24} className="opacity-70" />
             <div className="mt-4">
               <p className="text-4xl font-bold">{stats?.por_nivel?.Doctorado || 0}</p>
-              <p className="text-xs font-bold uppercase tracking-wider opacity-80 mt-1">Doctores</p>
+              <p className="text-xs font-bold uppercase tracking-wider opacity-95 mt-1">Doctores</p>
             </div>
           </Card>
         </div>
@@ -207,7 +205,7 @@ const InvestigadoresModule = ({ onNotify }) => {
             <option value="investigador">Investigador</option>
           </select>
         </div>
-        <p className="text-xs text-slate-400 font-medium">Mostrando {filteredUsers.length} investigadores</p>
+        <p className="text-xs text-slate-500 font-medium">Mostrando {filteredUsers.length} investigadores</p>
       </div>
 
       {/* User Grid */}
@@ -322,45 +320,12 @@ const InvestigadoresModule = ({ onNotify }) => {
         </div>
       )}
 
-      {/* Modal Ver Actividad */}
-      {showActivityModal && selectedUser && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <Card className="w-full max-w-lg animate-scaleIn">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Actividad de {selectedUser.nombre}</h3>
-                <p className="text-sm text-slate-500">{selectedUser.email}</p>
-              </div>
-              <button onClick={() => setShowActivityModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
-                <X size={20} className="text-slate-500" />
-              </button>
-            </div>
-            <div className="p-6 max-h-80 overflow-y-auto">
-              {userActivity.length === 0 ? (
-                <div className="text-center py-8">
-                  <Activity size={48} className="mx-auto text-slate-300 mb-3" />
-                  <p className="text-slate-500">No hay actividad registrada para este usuario.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {userActivity.map((act, idx) => (
-                    <div key={idx} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="primary" className="text-xs">{act.tipo_accion}</Badge>
-                        <span className="text-xs text-slate-400">{new Date(act.created_at).toLocaleDateString()}</span>
-                      </div>
-                      <p className="text-sm text-slate-700 mt-2">{act.descripcion}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="p-6 border-t border-slate-100 flex justify-end">
-              <Button variant="primary" onClick={() => setShowActivityModal(false)}>Cerrar</Button>
-            </div>
-          </Card>
-        </div>
-      )}
+      <UserInsightPanel
+        user={selectedUser}
+        isOpen={showActivityModal}
+        onClose={() => setShowActivityModal(false)}
+        onNotify={onNotify}
+      />
     </div>
   );
 };

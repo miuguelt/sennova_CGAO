@@ -4,7 +4,7 @@ import {
   Trophy, TrendingUp, Calendar, ArrowRight,
   Plus, Search, Filter, Activity, Zap, 
   Clock, AlertCircle, CheckCircle2, User, 
-  ChevronRight, Sparkles, Target, BarChart3
+  ChevronRight, Sparkles, Target, BarChart3, ArrowUpRight
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, 
@@ -15,6 +15,7 @@ import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import { DashboardAPI } from '../../api/dashboard';
+import UserInsightPanel from '../users/UserInsightPanel';
 
 const StatCard = ({ title, value, icon: Icon, color, trend, subtitle }) => (
   <Card className="p-6 relative overflow-hidden group hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 border-0 ring-1 ring-slate-100">
@@ -42,6 +43,8 @@ const StatCard = ({ title, value, icon: Icon, color, trend, subtitle }) => (
 const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) => {
   const [data, setData] = useState(null);
   const [evolution, setEvolution] = useState([]);
+  const [showInsight, setShowInsight] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [userImpact, setUserImpact] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -105,7 +108,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
             Hola, {(currentUser?.nombre || '').split(' ')[0] || 'Investigador'}
           </h1>
           <p className="text-slate-500 mt-3 font-medium max-w-md leading-relaxed">
-            Tienes <span className="text-indigo-600 font-bold">{stats.tareas_criticas?.proximas?.length || 0} entregables</span> programados para esta semana. Sigue impulsando la ciencia.
+            Tienes <span className="text-indigo-600 font-bold">{stats?.tareas_criticas?.proximas?.length || 0} entregables</span> programados para esta semana. Sigue impulsando la ciencia.
           </p>
         </div>
         
@@ -164,7 +167,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="font-black text-slate-900 text-lg">Evolución de Producción</h3>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Nuevos Proyectos vs Productos</p>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Nuevos Proyectos vs Productos</p>
               </div>
               <div className="flex gap-4">
                 <div className="flex items-center gap-2">
@@ -182,11 +185,11 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={evolution}>
                   <defs>
-                    <linearGradient id="colorPrj" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorPrj" x1="0" y1="0" x2="0" x2="1">
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                     </linearGradient>
-                    <linearGradient id="colorProd" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorProd" x1="0" y1="0" x2="0" x2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                     </linearGradient>
@@ -235,10 +238,10 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
                   </div>
                   <h3 className="font-bold text-slate-900">Entregables Vencidos</h3>
                 </div>
-                <Badge variant="danger" className="rounded-lg">{stats.tareas_criticas?.vencidas?.length || 0}</Badge>
+                <Badge variant="danger" className="rounded-lg">{stats?.tareas_criticas?.vencidas?.length || 0}</Badge>
               </div>
               <div className="divide-y divide-slate-50">
-                {stats.tareas_criticas?.vencidas?.length > 0 ? (
+                {stats?.tareas_criticas?.vencidas?.length > 0 ? (
                   stats.tareas_criticas.vencidas.map(task => (
                     <div key={task.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                       <div>
@@ -262,10 +265,10 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
                   </div>
                   <h3 className="font-bold text-slate-900">Próximos Vencimientos</h3>
                 </div>
-                <Badge variant="info" className="rounded-lg">{stats.tareas_criticas?.proximas?.length || 0}</Badge>
+                <Badge variant="info" className="rounded-lg">{stats?.tareas_criticas?.proximas?.length || 0}</Badge>
               </div>
               <div className="divide-y divide-slate-50">
-                {stats.tareas_criticas?.proximas?.length > 0 ? (
+                {stats?.tareas_criticas?.proximas?.length > 0 ? (
                   stats.tareas_criticas.proximas.map(task => (
                     <div key={task.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                       <div>
@@ -286,17 +289,14 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
         {/* ── Sidebar: Global Activity & Impact ── */}
         <div className="lg:col-span-4 space-y-8">
           
-          {/* User Impact Summary */}
-          <Card className="p-8 bg-slate-900 text-white relative overflow-hidden group">
-            <div className="absolute -right-8 -bottom-8 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000" />
-            <h3 className="text-lg font-black mb-6 flex items-center gap-2 relative z-10">
-              <User size={20} className="text-emerald-400" /> Impacto Personal
-            </h3>
-            
-            <div className="space-y-6 relative z-10">
-              <div className="flex items-end justify-between">
+          <Card 
+            className="p-0 border-0 shadow-sm overflow-hidden bg-slate-900 text-white cursor-pointer hover:shadow-2xl hover:shadow-emerald-500/10 transition-all group"
+            onClick={() => { setSelectedUser(currentUser); setShowInsight(true); }}
+          >
+            <div className="p-8 space-y-8">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Puntuación SENNOVA</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Impacto Global</p>
                   <p className="text-4xl font-black text-emerald-400 tracking-tighter">842</p>
                 </div>
                 <div className="text-right">
@@ -316,19 +316,23 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
               </div>
 
               <div className="grid grid-cols-3 gap-2 pt-4">
-                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5">
+                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5 group-hover:bg-white/10 transition-colors">
                   <p className="text-xl font-black text-white">{userImpact?.proyectos_count || 0}</p>
-                  <p className="text-[8px] font-black text-slate-400 uppercase">PRJs</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">PRJs</p>
                 </div>
-                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5">
+                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5 group-hover:bg-white/10 transition-colors">
                   <p className="text-xl font-black text-white">{userImpact?.productos_count || 0}</p>
-                  <p className="text-[8px] font-black text-slate-400 uppercase">PRODs</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">PRODs</p>
                 </div>
-                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5">
+                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5 group-hover:bg-white/10 transition-colors">
                   <p className="text-xl font-black text-white">{userImpact?.semilleros_count || 0}</p>
-                  <p className="text-[8px] font-black text-slate-400 uppercase">SEMs</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">SEMs</p>
                 </div>
               </div>
+            </div>
+            <div className="px-8 py-4 bg-white/5 border-t border-white/5 flex items-center justify-between group-hover:bg-emerald-500 group-hover:text-white transition-all">
+              <span className="text-[10px] font-black uppercase tracking-widest">Ver Perfil Completo</span>
+              <ArrowUpRight size={14} />
             </div>
           </Card>
 
@@ -338,8 +342,8 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
               <h3 className="font-bold text-slate-900">Actividad Global</h3>
               <Activity size={16} className="text-slate-400" />
             </div>
-            <div className="p-4 space-y-1">
-              {stats.historial_reciente?.map((item) => (
+            <div className="divide-y divide-slate-50 max-h-[350px] overflow-y-auto scrollbar-thin">
+              {(stats?.historial_reciente || []).map((item) => (
                 <div key={item.id} className="flex gap-4 p-3 rounded-2xl hover:bg-slate-50 transition-all cursor-pointer group">
                   <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 group-hover:bg-white group-hover:shadow-md transition-all">
                     <div className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -359,12 +363,18 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
                 </div>
               ))}
             </div>
-            <button className="w-full py-4 text-xs font-black text-slate-400 hover:text-emerald-600 bg-slate-50/50 uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+            <button className="w-full py-4 text-xs font-bold text-slate-500 hover:text-emerald-600 bg-slate-50/50 uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
               Ver Auditoría Completa <ChevronRight size={14} />
             </button>
           </Card>
         </div>
       </div>
+      <UserInsightPanel
+        user={selectedUser}
+        isOpen={showInsight}
+        onClose={() => setShowInsight(false)}
+        onNotify={onNotify}
+      />
     </div>
   );
 };

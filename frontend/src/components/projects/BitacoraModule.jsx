@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { BitacoraAPI } from '../../api/bitacora';
 import { ProyectosAPI } from '../../api/proyectos';
+import UserInsightPanel from '../users/UserInsightPanel';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
@@ -32,6 +33,8 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ titulo: '', contenido: '', categoria: 'técnica' });
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showInsight, setShowInsight] = useState(false);
 
   useEffect(() => {
     loadProyectos();
@@ -143,7 +146,7 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
         >
           {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre_corto || p.nombre}</option>)}
         </select>
-        <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-100">{entries.length} Entradas</Badge>
+        <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-100">{(entries || []).length} Entradas</Badge>
       </div>
 
       {/* ── Entries List ── */}
@@ -155,8 +158,8 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
             <Loader2 size={40} className="animate-spin text-indigo-600 mx-auto mb-4" />
             <p className="text-slate-500 font-bold italic">Consultando archivos de bitácora...</p>
           </div>
-        ) : entries.length > 0 ? (
-          entries.map(entry => {
+        ) : (entries || []).length > 0 ? (
+          (entries || []).map(entry => {
             const cat = getCat(entry.categoria);
             return (
               <div key={entry.id} className="relative md:pl-20 animate-slideIn">
@@ -201,9 +204,12 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
                     </div>
 
                     <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                      <div 
+                        className="flex items-center gap-3 cursor-pointer hover:bg-slate-100 p-1 rounded-lg transition-colors"
+                        onClick={() => { setSelectedUser({ id: entry.usuario_id, nombre: entry.user_nombre }); setShowInsight(true); }}
+                      >
                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs uppercase">
-                          {entry.user_nombre?.charAt(0)}
+                          {(entry.user_nombre || '?').charAt(0)}
                         </div>
                         <span className="text-[11px] font-bold text-slate-500">
                           Registrado por <span className="text-slate-900">{entry.user_nombre}</span>
@@ -282,6 +288,12 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
           </Card>
         </div>
       )}
+      <UserInsightPanel
+        user={selectedUser}
+        isOpen={showInsight}
+        onClose={() => setShowInsight(false)}
+        onNotify={onNotify}
+      />
     </div>
   );
 };

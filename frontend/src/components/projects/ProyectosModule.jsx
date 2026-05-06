@@ -45,7 +45,7 @@ const ProjectTimeline = ({ entregables = [] }) => {
                 <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
                   {fase}
                   <div className="h-px flex-1 bg-slate-100" />
-                  <Badge variant="outline" className="text-[9px] border-slate-200 text-slate-500">{items.length} entregables</Badge>
+                  <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-600">{items.length} entregables</Badge>
                 </h4>
               </div>
 
@@ -64,7 +64,7 @@ const ProjectTimeline = ({ entregables = [] }) => {
                             <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">{item.titulo}</p>
                             <p className="text-[10px] text-slate-400 mt-0.5">{item.descripcion || 'Sin descripción de actividad'}</p>
                           </div>
-                          <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-lg tracking-wider ${
+                          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-lg tracking-wider ${
                             item.estado === 'aprobado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                           }`}>
                             {item.estado}
@@ -595,7 +595,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                     />
                   ))}
                   {cards.length === 0 && (
-                    <div className="py-16 text-center text-xs text-slate-400 font-medium italic opacity-60">
+                    <div className="py-16 text-center text-xs text-slate-500 font-medium italic">
                       Sin proyectos
                     </div>
                   )}
@@ -836,7 +836,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                               <div className="min-w-0">
                                 <p className="text-sm font-black text-slate-800 truncate">{m.nombre}</p>
                                 <div className="flex items-center gap-2 mt-0.5">
-                                  <Badge variant="outline" className="text-[9px] border-emerald-100 text-emerald-600 bg-emerald-50/30 uppercase font-black tracking-tighter">
+                                  <Badge variant="outline" className="text-[10px] border-emerald-100 text-emerald-600 bg-emerald-50/30 uppercase font-bold tracking-tighter">
                                     {m.rol_en_proyecto || 'Investigador'}
                                   </Badge>
                                   <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">

@@ -213,7 +213,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
                 <div className="relative" ref={notifRef}>
                   <button onClick={handleToggleNotificaciones} className="relative p-2.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-all">
                     <Bell size={20} />
-                    {notificacionesPendientes > 0 && <span className="absolute top-2 right-2 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white">{notificacionesPendientes > 9 ? '+' : notificacionesPendientes}</span>}
+                    {notificacionesPendientes > 0 && <span className="absolute top-2 right-2 w-4 h-4 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">{notificacionesPendientes > 9 ? '+' : notificacionesPendientes}</span>}
                   </button>
                   {showNotificaciones && (
                     <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 animate-slideUp overflow-hidden">
@@ -242,7 +242,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
                 </div>
                 <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block" />
                 <button type="button" onClick={() => onNavigate('perfil')} className="hidden sm:flex items-center gap-3 pl-2 pr-1 py-1 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
-                  <div className="text-right leading-none"><p className="text-xs font-black text-slate-900">{(currentUser?.nombre || '').split(' ')[0]}</p><p className="text-[10px] text-slate-400 font-bold uppercase">{currentUser?.rol}</p></div>
+                  <div className="text-right leading-none"><p className="text-xs font-black text-slate-900">{(currentUser?.nombre || '').split(' ')[0]}</p><p className="text-[10px] text-slate-500 font-bold uppercase">{currentUser?.rol}</p></div>
                   <div className="w-9 h-9 bg-gradient-to-tr from-emerald-600 to-emerald-400 rounded-xl flex items-center justify-center text-xs font-black text-white shadow-inner">{(currentUser?.nombre || '?').charAt(0)}</div>
                 </button>
                 <button onClick={onLogout} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Cerrar sesión"><LogOut size={20} /></button>
@@ -296,7 +296,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
             <button key={id} onClick={handleClick} className={`relative flex flex-col items-center gap-1 p-2 rounded-xl transition-all flex-1 max-w-[70px] ${active ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-600'}`}>
               <div className={`transition-transform duration-200 ${active ? 'scale-110' : 'scale-100'}`}><Icon size={22} strokeWidth={active ? 2.5 : 2} /></div>
               <span className={`text-[10px] font-bold tracking-tight transition-colors ${active ? 'text-emerald-800' : 'text-slate-400'}`}>{label}</span>
-              {badge > 0 && <span className="absolute top-1.5 right-4 min-w-[15px] h-[15px] bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white leading-none">{badge > 9 ? '!' : badge}</span>}
+              {badge > 0 && <span className="absolute top-1.5 right-4 min-w-[15px] h-[15px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white leading-none">{badge > 9 ? '!' : badge}</span>}
               {active && !isToggle && <div className="absolute -bottom-1.5 w-1 h-1 bg-emerald-600 rounded-full shadow-[0_0_8px_rgba(5,150,105,0.6)]" />}
             </button>
           );

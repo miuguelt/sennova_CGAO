@@ -173,7 +173,7 @@ const ProductosModule = ({ currentUser, onNotify }) => {
   };
 
   const filtered = productos.filter(p => {
-    const matchSearch = !searchTerm || p.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchSearch = !searchTerm || (p.nombre || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchTipo   = !tipoFilter  || p.tipo === tipoFilter;
     const matchStatus = !statusFilter || (statusFilter === 'verificado' ? p.is_verificado : !p.is_verificado);
     return matchSearch && matchTipo && matchStatus;

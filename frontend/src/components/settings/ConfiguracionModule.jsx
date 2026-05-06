@@ -5,7 +5,7 @@ import {
   Cpu, HardDrive, Activity, Zap, Key, 
   Eye, EyeOff, Trash2, Smartphone, Mail,
   ExternalLink, Download, AlertTriangle,
-  ChevronRight, Calendar, Clock
+  ChevronRight, Calendar, Clock, FileText
 } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';

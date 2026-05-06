@@ -1,0 +1,91 @@
+﻿api\config.js:40:    return detail.map((item) => item.msg || item.message).filter(Boolean).join('. ') || fallback;
+components\admin\AuditoriaModule.jsx:64:    const rows = filteredLogs.map(log => [
+components\admin\AuditoriaModule.jsx:73:    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+components\admin\AuditoriaModule.jsx:217:              ) : filteredLogs.map(log => (
+components\admin\CVLACAdminModule.jsx:252:              ) : filtered.map(u => (
+components\admin\DocumentCenterModule.jsx:105:          {[1,2,3,4,5,6,7,8].map(i => <div key={i} className="h-40 bg-slate-50 rounded-3xl"></div>)}
+components\admin\DocumentCenterModule.jsx:157:          {['all', 'evidencia', 'contrato', 'entregable', 'cvlac_pdf'].map((type) => (
+components\admin\DocumentCenterModule.jsx:203:          {filteredDocs.map(doc => (
+components\admin\DocumentCenterModule.jsx:260:                {filteredDocs.map(doc => (
+components\auth\LoginScreen.jsx:95:            ].map(({ label, value }) => (
+components\calls\ConvocatoriasModule.jsx:133:  const years = [...new Set(convocatorias.map(c => c.año))].sort((a, b) => b - a);
+components\calls\ConvocatoriasModule.jsx:190:          {filteredConvocatorias.map((c) => (
+components\common\GlobalSearch.jsx:161:              {results.map((result, index) => {
+components\common\GlobalSearch.jsx:201:                {HINT_ITEMS.map(({ type, label, iconCls, Icon }) => (
+components\common\QuickActionHub.jsx:75:          {ACTIONS.map(({ id, label, desc, Icon, iconCls, module: mod, form }, idx) => (
+components\dashboard\DashboardModule.jsx:79:          {[1,2,3,4].map(i => <div key={i} className="h-32 bg-slate-100 rounded-3xl"></div>)}
+components\dashboard\DashboardModule.jsx:242:                  stats.tareas_criticas.vencidas.map(task => (
+components\dashboard\DashboardModule.jsx:269:                  stats.tareas_criticas.proximas.map(task => (
+components\dashboard\DashboardModule.jsx:342:              {stats.historial_reciente?.map((item) => (
+components\deliverables\CronogramaModule.jsx:181:          {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre_corto || p.nombre}</option>)}
+components\deliverables\CronogramaModule.jsx:189:          {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+components\deliverables\CronogramaModule.jsx:216:            {filtered.map(e => {
+components\deliverables\CronogramaModule.jsx:284:               {['Fase I', 'Fase II', 'Fase III', 'Fase Final'].map(fase => {
+components\deliverables\CronogramaModule.jsx:295:                       {items.map(item => (
+components\deliverables\CronogramaModule.jsx:347:                  options={['Fase I', 'Fase II', 'Fase III', 'Fase Final'].map(f => ({value: f, label: f}))}
+components\deliverables\CronogramaModule.jsx:360:                options={proyectos.map(p => ({value: p.id, label: p.nombre_corto || p.nombre}))}
+components\groups\GruposModule.jsx:288:          Array(6).fill(0).map((_, i) => <GroupCardSkeleton key={i} />)
+components\groups\GruposModule.jsx:290:          filtered.map(g => (
+components\groups\GruposModule.jsx:393:                      ).map((l, i) => (
+components\groups\GruposModule.jsx:579:                    options={usuarios.map(u => ({ value: u.id, label: u.nombre }))}
+components\groups\GruposModule.jsx:603:                    integrantes.map(i => (
+components\ideas\RetosModule.jsx:162:            {SECTORES.map(s => <option key={s.value} value={s.value}>{s.value}</option>)}
+components\ideas\RetosModule.jsx:170:            {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+components\ideas\RetosModule.jsx:184:          {filteredRetos.map(reto => {
+components\ideas\RetosModule.jsx:394:                  options={SECTORES.map(s => ({ value: s.value, label: s.value }))}
+components\layout\Navbar.jsx:178:                {menuGroups.map((group) => {
+components\layout\Navbar.jsx:189:                        {group.items.map(({ id, label, icon: Icon }) => {
+components\layout\Navbar.jsx:228:                          notificaciones.map(n => (
+components\layout\Navbar.jsx:268:            {menuGroups.map((group) => (
+components\layout\Navbar.jsx:272:                  {group.items.map(({ id, label, icon: Icon }) => {
+components\layout\Navbar.jsx:292:        {bottomNavItems.map(({ id, label, icon: Icon, badge, isToggle }) => {
+components\notifications\NotificacionesModule.jsx:58:      setNotificaciones(prev => prev.map(n => n.id === id ? { ...n, leida: true } : n));
+components\notifications\NotificacionesModule.jsx:69:      setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })));
+components\notifications\NotificacionesModule.jsx:140:          {['todas', 'no_leidas', 'leidas'].map(f => (
+components\notifications\NotificacionesModule.jsx:164:          filtered.map(n => {
+components\products\ProductosModule.jsx:273:            {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+components\products\ProductosModule.jsx:290:          Array(6).fill(0).map((_, i) => <ProductCardSkeleton key={i} />)
+components\products\ProductosModule.jsx:292:          filtered.map(p => {
+components\products\ProductosModule.jsx:513:                      options={TIPOS.map(t => ({ value: t.value, label: t.label }))}
+components\products\ProductosModule.jsx:520:                      options={proyectos.map(p => ({ value: p.id, label: p.nombre_corto || p.nombre }))}
+components\profile\PerfilModule.jsx:184:                options={['', 'Investigador Experto', 'Instructor Investigador', 'Responsable de Proyecto'].map(e => ({ value: e, label: e || 'Selecciona...' }))}
+components\profile\PerfilModule.jsx:191:                options={['', 'Técnico', 'Tecnólogo', 'Pregrado', 'Especialización', 'Maestría', 'Doctorado'].map(e => ({ value: e, label: e || 'Selecciona...' }))}
+components\profile\PerfilModule.jsx:337:              {(user.lineas_investigacion || []).map((linea, idx) => (
+components\projects\BitacoraModule.jsx:144:          {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre_corto || p.nombre}</option>)}
+components\projects\BitacoraModule.jsx:159:          entries.map(entry => {
+components\projects\ProyectosModule.jsx:35:        {fases.map((fase, idx) => {
+components\projects\ProyectosModule.jsx:59:                  items.map(item => (
+components\projects\ProyectosModule.jsx:140:    {STATES.map(s => (
+components\projects\ProyectosModule.jsx:144:          {[1, 2].map(i => <div key={i} className="h-40 bg-slate-100 rounded-xl" />)}
+components\projects\ProyectosModule.jsx:228:        {p.equipo?.slice(0, 3).map((m, i) => (
+components\projects\ProyectosModule.jsx:459:    setProyectos(prev => prev.map(p => String(p.id) === id ? { ...p, estado: newState } : p));
+components\projects\ProyectosModule.jsx:551:            {STATES.map(s => <option key={s} value={s}>{s}</option>)}
+components\projects\ProyectosModule.jsx:560:          {STATES.map(state => {
+components\projects\ProyectosModule.jsx:582:                  {cards.map(p => (
+components\projects\ProyectosModule.jsx:622:                {filtered.map(p => (
+components\projects\ProyectosModule.jsx:708:                  ].map(tab => (
+components\projects\ProyectosModule.jsx:739:                          {RUBROS.map(r => {
+components\projects\ProyectosModule.jsx:768:                                data={RUBROS.map(r => ({
+components\projects\ProyectosModule.jsx:779:                                {RUBROS.map((entry, index) => (
+components\projects\ProyectosModule.jsx:825:                        {selectedProyecto.equipo?.map(m => (
+components\projects\ProyectosModule.jsx:878:                              {usuarios.filter(u => !selectedProyecto.equipo?.some(m => m.id === u.id)).map(u => (
+components\projects\ProyectosModule.jsx:945:                ].map(t => (
+components\projects\ProyectosModule.jsx:1009:                          {retosDisponibles.map(r => (
+components\projects\ProyectosModule.jsx:1043:                      {RUBROS.map(r => (
+components\reports\ReportesModule.jsx:186:            {CATALOG.map(rep => {
+components\seedbeds\SemillerosModule.jsx:49:          {[1, 2, 3].map(i => (
+components\seedbeds\SemillerosModule.jsx:127:        {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-64 bg-slate-100 rounded-2xl"></div>)}
+components\seedbeds\SemillerosModule.jsx:175:          {filteredSemilleros.map(s => (
+components\settings\ConfiguracionModule.jsx:257:                  ].map(n => (
+components\ui\Select.jsx:43:        {options.map(opt => (
+components\users\InvestigadoresModule.jsx:144:          {[1, 2, 3, 4].map(i => <div key={i} className="h-48 bg-slate-100 rounded-2xl"></div>)}
+components\users\InvestigadoresModule.jsx:215:        {filteredUsers.map(user => (
+components\users\InvestigadoresModule.jsx:300:                {users.map(u => (
+components\users\InvestigadoresModule.jsx:346:                  {userActivity.map((act, idx) => (
+components\users\UserInsightPanel.jsx:115:      updatedStats[listKey] = updatedStats[listKey].map(item => 
+components\users\UserInsightPanel.jsx:250:                  <div className="flex flex-wrap gap-2">{data.lineas.map((l, i) => (<span key={i} className="px-3 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-xs font-bold border border-violet-100">{l}</span>))}</div>
+components\users\UserInsightPanel.jsx:326:                  ].map((kpi, i) => (
+components\users\UserInsightPanel.jsx:331:                  <Card className="p-5 border-slate-100"><h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><PieChart size={16} className="text-emerald-500" /> Perfil de Actividad</h4><div className="h-48"><ResponsiveContainer width="100%" height="100%"><RePie><Pie data={stats?.distribucion_perfil} innerRadius={40} outerRadius={70} paddingAngle={5} dataKey="value">{stats?.distribucion_perfil.map((entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip /></RePie></ResponsiveContainer></div></Card>
+components\users\UserInsightPanel.jsx:344:                      {stats?.proyectos_lista.map(p => (
+components\users\UserInsightPanel.jsx:357:                  {stats?.productos_lista.map(prod => (
+components\users\UserInsightPanel.jsx:373:                  {stats?.semilleros_lista.map((sem, i) => (

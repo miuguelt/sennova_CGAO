@@ -246,8 +246,8 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
                   </div>
                 </div>
                 <section>
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Líneas de Investigación</h4>
-                  <div className="flex flex-wrap gap-2">{data.lineas.map((l, i) => (<span key={i} className="px-3 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-xs font-bold border border-violet-100">{l}</span>))}</div>
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Líneas de Investigación</h4>
+                  <div className="flex flex-wrap gap-2">{(data.lineas || []).map((l, i) => (<span key={i} className="px-3 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-xs font-bold border border-violet-100">{l}</span>))}</div>
                 </section>
               </div>
             )}
@@ -314,9 +314,16 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-8 scrollbar-thin bg-white">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center h-full space-y-4">
+                <Loader2 size={40} className="animate-spin text-emerald-600" />
+                <p className="text-slate-500 font-bold italic">Calculando impacto 360°...</p>
+              </div>
+            ) : (
+              <>
             {activeTab === 'overview' && (
               <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                <section><h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Estado del Investigador</h3><div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 text-slate-700 leading-relaxed italic">"{stats?.resumen_perfil}"</div></section>
+                <section><h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Estado del Investigador</h3><div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 text-slate-700 leading-relaxed italic">"{stats?.resumen_perfil}"</div></section>
                 <div className="grid grid-cols-4 gap-4">
                   {[
                     { label: 'Proyectos', val: stats?.proyectos_count, color: 'text-emerald-600', bg: 'bg-emerald-50' },
@@ -328,7 +335,7 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
                   ))}
                 </div>
                 <div className="grid grid-cols-2 gap-8">
-                  <Card className="p-5 border-slate-100"><h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><PieChart size={16} className="text-emerald-500" /> Perfil de Actividad</h4><div className="h-48"><ResponsiveContainer width="100%" height="100%"><RePie><Pie data={stats?.distribucion_perfil} innerRadius={40} outerRadius={70} paddingAngle={5} dataKey="value">{stats?.distribucion_perfil.map((entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip /></RePie></ResponsiveContainer></div></Card>
+                  <Card className="p-5 border-slate-100"><h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><PieChart size={16} className="text-emerald-500" /> Perfil de Actividad</h4><div className="h-48"><ResponsiveContainer width="100%" height="100%"><RePie><Pie data={stats?.distribucion_perfil || []} innerRadius={40} outerRadius={70} paddingAngle={5} dataKey="value">{(stats?.distribucion_perfil || []).map((entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip /></RePie></ResponsiveContainer></div></Card>
                   <Card className="p-5 border-slate-100"><h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><BarChart3 size={16} className="text-blue-500" /> Ejecución Presupuestal</h4><div className="space-y-4 pt-4"><div><div className="flex justify-between text-xs mb-2"><span className="text-slate-500">Ejecutado</span><span className="font-bold text-slate-900">{formatCurrency(stats?.presupuesto_ejecutado)}</span></div><div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden"><div className="bg-blue-500 h-full w-[66%]"></div></div></div><p className="text-[10px] text-slate-500 mt-2">Relación basada en proyectos asignados.</p></div></Card>
                 </div>
               </div>
@@ -341,7 +348,7 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
                   <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px]"><tr><th className="px-4 py-3">Proyecto</th><th className="px-4 py-3">Presupuesto</th><th className="px-4 py-3">Ejecutado</th><th className="px-4 py-3">Avance</th></tr></thead>
                     <tbody className="divide-y divide-slate-100">
-                      {stats?.proyectos_lista.map(p => (
+                      {(stats?.proyectos_lista || []).map(p => (
                         <tr key={p.id} className="hover:bg-emerald-50/40 cursor-pointer transition-colors group" onClick={() => setNestedDetail({ type: 'proyecto', data: p })}><td className="px-4 py-3 font-bold text-slate-900 group-hover:text-emerald-700">{p.nombre}<p className="text-[10px] text-slate-500 font-normal">{p.rol}</p></td><td className="px-4 py-3 tabular-nums font-medium text-slate-600">{formatCurrency(p.presupuesto)}</td><td className="px-4 py-3 tabular-nums font-black text-emerald-600">{formatCurrency(p.ejecutado)}</td><td className="px-4 py-3"><div className="flex items-center gap-2"><div className="flex-1 bg-slate-100 h-1.5 rounded-full min-w-[60px]"><div className="bg-emerald-500 h-full rounded-full shadow-sm shadow-emerald-200" style={{width: `${p.progreso}%`}}></div></div><ChevronRight size={14} className="text-slate-300 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" /></div></td></tr>
                       ))}
                     </tbody>
@@ -354,7 +361,7 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
               <div className="space-y-6">
                 <h3 className="text-lg font-bold text-slate-800">Producción Técnica y Académica</h3>
                 <div className="grid grid-cols-1 gap-3">
-                  {stats?.productos_lista.map(prod => (
+                  {(stats?.productos_lista || []).map(prod => (
                     <div key={prod.id} className="p-4 border border-slate-100 rounded-xl flex items-center justify-between hover:border-blue-300 hover:bg-blue-50/40 cursor-pointer transition-all group" onClick={() => setNestedDetail({ type: 'producto', data: prod })}><div className="flex items-center gap-4"><div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform"><Package size={20} /></div><div><p className="font-bold text-slate-900 group-hover:text-blue-700 transition-colors">{prod.nombre}</p><p className="text-xs text-slate-500">{prod.tipo} • {prod.fecha}</p></div></div><ChevronRight size={18} className="text-slate-300 group-hover:text-blue-500 transition-colors" /></div>
                   ))}
                 </div>
@@ -370,13 +377,15 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
                 </div>
                 <div className="space-y-3 pt-4">
                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2"><BookOpen size={14} className="text-indigo-500" /> Semilleros Vinculados</h4>
-                  {stats?.semilleros_lista.map((sem, i) => (
+                  {(stats?.semilleros_lista || []).map((sem, i) => (
                     <div key={i} className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-100 hover:border-indigo-300 hover:bg-indigo-50/20 cursor-pointer transition-all group" onClick={() => setNestedDetail({ type: 'semillero', data: sem })}><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs group-hover:scale-110 transition-transform">{i+1}</div><span className="text-sm font-bold text-slate-700 group-hover:text-indigo-700">{sem.nombre}</span></div><div className="flex gap-4 items-center"><Badge variant="indigo">{sem.estudiantes} Estudiantes</Badge><ChevronRight size={16} className="text-slate-300 group-hover:text-indigo-500 transition-colors" /></div></div>
                   ))}
                 </div>
               </div>
             )}
-          </div>
+          </>
+        )}
+      </div>
 
           <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
              <div className="flex gap-2">

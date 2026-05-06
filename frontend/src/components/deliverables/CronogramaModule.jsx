@@ -191,13 +191,13 @@ const CronogramaModule = ({ currentUser, onNotify }) => {
         <div className="flex bg-white p-1 rounded-xl ring-1 ring-slate-200">
           <button 
             onClick={() => setView('list')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${view === 'list' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400'}`}
+            className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${view === 'list' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500'}`}
           >
             Lista
           </button>
           <button 
             onClick={() => setView('timeline')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${view === 'timeline' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400'}`}
+            className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${view === 'timeline' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500'}`}
           >
             Timeline
           </button>
@@ -231,7 +231,7 @@ const CronogramaModule = ({ currentUser, onNotify }) => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-black text-slate-900 text-base truncate">{e.titulo}</h3>
-                        <Badge variant="outline" className={`text-[9px] uppercase tracking-widest ${est.bg} ${est.color}`}>
+                        <Badge variant="outline" className={`text-[10px] uppercase tracking-widest ${est.bg} ${est.color}`}>
                           {est.label}
                         </Badge>
                       </div>
@@ -296,9 +296,9 @@ const CronogramaModule = ({ currentUser, onNotify }) => {
                          <div key={item.id} className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
                            <div className="flex justify-between items-start mb-2">
                              <p className="text-xs font-black text-slate-800">{item.titulo}</p>
-                             <Badge variant="default" className="text-[8px]">{item.estado}</Badge>
+                             <Badge variant="default" className="text-[10px]">{item.estado}</Badge>
                            </div>
-                           <p className="text-[10px] text-slate-400 mb-4">{new Date(item.fecha_entrega).toLocaleDateString()}</p>
+                           <p className="text-[10px] text-slate-500 mb-4">{new Date(item.fecha_entrega).toLocaleDateString()}</p>
                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                              <div 
                                className={`h-full rounded-full ${item.estado === 'aprobado' ? 'bg-emerald-500' : 'bg-indigo-500'}`} 

@@ -116,8 +116,8 @@ const SemillerosModule = ({ onNotify }) => {
     }
   };
 
-  const filteredSemilleros = semilleros.filter(s => 
-    s.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredSemilleros = (semilleros || []).filter(s => 
+    (s.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (s.grupo?.nombre || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
