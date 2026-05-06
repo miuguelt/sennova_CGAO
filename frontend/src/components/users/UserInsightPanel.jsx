@@ -17,6 +17,8 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
 import { DashboardAPI as StatsAPI } from '../../api/dashboard';
+import { ProyectosAPI } from '../../api/proyectos';
+import { SemillerosAPI } from '../../api/semilleros';
 
 const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -28,6 +30,10 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
   const [isEditingNested, setIsEditingNested] = useState(false);
   const [editBuffer, setEditBuffer] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkType, setLinkType] = useState(null); // 'proyecto', 'producto', 'semillero'
+  const [availableItems, setAvailableItems] = useState([]);
+  const [linking, setLinking] = useState(false);
 
   useEffect(() => {
     if (isOpen && user) {
@@ -126,7 +132,6 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
     setEditBuffer({ ...nestedDetail.data });
     setIsEditingNested(true);
   };
-
   const handleDeleteNested = () => {
     if (confirmDeleteId === nestedDetail.data.id) {
       const updatedStats = { ...stats };
@@ -143,6 +148,48 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
       setConfirmDeleteId(null);
     } else {
       setConfirmDeleteId(nestedDetail.data.id);
+    }
+  };
+
+  const handleOpenLink = async (type) => {
+    setLinkType(type);
+    setAvailableItems([]);
+    setShowLinkModal(true);
+    setLinking(true);
+    try {
+      let items = [];
+      if (type === 'proyecto') {
+        const all = await ProyectosAPI.list();
+        items = all.filter(p => !stats.proyectos_lista?.some(up => up.id === p.id));
+      } else if (type === 'semillero') {
+        const all = await SemillerosAPI.list();
+        items = all.filter(s => !stats.semilleros_lista?.some(us => us.id === s.id));
+      }
+      setAvailableItems(items);
+    } catch (err) {
+      onNotify?.('Error al cargar items vinculables', 'error');
+    }
+    setLinking(false);
+  };
+
+  const handleLinkItem = async (itemId) => {
+    try {
+      if (linkType === 'proyecto') {
+        await ProyectosAPI.addEquipo(itemId, user.id, 'Investigador', 20);
+      } else if (linkType === 'semillero') {
+        await SemillerosAPI.addAprendiz(itemId, { 
+          nombre: user.nombre, 
+          email: user.email,
+          documento: 'S/D',
+          ficha: 'N/A',
+          programa: 'N/A'
+        });
+      }
+      onNotify?.('Vinculación exitosa', 'success');
+      setShowLinkModal(false);
+      loadUserStats();
+    } catch (err) {
+      onNotify?.('Error al vincular: ' + err.message, 'error');
     }
   };
 
@@ -281,14 +328,50 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
     );
   };
 
+  const LinkModal = () => {
+    if (!showLinkModal) return null;
+    return (
+      <div className="fixed inset-0 z-[250] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowLinkModal(false)} />
+        <Card variant="elevated" className="w-full max-w-md animate-scaleIn relative z-[260] overflow-hidden">
+          <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="font-black text-slate-900 uppercase text-sm tracking-widest flex items-center gap-2">
+              <Plus size={16} className="text-emerald-500" /> Vincular {linkType}
+            </h3>
+            <button onClick={() => setShowLinkModal(false)}><X size={18} className="text-slate-400" /></button>
+          </div>
+          <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto scrollbar-thin">
+            {linking ? (
+              <div className="flex justify-center p-10"><Loader2 className="animate-spin text-emerald-500" /></div>
+            ) : availableItems.length > 0 ? (
+              availableItems.map(item => (
+                <div 
+                  key={item.id} 
+                  className="p-4 bg-white border border-slate-100 rounded-xl hover:border-emerald-300 hover:bg-emerald-50 cursor-pointer transition-all flex justify-between items-center group"
+                  onClick={() => handleLinkItem(item.id)}
+                >
+                  <span className="text-sm font-bold text-slate-700 group-hover:text-emerald-700">{item.nombre || item.titulo}</span>
+                  <Plus size={14} className="text-slate-300 group-hover:text-emerald-500" />
+                </div>
+              ))
+            ) : (
+              <p className="text-center py-10 text-slate-400 text-xs italic">No hay {linkType}s disponibles para vincular.</p>
+            )}
+          </div>
+        </Card>
+      </div>
+    );
+  };
+
   return (
-    <div className="fixed inset-0 z-[200] overflow-hidden">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
+    <div className="fixed inset-0 z-[200] overflow-hidden print:static print:block print:overflow-visible">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity print:hidden" onClick={onClose} />
       
       <NestedDetailModal />
+      <LinkModal />
 
-      <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-3xl bg-white shadow-2xl flex flex-col transform transition-transform duration-500">
+      <div className="absolute inset-y-0 right-0 max-w-full flex pl-10 print:static print:block print:w-full print:pl-0">
+        <div className="w-screen max-w-3xl bg-white shadow-2xl flex flex-col transform transition-transform duration-500 print:w-full print:max-w-none print:shadow-none print:transform-none print:static">
           
           <div className="px-8 py-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
             <div className="flex items-start justify-between">
@@ -305,7 +388,7 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
                 <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full ml-2"><X size={24} className="text-slate-400" /></button>
               </div>
             </div>
-            <div className="flex mt-8 border-b border-slate-100">
+            <div className="flex mt-8 border-b border-slate-100 print:hidden">
               <TabButton id="overview" label="Resumen 360" icon={TrendingUp} />
               <TabButton id="projects" label="Proyectos" icon={Briefcase} />
               <TabButton id="production" label="Producción" icon={Package} />
@@ -343,7 +426,12 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
 
             {activeTab === 'projects' && (
               <div className="space-y-6">
-                <h3 className="text-lg font-bold text-slate-800">Proyectos Vinculados</h3>
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-bold text-slate-800">Proyectos Vinculados</h3>
+                  <Button variant="outline" size="sm" onClick={() => handleOpenLink('proyecto')}>
+                    <Plus size={14} className="mr-2" /> Vincular Proyecto
+                  </Button>
+                </div>
                 <div className="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px]"><tr><th className="px-4 py-3">Proyecto</th><th className="px-4 py-3">Presupuesto</th><th className="px-4 py-3">Ejecutado</th><th className="px-4 py-3">Avance</th></tr></thead>
@@ -376,7 +464,12 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
                   <Card className="p-5 flex items-center justify-between border-slate-100 hover:shadow-md transition-all cursor-pointer"><div className="flex items-center gap-4"><div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center"><FileText size={24} /></div><div><p className="font-bold text-slate-900">Soporte Identidad</p><p className="text-xs text-slate-500">Documento cargado (PDF)</p></div></div></Card>
                 </div>
                 <div className="space-y-3 pt-4">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2"><BookOpen size={14} className="text-indigo-500" /> Semilleros Vinculados</h4>
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2"><BookOpen size={14} className="text-indigo-500" /> Semilleros Vinculados</h4>
+                    <Button variant="outline" size="sm" onClick={() => handleOpenLink('semillero')}>
+                      <Plus size={14} className="mr-2" /> Vincular Semillero
+                    </Button>
+                  </div>
                   {(stats?.semilleros_lista || []).map((sem, i) => (
                     <div key={i} className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-100 hover:border-indigo-300 hover:bg-indigo-50/20 cursor-pointer transition-all group" onClick={() => setNestedDetail({ type: 'semillero', data: sem })}><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs group-hover:scale-110 transition-transform">{i+1}</div><span className="text-sm font-bold text-slate-700 group-hover:text-indigo-700">{sem.nombre}</span></div><div className="flex gap-4 items-center"><Badge variant="indigo">{sem.estudiantes} Estudiantes</Badge><ChevronRight size={16} className="text-slate-300 group-hover:text-indigo-500 transition-colors" /></div></div>
                   ))}
@@ -387,7 +480,7 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
         )}
       </div>
 
-          <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
+          <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center print:hidden">
              <div className="flex gap-2">
                <Button variant="outline" size="sm" onClick={() => window.print()}><Download size={16} className="mr-2" /> Exportar Perfil</Button>
                <Button variant="outline" size="sm"><Edit3 size={16} className="mr-2" /> Editar Datos</Button>

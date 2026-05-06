@@ -84,8 +84,8 @@ function AppContent() {
     setCurrentView(view);
   };
 
-  const handleModuleAction = ({ module, form }) => {
-    setPendingAction({ module, form });
+  const handleModuleAction = ({ module, form, initialData }) => {
+    setPendingAction({ module, form, initialData });
     setCurrentView(module);
   };
 
@@ -117,8 +117,8 @@ function AppContent() {
   };
 
   const renderView = () => {
-    const props = { currentUser, onNotify, onNavigate: navigateTo };
-    const actionFor = (module) => (pendingAction?.module === module ? pendingAction.form : undefined);
+    const props = { currentUser, onNotify, onNavigate: navigateTo, onModuleAction: handleModuleAction };
+    const actionFor = (module) => (pendingAction?.module === module ? { form: pendingAction.form, data: pendingAction.initialData } : undefined);
     
     switch (currentView) {
       case 'dashboard':      return <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} />;
@@ -135,7 +135,7 @@ function AppContent() {
       case 'configuracion':  return <ConfiguracionModule {...props} onUpdateUser={updateUser} />;
       case 'bitacora':       return <BitacoraModule {...props} />;
       case 'cronograma':     return <CronogramaModule {...props} />;
-      case 'retos':          return <RetosModule {...props} />;
+      case 'retos':          return <RetosModule {...props} onModuleAction={handleModuleAction} />;
       case 'notificaciones': return <NotificacionesModule {...props} />;
       case 'cvlac_admin':    return <CVLACAdminModule {...props} />;
       case 'cvlac-admin':    return <CVLACAdminModule {...props} />;
@@ -155,7 +155,7 @@ function AppContent() {
         onLogout={logout} 
         onOpenSearch={() => setIsSearchOpen(true)}
       />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 print:max-w-none print:p-0 print:m-0 print:pt-0">
         {renderView()}
       </main>
       <GlobalSearch

@@ -38,7 +38,7 @@ const EMPTY_FORM = {
   prioridad: 'media'
 };
 
-const RetosModule = ({ currentUser, onNotify }) => {
+const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
   const [retos, setRetos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -124,7 +124,7 @@ const RetosModule = ({ currentUser, onNotify }) => {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-10">
+    <div className="space-y-6 animate-fadeIn pb-10 print:hidden">
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row justify-between gap-4">
         <div>
@@ -252,10 +252,10 @@ const RetosModule = ({ currentUser, onNotify }) => {
         const Icon = sector.icon;
 
         return (
-          <div className="fixed inset-0 z-[100] overflow-hidden">
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-fadeIn" onClick={() => setIsDetailOpen(false)} />
-            <div className="absolute inset-y-0 right-0 max-w-full flex">
-              <div className="w-screen max-w-lg bg-white shadow-2xl flex flex-col animate-slideInRight">
+          <div className="fixed inset-0 z-[100] overflow-hidden print:static print:block print:overflow-visible">
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-fadeIn print:hidden" onClick={() => setIsDetailOpen(false)} />
+            <div className="absolute inset-y-0 right-0 max-w-full flex print:static print:block print:w-full">
+              <div className="w-screen max-w-lg bg-white shadow-2xl flex flex-col animate-slideInRight print:w-full print:max-w-none print:shadow-none print:animate-none print:static">
                 {/* Header Detail */}
                 <div className={`px-8 py-8 border-b border-slate-100 ${sector.bg}`}>
                   <div className="flex items-start justify-between mb-6">
@@ -329,11 +329,15 @@ const RetosModule = ({ currentUser, onNotify }) => {
                         className="w-full py-4 bg-slate-900 hover:bg-black text-white shadow-xl flex items-center justify-center gap-2"
                         onClick={() => {
                           onNotify('Iniciando propuesta de proyecto basada en este reto...', 'info');
-                          // Aquí se podría navegar a proyectos con el reto_id pre-cargado
-                          setTimeout(() => {
-                            // Simulamos navegación a proyectos con contexto
-                            onNotify('Módulo de proyectos cargado con el reto vinculado', 'success');
-                          }, 1000);
+                          onModuleAction?.({ 
+                            module: 'proyectos', 
+                            form: 'create', 
+                            initialData: { 
+                              nombre: selectedReto.titulo, 
+                              descripcion: selectedReto.descripcion,
+                              reto_origen_id: selectedReto.id 
+                            } 
+                          });
                         }}
                       >
                         <Zap size={18} fill="currentColor" className="text-amber-400" /> 
@@ -344,7 +348,7 @@ const RetosModule = ({ currentUser, onNotify }) => {
                 </div>
 
                 {/* Footer Detail */}
-                <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
+                <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 print:hidden">
                   <Button variant="secondary" className="flex-1" onClick={() => setIsDetailOpen(false)}>Cerrar</Button>
                   <Button variant="primary" className="flex-1 bg-slate-900 hover:bg-black" onClick={() => window.print()}>
                     <ExternalLink size={16} className="mr-2" /> Exportar PDF

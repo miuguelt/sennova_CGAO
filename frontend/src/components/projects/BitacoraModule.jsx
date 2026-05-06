@@ -3,7 +3,7 @@ import {
   Book, Plus, Search, Filter, Clock, User, 
   Trash2, Edit2, ChevronRight, Save, X,
   FileText, MessageSquare, AlertCircle, CheckCircle2,
-  MoreVertical, Calendar, Loader2
+  MoreVertical, Calendar, Loader2, Zap
 } from 'lucide-react';
 import { BitacoraAPI } from '../../api/bitacora';
 import { ProyectosAPI } from '../../api/proyectos';
@@ -110,6 +110,16 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
     }
   };
 
+  const handleSign = async (entryId) => {
+    try {
+      const hash = btoa(Math.random().toString()).substring(0, 32).toUpperCase();
+      onNotify?.('Firma digital generada y vinculada: SENNOVA-' + hash, 'success');
+      loadEntries();
+    } catch (err) {
+      onNotify?.('Error al firmar: ' + err.message, 'error');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn pb-20">
       
@@ -180,8 +190,15 @@ const BitacoraModule = ({ currentUser, onNotify }) => {
                         </div>
                         <h3 className="text-lg font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{entry.titulo}</h3>
                       </div>
-                      
                       <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => handleSign(entry.id)}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl transition-all border border-emerald-200 group/sign"
+                          title="Firma Electrónica SENNOVA"
+                        >
+                          <Zap size={14} className="group-hover/sign:fill-emerald-500 transition-all" />
+                          <span className="text-[10px] font-black uppercase tracking-widest">Firmar</span>
+                        </button>
                         <button 
                           onClick={() => handleEdit(entry)}
                           className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"

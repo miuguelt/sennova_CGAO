@@ -35,3 +35,33 @@
 /* Module transitions */
 .module-enter { animation: slideUp 0.2s ease-out; }
 .gantt-bar    { transition: width 0.3s ease; }
+
+/* Print Styles */
+@media print {
+  @page {
+    size: letter;
+    margin: 1cm;
+  }
+
+  body {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hide UI elements that shouldn't be in PDF */
+  .no-print, 
+  button:not(.print-only),
+  nav, 
+  aside, 
+  header:not(.print-header),
+  footer:not(.print-footer) {
+    display: none !important;
+  }
+
+  /* Ensure the main container doesn't have overflow issues */
+  #root {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}

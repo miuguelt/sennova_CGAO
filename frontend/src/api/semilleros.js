@@ -39,4 +39,6 @@ export const SemillerosAPI = {
   deleteAprendiz: (semilleroId, aprendizId) => fetchAPI(`/semilleros/${semilleroId}/aprendices/${aprendizId}`, {
     method: 'DELETE',
   }),
+
+  getStats: (id) => fetchAPI(`/stats/semillero/${id}/impact`),
 };

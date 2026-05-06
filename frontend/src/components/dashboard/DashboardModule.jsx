@@ -121,6 +121,13 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
             <span>Búsqueda Global</span>
             <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 bg-slate-200 text-[10px] rounded-md ml-4 text-slate-700 font-mono">Ctrl K</kbd>
           </button>
+          <button 
+            onClick={() => onNavigate('reportes')}
+            className="flex items-center gap-3 px-6 py-3 bg-white/80 hover:bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 transition-all shadow-sm hover:shadow-md"
+          >
+            <BarChart3 size={18} className="text-emerald-500" />
+            <span>Analíticas</span>
+          </button>
           <Button variant="sena" className="h-12 px-8 rounded-2xl shadow-xl shadow-emerald-600/20" onClick={onNewProject}>
             <Plus size={20} className="mr-2" strokeWidth={3} /> Nuevo Proyecto
           </Button>
@@ -185,11 +192,11 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify }) 
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={evolution}>
                   <defs>
-                    <linearGradient id="colorPrj" x1="0" y1="0" x2="0" x2="1">
+                    <linearGradient id="colorPrj" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                     </linearGradient>
-                    <linearGradient id="colorProd" x1="0" y1="0" x2="0" x2="1">
+                    <linearGradient id="colorProd" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                     </linearGradient>

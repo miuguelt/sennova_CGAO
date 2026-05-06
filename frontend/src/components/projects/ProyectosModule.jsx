@@ -267,6 +267,8 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [menuOpenId,       setMenuOpenId]       = useState(null);
   const [isEditing,        setIsEditing]        = useState(false);
   const [usuarios,         setUsuarios]         = useState([]);
+  const [isPoolVisible,    setIsPoolVisible]    = useState(false);
+  const [dragOverTeam,     setDragOverTeam]     = useState(false);
   const [formTab,           setFormTab]          = useState('basic'); // 'basic', 'tech', 'budget'
   const menuRef = React.useRef(null);
 
@@ -435,6 +437,31 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       loadData();
     } catch (err) {
       onNotify?.('Error al eliminar miembro: ' + err.message, 'error');
+    }
+  };
+
+  const handleDragUserStart = (e, user) => {
+    e.dataTransfer.setData('userId', user.id);
+    e.dataTransfer.setData('source', 'talent-pool');
+  };
+
+  const handleTeamDrop = async (e) => {
+    e.preventDefault();
+    setDragOverTeam(false);
+    const source = e.dataTransfer.getData('source');
+    if (source !== 'talent-pool') return;
+    
+    const userId = e.dataTransfer.getData('userId');
+    if (!userId || !selectedProyecto) return;
+    
+    try {
+      await ProyectosAPI.addEquipo(selectedProyecto.id, userId, 'Investigador', 20);
+      onNotify?.('Miembro vinculado exitosamente', 'success');
+      const pActualizado = await ProyectosAPI.get(selectedProyecto.id);
+      setSelectedProyecto(pActualizado);
+      loadData();
+    } catch (err) {
+      onNotify?.('Error al vincular: ' + err.message, 'error');
     }
   };
 
@@ -820,8 +847,46 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                     <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                       <Users size={12} /> Equipo de Investigación
                     </h3>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 gap-3">
+                    <div className="space-y-4 relative">
+                      
+                      {/* Talent Pool Sidebar for Project Team */}
+                      {isPoolVisible && (
+                        <div className="absolute left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-100 z-50 shadow-2xl flex flex-col animate-slideInLeft rounded-r-3xl">
+                          <div className="p-4 bg-emerald-600 text-white flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-widest">Talento CGAO</span>
+                            <button onClick={() => setIsPoolVisible(false)}><X size={14} /></button>
+                          </div>
+                          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                            {usuarios.filter(u => !selectedProyecto.equipo?.some(m => m.id === u.id)).map(u => (
+                              <div 
+                                key={u.id}
+                                draggable
+                                onDragStart={(e) => handleDragUserStart(e, u)}
+                                className="p-3 bg-slate-50 border border-slate-100 rounded-2xl cursor-grab active:cursor-grabbing hover:border-emerald-400 hover:bg-white hover:shadow-md transition-all text-[11px] font-black text-slate-700 flex items-center gap-3"
+                              >
+                                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">{u.nombre.charAt(0)}</div>
+                                <span className="truncate">{u.nombre}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div 
+                        className={`grid grid-cols-1 gap-3 p-4 rounded-[2rem] border-2 border-dashed transition-all ${dragOverTeam ? 'border-emerald-500 bg-emerald-50 scale-[1.01]' : 'border-slate-100'}`}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverTeam(true); }}
+                        onDragLeave={() => setDragOverTeam(false)}
+                        onDrop={handleTeamDrop}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Integrantes Actuales</p>
+                          <button onClick={() => setIsPoolVisible(!isPoolVisible)} className="text-[10px] font-black text-emerald-600 uppercase hover:underline">
+                            {isPoolVisible ? 'Ocultar Pool' : 'Arrastrar Miembros'}
+                          </button>
+                        </div>
+                        {(selectedProyecto.equipo || []).length === 0 && (
+                          <div className="py-10 text-center text-slate-400 italic text-xs">No hay miembros vinculados.</div>
+                        )}
                         {selectedProyecto.equipo?.map(m => (
                           <div key={m.id} className="group flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300">
                             <div className="flex items-center gap-4">
@@ -992,34 +1057,31 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
                 {formTab === 'tech' && (
                   <section className="space-y-5 animate-fadeIn">
-                    <div className="grid grid-cols-1 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="md:col-span-2">
+                        <Select 
+                          label="Reto de Origen (Opcional)" 
+                          value={formData.reto_origen_id} 
+                          onChange={patch('reto_origen_id')} 
+                          options={[
+                            { value: '', label: 'Ningún reto vinculado - Iniciativa propia' },
+                            ...retosDisponibles.map(r => ({ value: r.id, label: r.titulo }))
+                          ]}
+                        />
+                      </div>
                       <Input label="Línea Programática" value={formData.linea_programatica} onChange={patch('linea_programatica')} placeholder="Ej: 65, 82..." />
                       <Input label="Línea de Investigación" value={formData.linea_investigacion} onChange={patch('linea_investigacion')} placeholder="Ej: Software, Agro..." />
                       
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1.5">
-                          <Target size={12} className="text-amber-500" /> Vinculación con Reto (Opcional)
-                        </label>
-                        <select
-                          value={formData.reto_origen_id}
-                          onChange={patch('reto_origen_id')}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all appearance-none cursor-pointer"
-                        >
-                          <option value="">Ninguno - Iniciativa propia</option>
-                          {retosDisponibles.map(r => (
-                            <option key={r.id} value={r.id}>{r.titulo.substring(0, 60)}...</option>
-                          ))}
-                        </select>
+                      <div className="md:col-span-2">
+                        <TextArea
+                          label="Resumen Ejecutivo / Descripción"
+                          placeholder="Describe el alcance y objetivos del proyecto..."
+                          value={formData.descripcion}
+                          onChange={patch('descripcion')}
+                          rows={6}
+                          className="rounded-3xl"
+                        />
                       </div>
-
-                      <TextArea
-                        label="Resumen Ejecutivo / Descripción"
-                        placeholder="Describe el alcance y objetivos del proyecto..."
-                        value={formData.descripcion}
-                        onChange={patch('descripcion')}
-                        rows={6}
-                        className="rounded-3xl"
-                      />
                     </div>
                   </section>
                 )}
