@@ -199,17 +199,17 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
               <div className="mt-2 p-2 bg-slate-50 rounded-lg text-[10px] text-slate-500 space-y-1">
                 <button 
                   type="button"
-                  onClick={() => handleTestCredential('admin@sena.edu.co', '123456')}
+                  onClick={() => handleTestCredential(import.meta.env.VITE_TEST_ADMIN_EMAIL || 'admin@sena.edu.co', import.meta.env.VITE_TEST_ADMIN_PASSWORD || '123456')}
                   className="w-full text-left p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all group/cred"
                 >
-                  <span className="font-bold text-slate-700 group-hover/cred:text-emerald-600">Admin:</span> admin@sena.edu.co / 123456
+                  <span className="font-bold text-slate-700 group-hover/cred:text-emerald-600">Admin:</span> {import.meta.env.VITE_TEST_ADMIN_EMAIL || 'admin@sena.edu.co'} / {import.meta.env.VITE_TEST_ADMIN_PASSWORD || '******'}
                 </button>
                 <button 
                   type="button"
-                  onClick={() => handleTestCredential('mtejedorm@sena.edu.co', '123456')}
+                  onClick={() => handleTestCredential(import.meta.env.VITE_TEST_USER_EMAIL || 'mtejedorm@sena.edu.co', import.meta.env.VITE_TEST_USER_PASSWORD || '123456')}
                   className="w-full text-left p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all group/cred"
                 >
-                  <span className="font-bold text-slate-700 group-hover/cred:text-emerald-600">Investigador:</span> mtejedorm@sena.edu.co / 123456
+                  <span className="font-bold text-slate-700 group-hover/cred:text-emerald-600">Investigador:</span> {import.meta.env.VITE_TEST_USER_EMAIL || 'mtejedorm@sena.edu.co'} / {import.meta.env.VITE_TEST_USER_PASSWORD || '******'}
                 </button>
               </div>
             </details>

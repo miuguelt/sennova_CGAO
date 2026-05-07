@@ -5,6 +5,7 @@ Generación de reportes consolidados para reportes trimestrales a nivel nacional
 
 from io import BytesIO
 from datetime import datetime, timezone
+import uuid
 from typing import Optional, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query

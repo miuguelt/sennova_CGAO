@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  X, User, Mail, Shield, MapPin, Building2, Calendar, 
+  X, User, Mail, Shield, MapPin, Building2, Calendar, Plus,
   FileText, Briefcase, GraduationCap, Award, TrendingUp,
   Activity, ExternalLink, Download, PieChart, BarChart3,
   Layers, Package, CheckCircle2, Clock, AlertCircle,
