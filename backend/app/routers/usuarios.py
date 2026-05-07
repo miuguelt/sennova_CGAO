@@ -80,10 +80,14 @@ def list_usuarios(
 @router.get("/{user_id}")
 def get_usuario(
     user_id: str,
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Obtener detalle de un usuario (solo admin)."""
+    """Obtener detalle de un usuario (admin o el propio usuario)."""
+    # Permitir si es admin O si es el mismo usuario
+    if current_user.rol != "admin" and str(current_user.id) != str(user_id):
+        raise HTTPException(status_code=403, detail="No tiene permiso para ver este perfil")
+        
     user = db.query(User).filter(User.id == str(user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -114,21 +118,40 @@ def create_usuario(
 def update_usuario(
     user_id: str,
     user_update: UserUpdate,
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Actualizar un usuario (solo admin)."""
+    """Actualizar un usuario (admin o el propio usuario)."""
+    # Permitir si es admin O si es el mismo usuario
+    if current_user.rol != "admin" and str(current_user.id) != str(user_id):
+        raise HTTPException(status_code=403, detail="No tiene permiso para actualizar este perfil")
+
     user = db.query(User).filter(User.id == str(user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     
-    # No permitir cambiar rol del único admin
-    if user.rol == "admin" and user_update.rol == "investigador":
-        admin_count = db.query(User).filter(User.rol == "admin").count()
-        if admin_count <= 1:
-            raise HTTPException(status_code=400, detail="No se puede cambiar el rol del único admin")
-    
+    # REGLA DE SEGURIDAD: Solo admin puede cambiar roles o estado activo
     update_data = user_update.dict(exclude_unset=True)
+    
+    if current_user.rol != "admin":
+        # Si no es admin, quitar campos sensibles
+        sensitive_fields = ["rol", "is_active", "rol_sennova", "email"]
+        for field in sensitive_fields:
+            if field in update_data:
+                del update_data[field]
+    else:
+        # Si es admin, aplicar lógica de seguridad para el último admin
+        if user.rol == "admin" and update_data.get("rol") == "investigador":
+            admin_count = db.query(User).filter(User.rol == "admin").count()
+            if admin_count <= 1:
+                raise HTTPException(status_code=400, detail="No se puede cambiar el rol del único admin")
+    
+    # Si viene password, hashearla
+    if "password" in update_data and update_data["password"]:
+        from app.auth import get_password_hash
+        user.password_hash = get_password_hash(update_data["password"])
+        del update_data["password"]
+
     for field, value in update_data.items():
         setattr(user, field, value)
     

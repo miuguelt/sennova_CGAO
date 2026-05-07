@@ -146,6 +146,7 @@ async def unified_cors_exception_handler(request: Request, exc: Exception):
         detail = exc.errors()
 
     print(f"❌ Error en {request.url} [{status_code}]: {detail}")
+    print(f"🔍 [DEBUG] Detail type: {type(detail)} | Detail content: {detail}")
     if settings.DEBUG and status_code == 500:
         traceback.print_exc()
     

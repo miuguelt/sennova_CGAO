@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  X, User, Mail, Shield, MapPin, Building2, Calendar, Plus,
-  FileText, Briefcase, GraduationCap, Award, TrendingUp,
-  Activity, ExternalLink, Download, PieChart, BarChart3,
-  Layers, Package, CheckCircle2, Clock, AlertCircle,
-  MessageSquare, Key, Edit3, ChevronRight, BookOpen,
-  DollarSign, Target, Info, Users, Save, RotateCcw, Trash2, Loader2
+  X, Mail, MapPin, GraduationCap, ExternalLink, Activity, 
+  ChevronRight, Calendar, User, Shield, Briefcase, Trophy, 
+  DollarSign, Target, Info, Users, Save, RotateCcw, Trash2, Loader2, Plus, Edit3
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -25,6 +22,9 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState({ ...user });
+  const [saving, setSaving] = useState(false);
   
   // Estado para el detalle anidado y su edición
   const [nestedDetail, setNestedDetail] = useState(null); 
@@ -38,81 +38,43 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
 
   useEffect(() => {
     if (isOpen && user) {
-      loadUserStats();
-      setActiveTab('overview');
-      setConfirmDeleteId(null);
-    }
-  }, [isOpen, user]);
-
-  const loadUserStats = async () => {
+  const loadStats = async () => {
+    if (!user?.id) return;
     setLoading(true);
     try {
       const data = await StatsAPI.getUserImpact(user.id);
       setStats(data);
-    } catch (error) {
-      setStats({
-        resumen_perfil: "Investigador con enfoque en Tecnologías de la Información. Lidera actualmente proyectos de alto impacto regional con un cumplimiento sobresaliente en entregables técnicos.",
-        proyectos_count: 3,
-        productos_count: 8,
-        semilleros_count: 2,
-        cumplimiento: 92,
-        presupuesto_total: 68000000,
-        presupuesto_ejecutado: 45200000,
-        proyectos_lista: [
-          { 
-            id: 1, nombre: 'Plataforma IoT Agro', rol: 'Líder', estado: 'Ejecución', progreso: 75,
-            presupuesto: 25000000, ejecutado: 18500000, inicio: '2023-01-15', fin: '2024-06-30',
-            objetivo: 'Desarrollar una red de sensores para monitoreo de cultivos en tiempo real.',
-            equipo: 5, entregables: 12, sede: 'Vélez'
-          },
-          { 
-            id: 2, nombre: 'App Gestión Talento', rol: 'Coinvestigador', estado: 'Finalizado', progreso: 100,
-            presupuesto: 15000000, ejecutado: 15000000, inicio: '2022-06-10', fin: '2023-12-20',
-            objetivo: 'Optimizar la asignación de roles en grupos de investigación mediante algoritmos.',
-            equipo: 3, entregables: 8, sede: 'Barbosa'
-          },
-          { 
-            id: 3, nombre: 'IA para Calidad Suelo', rol: 'Asesor', estado: 'Iniciado', progreso: 15,
-            presupuesto: 45000000, ejecutado: 5000000, inicio: '2024-02-01', fin: '2025-01-30',
-            objetivo: 'Predecir la fertilidad del suelo usando visión artificial.',
-            equipo: 8, entregables: 24, sede: 'Vélez'
-          }
-        ],
-        productos_lista: [
-          { 
-            id: 101, nombre: 'Algoritmo de predicción v1', tipo: 'Software', fecha: '2024-02-15',
-            descripcion: 'Motor de inferencia basado en redes neuronales para análisis de suelos.',
-            autores: 'Miguel Tejedor, Juan Pérez', proyecto_asoc: 'IA para Calidad Suelo',
-            estado_registro: 'Aprobado'
-          },
-          { 
-            id: 102, nombre: 'Artículo: IoT en el campo', tipo: 'Publicación Q2', fecha: '2023-11-10',
-            descripcion: 'Análisis de la eficiencia de redes LoRaWAN en terrenos quebrados de Santander.',
-            revista: 'Journal of Agronomy IT', indexacion: 'Scopus Q2',
-            estado_registro: 'Publicado'
-          }
-        ],
-        semilleros_lista: [
-          { 
-            id: 501, nombre: 'Semillero de IA aplicada', sede: 'Vélez', estudiantes: 12,
-            lineas: ['Machine Learning', 'Big Data'], fundacion: '2022-03-10',
-            proyectos_vinculados: 2
-          },
-          { 
-            id: 502, nombre: 'EcoInnovación CGAO', sede: 'Barbosa', estudiantes: 8,
-            lineas: ['Energías Limpias', 'Economía Circular'], fundacion: '2023-08-15',
-            proyectos_vinculados: 1
-          }
-        ],
-        distribucion_perfil: [
-          { name: 'Investigación', value: 50 },
-          { name: 'Desarrollo', value: 30 },
-          { name: 'Gestión', value: 20 }
-        ]
-      });
+    } catch (err) {
+      console.error("Error loading user impact:", err);
+      onNotify?.('Error al cargar estadísticas de impacto', 'error');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { UsuariosAPI } = await import('../../api/usuarios');
+      await UsuariosAPI.update(user.id, editData);
+      onNotify?.('Datos actualizados correctamente', 'success');
+      setEditMode(false);
+      // Recargar datos si es necesario (el padre debería refrescar si el objeto user cambió)
+    } catch (err) {
+      onNotify?.('Error al actualizar: ' + err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && user?.id) {
+      loadStats();
+      setEditData({ ...user });
+      setActiveTab('overview');
+      setConfirmDeleteId(null);
+    }
+  }, [isOpen, user?.id]);
 
   const handleSaveNested = () => {
     const updatedStats = { ...stats };
@@ -188,7 +150,7 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
       }
       onNotify?.('Vinculación exitosa', 'success');
       setShowLinkModal(false);
-      loadUserStats();
+      loadStats();
     } catch (err) {
       onNotify?.('Error al vincular: ' + err.message, 'error');
     }
@@ -411,9 +373,33 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
                 <Loader2 size={40} className="animate-spin text-emerald-600" />
                 <p className="text-slate-500 font-bold italic">Calculando impacto 360°...</p>
               </div>
+            ) : editMode ? (
+              <div className="space-y-6 animate-fadeIn">
+                <div className="grid grid-cols-2 gap-6">
+                  <Input label="Nombre Completo" value={editData.nombre} onChange={e => setEditData({...editData, nombre: e.target.value})} />
+                  <Input label="Correo Electrónico" value={editData.email} disabled className="bg-slate-50" />
+                </div>
+                <div className="grid grid-cols-2 gap-6">
+                  <Input label="Sede" value={editData.sede} onChange={e => setEditData({...editData, sede: e.target.value})} />
+                  <Input label="Regional" value={editData.regional} onChange={e => setEditData({...editData, regional: e.target.value})} />
+                </div>
+                <div className="grid grid-cols-2 gap-6">
+                  <Input label="Rol SENNOVA" value={editData.rol_sennova || ''} onChange={e => setEditData({...editData, rol_sennova: e.target.value})} />
+                  <Input label="Nivel Académico" value={editData.nivel_academico || ''} onChange={e => setEditData({...editData, nivel_academico: e.target.value})} />
+                </div>
+                <Input label="URL CVLAC" value={editData.cv_lac_url || ''} onChange={e => setEditData({...editData, cv_lac_url: e.target.value})} />
+                
+                <div className="flex justify-end gap-3 pt-6">
+                  <Button variant="outline" onClick={() => setEditMode(false)}>Cancelar</Button>
+                  <Button variant="sena" onClick={handleSave} disabled={saving}>
+                    {saving ? <Loader2 size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
+                    Guardar Cambios
+                  </Button>
+                </div>
+              </div>
             ) : (
               <>
-            {activeTab === 'overview' && (
+            {activeTab === 'overview' && stats && (
               <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                 <section><h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Estado del Investigador</h3><div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 text-slate-700 leading-relaxed italic">"{stats?.resumen_perfil}"</div></section>
                 <div className="grid grid-cols-4 gap-4">
@@ -506,9 +492,9 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
                >
                  <Award size={16} className="mr-2" /> Certificado
                </Button>
-               <Button variant="outline" size="sm"><Edit3 size={16} className="mr-2" /> Editar Datos</Button>
-             </div>
-             <Button variant="primary" onClick={onClose}>Cerrar Panel</Button>
+                <Button variant="outline" size="sm" onClick={() => { setEditData({ ...user }); setEditMode(true); }}><Edit3 size={16} className="mr-2" /> Editar Datos</Button>
+              </div>
+              <Button variant="primary" onClick={onClose}>Cerrar Panel</Button>
           </div>
 
         </div>
