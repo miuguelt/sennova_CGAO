@@ -3,7 +3,7 @@ import json
 from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import BitacoraEntry, Proyecto, User
@@ -172,28 +172,12 @@ def eliminar_entrada(
     return {"status": "deleted"}
 
 
-@router.post("/{entry_id}/upload", response_model=BitacoraResponse)
-async def subir_evidencia_bitacora(
-    entry_id: UUID,
-    file: Request, # Usaremos el router de documentos internamente o FastAPI UploadFile
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Sube un archivo de evidencia y lo vincula a la entrada de bitácora.
-    Nota: En una implementación real, este endpoint recibiría UploadFile.
-    Aquí lo integramos con la lógica de Documento.
-    """
-    from fastapi import UploadFile, File as FastFile
-    
-    # Esta es la firma real que necesitamos
-    return await ejecutar_subida_evidencia(entry_id, None, db, current_user)
 
 # Helper para no romper la estructura de arriba si quiero usar UploadFile
 @router.post("/{entry_id}/adjuntos", response_model=BitacoraResponse)
 async def upload_adjunto_bitacora(
     entry_id: UUID,
-    file: UploadFile = FastFile(...),
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
