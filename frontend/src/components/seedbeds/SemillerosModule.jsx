@@ -713,11 +713,6 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <UserPlus size={14} className={memberType === 'aprendiz' ? 'text-indigo-600' : 'text-emerald-600'} /> 
-                      Vincular Nuevo {memberType === 'aprendiz' ? 'Aprendiz' : 'Investigador'}
-                  {/* Role/Hours Prompt Overlay for Semillero */}
                   {memberToLink && (
                     <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-md flex flex-col items-center justify-center p-8 animate-fadeIn text-center rounded-[2rem]">
                       <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg ${talentTab === 'aprendices' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'}`}>

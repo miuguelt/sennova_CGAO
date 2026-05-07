@@ -461,7 +461,6 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
                   </div>
                 )}
               </div>
-            </div>
 
             <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
               <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>

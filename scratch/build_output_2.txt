@@ -1,0 +1,71 @@
+﻿
+> sistema-sennova-cgao@1.0.0 build
+> vite build
+
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 34 modules transformed.
+node.exe : [31mx[39m Build failed in 992ms
+En línea: 1 Carácter: 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([31mx[39m Build failed in 992ms:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[31merror during build:
+[31m[vite:esbuild] Transform failed with 4 errors:
+C:/Users/Miguel/Documents/Aplicaciones/_projects/sennova/frontend/src/components/seedbeds/SemillerosModule.jsx:828:18: 
+ERROR: Unexpected closing "div" tag does not match opening "p" tag
+C:/Users/Miguel/Documents/Aplicaciones/_projects/sennova/frontend/src/components/seedbeds/SemillerosModule.jsx:908:12: 
+ERROR: Unexpected closing "Card" tag does not match opening "div" tag
+C:/Users/Miguel/Documents/Aplicaciones/_projects/sennova/frontend/src/components/seedbeds/SemillerosModule.jsx:911:6: 
+ERROR: Unexpected closing "div" tag does not match opening "Card" tag
+C:/Users/Miguel/Documents/Aplicaciones/_projects/sennova/frontend/src/components/seedbeds/SemillerosModule.jsx:916:0: 
+ERROR: Unexpected end of file before a closing "div" tag[31m
+file: [36mC:/Users/Miguel/Documents/Aplicaciones/_projects/sennova/frontend/src/components/seedbeds/SemillerosModule.j
+sx:828:18[31m
+[33m
+[33mUnexpected closing "div" tag does not match opening "p" tag[33m
+826|                      </div>
+827|                    </div>
+828|                  </div>
+   |                    ^
+829|  
+830|                  <div className="space-y-6 pb-10">
+
+[33mUnexpected closing "Card" tag does not match opening "div" tag[33m
+906|                <Button variant="primary" onClick={() => setShowMemberModal(false)}>Cerrar Gestión</Button>
+907|              </div>
+908|            </Card>
+   |              ^
+909|          </div>
+910|        )}
+
+[33mUnexpected closing "div" tag does not match opening "Card" tag[33m
+909|          </div>
+910|        )}
+911|      </div>
+   |        ^
+912|    );
+913|  };
+
+[33mUnexpected end of file before a closing "div" tag[33m
+914|  
+915|  export default SemillerosModule;
+916|  
+   |  ^
+[31m
+    at failureErrorWithLog 
+(C:\Users\Miguel\Documents\Aplicaciones\_projects\sennova\frontend\node_modules\esbuild\lib\main.js:1472:15)
+    at C:\Users\Miguel\Documents\Aplicaciones\_projects\sennova\frontend\node_modules\esbuild\lib\main.js:755:50
+    at responseCallbacks.<computed> 
+(C:\Users\Miguel\Documents\Aplicaciones\_projects\sennova\frontend\node_modules\esbuild\lib\main.js:622:9)
+    at handleIncomingPacket 
+(C:\Users\Miguel\Documents\Aplicaciones\_projects\sennova\frontend\node_modules\esbuild\lib\main.js:677:12)
+    at Socket.readFromStdout 
+(C:\Users\Miguel\Documents\Aplicaciones\_projects\sennova\frontend\node_modules\esbuild\lib\main.js:600:7)
+    at Socket.emit (node:events:508:28)
+    at addChunk (node:internal/streams/readable:563:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:514:3)
+    at Readable.push (node:internal/streams/readable:394:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)[39m
