@@ -173,6 +173,8 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
   const [investigadorForm, setInvestigadorForm] = useState({ user_id: '', rol_en_semillero: 'Coinvestigador' });
   const [semilleroStats, setSemilleroStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [dragOverSemilleroId, setDragOverSemilleroId] = useState(null);
+  const [isGroupPoolVisible, setIsGroupPoolVisible] = useState(false);
 
   // Stats logic
   const [activeTab, setActiveTab] = useState('info');
@@ -342,10 +344,24 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
     e.dataTransfer.setData('userId', user.id);
   };
 
-  const handleDrop = async (e) => {
+  const handleDrop = async (e, semillero) => {
     e.preventDefault();
-    setDragOver(false);
+    setDragOverSemilleroId(null);
+    
     const userId = e.dataTransfer.getData('userId');
+    const grupoId = e.dataTransfer.getData('grupoId');
+
+    if (grupoId && semillero) {
+      try {
+        await SemillerosAPI.update(semillero.id, { ...semillero, grupo_id: grupoId });
+        onNotify('Grupo vinculado al semillero', 'success');
+        loadData();
+      } catch (err) {
+        onNotify('Error al vincular grupo', 'error');
+      }
+      return;
+    }
+
     if (!userId || !selectedSemillero) return;
     
     try {
@@ -439,11 +455,46 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
               <p className="text-slate-500 font-medium mt-1">Dinamizando el relevo generacional de la ciencia CGAO.</p>
             </div>
           </div>
-          <Button onClick={handleOpenCreate} variant="sena" className="h-12 px-8 shadow-xl shadow-emerald-500/30">
-            <Plus size={20} className="mr-2" /> Crear Semillero
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`text-[10px] font-black uppercase tracking-widest ${isGroupPoolVisible ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400'}`}
+              onClick={() => setIsGroupPoolVisible(!isGroupPoolVisible)}
+            >
+              <Layers size={14} className="mr-1.5" /> Pool Grupos
+            </Button>
+            <Button onClick={handleOpenCreate} variant="sena" className="h-12 px-8 shadow-xl shadow-emerald-500/30">
+              <Plus size={20} className="mr-2" /> Crear Semillero
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* ── Grupos Pool ── */}
+      {isGroupPoolVisible && (
+        <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 animate-fadeIn">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-black text-indigo-800 uppercase tracking-widest flex items-center gap-2">
+              <Layers size={14} /> Grupos de Investigación Disponibles
+            </p>
+            <span className="text-[9px] text-indigo-600 font-bold uppercase italic">Arrastra un grupo hacia un semillero para vincularlo</span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+            {grupos.map(g => (
+              <div 
+                key={g.id}
+                draggable
+                onDragStart={(e) => e.dataTransfer.setData('grupoId', g.id)}
+                className="flex-shrink-0 px-4 py-2 bg-white border border-indigo-200 rounded-xl shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-400 transition-all flex items-center gap-2"
+              >
+                <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                <span className="text-xs font-bold text-slate-700">{g.nombre}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Global Stats ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -473,14 +524,31 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
       {/* ── Grid ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map(s => (
-          <SemilleroCard 
-            key={s.id} 
-            semillero={s} 
-            onEdit={handleOpenEdit} 
-            onDelete={handleDelete}
-            onDetail={handleOpenDetail}
-            onAddAprendiz={handleOpenAprendices}
-          />
+          <div
+            key={s.id}
+            onDragOver={(e) => { 
+              if (e.dataTransfer.types.includes('grupoId')) {
+                e.preventDefault(); 
+                setDragOverSemilleroId(s.id); 
+              }
+            }}
+            onDragLeave={() => setDragOverSemilleroId(null)}
+            onDrop={(e) => handleDrop(e, s)}
+            className={`transition-all rounded-[2rem] ${dragOverSemilleroId === s.id ? 'ring-4 ring-emerald-500 scale-[1.02] shadow-2xl z-10' : ''}`}
+          >
+            <SemilleroCard 
+              semillero={s} 
+              onEdit={handleOpenEdit} 
+              onDelete={handleDelete}
+              onDetail={handleOpenDetail}
+              onAddAprendiz={handleOpenAprendices}
+            />
+            {dragOverSemilleroId === s.id && (
+              <div className="mt-2 px-3 py-1.5 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest text-center rounded-lg animate-pulse">
+                Soltar para vincular al Grupo
+              </div>
+            )}
+          </div>
         ))}
       </div>
 

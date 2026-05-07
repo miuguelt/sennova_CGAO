@@ -441,6 +441,7 @@ class Reto(Base):
     # Relaciones
     owner = relationship("User")
     semillero_asignado = relationship("Semillero")
+    proyectos_vinculados = relationship("Proyecto", backref="reto_origen")
 
 
 

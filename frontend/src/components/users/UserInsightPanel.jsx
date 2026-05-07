@@ -386,6 +386,10 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
                   <Input label="Rol SENNOVA" value={editData.rol_sennova || ''} onChange={e => setEditData({...editData, rol_sennova: e.target.value})} />
                   <Input label="Nivel Académico" value={editData.nivel_academico || ''} onChange={e => setEditData({...editData, nivel_academico: e.target.value})} />
                 </div>
+                <div className="grid grid-cols-2 gap-6">
+                  <Input label="Número de Ficha" value={editData.ficha || ''} onChange={e => setEditData({...editData, ficha: e.target.value})} />
+                  <Input label="Programa de Formación" value={editData.programa_formacion || ''} onChange={e => setEditData({...editData, programa_formacion: e.target.value})} />
+                </div>
                 <Input label="URL CVLAC" value={editData.cv_lac_url || ''} onChange={e => setEditData({...editData, cv_lac_url: e.target.value})} />
                 
                 <div className="flex justify-end gap-3 pt-6">

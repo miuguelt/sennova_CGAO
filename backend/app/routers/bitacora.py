@@ -22,16 +22,35 @@ def listar_bitacora(
     current_user: User = Depends(get_current_user)
 ):
     """Obtiene todas las entradas de bitácora de un proyecto específico."""
-    proyecto = db.query(Proyecto).filter(Proyecto.id == proyecto_id).first()
-    if not proyecto:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    
-    entries = db.query(BitacoraEntry).filter(BitacoraEntry.proyecto_id == proyecto_id).order_by(BitacoraEntry.fecha.desc()).all()
-    
-    for entry in entries:
-        entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
+    try:
+        proyecto = db.query(Proyecto).filter(Proyecto.id == proyecto_id).first()
+        if not proyecto:
+            raise HTTPException(status_code=404, detail=f"Proyecto con ID {proyecto_id} no encontrado")
         
-    return entries
+        entries = db.query(BitacoraEntry).filter(BitacoraEntry.proyecto_id == proyecto_id).order_by(BitacoraEntry.fecha.desc()).all()
+        
+        # Enriquecer las entradas con el nombre del usuario de forma segura
+        for entry in entries:
+            try:
+                if entry.user:
+                    entry.user_nombre = entry.user.nombre
+                else:
+                    entry.user_nombre = "Usuario no encontrado"
+            except Exception as e:
+                print(f"⚠️ Error cargando usuario para entrada {entry.id}: {e}")
+                entry.user_nombre = "Error de carga"
+            
+        return entries
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"❌ Error crítico en listar_bitacora: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error interno al listar bitácora: {str(e)}"
+        )
 
 @router.get("/{entry_id}", response_model=BitacoraResponse)
 def obtener_entrada(

@@ -44,6 +44,10 @@ def _make_user_dict(user: User, db: Session = None) -> dict:
         "cv_pdf_id": cv_pdf_id,
         "nivel_academico": user.nivel_academico,
         "rol_sennova": user.rol_sennova,
+        "documento": user.documento,
+        "celular": user.celular,
+        "ficha": user.ficha,
+        "programa_formacion": user.programa_formacion,
         "created_at": user.created_at,
         "updated_at": user.updated_at
     }

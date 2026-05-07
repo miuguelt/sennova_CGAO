@@ -12,6 +12,7 @@ import Badge from '../ui/Badge';
 import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
+import { SemillerosAPI } from '../../api/semilleros';
 
 const SECTORES = [
   { value: 'Agroindustria', icon: Zap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
@@ -29,13 +30,14 @@ const ESTADOS = [
 ];
 
 const EMPTY_FORM = {
-  titulo: '', 
-  descripcion: '', 
-  sector_productivo: 'Otro', 
-  empresa_solicitante: '', 
-  contacto_email: '', 
+  titulo: '',
+  descripcion: '',
+  sector_productivo: 'Agroindustria',
+  empresa_solicitante: '',
+  contacto_email: '',
   estado: 'abierto', 
-  prioridad: 'media'
+  prioridad: 'media',
+  semillero_asignado_id: ''
 };
 
 const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
@@ -51,8 +53,22 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sectorFilter, setSectorFilter] = useState('');
   const [estadoFilter, setEstadoFilter] = useState('');
+  const [semilleros, setSemilleros] = useState([]);
+  const [dragOverId, setDragOverId] = useState(null);
 
-  useEffect(() => { loadRetos(); }, []);
+  useEffect(() => { 
+    loadRetos(); 
+    loadSemilleros();
+  }, []);
+
+  const loadSemilleros = async () => {
+    try {
+      const data = await SemillerosAPI.list();
+      setSemilleros(data || []);
+    } catch (err) {
+      console.error('Error loading semilleros', err);
+    }
+  };
 
   const loadRetos = async () => {
     setLoading(true);
@@ -109,6 +125,25 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
     }
   };
 
+  const handleDropSemillero = async (e, reto) => {
+    e.preventDefault();
+    setDragOverId(null);
+    const semilleroId = e.dataTransfer.getData('semilleroId');
+    if (!semilleroId) return;
+
+    try {
+      await RetosAPI.update(reto.id, { 
+        ...reto, 
+        semillero_asignado_id: semilleroId,
+        estado: 'asignado' 
+      });
+      onNotify('Semillero asignado al reto correctamente', 'success');
+      loadRetos();
+    } catch (err) {
+      onNotify('Error al asignar semillero', 'error');
+    }
+  };
+
   const filteredRetos = retos.filter(r => {
     const matchesSearch = r.titulo.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          r.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -140,38 +175,63 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
         </Button>
       </div>
 
-      {/* ── Filtros ── */}
-      <Card variant="ghost" className="p-2 flex flex-col lg:flex-row items-center gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input 
-            type="text" 
-            placeholder="Buscar por título, empresa o palabras clave..." 
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none transition-all"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
+      {/* ── Filtros y Pool ── */}
+      <div className="flex flex-col gap-4">
+        <Card variant="ghost" className="p-2 flex flex-col lg:flex-row items-center gap-3">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input 
+              type="text" 
+              placeholder="Buscar por título, empresa o palabras clave..." 
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none transition-all"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-3 w-full lg:w-auto">
+            <select 
+              className="flex-1 lg:w-48 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500"
+              value={sectorFilter}
+              onChange={e => setSectorFilter(e.target.value)}
+            >
+              <option value="">Todos los Sectores</option>
+              {SECTORES.map(s => <option key={s.value} value={s.value}>{s.value}</option>)}
+            </select>
+            <select 
+              className="flex-1 lg:w-40 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500"
+              value={estadoFilter}
+              onChange={e => setEstadoFilter(e.target.value)}
+            >
+              <option value="">Cualquier Estado</option>
+              {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+            </select>
+            <Badge variant="amber" className="hidden lg:flex h-10 px-4 items-center font-bold">{filteredRetos.length} Retos</Badge>
+          </div>
+        </Card>
+
+        {/* Pool de Semilleros para Arrastrar */}
+        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 overflow-hidden">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <Users size={14} className="text-amber-500" /> Semilleros Disponibles para Asignar
+            </p>
+            <span className="text-[9px] text-slate-400 font-bold uppercase italic">Arrastra un semillero hacia un reto</span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+            {semilleros.map(s => (
+              <div 
+                key={s.id}
+                draggable
+                onDragStart={(e) => e.dataTransfer.setData('semilleroId', s.id)}
+                className="flex-shrink-0 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm cursor-grab active:cursor-grabbing hover:border-amber-400 transition-all flex items-center gap-2"
+              >
+                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="text-xs font-bold text-slate-700">{s.nombre}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex items-center gap-3 w-full lg:w-auto">
-          <select 
-            className="flex-1 lg:w-48 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500"
-            value={sectorFilter}
-            onChange={e => setSectorFilter(e.target.value)}
-          >
-            <option value="">Todos los Sectores</option>
-            {SECTORES.map(s => <option key={s.value} value={s.value}>{s.value}</option>)}
-          </select>
-          <select 
-            className="flex-1 lg:w-40 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500"
-            value={estadoFilter}
-            onChange={e => setEstadoFilter(e.target.value)}
-          >
-            <option value="">Cualquier Estado</option>
-            {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
-          </select>
-          <Badge variant="amber" className="hidden lg:flex h-10 px-4 items-center font-bold">{filteredRetos.length} Retos</Badge>
-        </div>
-      </Card>
+      </div>
 
       {/* ── Grid de Retos ── */}
       {loading ? (
@@ -190,7 +250,10 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
               <Card 
                 key={reto.id} 
                 onClick={() => { setSelectedReto(reto); setIsDetailOpen(true); }}
-                className="group p-0 overflow-hidden border-0 ring-1 ring-slate-200 hover:ring-amber-400 hover:shadow-card-lg transition-all cursor-pointer bg-white flex flex-col"
+                onDragOver={(e) => { e.preventDefault(); setDragOverId(reto.id); }}
+                onDragLeave={() => setDragOverId(null)}
+                onDrop={(e) => handleDropSemillero(e, reto)}
+                className={`group p-0 overflow-hidden border-0 ring-1 transition-all cursor-pointer bg-white flex flex-col ${dragOverId === reto.id ? 'ring-4 ring-amber-500 scale-[1.02] shadow-2xl z-10' : 'ring-slate-200 hover:ring-amber-400 hover:shadow-card-lg'}`}
               >
                 <div className={`h-1.5 w-full ${sector.bg.replace('bg-', 'bg-').replace('50', '500')}`} />
                 <div className="p-5 flex flex-col flex-1">
@@ -219,10 +282,15 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
                       </div>
                       <span className="text-[10px] font-bold text-slate-400">{new Date(reto.created_at).toLocaleDateString()}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${sector.bg} ${sector.color}`}>
+                    <div className="flex flex-col gap-2">
+                      <div className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest w-fit ${sector.bg} ${sector.color}`}>
                         {reto.sector_productivo || 'General'}
                       </div>
+                      {reto.semillero_asignado_id && (
+                        <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md w-fit border border-emerald-100">
+                          <Users size={10} /> {reto.semillero_nombre || 'Semillero Asignado'}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -426,12 +494,21 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
               </div>
 
               {isEditing && (
-                <div className="pt-4 border-t border-slate-100">
+                <div className="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Select 
                     label="Estado de Gestión" 
                     value={formData.estado} 
                     onChange={e => setFormData({...formData, estado: e.target.value})} 
                     options={ESTADOS} 
+                  />
+                  <Select 
+                    label="Semillero Asignado" 
+                    value={formData.semillero_asignado_id} 
+                    onChange={e => setFormData({...formData, semillero_asignado_id: e.target.value})} 
+                    options={[
+                      { value: '', label: 'Sin asignar' },
+                      ...semilleros.map(s => ({ value: s.id, label: s.nombre }))
+                    ]} 
                   />
                 </div>
               )}

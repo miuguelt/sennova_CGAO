@@ -14,6 +14,7 @@ import { ProyectosAPI } from '../../api/proyectos';
 import { UsersAPI } from '../../api/auth';
 import { SemillerosAPI } from '../../api/semilleros';
 import { RetosAPI } from '../../api/retos';
+import { ConvocatoriasAPI } from '../../api/convocatorias';
 import { PlantillasAPI } from '../../api/plantillas';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
@@ -257,6 +258,7 @@ const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick,
 const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled }) => {
   const [proyectos,        setProyectos]        = useState([]);
   const [retosDisponibles, setRetosDisponibles] = useState([]);
+  const [convocatorias,    setConvocatorias]    = useState([]);
   const [usuarios,         setUsuarios]         = useState([]);
   const [semilleros,       setSemilleros]       = useState([]);
   const [loading,          setLoading]          = useState(true);
@@ -280,6 +282,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [linkingRole,      setLinkingRole]      = useState('Investigador');
   const [linkingHours,     setLinkingHours]     = useState(20);
   const [formTab,           setFormTab]          = useState('basic'); // 'basic', 'tech', 'budget'
+  const [dragOverProjectId, setDragOverProjectId] = useState(null);
   const menuRef = React.useRef(null);
 
   useClickOutside(menuRef, () => setMenuOpenId(null));
@@ -321,16 +324,18 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const loadData = async () => {
     setLoading(true);
     try {
-      const [p, u, r, s] = await Promise.all([
+      const [p, u, r, s, c] = await Promise.all([
         ProyectosAPI.list(),
         UsersAPI.list(),
         RetosAPI.list(),
-        SemillerosAPI.list()
+        SemillerosAPI.list(),
+        ConvocatoriasAPI.list()
       ]);
       setProyectos(Array.isArray(p) ? p : []);
       setUsuarios(Array.isArray(u) ? u : []);
       setRetosDisponibles(Array.isArray(r) ? r : []);
       setSemilleros(Array.isArray(s) ? s : []);
+      setConvocatorias(Array.isArray(c) ? c : []);
     } catch (err) {
       console.error(err);
     }
@@ -372,6 +377,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       linea_programatica: proyecto.linea_programatica || '',
       reto_origen_id: proyecto.reto_origen_id || '',
       semillero_id: proyecto.semillero_id || '',
+      convocatoria_id: proyecto.convocatoria_id || '',
       presupuesto_detallado: proyecto.presupuesto_detallado || { personal: 0, materiales: 0, viaticos: 0, servicios: 0, equipos: 0 }
     });
     setIsEditing(true);
@@ -563,9 +569,28 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const handleDrop = async (e, newState) => {
     e.preventDefault();
     const id = e.dataTransfer.getData('projectId');
+    const retoId = e.dataTransfer.getData('retoId');
+    
+    if (retoId) {
+      // Logic for dropping a RETO into a PROJECT
+      const targetProjectId = e.currentTarget.dataset.projectid;
+      if (targetProjectId) {
+        try {
+          const proy = proyectos.find(p => String(p.id) === targetProjectId);
+          await ProyectosAPI.update(targetProjectId, { ...proy, reto_origen_id: retoId });
+          onNotify?.('Reto vinculado al proyecto correctamente', 'success');
+          loadData();
+        } catch (err) {
+          onNotify?.('Error al vincular reto', 'error');
+        }
+      }
+      setDragOverProjectId(null);
+      return;
+    }
+
     if (!id) return;
 
-    // Optimistic update
+    // Optimistic update for kanban move
     setProyectos(prev => prev.map(p => String(p.id) === id ? { ...p, estado: newState } : p));
     try {
       await ProyectosAPI.update(id, { estado: newState });
@@ -608,6 +633,15 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
         {/* View toggle + CTA */}
         <div className="flex items-center justify-between md:justify-end gap-2 bg-white p-1 rounded-xl shadow-sm border border-slate-200">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className={`text-[10px] font-black uppercase tracking-widest ${isPoolVisible ? 'bg-amber-100 text-amber-700' : 'text-slate-400'}`}
+            onClick={() => setIsPoolVisible(!isPoolVisible)}
+          >
+            <Target size={14} className="mr-1.5" /> Pool de Retos
+          </Button>
+          <div className="w-px h-5 bg-slate-200 mx-1" aria-hidden="true" />
           <div className="flex items-center gap-1">
             <button
               onClick={() => setViewMode('kanban')}
@@ -636,6 +670,34 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
           </Button>
         </div>
       </div>
+
+      {/* ── Retos Pool ── */}
+      {isPoolVisible && (
+        <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 animate-fadeIn">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest flex items-center gap-2">
+              <Target size={14} /> Banco de Retos Disponibles
+            </p>
+            <span className="text-[9px] text-amber-600 font-bold uppercase italic">Arrastra un reto hacia un proyecto para vincularlo</span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+            {retosDisponibles.filter(r => r.estado !== 'resuelto').map(r => (
+              <div 
+                key={r.id}
+                draggable
+                onDragStart={(e) => e.dataTransfer.setData('retoId', r.id)}
+                className="flex-shrink-0 px-4 py-3 bg-white border border-amber-200 rounded-xl shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all max-w-[200px]"
+              >
+                <p className="text-xs font-bold text-slate-800 line-clamp-1">{r.titulo}</p>
+                <p className="text-[9px] text-slate-400 mt-1">{r.empresa_solicitante || 'Sector Productivo'}</p>
+              </div>
+            ))}
+            {retosDisponibles.length === 0 && (
+              <p className="text-xs text-amber-600/60 font-medium italic py-2">No hay retos disponibles en este momento.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Filters ── */}
       <Card variant="ghost" className="p-2 md:p-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -690,19 +752,36 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                   aria-label={`Columna ${state}`}
                 >
                   {cards.map(p => (
-                    <ProjectCard
+                    <div
                       key={p.id}
-                      proyecto={p}
-                      isDragging={draggingId === p.id}
-                      onDragStart={(e) => handleDragStart(e, p.id)}
-                      onDragEnd={handleDragEnd}
-                      onClick={() => handleOpenDetail(p)}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onClickMenu={(id) => setMenuOpenId(menuOpenId === id ? null : id)}
-                      isMenuOpen={menuOpenId === p.id}
-                      menuRef={menuRef}
-                    />
+                      data-projectid={p.id}
+                      onDragOver={(e) => { 
+                        if (e.dataTransfer.types.includes('retoId')) {
+                          e.preventDefault(); 
+                          setDragOverProjectId(p.id); 
+                        }
+                      }}
+                      onDragLeave={() => setDragOverProjectId(null)}
+                      className={`transition-all rounded-2xl ${dragOverProjectId === p.id ? 'ring-4 ring-amber-400 bg-amber-50 scale-[1.02] shadow-2xl z-10' : ''}`}
+                    >
+                      <ProjectCard
+                        proyecto={p}
+                        isDragging={draggingId === p.id}
+                        onDragStart={(e) => handleDragStart(e, p.id)}
+                        onDragEnd={handleDragEnd}
+                        onClick={() => handleOpenDetail(p)}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onClickMenu={(id) => setMenuOpenId(menuOpenId === id ? null : id)}
+                        isMenuOpen={menuOpenId === p.id}
+                        menuRef={menuRef}
+                      />
+                      {dragOverProjectId === p.id && (
+                        <div className="mt-2 px-3 py-1.5 bg-amber-600 text-white text-[9px] font-black uppercase tracking-widest text-center rounded-lg animate-pulse">
+                          Soltar para vincular Reto
+                        </div>
+                      )}
+                    </div>
                   ))}
                   {cards.length === 0 && (
                     <div className="py-16 text-center text-xs text-slate-500 font-medium italic">
@@ -1307,6 +1386,18 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
                         />
                       </div>
+                      <div className="md:col-span-2">
+                          <Select 
+                            label="Convocatoria SENNOVA" 
+                            value={formData.convocatoria_id} 
+                            onChange={patch('convocatoria_id')} 
+                            options={[
+                              { value: '', label: 'Sin convocatoria vinculada (Uso interno)' },
+                              ...convocatorias.map(c => ({ value: c.id, label: `${c.numero_oe} - ${c.nombre} (${c.año})` }))
+                            ]}
+                            className="bg-blue-50/30 border-blue-100"
+                          />
+                        </div>
                     </div>
                   </section>
                 )}

@@ -336,7 +336,7 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
                     <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
                       <div 
                         className="flex items-center gap-3 cursor-pointer hover:bg-slate-100 p-1 rounded-lg transition-colors"
-                        onClick={() => { setSelectedUser({ id: entry.usuario_id, nombre: entry.user_nombre }); setShowInsight(true); }}
+                        onClick={() => { setSelectedUser({ id: entry.user_id, nombre: entry.user_nombre }); setShowInsight(true); }}
                       >
                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs uppercase">
                           {(entry.user_nombre || '?').charAt(0)}

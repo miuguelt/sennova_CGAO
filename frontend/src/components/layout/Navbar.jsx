@@ -118,6 +118,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
         { id: 'grupos',         label: 'Grupos',        icon: Layers },
         { id: 'semilleros',     label: 'Semilleros',    icon: GraduationCap },
         { id: 'investigadores', label: 'Investigadores', icon: Users },
+        { id: 'aprendices',     label: 'Aprendices',     icon: GraduationCap },
       ]
     },
     {

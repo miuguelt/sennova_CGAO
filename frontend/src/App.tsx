@@ -20,6 +20,7 @@ import AuditoriaModule from './components/admin/AuditoriaModule';
 import DocumentCenterModule from './components/admin/DocumentCenterModule';
 import PerfilModule from './components/profile/PerfilModule';
 import NotificacionesModule from './components/notifications/NotificacionesModule';
+import AprendicesModule from './components/users/AprendicesModule';
 import GlobalSearch from './components/common/GlobalSearch';
 import QuickActionHub from './components/common/QuickActionHub';
 import { Toaster, toast } from 'react-hot-toast';
@@ -85,7 +86,7 @@ function AppContent() {
     setCurrentView(view);
   };
 
-  const handleModuleAction = ({ module, form, initialData }) => {
+  const handleModuleAction = ({ module, form, initialData = null }) => {
     setPendingAction({ module, form, initialData });
     setCurrentView(module);
   };
@@ -127,6 +128,7 @@ function AppContent() {
       case 'proyectos':      return <ProyectosModule {...props} initialAction={actionFor('proyectos')} onActionHandled={handleActionHandled} />;
       case 'mis-proyectos':  return <ProyectosModule {...props} initialAction={actionFor('mis-proyectos')} onActionHandled={handleActionHandled} />;
       case 'investigadores': return <InvestigadoresModule {...props} />;
+      case 'aprendices':     return <AprendicesModule {...props} />;
       case 'productos':      return <ProductosModule {...props} />;
       case 'mis-productos':  return <ProductosModule {...props} />;
       case 'grupos':         return <GruposModule {...props} />;
@@ -135,7 +137,7 @@ function AppContent() {
       case 'reportes':       return <ReportesModule {...props} />;
       case 'configuracion':  return <ConfiguracionModule {...props} onUpdateUser={updateUser} />;
       case 'bitacora':       return <BitacoraModule {...props} initialAction={actionFor('bitacora')} onActionHandled={handleActionHandled} />;
-      case 'cronograma':     return <CronogramaModule {...props} />;
+      case 'cronograma':     return <CronogramaModule {...props} initialAction={actionFor('cronograma')} onActionHandled={handleActionHandled} />;
       case 'presupuesto':    return <PresupuestoModule {...props} initialAction={actionFor('presupuesto')} onActionHandled={handleActionHandled} />;
       case 'retos':          return <RetosModule {...props} onModuleAction={handleModuleAction} />;
       case 'notificaciones': return <NotificacionesModule {...props} />;

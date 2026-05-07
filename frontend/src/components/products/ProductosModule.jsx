@@ -95,6 +95,8 @@ const ProductosModule = ({ currentUser, onNotify }) => {
   const [cvlacUrl, setCvlacUrl] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [importResults, setImportResults] = useState(null);
+  const [isPoolVisible, setIsPoolVisible] = useState(false);
+  const [dragOverId, setDragOverId] = useState(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -143,7 +145,8 @@ const ProductosModule = ({ currentUser, onNotify }) => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, e) => {
+    if (e) e.stopPropagation();
     if (!window.confirm('¿Eliminar este producto de investigación? Esta acción es crítica.')) return;
     try {
       await ProductosAPI.delete(id);
@@ -153,6 +156,24 @@ const ProductosModule = ({ currentUser, onNotify }) => {
       loadData();
     } catch (err) { 
       onNotify?.('Error al eliminar', 'error'); 
+    }
+  };
+
+  const handleDropProyecto = async (e, producto) => {
+    e.preventDefault();
+    setDragOverId(null);
+    const proyectoId = e.dataTransfer.getData('proyectoId');
+    if (!proyectoId) return;
+
+    try {
+      await ProductosAPI.update(producto.id, { 
+        ...producto, 
+        proyecto_id: proyectoId 
+      });
+      onNotify?.('Proyecto vinculado al producto correctamente', 'success');
+      loadData();
+    } catch (err) {
+      onNotify?.('Error al vincular proyecto', 'error');
     }
   };
 
@@ -231,7 +252,7 @@ const ProductosModule = ({ currentUser, onNotify }) => {
             <Button variant="ghost" onClick={() => handleOpenEdit(producto)} className="w-full justify-start px-4 py-2 rounded-none text-xs font-bold text-amber-700 hover:bg-amber-50 border-t border-slate-100">
               <Edit2 size={14} className="mr-2" /> Editar Información
             </Button>
-            <Button variant="ghost" onClick={() => handleDelete(producto.id)} className="w-full justify-start px-4 py-2 rounded-none text-xs font-bold text-rose-600 hover:bg-rose-50 border-t border-slate-100">
+            <Button variant="ghost" onClick={(e) => handleDelete(producto.id, e)} className="w-full justify-start px-4 py-2 rounded-none text-xs font-bold text-rose-600 hover:bg-rose-50 border-t border-slate-100">
               <Trash2 size={14} className="mr-2" /> Eliminar Producto
             </Button>
           </>
@@ -279,45 +300,64 @@ const ProductosModule = ({ currentUser, onNotify }) => {
         </div>
       )}
 
-      {/* ── Filters ── */}
-      <div className="flex flex-col lg:flex-row gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input
-            type="text"
-            placeholder="Buscar por nombre de producto..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      {/* ── Filters & Tools ── */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/40 backdrop-blur-md p-4 rounded-2xl border border-white shadow-sm">
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <Search size={18} className="text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Buscar productos..." 
+              className="bg-transparent border-none focus:ring-0 text-sm font-medium w-full"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <select 
+              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 focus:ring-2 focus:ring-emerald-500 outline-none"
+              value={tipoFilter}
+              onChange={e => setTipoFilter(e.target.value)}
+            >
+              <option value="">Todas las Tipologías</option>
+              {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`text-[10px] font-black uppercase tracking-widest ${isPoolVisible ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400'}`}
+              onClick={() => setIsPoolVisible(!isPoolVisible)}
+            >
+              <Folder size={14} className="mr-1.5" /> Pool Proyectos
+            </Button>
+            <Badge variant="indigo" className="font-bold">{filtered.length} Items</Badge>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <select
-            value={tipoFilter}
-            onChange={(e) => setTipoFilter(e.target.value)}
-            className="px-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none min-w-[160px]"
-          >
-            <option value="">Todas las Tipologías</option>
-            {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none min-w-[160px]"
-          >
-            <option value="">Todos los Estados</option>
-            <option value="verificado">Verificados</option>
-            <option value="pendiente">Pendientes</option>
-          </select>
-          <select
-            value={proyectoFilter}
-            onChange={(e) => setProyectoFilter(e.target.value)}
-            className="px-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none min-w-[200px]"
-          >
-            <option value="">Todos los Proyectos</option>
-            {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre_corto || p.nombre}</option>)}
-          </select>
-        </div>
+
+        {/* Proyectos Pool */}
+        {isPoolVisible && (
+          <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 animate-fadeIn">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-black text-indigo-800 uppercase tracking-widest flex items-center gap-2">
+                <Folder size={14} /> Proyectos Activos para Vincular
+              </p>
+              <span className="text-[9px] text-indigo-600 font-bold uppercase italic">Arrastra un proyecto hacia un producto</span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+              {proyectos.map(p => (
+                <div 
+                  key={p.id}
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData('proyectoId', p.id)}
+                  className="flex-shrink-0 px-4 py-2 bg-white border border-indigo-200 rounded-xl shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-400 transition-all flex items-center gap-2"
+                >
+                  <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                  <span className="text-xs font-bold text-slate-700 truncate max-w-[150px]">{p.nombre_corto || p.nombre}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Grid ── */}
@@ -329,12 +369,18 @@ const ProductosModule = ({ currentUser, onNotify }) => {
             const tipo = getTipo(p.tipo);
             const { Icon } = tipo;
             return (
-              <Card
+              <div
                 key={p.id}
-                className="group hover:shadow-xl transition-all ring-1 ring-slate-200/60 hover:ring-indigo-400 overflow-hidden cursor-pointer border-0 flex flex-col focus-visible:outline-none relative"
+                onDragOver={(e) => { e.preventDefault(); setDragOverId(p.id); }}
+                onDragLeave={() => setDragOverId(null)}
+                onDrop={(e) => handleDropProyecto(e, p)}
+                className={`transition-all rounded-[2rem] ${dragOverId === p.id ? 'ring-4 ring-indigo-500 scale-[1.02] shadow-2xl z-10' : ''}`}
               >
-                {/* Menu trigger */}
-                <div className="absolute top-4 right-4 z-10">
+                <Card
+                  className="group hover:shadow-xl transition-all ring-1 ring-slate-200/60 hover:ring-indigo-400 overflow-hidden cursor-pointer border-0 flex flex-col focus-visible:outline-none relative h-full"
+                >
+                  {/* Menu trigger */}
+                  <div className="absolute top-4 right-4 z-10">
                   <Button 
                     variant="ghost"
                     size="icon"
@@ -374,13 +420,19 @@ const ProductosModule = ({ currentUser, onNotify }) => {
                   </div>
                 </div>
 
-                <div className={`px-6 py-4 ${tipo.bg} border-t ${tipo.border} flex items-center justify-between group-hover:bg-indigo-600 transition-all duration-300`} onClick={() => { setSelectedProducto(p); setIsDetailOpen(true); }}>
-                  <span className={`text-[10px] font-black uppercase tracking-widest ${tipo.color} group-hover:text-white transition-colors`}>{tipo.label}</span>
-                  <div className="p-1 bg-white rounded-lg shadow-sm group-hover:bg-indigo-500 transition-colors">
-                    <ArrowUpRight size={14} className={`${tipo.color} group-hover:text-white transition-colors`} />
+                  <div className={`px-6 py-4 ${tipo.bg} border-t ${tipo.border} flex items-center justify-between group-hover:bg-indigo-600 transition-all duration-300`} onClick={() => { setSelectedProducto(p); setIsDetailOpen(true); }}>
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${tipo.color} group-hover:text-white transition-colors`}>{tipo.label}</span>
+                    <div className="p-1 bg-white rounded-lg shadow-sm group-hover:bg-indigo-500 transition-colors">
+                      <ArrowUpRight size={14} className={`${tipo.color} group-hover:text-white transition-colors`} />
+                    </div>
                   </div>
-                </div>
-              </Card>
+                </Card>
+                {dragOverId === p.id && (
+                  <div className="mt-2 px-3 py-1.5 bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest text-center rounded-lg animate-pulse">
+                    Soltar para vincular Proyecto
+                  </div>
+                )}
+              </div>
             );
           })
         ) : (

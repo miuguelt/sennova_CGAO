@@ -12,6 +12,8 @@ import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
 import { ConvocatoriasAPI } from '../../api/convocatorias';
+import { ProyectosAPI } from '../../api/proyectos';
+import { Layers, Zap } from 'lucide-react';
 
 const ESTADOS = [
   { value: 'abierta', label: 'Abierta', variant: 'success', icon: CheckCircle },
@@ -43,7 +45,9 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const ConvocatoriaCard = ({ convocatoria, onEdit, onDelete, onDetail }) => {
+const ConvocatoriaCard = ({ convocatoria, onEdit, onDelete, onDetail, onDropProject }) => {
+  const [isDragOver, setIsDragOver] = useState(false);
+
   const daysLeft = () => {
     if (!convocatoria.fecha_cierre) return null;
     const diff = new Date(convocatoria.fecha_cierre) - new Date();
@@ -52,11 +56,37 @@ const ConvocatoriaCard = ({ convocatoria, onEdit, onDelete, onDetail }) => {
 
   const dl = daysLeft();
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.types.includes('proyectoId')) {
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const proyectoId = e.dataTransfer.getData('proyectoId');
+    if (proyectoId) {
+      onDropProject(convocatoria.id, proyectoId);
+    }
+  };
+
   return (
     <Card 
       onClick={onDetail}
-      className="group hover:shadow-xl transition-all duration-300 border-l-4 border-l-emerald-500 cursor-pointer bg-white"
+      onDragOver={handleDragOver}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={handleDrop}
+      className={`group hover:shadow-xl transition-all duration-300 border-l-4 cursor-pointer relative overflow-hidden ${isDragOver ? 'bg-emerald-50 border-emerald-600 ring-4 ring-emerald-500/20 scale-[1.02]' : 'bg-white border-l-emerald-500'}`}
     >
+      {isDragOver && (
+        <div className="absolute inset-0 bg-emerald-600/10 backdrop-blur-[1px] flex items-center justify-center pointer-events-none z-10">
+          <div className="bg-emerald-600 text-white p-3 rounded-2xl shadow-xl animate-bounce">
+            <Zap size={24} />
+          </div>
+        </div>
+      )}
       <div className="p-6">
         <div className="flex justify-between items-start mb-4">
           <StatusBadge status={convocatoria.estado} />
@@ -126,9 +156,11 @@ const ConvocatoriaCard = ({ convocatoria, onEdit, onDelete, onDetail }) => {
 
 const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
   const [convocatorias, setConvocatorias] = useState([]);
+  const [proyectos, setProyectos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState({ estado: '' });
+  const [isPoolVisible, setIsPoolVisible] = useState(false);
   
   // Modales
   const [showForm, setShowForm] = useState(false);
@@ -140,10 +172,14 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await ConvocatoriasAPI.list();
-      setConvocatorias(data || []);
+      const [convData, proyData] = await Promise.all([
+        ConvocatoriasAPI.list(),
+        ProyectosAPI.list()
+      ]);
+      setConvocatorias(convData || []);
+      setProyectos(proyData || []);
     } catch (err) {
-      onNotify('Error al cargar convocatorias', 'error');
+      onNotify('Error al cargar datos', 'error');
     } finally {
       setLoading(false);
     }
@@ -190,6 +226,16 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
       loadData();
     } catch (err) {
       onNotify(err.message || 'Error al procesar la convocatoria', 'error');
+    }
+  };
+
+  const handleDropProject = async (convocatoriaId, proyectoId) => {
+    try {
+      await ProyectosAPI.update(proyectoId, { convocatoria_id: convocatoriaId });
+      onNotify('Proyecto vinculado a la convocatoria', 'success');
+      loadData();
+    } catch (err) {
+      onNotify('Error al vincular proyecto: ' + err.message, 'error');
     }
   };
 
@@ -242,12 +288,68 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
           </select>
 
           {currentUser?.rol === 'admin' && (
-            <Button onClick={handleOpenCreate} variant="primary" className="bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20">
-              <Plus size={18} className="mr-2" /> Nueva Convocatoria
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className={`h-10 border-slate-200 ${isPoolVisible ? 'bg-emerald-50 ring-2 ring-emerald-500 border-emerald-500' : ''}`}
+                onClick={() => setIsPoolVisible(!isPoolVisible)}
+              >
+                <Layers size={18} className="mr-2" /> Pool Proyectos
+              </Button>
+              <Button onClick={handleOpenCreate} variant="primary" className="bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20">
+                <Plus size={18} className="mr-2" /> Nueva Convocatoria
+              </Button>
+            </div>
           )}
         </div>
       </div>
+
+      {/* ── Project Pool ── */}
+      {isPoolVisible && (
+        <div className="bg-slate-900 p-8 rounded-[2rem] shadow-2xl animate-fadeIn relative overflow-hidden group/pool mb-6">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-32 -mt-32" />
+          <div className="flex items-center justify-between mb-6 relative z-10">
+            <div>
+              <h3 className="text-white font-black text-lg flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/20 rounded-xl text-emerald-400"><Layers size={20} /></div>
+                Proyectos Disponibles
+              </h3>
+              <p className="text-slate-400 text-xs mt-1 font-medium">Arrastra un proyecto hacia una convocatoria para vincularlo.</p>
+            </div>
+            <Badge className="bg-white/10 text-white border-white/20 uppercase font-black text-[8px] tracking-widest px-3 py-1">
+              Recursos de Investigación
+            </Badge>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-emerald-500/50 scrollbar-track-transparent">
+            {proyectos.filter(p => !p.convocatoria_id).length > 0 ? (
+              proyectos.filter(p => !p.convocatoria_id).map(p => (
+                <div 
+                  key={p.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('proyectoId', p.id);
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
+                  className="flex-shrink-0 w-64 p-5 bg-white/5 border border-white/10 rounded-2xl cursor-grab active:cursor-grabbing hover:bg-white/10 hover:border-emerald-400 transition-all group"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <Badge variant="indigo" className="text-[8px] font-black uppercase border-0">{p.codigo_sgps || 'SIN CÓDIGO'}</Badge>
+                    <Target size={12} className="text-emerald-400" />
+                  </div>
+                  <p className="text-xs font-black text-white line-clamp-2 leading-snug group-hover:text-emerald-300 transition-colors">{p.nombre}</p>
+                  <p className="text-[9px] text-slate-500 mt-2 flex items-center gap-1 italic">
+                    {p.linea_investigacion || 'Sin línea definida'}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="w-full py-8 text-center border border-dashed border-white/10 rounded-2xl">
+                <p className="text-slate-500 text-xs font-bold">No hay proyectos sin convocatoria asignada.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Grid ── */}
       {filteredConvocatorias.length > 0 ? (
@@ -259,6 +361,7 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
               onEdit={handleOpenEdit} 
               onDelete={handleDelete}
               onDetail={() => { setSelectedConvocatoria(c); setDetailOpen(true); }}
+              onDropProject={handleDropProject}
             />
           ))}
         </div>
