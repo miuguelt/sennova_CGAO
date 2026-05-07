@@ -5,7 +5,7 @@ import {
   Activity, ExternalLink, Download, PieChart, BarChart3,
   Layers, Package, CheckCircle2, Clock, AlertCircle,
   MessageSquare, Key, Edit3, ChevronRight, BookOpen,
-  DollarSign, Target, Info, Users, Save, RotateCcw, Trash2
+  DollarSign, Target, Info, Users, Save, RotateCcw, Trash2, Loader2
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 

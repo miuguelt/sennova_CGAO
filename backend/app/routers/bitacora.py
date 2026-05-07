@@ -29,7 +29,7 @@ def listar_bitacora(
     entries = db.query(BitacoraEntry).filter(BitacoraEntry.proyecto_id == proyecto_id).order_by(BitacoraEntry.fecha.desc()).all()
     
     for entry in entries:
-        entry.user_nombre = entry.user.nombre
+        entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
         
     return entries
 
@@ -44,7 +44,7 @@ def obtener_entrada(
     if not entry:
         raise HTTPException(status_code=404, detail="Entrada no encontrada")
     
-    entry.user_nombre = entry.user.nombre
+    entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
     return entry
 
 @router.post("/", response_model=BitacoraResponse)
@@ -120,7 +120,7 @@ def firmar_entrada(
 
     db.commit()
     db.refresh(entry)
-    entry.user_nombre = entry.user.nombre
+    entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
     return entry
 
 @router.put("/{entry_id}", response_model=BitacoraResponse)
@@ -147,7 +147,7 @@ def actualizar_entrada(
         
     db.commit()
     db.refresh(entry)
-    entry.user_nombre = entry.user.nombre
+    entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
     return entry
 
 @router.delete("/{entry_id}")
@@ -215,6 +215,6 @@ async def upload_adjunto_bitacora(
     db.commit()
     db.refresh(entry)
     
-    entry.user_nombre = entry.user.nombre
+    entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
     return entry
 

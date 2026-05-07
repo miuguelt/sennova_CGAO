@@ -636,7 +636,7 @@ class BitacoraResponse(BitacoraBase):
     fecha_firma_aprendiz: Optional[datetime] = None
     
     signature_metadata: Optional[dict] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
