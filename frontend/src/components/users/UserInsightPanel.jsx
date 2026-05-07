@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Mail, MapPin, GraduationCap, ExternalLink, Activity, 
   ChevronRight, Calendar, User, Shield, Briefcase, Trophy, 
-  DollarSign, Target, Info, Users, Save, RotateCcw, Trash2, Loader2, Plus, Edit3
+  DollarSign, Target, Info, Users, Save, RotateCcw, Trash2, Loader2, Plus, Edit3,
+  MessageSquare, Key, TrendingUp, PieChart, Package, BookOpen, FileText, Download, Award, BarChart3
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -36,8 +37,6 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
   const [availableItems, setAvailableItems] = useState([]);
   const [linking, setLinking] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && user) {
   const loadStats = async () => {
     if (!user?.id) return;
     setLoading(true);
