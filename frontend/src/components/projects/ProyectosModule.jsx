@@ -3,7 +3,7 @@ import {
   Plus, Search, FolderOpen, X, Users, Calendar, Trash2,
   DollarSign, ChevronRight, Clock, Send, CheckCircle2, AlertCircle, User, Loader2,
   LayoutGrid, List as ListIcon, MoreVertical, Edit2, Filter, ArrowRight, Award, FileText,
-  MapPin, Package, Settings, Zap, Target, Clock3, CheckCircle, ShieldCheck, Check
+  MapPin, Package, Settings, Zap, Target, Clock3, CheckCircle, ShieldCheck, Check, Trophy
 } from 'lucide-react';
 import { 
   PieChart, Pie, Cell, Tooltip as ReTooltip, 
@@ -257,6 +257,8 @@ const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick,
 const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled }) => {
   const [proyectos,        setProyectos]        = useState([]);
   const [retosDisponibles, setRetosDisponibles] = useState([]);
+  const [usuarios,         setUsuarios]         = useState([]);
+  const [semilleros,       setSemilleros]       = useState([]);
   const [loading,          setLoading]          = useState(true);
   const [viewMode,         setViewMode]         = useState('kanban');
   const [showLiquidation,  setShowLiquidation]  = useState(false);
