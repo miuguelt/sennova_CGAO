@@ -106,11 +106,11 @@ def get_dashboard_stats(
 
 
 @router.get("/admin")
-def get_admin_stats(
-    admin: User = Depends(get_current_admin),
+def get_stats_resumen(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Estadísticas avanzadas solo para admin."""
+    """Estadísticas avanzadas para dashboard (acceso investigadores)."""
     
     return {
         "usuarios": {
@@ -197,7 +197,7 @@ def get_admin_stats(
 @router.get("/analytics/evolucion")
 def get_analytics_evolucion(
     meses: int = 12,
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Retorna datos de evolución temporal para gráficos analytics."""
@@ -429,6 +429,12 @@ def global_search(
         (Proyecto.nombre.ilike(search_filter)) | 
         (Proyecto.codigo_sgps.ilike(search_filter)) |
         (Proyecto.nombre_corto.ilike(search_filter))
+    ).limit(5).all()
+
+    # Buscar Productos
+    productos = db.query(Producto).filter(
+        (Producto.nombre.ilike(search_filter)) |
+        (Producto.descripcion.ilike(search_filter))
     ).limit(5).all()
     
     for p in proyectos:

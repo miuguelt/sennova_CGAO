@@ -26,6 +26,12 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
     setShowPassword(false);
   };
 
+  const handleTestCredential = (testEmail, testPassword) => {
+    setEmail(testEmail);
+    setPassword(testPassword);
+    setError('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const cleanEmail = email.trim();
@@ -190,9 +196,21 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
               <summary className="text-xs text-slate-400 cursor-pointer select-none hover:text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded">
                 Credenciales de prueba
               </summary>
-              <div className="mt-2 p-3 bg-slate-50 rounded-lg text-xs text-slate-500 space-y-1">
-                <p><span className="font-semibold text-slate-700">Admin:</span> admin@sena.edu.co / 123456</p>
-                <p><span className="font-semibold text-slate-700">Investigador:</span> mtejedorm@sena.edu.co / 123456</p>
+              <div className="mt-2 p-2 bg-slate-50 rounded-lg text-[10px] text-slate-500 space-y-1">
+                <button 
+                  type="button"
+                  onClick={() => handleTestCredential('admin@sena.edu.co', '123456')}
+                  className="w-full text-left p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all group/cred"
+                >
+                  <span className="font-bold text-slate-700 group-hover/cred:text-emerald-600">Admin:</span> admin@sena.edu.co / 123456
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => handleTestCredential('mtejedorm@sena.edu.co', '123456')}
+                  className="w-full text-left p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all group/cred"
+                >
+                  <span className="font-bold text-slate-700 group-hover/cred:text-emerald-600">Investigador:</span> mtejedorm@sena.edu.co / 123456
+                </button>
               </div>
             </details>
           )}

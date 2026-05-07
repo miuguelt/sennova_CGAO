@@ -179,10 +179,10 @@ def get_convocatorias_activas(
 
 @router.get("/stats/resumen")
 def get_convocatorias_stats(
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Estadísticas de convocatorias (solo admin)."""
+    """Estadísticas de convocatorias (Acceso investigadores)."""
     por_año_rows = db.query(
         Convocatoria.año,
         func.count(Convocatoria.id).label("cantidad")

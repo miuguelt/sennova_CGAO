@@ -219,10 +219,10 @@ def toggle_user_active(
 
 @router.get("/stats/resumen")
 def get_usuarios_stats(
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Estadísticas de usuarios (solo admin)."""
+    """Estadísticas de usuarios (Acceso investigadores)."""
     # Convertir Rows de SQLAlchemy a diccionarios o listas simples
     por_rol = [
         {"rol": row[0], "count": row[1]} 
