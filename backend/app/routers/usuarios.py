@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.auth import get_current_admin, get_password_hash
+from app.auth import get_current_user, get_current_admin, get_password_hash
 from app.database import get_db
 from app.models import User, Proyecto, Grupo, Semillero, Producto, Actividad, Documento
 from app.schemas import UserCreate, UserUpdate, UserResponse, ActividadResponse
