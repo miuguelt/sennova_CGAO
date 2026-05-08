@@ -25,6 +25,9 @@ def fix_schema():
         ],
         "aprendices": [
             ("user_id", "UUID" if "postgresql" in engine.url.drivername else "VARCHAR(36)"),
+            ("nombre", "VARCHAR(255)"),
+            ("ficha", "VARCHAR(50)"),
+            ("programa", "VARCHAR(255)"),
             ("fecha_egreso", "DATE")
         ],
         "bitacora_entries": [
