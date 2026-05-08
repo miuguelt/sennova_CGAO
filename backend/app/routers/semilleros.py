@@ -229,7 +229,7 @@ def _make_aprendiz_dict(aprendiz: Aprendiz) -> dict:
     info = aprendiz.info_consolidada
     return {
         "id": str(aprendiz.id),
-        "user_id": str(aprendiz.user_id),
+        "user_id": str(aprendiz.user_id) if aprendiz.user_id else None,
         "nombre": info["nombre"],
         "documento": info["documento"],
         "email": info["email"],

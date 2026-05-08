@@ -185,9 +185,14 @@ class Aprendiz(Base):
     fecha_ingreso = Column(Date, default=lambda: datetime.now(timezone.utc).date())
     fecha_egreso = Column(Date, nullable=True)
     
+    # Columnas heredadas de migraciones previas (para compatibilidad)
+    nombre = Column(String(255))
+    ficha = Column(String(50))
+    programa = Column(String(255))
+    
     # Llaves foráneas
     semillero_id = get_uuid_column(ForeignKey("semilleros.id", ondelete="CASCADE"), nullable=False)
-    user_id = get_uuid_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = get_uuid_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True) # Permitir nulo temporalmente para registros migrados
 
     # Relaciones
     semillero = relationship("Semillero", back_populates="aprendices")
@@ -199,12 +204,12 @@ class Aprendiz(Base):
         return {
             "id": self.id,
             "user_id": self.user_id,
-            "nombre": self.user.nombre,
-            "email": self.user.email,
-            "documento": self.user.documento,
-            "ficha": self.user.ficha,
-            "programa": self.user.programa_formacion,
-            "celular": self.user.celular,
+            "nombre": self.user.nombre if self.user else self.nombre,
+            "email": self.user.email if self.user else None,
+            "documento": self.user.documento if self.user else None,
+            "ficha": self.user.ficha if self.user else self.ficha,
+            "programa": self.user.programa_formacion if self.user else self.programa,
+            "celular": self.user.celular if self.user else None,
             "estado": self.estado,
             "fecha_ingreso": self.fecha_ingreso
         }

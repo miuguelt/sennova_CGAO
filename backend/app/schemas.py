@@ -179,7 +179,7 @@ class AprendizUpdate(BaseModel):
 class AprendizResponse(BaseModel):
     id: UUID
     semillero_id: UUID
-    user_id: UUID
+    user_id: Optional[UUID] = None
     user: Optional[UserResponse] = None
     estado: str
     fecha_ingreso: date
@@ -605,7 +605,7 @@ class AuditLogResponse(BaseModel):
 class BitacoraBase(BaseModel):
     titulo: str
     contenido: str
-    categoria: str = "técnica" # técnica, administrativa, observación, resultado
+    categoria: Optional[str] = "técnica" # técnica, administrativa, observación, resultado
     fecha: Optional[datetime] = None
     adjuntos: Optional[List[dict]] = None # Soporta lista de metadatos de archivos
 
