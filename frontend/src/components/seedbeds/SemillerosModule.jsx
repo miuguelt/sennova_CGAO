@@ -5,7 +5,8 @@ import {
   UserPlus, Trash2, Edit, ExternalLink, Layers,
   X, Info, Target, ArrowUpRight, Loader2,
   TrendingUp, BarChart3, PieChart, Download,
-  CheckCircle2, AlertCircle, Award
+  CheckCircle2, AlertCircle, Award, Shield,
+  Mail, FileText, MapPin
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
