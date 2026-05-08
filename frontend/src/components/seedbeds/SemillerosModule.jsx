@@ -154,7 +154,6 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
   const [showMemberModal,  setShowMemberModal]  = useState(false);
   const [aprendices,       setAprendices]       = useState([]);
   const [investigadores,   setInvestigadores]   = useState([]);
-  const [talentTab,        setTalentTab]        = useState('aprendices'); 
   const [memberToLink,     setMemberToLink]     = useState(null);
   const [linkingRole,      setLinkingRole]      = useState('Aprendiz');
   const [linkMode,         setLinkMode]         = useState('existing'); 
@@ -178,6 +177,9 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
 
   // Stats logic
   const [activeTab, setActiveTab] = useState('info');
+  const [memberType, setMemberType] = useState('aprendiz');
+  const [dragOver, setDragOver] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -405,8 +407,6 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
       onNotify?.('Error al vincular: ' + err.message, 'error');
     }
   };
-
-  const [detailOpen, setDetailOpen] = useState(false);
 
   const filtered = (semilleros || []).filter(s => 
     (s.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -783,7 +783,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                 >
                   {memberToLink && (
                     <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-md flex flex-col items-center justify-center p-8 animate-fadeIn text-center rounded-[2rem]">
-                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg ${talentTab === 'aprendices' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg ${memberType === 'aprendiz' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'}`}>
                         <Users size={32} />
                       </div>
                       <h4 className="text-sm font-black text-slate-900 mb-1">Vincular a {memberToLink.nombre}</h4>
@@ -797,7 +797,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                             onChange={(e) => setLinkingRole(e.target.value)}
                             className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
                           >
-                            {talentTab === 'aprendices' 
+                            {memberType === 'aprendiz' 
                               ? <option value="Aprendiz">Aprendiz Investigador</option>
                               : ROLES_SEMILLERO.map(r => <option key={r.value} value={r.value}>{r.label}</option>)
                             }
@@ -833,15 +833,15 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
 
                   <div className="flex items-center justify-between mb-4">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <UserPlus size={14} className={talentTab === 'aprendices' ? 'text-indigo-600' : 'text-emerald-600'} /> Vincular Talento
+                      <UserPlus size={14} className={memberType === 'aprendiz' ? 'text-indigo-600' : 'text-emerald-600'} /> Vincular Talento
                     </p>
-                    <button onClick={() => setIsPoolVisible(!isPoolVisible)} className={`text-[10px] font-black uppercase hover:underline ${talentTab === 'aprendices' ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                    <button onClick={() => setIsPoolVisible(!isPoolVisible)} className={`text-[10px] font-black uppercase hover:underline ${memberType === 'aprendiz' ? 'text-indigo-600' : 'text-emerald-600'}`}>
                       {isPoolVisible ? 'Cerrar Directorio' : 'Abrir Pool'}
                     </button>
                   </div>
 
                   <div className="flex flex-col gap-4">
-                    {talentTab === 'aprendices' && (
+                    {memberType === 'aprendiz' && (
                       <div className="flex bg-slate-100 p-1 rounded-xl mb-2">
                         <button onClick={() => setLinkMode('existing')} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'existing' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}>Vincular Existente</button>
                         <button onClick={() => setLinkMode('new')} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'new' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}>Registrar y Vincular</button>
@@ -851,7 +851,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                     <div className="p-5 bg-slate-900 rounded-2xl space-y-4 shadow-xl relative overflow-hidden">
                       <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl -mr-12 -mt-12" />
                       
-                      {linkMode === 'new' && talentTab === 'aprendices' ? (
+                      {linkMode === 'new' && memberType === 'aprendiz' ? (
                         <div className="space-y-4 relative z-10">
                            <div className="grid grid-cols-2 gap-3">
                               <input placeholder="Email" className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white" value={aprendizForm.email} onChange={e => setAprendizForm({...aprendizForm, email: e.target.value})} />
@@ -867,7 +867,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                               const u = usuarios.find(usr => usr.id === e.target.value);
                               if (u) {
                                 setMemberToLink(u);
-                                setLinkingRole(talentTab === 'aprendices' ? 'Aprendiz' : 'Investigador');
+                                setLinkingRole(memberType === 'aprendiz' ? 'Aprendiz' : 'Investigador');
                               }
                               e.target.value = ""; 
                             }}
@@ -876,12 +876,12 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                             <option value="">Buscar en el directorio CGAO...</option>
                             {usuarios
                               .filter(u => !aprendices.some(a => a.user_id === u.id) && !investigadores.some(inv => inv.id === u.id))
-                              .filter(u => talentTab === 'aprendices' ? (u.ficha || u.programa_formacion) : (!u.ficha && !u.programa_formacion))
+                              .filter(u => memberType === 'aprendiz' ? (u.ficha || u.programa_formacion) : (!u.ficha && !u.programa_formacion))
                               .map(u => (
                                 <option key={u.id} value={u.id}>{u.nombre} {u.ficha ? `(Ficha: ${u.ficha})` : ''}</option>
                               ))}
                           </select>
-                          <div className={`hidden sm:flex items-center px-4 rounded-xl text-[10px] font-black uppercase tracking-widest ${talentTab === 'aprendices' ? 'bg-indigo-600' : 'bg-emerald-600'} text-white`}>
+                          <div className={`hidden sm:flex items-center px-4 rounded-xl text-[10px] font-black uppercase tracking-widest ${memberType === 'aprendiz' ? 'bg-indigo-600' : 'bg-emerald-600'} text-white`}>
                             <Plus size={16} />
                           </div>
                         </div>
