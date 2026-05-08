@@ -11,12 +11,33 @@ export const CVLAC_BASE_URL = import.meta.env.VITE_CVLAC_BASE_URL || 'https://sc
 // Placeholder para URL de CVLAC
 export const CVLAC_URL_PLACEHOLDER = `${CVLAC_BASE_URL}/cvlac/...`;
 
+// Memoria volátil para el token (más rápido que localStorage para peticiones paralelas)
+let _authToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+/**
+ * Actualiza el token de autenticación tanto en memoria como en localStorage
+ * @param {string|null} token - El nuevo token o null para eliminarlo
+ */
+export const setAuthToken = (token) => {
+  _authToken = token;
+  if (typeof window !== 'undefined') {
+    if (token) {
+      localStorage.setItem('token', token);
+    } else {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+  }
+};
+
 // Headers por defecto
 export const getHeaders = () => {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    console.warn('[AUTH] No se encontró token en localStorage. La petición podría fallar.');
+  const token = _authToken || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+  
+  if (!token && !window.location.pathname.includes('/login')) {
+    console.warn('[AUTH] No se encontró token de sesión. Las peticiones protegidas fallarán.');
   }
+  
   return {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -26,14 +47,19 @@ export const getHeaders = () => {
 const normalizePath = (value) => `/${String(value || '').replace(/^\/+/, '')}`;
 
 const buildApiUrl = (endpoint) => {
-  const base = API_URL.replace(/\/+$/, '');
-  const path = normalizePath(endpoint);
-  const normalizedBase = normalizePath(base);
-
+  // Si es una URL absoluta, retornar tal cual
   if (/^https?:\/\//i.test(endpoint)) return endpoint;
-  if (path === normalizedBase || path.startsWith(`${normalizedBase}/`)) return path;
+  
+  const base = (API_URL || '/api').replace(/\/+$/, '');
+  const path = String(endpoint || '').replace(/^\/+/, '');
+  
+  // Si el path ya contiene el base (ej: /api/usuarios), no duplicarlo
+  const baseRelative = base.startsWith('/') ? base : new URL(base, window.location.origin).pathname;
+  if (path.startsWith(baseRelative.replace(/^\/+/, ''))) {
+      return `${window.location.origin}/${path}`;
+  }
 
-  return `${base}${path}`;
+  return `${base}/${path}`;
 };
 
 const getErrorMessage = (error, fallback) => {
@@ -65,9 +91,8 @@ export async function fetchAPI(endpoint, options = {}) {
     const response = await fetch(url, config);
     
     if (response.status === 401) {
-      console.error('[AUTH] 401 Unauthorized detected. Wiping session.');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      console.error('[AUTH] 401 Unauthorized detectado. Cerrando sesión.');
+      setAuthToken(null);
       window.location.href = '/login';
       throw new Error('Sesión expirada');
     }

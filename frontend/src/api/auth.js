@@ -1,4 +1,4 @@
-import { fetchAPI } from './config';
+import { fetchAPI, setAuthToken } from './config';
 
 /**
  * Servicio de Autenticación
@@ -9,7 +9,7 @@ export const AuthAPI = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-    localStorage.setItem('token', data.access_token);
+    setAuthToken(data.access_token);
     localStorage.setItem('user', JSON.stringify(data.user));
     return data;
   },
@@ -22,8 +22,7 @@ export const AuthAPI = {
   },
 
   logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    setAuthToken(null);
   },
 
   getMe: () => fetchAPI('/auth/me'),
@@ -51,28 +50,4 @@ export const AuthAPI = {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     return user.rol === 'admin';
   }
-};
-
-/**
- * Servicio de Usuarios (Admin)
- */
-export const UsersAPI = {
-  list: (params = {}) => {
-    const query = new URLSearchParams(params).toString();
-    return fetchAPI(`/auth/users?${query}`);
-  },
-
-  get: (id) => fetchAPI(`/auth/users/${id}`),
-
-  create: (data) => fetchAPI('/auth/users', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-
-  update: (id, data) => fetchAPI(`/auth/users/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  }),
-
-  delete: (id) => fetchAPI(`/auth/users/${id}`, { method: 'DELETE' }),
 };

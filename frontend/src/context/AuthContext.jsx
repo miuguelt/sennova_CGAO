@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthAPI } from '../api/auth';
-import { API_URL } from '../api/config';
+import { API_URL, setAuthToken } from '../api/config';
 
 const AuthContext = createContext(null);
 
@@ -40,6 +40,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = AuthAPI.getToken();
       if (token) {
+        setAuthToken(token);
         const user = await AuthAPI.getMe();
         if (user) {
           setCurrentUser(user);
