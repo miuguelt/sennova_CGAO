@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.auth import get_current_user
 from app.database import get_db
@@ -58,7 +58,7 @@ def import_cvlac(
             tipo=tipo,
             nombre=nombre,
             descripcion=f"Producto importado automáticamente desde CVLaC. Referencia: {url}",
-            fecha_publicacion=datetime.utcnow().strftime("%Y-%m-%d"),
+            fecha_publicacion=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             url=url,
             owner_id=str(current_user.id),
             is_verificado=False
@@ -155,5 +155,5 @@ def get_cvlac_resumen(
         "actualizados": actualizados,
         "pendientes": pendientes,
         "porcentaje_cumplimiento": round(porcentaje, 1),
-        "ultima_actualizacion_global": datetime.now().isoformat()
+        "ultima_actualizacion_global": datetime.now(timezone.utc).isoformat()
     }

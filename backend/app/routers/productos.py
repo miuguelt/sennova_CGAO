@@ -1,6 +1,6 @@
 from uuid import UUID
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -27,7 +27,13 @@ def list_productos(
     db: Session = Depends(get_db)
 ):
     """Listar productos de investigación con datos conectados."""
-    query = db.query(Producto)
+    from sqlalchemy.orm import joinedload
+    
+    # Eager load proyecto y owner
+    query = db.query(Producto).options(
+        joinedload(Producto.proyecto),
+        joinedload(Producto.owner)
+    )
     
     # Si es investigador, solo ver los suyos o los verificados
     if current_user.rol != "admin":
@@ -224,7 +230,7 @@ def verificar_producto(
     producto.is_verificado = verificacion.is_verificado
     if verificacion.is_verificado:
         producto.verificado_por = str(admin.id)
-        producto.fecha_verificacion = datetime.utcnow()
+        producto.fecha_verificacion = datetime.now(timezone.utc)
     else:
         producto.verificado_por = None
         producto.fecha_verificacion = None

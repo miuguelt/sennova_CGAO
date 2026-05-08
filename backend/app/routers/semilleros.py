@@ -1,5 +1,6 @@
 from uuid import UUID
 from typing import List, Optional
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -14,25 +15,30 @@ router = APIRouter(prefix="/semilleros", tags=["Semilleros de Investigación"])
 
 
 
-def _make_semillero_dict(semillero: Semillero, db: Session) -> dict:
+def _make_semillero_dict(semillero: Semillero, db: Session, investigators_map: dict = None) -> dict:
     """Convierte un objeto Semillero a diccionario para serialización correcta."""
-    # Obtener investigadores con info de la tabla de asociación
     investigadores = []
-    from app.models import semillero_investigadores
-    for user in semillero.investigadores:
-        result = db.query(semillero_investigadores).filter(
-            semillero_investigadores.c.semillero_id == semillero.id,
-            semillero_investigadores.c.user_id == user.id
-        ).first()
-        
-        inv_info = {
-            "id": str(user.id),
-            "nombre": user.nombre,
-            "email": user.email,
-            "rol_en_semillero": result.rol_en_semillero if result else "Coinvestigador",
-            "fecha_vinculacion": result.fecha_vinculacion.isoformat() if result and result.fecha_vinculacion else None
-        }
-        investigadores.append(inv_info)
+    
+    # Si tenemos un mapa pre-cargado, lo usamos para evitar consultas N+1
+    if investigators_map and str(semillero.id) in investigators_map:
+        investigadores = investigators_map[str(semillero.id)]
+    else:
+        # Fallback para consultas individuales
+        from app.models import semillero_investigadores
+        for user in semillero.investigadores:
+            result = db.query(semillero_investigadores).filter(
+                semillero_investigadores.c.semillero_id == semillero.id,
+                semillero_investigadores.c.user_id == user.id
+            ).first()
+            
+            inv_info = {
+                "id": str(user.id),
+                "nombre": user.nombre,
+                "email": user.email,
+                "rol_en_semillero": result.rol_en_semillero if result else "Coinvestigador",
+                "fecha_vinculacion": result.fecha_vinculacion.isoformat() if result and result.fecha_vinculacion else None
+            }
+            investigadores.append(inv_info)
 
     return {
         "id": str(semillero.id),
@@ -42,10 +48,10 @@ def _make_semillero_dict(semillero: Semillero, db: Session) -> dict:
         "horas_dedicadas": semillero.horas_dedicadas,
         "estado": semillero.estado,
         "grupo_id": str(semillero.grupo_id),
-        "grupo": None,  # Simplificado para evitar recursión
+        "grupo": None,
         "owner_id": str(semillero.owner_id),
         "investigadores": investigadores,
-        "aprendices": [],  # Simplificado
+        "aprendices": [],
         "total_aprendices": len(semillero.aprendices) if semillero.aprendices else 0,
         "total_investigadores": len(investigadores),
         "created_at": semillero.created_at
@@ -62,7 +68,13 @@ def list_semilleros(
     db: Session = Depends(get_db)
 ):
     """Listar semilleros de investigación."""
-    query = db.query(Semillero)
+    from sqlalchemy.orm import joinedload
+    from app.models import semillero_investigadores
+    
+    query = db.query(Semillero).options(
+        joinedload(Semillero.investigadores),
+        joinedload(Semillero.aprendices)
+    )
     
     if grupo_id:
         query = query.filter(Semillero.grupo_id == str(grupo_id))
@@ -71,7 +83,29 @@ def list_semilleros(
     
     semilleros = query.offset(skip).limit(limit).all()
     
-    return [_make_semillero_dict(s, db) for s in semilleros]
+    # Pre-cargar datos de la tabla de asociación para investigadores
+    sem_ids = [str(s.id) for s in semilleros]
+    inv_data = []
+    if sem_ids:
+        inv_data = db.query(semillero_investigadores, User.nombre, User.email).join(
+            User, User.id == semillero_investigadores.c.user_id
+        ).filter(semillero_investigadores.c.semillero_id.in_(sem_ids)).all()
+    
+    # Construir mapa {semillero_id: [inv_info, ...]}
+    investigators_map = {}
+    for row in inv_data:
+        s_id = str(row.semillero_id)
+        if s_id not in investigators_map:
+            investigators_map[s_id] = []
+        investigators_map[s_id].append({
+            "id": str(row.user_id),
+            "nombre": row.nombre,
+            "email": row.email,
+            "rol_en_semillero": row.rol_en_semillero,
+            "fecha_vinculacion": row.fecha_vinculacion.isoformat() if row.fecha_vinculacion else None
+        })
+    
+    return [_make_semillero_dict(s, db, investigators_map) for s in semilleros]
 
 
 @router.get("/{semillero_id}")

@@ -44,31 +44,60 @@ def _make_grupo_dict(grupo: Grupo, db: Session) -> dict:
         "is_publico": grupo.is_publico,
         "estado": grupo.estado,
         "owner_id": str(grupo.owner_id),
-        "owner": None,  # Simplificado para evitar recursión
-        "integrantes": integrantes,
-        "total_integrantes": len(integrantes),
+        "owner": None,
+        "integrantes": [],  # Will be populated by batch if needed
+        "total_integrantes": 0,
         "created_at": grupo.created_at
     }
 
 
 @router.get("")
 def list_grupos(
+    clasificacion: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
-    clasificacion: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Listar grupos de investigación."""
-    query = db.query(Grupo)
+    """Listar todos los grupos con sus integrantes."""
+    from sqlalchemy.orm import joinedload
+    
+    query = db.query(Grupo).options(joinedload(Grupo.integrantes))
     
     if clasificacion:
         query = query.filter(Grupo.clasificacion == clasificacion)
     
     grupos = query.offset(skip).limit(limit).all()
     
-    # Convertir a diccionarios para serialización correcta
-    return [_make_grupo_dict(g, db) for g in grupos]
+    # Pre-cargar datos de la tabla de asociación
+    grupo_ids = [str(g.id) for g in grupos]
+    integrantes_data = []
+    if grupo_ids:
+        integrantes_data = db.query(grupo_integrantes, User.nombre, User.email).join(
+            User, User.id == grupo_integrantes.c.user_id
+        ).filter(grupo_integrantes.c.grupo_id.in_(grupo_ids)).all()
+    
+    # Mapa {grupo_id: [integrante_info, ...]}
+    integrantes_map = {}
+    for row in integrantes_data:
+        g_id = str(row.grupo_id)
+        if g_id not in integrantes_map:
+            integrantes_map[g_id] = []
+        integrantes_map[g_id].append({
+            "id": str(row.user_id),
+            "nombre": row.nombre,
+            "email": row.email,
+            "rol_en_grupo": row.rol_en_grupo,
+            "fecha_vinculacion": row.fecha_vinculacion.isoformat() if row.fecha_vinculacion else None
+        })
+    
+    result = []
+    for g in grupos:
+        g_dict = _make_grupo_dict(g, db)
+        g_dict["integrantes"] = integrantes_map.get(str(g.id), [])
+        g_dict["total_integrantes"] = len(g_dict["integrantes"])
+        result.append(g_dict)
+        
+    return result
 
 
 @router.get("/{grupo_id}")

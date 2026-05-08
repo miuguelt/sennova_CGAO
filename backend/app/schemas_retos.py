@@ -34,6 +34,7 @@ class RetoResponse(RetoBase):
     id: UUID
     owner_id: UUID
     semillero_asignado_id: Optional[UUID] = None
+    semillero_nombre: Optional[str] = None
     created_at: datetime
 
     class Config:

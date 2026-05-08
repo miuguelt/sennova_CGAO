@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, get_current_admin
 from app.database import get_db
-from app.models import Proyecto, User, proyecto_equipo, Convocatoria
+from app.models import Proyecto, User, proyecto_equipo, Convocatoria, Documento
 from app.schemas import (
     ProyectoCreate, ProyectoUpdate, ProyectoResponse,
     EquipoMiembro, EquipoMiembroInfo
@@ -39,7 +39,13 @@ def list_proyectos(
     db: Session = Depends(get_db)
 ):
     """Listar proyectos (todos si admin, solo propios/miembro si investigador)."""
-    query = db.query(Proyecto)
+    from sqlalchemy.orm import joinedload
+    
+    # Usar joinedload para traer equipo y productos de una sola vez
+    query = db.query(Proyecto).options(
+        joinedload(Proyecto.equipo),
+        joinedload(Proyecto.productos)
+    )
     
     if current_user.rol != "admin":
         # Ver proyectos donde es owner
@@ -52,17 +58,28 @@ def list_proyectos(
     
     proyectos = query.offset(skip).limit(limit).all()
     
-    # Construir respuesta manualmente para evitar errores de serialización
+    # Pre-cargar toda la tabla de asociación de equipo para evitar consultas repetitivas
+    proyecto_ids = [str(p.id) for p in proyectos]
+    equipo_data_all = []
+    if proyecto_ids:
+        stmt = proyecto_equipo.select().where(proyecto_equipo.c.proyecto_id.in_(proyecto_ids))
+        equipo_data_all = db.execute(stmt).fetchall()
+    
+    # Mapa de {proyecto_id: {user_id: row}}
+    equipo_master_map = {}
+    for row in equipo_data_all:
+        p_id = str(row.proyecto_id)
+        u_id = str(row.user_id)
+        if p_id not in equipo_master_map:
+            equipo_master_map[p_id] = {}
+        equipo_master_map[p_id][u_id] = row
+
     result = []
     for p in proyectos:
+        p_id_str = str(p.id)
+        equipo_map = equipo_master_map.get(p_id_str, {})
+        
         equipo = []
-        # Obtener los datos de la tabla de asociación de una sola vez para este proyecto
-        stmt = proyecto_equipo.select().where(proyecto_equipo.c.proyecto_id == str(p.id))
-        equipo_res = db.execute(stmt).fetchall()
-        
-        # Crear un mapa para acceso rápido
-        equipo_map = {str(row.user_id): row for row in equipo_res}
-        
         for m in p.equipo:
             info = equipo_map.get(str(m.id))
             equipo.append({
@@ -76,7 +93,7 @@ def list_proyectos(
             })
         
         result.append({
-            "id": str(p.id),
+            "id": p_id_str,
             "nombre": p.nombre,
             "nombre_corto": p.nombre_corto,
             "codigo_sgps": p.codigo_sgps,

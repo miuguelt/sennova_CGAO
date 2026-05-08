@@ -3,7 +3,7 @@ import {
   Plus, Search, Lightbulb, Target, Briefcase, Building, 
   ChevronRight, Loader2, X, Edit2, Trash2, Filter,
   Mail, MessageSquare, Clock, AlertCircle, Info,
-  ExternalLink, Building2, Globe, Laptop, Zap
+  ExternalLink, Building2, Globe, Laptop, Zap, Users
 } from 'lucide-react';
 import { RetosAPI } from '../../api/retos';
 import Card from '../ui/Card';

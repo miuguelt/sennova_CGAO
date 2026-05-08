@@ -5,7 +5,7 @@ import sys
 
 BASE_URL = "http://127.0.0.1:8000"
 ADMIN_EMAIL = "admin@sena.edu.co"
-ADMIN_PASS = "admin_local_dev_2024"
+ADMIN_PASS = "123456"
 
 def test_automation_suite():
     print("🚀 Iniciando Test Suite de Automatización SENNOVA...")

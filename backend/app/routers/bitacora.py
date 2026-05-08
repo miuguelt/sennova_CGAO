@@ -5,6 +5,7 @@ from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from app.database import get_db
 from app.models import BitacoraEntry, Proyecto, User
 from app.schemas import BitacoraCreate, BitacoraUpdate, BitacoraResponse, BitacoraSignRequest
@@ -127,15 +128,17 @@ def firmar_entrada(
     if es_investigador:
         entry.is_firmado_investigador = True
         entry.fecha_firma_investigador = datetime.now(timezone.utc)
-        meta = entry.signature_metadata or {}
+        meta = dict(entry.signature_metadata or {})
         meta["investigador"] = evidence
         entry.signature_metadata = meta
+        flag_modified(entry, "signature_metadata")
     else:
         entry.is_firmado_aprendiz = True
         entry.fecha_firma_aprendiz = datetime.now(timezone.utc)
-        meta = entry.signature_metadata or {}
+        meta = dict(entry.signature_metadata or {})
         meta["aprendiz"] = evidence
         entry.signature_metadata = meta
+        flag_modified(entry, "signature_metadata")
 
     db.commit()
     db.refresh(entry)
@@ -221,7 +224,7 @@ async def upload_adjunto_bitacora(
     )
     
     # Actualizar adjuntos en la bitácora
-    current_adjuntos = entry.adjuntos or []
+    current_adjuntos = list(entry.adjuntos or [])
     current_adjuntos.append({
         "id": str(doc.id),
         "nombre": doc.nombre_archivo,
@@ -231,6 +234,7 @@ async def upload_adjunto_bitacora(
     })
     
     entry.adjuntos = current_adjuntos
+    flag_modified(entry, "adjuntos")
     db.commit()
     db.refresh(entry)
     

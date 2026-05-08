@@ -15,6 +15,7 @@ from app.auth import get_current_user, get_current_admin, get_password_hash
 from app.database import get_db
 from app.models import User, Proyecto, Grupo, Semillero, Producto, Actividad, Documento
 from app.schemas import UserCreate, UserUpdate, UserResponse, ActividadResponse
+from app.repositories.user_repository import UserRepository
 
 router = APIRouter(prefix="/usuarios", tags=["Usuarios - Admin Only"])
 
@@ -41,7 +42,7 @@ def _make_user_dict(user: User, db: Session = None) -> dict:
         "is_active": user.is_active,
         "cv_lac_url": user.cv_lac_url,
         "estado_cv_lac": user.estado_cv_lac,
-        "cv_pdf_id": cv_pdf_id,
+        "cv_pdf_id": None,  # Will be populated by batch if needed
         "nivel_academico": user.nivel_academico,
         "rol_sennova": user.rol_sennova,
         "documento": user.documento,
@@ -78,7 +79,31 @@ def list_usuarios(
         )
     
     usuarios = query.offset(skip).limit(limit).all()
-    return [_make_user_dict(u, db) for u in usuarios]
+    
+    # Pre-cargar documentos de CV para evitar N+1
+    user_ids = [str(u.id) for u in usuarios]
+    cv_docs_map = {}
+    if user_ids:
+        # Solo traer el más reciente para cada usuario
+        cv_docs = db.query(Documento).filter(
+            Documento.entidad_tipo == "user",
+            Documento.entidad_id.in_(user_ids),
+            Documento.tipo == "cvlac_pdf"
+        ).order_by(Documento.created_at.desc()).all()
+        
+        # Como order_by es global, el primero que encontremos para cada id en el bucle será el más reciente
+        for doc in cv_docs:
+            u_id = str(doc.entidad_id)
+            if u_id not in cv_docs_map:
+                cv_docs_map[u_id] = str(doc.id)
+
+    result = []
+    for u in usuarios:
+        u_dict = _make_user_dict(u)
+        u_dict["cv_pdf_id"] = cv_docs_map.get(str(u.id))
+        result.append(u_dict)
+        
+    return result
 
 
 @router.get("/{user_id}")
@@ -98,7 +123,6 @@ def get_usuario(
     return _make_user_dict(user, db)
 
 
-from app.repositories.user_repository import UserRepository
 
 @router.post("", status_code=201)
 def create_usuario(
