@@ -217,6 +217,16 @@ def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
+@app.get("/debug-headers")
+def debug_headers(request: Request):
+    """Diagnóstico de cabeceras recibidas."""
+    return {
+        "headers": dict(request.headers),
+        "url": str(request.url),
+        "method": request.method
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     # Usar HOST desde variable de entorno o default

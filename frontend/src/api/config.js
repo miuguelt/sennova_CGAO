@@ -14,6 +14,9 @@ export const CVLAC_URL_PLACEHOLDER = `${CVLAC_BASE_URL}/cvlac/...`;
 // Headers por defecto
 export const getHeaders = () => {
   const token = localStorage.getItem('token');
+  if (!token) {
+    console.warn('[AUTH] No se encontró token en localStorage. La petición podría fallar.');
+  }
   return {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -62,10 +65,22 @@ export async function fetchAPI(endpoint, options = {}) {
     const response = await fetch(url, config);
     
     if (response.status === 401) {
+      console.error('[AUTH] 401 Unauthorized detected. Wiping session.');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
       throw new Error('Sesión expirada');
+    }
+    
+    if (response.status === 403) {
+      const errorData = await response.json().catch(() => ({ detail: 'Forbidden' }));
+      console.error(`[AUTH] 403 Forbidden on ${endpoint}:`, errorData.detail);
+      
+      if (errorData.detail === "Not authenticated") {
+        console.warn('[AUTH] Missing Authorization header. Check if token is available.');
+      }
+      
+      throw new Error(errorData.detail || 'Acceso denegado');
     }
     
     if (!response.ok) {

@@ -809,7 +809,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                           <Button variant="secondary" className="flex-1" onClick={() => setMemberToLink(null)}>Cancelar</Button>
                           <Button variant="sena" className="flex-1" onClick={async () => {
                             try {
-                              if (talentTab === 'aprendices') {
+                              if (memberType === 'aprendiz') {
                                 await SemillerosAPI.addAprendiz(selectedSemillero.id, { user_id: memberToLink.id, estado: 'activo' });
                               } else {
                                 await SemillerosAPI.addInvestigador(selectedSemillero.id, { user_id: memberToLink.id, rol_en_semillero: linkingRole });

@@ -88,9 +88,10 @@ async def get_current_user(
         )
     
     if not user.is_active:
+        print(f"🔒 [AUTH ERROR] Usuario {user.email} está INACTIVO")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuario inactivo"
+            detail="ACCOUNT_INACTIVE"
         )
     
     return user
@@ -99,9 +100,10 @@ async def get_current_user(
 async def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
     """Verifica que el usuario actual sea admin."""
     if current_user.rol != "admin":
+        print(f"🔒 [AUTH ERROR] Usuario {current_user.email} intentó acceso ADMIN con rol {current_user.rol}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Requiere rol de administrador"
+            detail="ADMIN_ROLE_REQUIRED"
         )
     return current_user
 
