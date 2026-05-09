@@ -147,13 +147,23 @@ def get_cvlac_resumen(
         User.estado_cv_lac == "Actualizado"
     ).count()
     
-    pendientes = total_usuarios - actualizados
+    desactualizados = db.query(User).filter(
+        User.rol == "investigador",
+        User.estado_cv_lac == "Desactualizado"
+    ).count()
+    
+    sin_cvlac = db.query(User).filter(
+        User.rol == "investigador",
+        User.estado_cv_lac.in_(["Sin CVLAC", "No actualizado", None])
+    ).count()
+    
     porcentaje = (actualizados / total_usuarios * 100) if total_usuarios > 0 else 0
     
     return {
         "total_investigadores": total_usuarios,
         "actualizados": actualizados,
-        "pendientes": pendientes,
-        "porcentaje_cumplimiento": round(porcentaje, 1),
+        "desactualizados": desactualizados,
+        "sin_cvlac": sin_cvlac,
+        "porcentaje_actualizados": round(porcentaje, 1),
         "ultima_actualizacion_global": datetime.now(timezone.utc).isoformat()
     }

@@ -7,7 +7,10 @@ from app.auth import (
 )
 from app.database import get_db
 from app.models import User
-from app.schemas import LoginRequest, Token, UserCreate, UserResponse, UserUpdate
+from app.schemas import (
+    LoginRequest, Token, UserCreate, UserResponse, UserUpdate,
+    PasswordChange
+)
 from app.utils import log_actividad
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
@@ -100,22 +103,31 @@ def update_me(
 
 @router.post("/change-password")
 def change_password(
-    old_password: str,
-    new_password: str,
+    data: PasswordChange,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Cambiar contraseña del usuario actual."""
     from app.auth import verify_password
     
-    if not verify_password(old_password, current_user.password_hash):
+    if not verify_password(data.old_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Contraseña actual incorrecta"
         )
     
-    current_user.password_hash = get_password_hash(new_password)
+    current_user.password_hash = get_password_hash(data.new_password)
     db.commit()
+    
+    # Registrar actividad
+    log_actividad(
+        db, 
+        current_user.id, 
+        "change_password", 
+        f"Cambió su contraseña de acceso",
+        entidad_tipo="usuario",
+        entidad_id=str(current_user.id)
+    )
     
     return {"message": "Contraseña actualizada correctamente"}
 

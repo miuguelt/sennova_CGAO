@@ -11,7 +11,12 @@ import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 
-const ESTADO_VARIANT = { 'Actualizado': 'success', 'Desactualizado': 'warning', 'Sin CVLAC': 'danger' };
+const ESTADO_VARIANT = { 
+  'Actualizado': 'success', 
+  'Desactualizado': 'warning', 
+  'Sin CVLAC': 'danger',
+  'No actualizado': 'danger'
+};
 
 const CVLACAdminModule = ({ currentUser, onNotify }) => {
   const [usuarios,         setUsuarios]         = useState([]);
@@ -79,13 +84,13 @@ const CVLACAdminModule = ({ currentUser, onNotify }) => {
       u.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesEstado =
       estadoFilter === 'todos' ||
-      (estadoFilter === 'sin'           && (!u.estado_cv_lac || u.estado_cv_lac === 'Sin CVLAC')) ||
+      (estadoFilter === 'sin'           && (!u.estado_cv_lac || u.estado_cv_lac === 'Sin CVLAC' || u.estado_cv_lac === 'No actualizado')) ||
       (estadoFilter === 'actualizado'   && u.estado_cv_lac === 'Actualizado') ||
       (estadoFilter === 'desactualizado'&& u.estado_cv_lac === 'Desactualizado');
     return matchesSearch && matchesEstado;
   });
 
-  const usuariosSinCVLAC       = usuarios.filter(u => !u.estado_cv_lac || u.estado_cv_lac === 'Sin CVLAC');
+  const usuariosSinCVLAC       = usuarios.filter(u => !u.estado_cv_lac || u.estado_cv_lac === 'Sin CVLAC' || u.estado_cv_lac === 'No actualizado');
   const usuariosActualizados   = usuarios.filter(u => u.estado_cv_lac === 'Actualizado');
   const usuariosDesactualizados= usuarios.filter(u => u.estado_cv_lac === 'Desactualizado');
 

@@ -56,6 +56,11 @@ class UserUpdate(BaseModel):
     programa_formacion: Optional[str] = None
 
 
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str = Field(..., min_length=6)
+
+
 class UserResponse(UserBase):
     id: UUID
     rol_sennova: Optional[str] = None

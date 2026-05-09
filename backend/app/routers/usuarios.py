@@ -290,6 +290,11 @@ def get_usuarios_stats(
         for row in db.query(User.regional, func.count(User.id)).filter(User.regional != None).group_by(User.regional).all()
     ]
 
+    por_nivel = [
+        {"nivel": row[0], "count": row[1]} 
+        for row in db.query(User.nivel_academico, func.count(User.id)).filter(User.nivel_academico != None).group_by(User.nivel_academico).all()
+    ]
+
     return {
         "total": db.query(User).count(),
         "activos": db.query(User).filter(User.is_active == True).count(),
@@ -297,6 +302,7 @@ def get_usuarios_stats(
         "por_rol": por_rol,
         "por_sede": por_sede,
         "por_regional": por_regional,
+        "por_nivel": {item['nivel']: item['count'] for item in por_nivel},
     }
 
 

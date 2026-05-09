@@ -100,7 +100,7 @@ class User(Base):
     horas_mensuales = Column(Integer)
     meses_vinculacion = Column(Integer)
     cv_lac_url = Column(Text)
-    estado_cv_lac = Column(String(50), default='No actualizado')
+    estado_cv_lac = Column(String(50), default='Sin CVLAC')
     lineas_investigacion = get_array_column(String)
     sede = Column(String(100))
     regional = Column(String(100))

@@ -1,0 +1,198 @@
+﻿🧹 Limpiando datos previos...
+2026-05-08 13:10:02,195 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-08 13:10:02,196 INFO sqlalchemy.engine.Engine DELETE FROM bitacora_entries
+2026-05-08 13:10:02,196 INFO sqlalchemy.engine.Engine [generated in 0.00037s] ()
+2026-05-08 13:10:02,198 INFO sqlalchemy.engine.Engine DELETE FROM productos
+2026-05-08 13:10:02,198 INFO sqlalchemy.engine.Engine [generated in 0.00014s] ()
+2026-05-08 13:10:02,198 INFO sqlalchemy.engine.Engine DELETE FROM proyectos
+2026-05-08 13:10:02,198 INFO sqlalchemy.engine.Engine [generated in 0.00008s] ()
+2026-05-08 13:10:02,199 INFO sqlalchemy.engine.Engine DELETE FROM retos
+2026-05-08 13:10:02,199 INFO sqlalchemy.engine.Engine [generated in 0.00006s] ()
+2026-05-08 13:10:02,199 INFO sqlalchemy.engine.Engine DELETE FROM convocatorias
+2026-05-08 13:10:02,199 INFO sqlalchemy.engine.Engine [generated in 0.00006s] ()
+2026-05-08 13:10:02,199 INFO sqlalchemy.engine.Engine DELETE FROM aprendices
+2026-05-08 13:10:02,199 INFO sqlalchemy.engine.Engine [generated in 0.00006s] ()
+2026-05-08 13:10:02,199 INFO sqlalchemy.engine.Engine DELETE FROM semilleros
+2026-05-08 13:10:02,199 INFO sqlalchemy.engine.Engine [generated in 0.00006s] ()
+2026-05-08 13:10:02,200 INFO sqlalchemy.engine.Engine DELETE FROM grupos
+2026-05-08 13:10:02,200 INFO sqlalchemy.engine.Engine [generated in 0.00005s] ()
+2026-05-08 13:10:02,200 INFO sqlalchemy.engine.Engine DELETE FROM grupo_integrantes
+2026-05-08 13:10:02,200 INFO sqlalchemy.engine.Engine [generated in 0.00005s] ()
+2026-05-08 13:10:02,200 INFO sqlalchemy.engine.Engine DELETE FROM proyecto_equipo
+2026-05-08 13:10:02,200 INFO sqlalchemy.engine.Engine [generated in 0.00011s] ()
+2026-05-08 13:10:02,200 INFO sqlalchemy.engine.Engine DELETE FROM semillero_investigadores
+2026-05-08 13:10:02,200 INFO sqlalchemy.engine.Engine [generated in 0.00015s] ()
+2026-05-08 13:10:02,237 INFO sqlalchemy.engine.Engine DELETE FROM users WHERE users.email != ?
+2026-05-08 13:10:02,237 INFO sqlalchemy.engine.Engine [generated in 0.00017s] ('admin@sena.edu.co',)
+2026-05-08 13:10:02,237 INFO sqlalchemy.engine.Engine COMMIT
+👤 Creando Usuarios de Prueba (Investigadores y Expertos)...
+2026-05-08 13:10:02,240 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-08 13:10:02,243 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.password_hash AS users_password_hash, users.nombre AS users_nombre, users.rol AS users_rol, users.rol_sennova AS users_rol_sennova, users.nivel_academico AS users_nivel_academico, users.horas_mensuales AS users_horas_mensuales, users.meses_vinculacion AS users_meses_vinculacion, users.cv_lac_url AS users_cv_lac_url, users.estado_cv_lac AS users_estado_cv_lac, users.lineas_investigacion AS users_lineas_investigacion, users.sede AS users_sede, users.regional AS users_regional, users.documento AS users_documento, users.celular AS users_celular, users.ficha AS users_ficha, users.programa_formacion AS users_programa_formacion, users.is_active AS users_is_active, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.email = ?
+ LIMIT ? OFFSET ?
+2026-05-08 13:10:02,243 INFO sqlalchemy.engine.Engine [generated in 0.00020s] ('admin@sena.edu.co', 1, 0)
+2026-05-08 13:10:02,391 INFO sqlalchemy.engine.Engine INSERT INTO users (id, email, password_hash, nombre, rol, rol_sennova, nivel_academico, horas_mensuales, meses_vinculacion, cv_lac_url, estado_cv_lac, lineas_investigacion, sede, regional, documento, celular, ficha, programa_formacion, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-05-08 13:10:02,391 INFO sqlalchemy.engine.Engine [generated in 0.00026s (insertmanyvalues) 1/1 (unordered)] ('58e0a2c4-db8d-4233-b761-76b31bfba70c', 'm.rodriguez@sena.edu.co', '$2b$10$d1.wcJz85Y4SM.5/LGCX0uQjEIsu2eU8cVTcrnmoqJt82IcIejFEW', 'Dra. Marta Rodríguez', 'investigador', 'Investigador Senior', 'Doctorado en Biotecnología', None, None, None, 'No actualizado', '["Agroindustria", "Biotecnolog\\u00eda", "Seguridad Alimentaria"]', 'CGAO Vélez', 'Santander', None, None, None, None, 1, '2026-05-08 18:10:02.391510', '2026-05-08 18:10:02.391513', '2b592d18-809a-4b11-a8e5-48bccd091454', 'j.castro@sena.edu.co', '$2b$10$qWt2RCupxbTmJF3k0uSbU.M.Fu7FwPRt8EoLIfms0wvbWivHcikyq', 'Ing. Jorge Castro', 'investigador', 'Investigador Junior', 'Maestría en TI', None, None, None, 'No actualizado', '["Software", "IoT", "Inteligencia Artificial"]', 'CGAO Vélez', 'Santander', None, None, None, None, 1, '2026-05-08 18:10:02.391520', '2026-05-08 18:10:02.391520', 'a6ac7b3b-065c-411d-8295-abc6a69faafd', 'c.lopez@sena.edu.co', '$2b$10$FyzHVDRX7SBktRn9UKUI0us8gQ6WiKdZKQsPNd1k/GEg7TBC.O/.m', 'Mag. Clara López', 'investigador', 'Investigador Asociado', 'Maestría en Desarrollo Rural', None, None, None, 'No actualizado', '["Econom\\u00eda Naranja", "Turismo Sostenible"]', 'CGAO Vélez', 'Santander', None, None, None, None, 1, '2026-05-08 18:10:02.391524', '2026-05-08 18:10:02.391524')
+🎓 Creando Banco de Aprendices (Fichas ADSO, Alimentos, Turismo)...
+2026-05-08 13:10:02,593 INFO sqlalchemy.engine.Engine INSERT INTO users (id, email, password_hash, nombre, rol, rol_sennova, nivel_academico, horas_mensuales, meses_vinculacion, cv_lac_url, estado_cv_lac, sede, regional, documento, celular, ficha, programa_formacion, is_active, created_at, updated_at) V ... 152 characters truncated ... ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-05-08 13:10:02,593 INFO sqlalchemy.engine.Engine [generated in 0.00019s (insertmanyvalues) 1/1 (unordered)] ('aa8e6466-cb02-46ac-b324-78803256d559', 'jperez@soy.sena.edu.co', '$2b$10$oOsVQXkWEWz9sPaz53Isdu9O/uu/55mcx.J/hhsJE3ijRHm4ms6RK', 'Juan David Pérez', 'investigador', 'Aprendiz Investigador', None, None, None, None, 'No actualizado', 'CGAO Vélez', None, '1098123001', None, '2670123', 'Análisis y Desarrollo de Software (ADSO)', 1, '2026-05-08 18:10:02.593088', '2026-05-08 18:10:02.593091', '2b8f901b-5d18-4b57-b9f1-900b57e74aa2', 'lmarcela@soy.sena.edu.co', '$2b$10$L/p7wINQIC99qJdn1Z1psOYMPV.SUa2vgewpLmz0RYlgbu7UYcqcu', 'Lina Marcela Duarte', 'investigador', 'Aprendiz Investigador', None, None, None, None, 'No actualizado', 'CGAO Vélez', None, '1098123002', None, '2670123', 'Análisis y Desarrollo de Software (ADSO)', 1, '2026-05-08 18:10:02.593095', '2026-05-08 18:10:02.593096', '251b04a3-b177-4f7e-99cc-8f039be131f4', 'csanchez@soy.sena.edu.co', '$2b$10$D294QbAYpzqz1/r.2cAp/uqirhdEY.fOiQsMu062BCqqvvrnt9YNS', 'Carlos Sánchez', 'investigador', 'Aprendiz Investigador', None, None, None, None, 'No actualizado', 'CGAO Vélez', None, '1098123003', None, '2560890', 'Procesamiento de Alimentos', 1, '2026-05-08 18:10:02.593098', '2026-05-08 18:10:02.593098', '8f84e00f-fa04-4354-90bb-7bcab1324e52', 'sruiz@soy.sena.edu.co', '$2b$10$uSoR0SKpXaKcYnrWfob2p.dkO2onJ1vHZGrKTD4h74cJPSCJVC8yK', 'Sandra Ruiz', 'investigador', 'Aprendiz Investigador', None, None, None, None, 'No actualizado', 'CGAO Vélez', None, '1098123004', None, '2450781', 'Guianza Turística', 1, '2026-05-08 18:10:02.593102', '2026-05-08 18:10:02.593102')
+📂 Creando Estructuras (GIA-CGAO y Semilleros)...
+2026-05-08 13:10:02,594 INFO sqlalchemy.engine.Engine INSERT INTO grupos (id, nombre, nombre_completo, codigo_gruplac, clasificacion, gruplac_url, lineas_investigacion, owner_id, is_publico, estado, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-05-08 13:10:02,594 INFO sqlalchemy.engine.Engine [generated in 0.00017s] ('d1042b9d-9660-4ef4-a67f-d39b980182e9', 'GIA-CGAO', 'Grupo de Investigación en Agroindustria y Tecnología - CGAO', 'COL0012345', 'B', None, '["Seguridad Alimentaria", "Desarrollo de Software Aplicado", "Turismo Rural"]', 'cf1c9ca1-c208-4db2-9b90-53027bce753a', 1, 'activo', '2026-05-08 18:10:02.594414')
+2026-05-08 13:10:02,595 INFO sqlalchemy.engine.Engine INSERT INTO semilleros (id, nombre, linea_investigacion, plan_accion, horas_dedicadas, estado, grupo_id, owner_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-05-08 13:10:02,595 INFO sqlalchemy.engine.Engine [generated in 0.00011s (insertmanyvalues) 1/1 (unordered)] ('45a2e6e4-05d6-4c23-8571-c983667f8c96', 'SITEC', 'Innovación Tecnológica para el Agro y TI', None, None, 'activo', 'd1042b9d-9660-4ef4-a67f-d39b980182e9', '2b592d18-809a-4b11-a8e5-48bccd091454', '2026-05-08 18:10:02.595521', 'eee4737e-abcd-404c-a61c-cf9c4dbe6989', 'ALIMENSA', 'Nuevos productos alimentarios y bioprocesos', None, None, 'activo', 'd1042b9d-9660-4ef4-a67f-d39b980182e9', '58e0a2c4-db8d-4233-b761-76b31bfba70c', '2026-05-08 18:10:02.595526', 'bf6c09b5-7277-4d6d-afa2-c6327edb2eb9', 'TURIS-CGAO', 'Turismo sostenible y patrimonio', None, None, 'activo', 'd1042b9d-9660-4ef4-a67f-d39b980182e9', 'a6ac7b3b-065c-411d-8295-abc6a69faafd', '2026-05-08 18:10:02.595528')
+📢 Creando Convocatorias Estratégicas...
+2026-05-08 13:10:02,597 INFO sqlalchemy.engine.Engine INSERT INTO aprendices (id, estado, fecha_ingreso, fecha_egreso, nombre, ficha, programa, semillero_id, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-05-08 13:10:02,597 INFO sqlalchemy.engine.Engine [generated in 0.00014s (insertmanyvalues) 1/1 (unordered)] ('24f3132a-3192-4d83-9717-42b264a5189d', 'Activo', '2026-05-08', None, None, None, None, '45a2e6e4-05d6-4c23-8571-c983667f8c96', 'aa8e6466-cb02-46ac-b324-78803256d559', '2ff2d8ef-f209-46c7-9cb1-ddd3bf0bf853', 'Activo', '2026-05-08', None, None, None, None, '45a2e6e4-05d6-4c23-8571-c983667f8c96', '2b8f901b-5d18-4b57-b9f1-900b57e74aa2', 'cce1f0db-8667-4967-be21-ef003d5b27b6', 'Activo', '2026-05-08', None, None, None, None, 'eee4737e-abcd-404c-a61c-cf9c4dbe6989', '251b04a3-b177-4f7e-99cc-8f039be131f4', '93366e7c-8cbd-416b-aeb2-2e532e574f26', 'Activo', '2026-05-08', None, None, None, None, 'bf6c09b5-7277-4d6d-afa2-c6327edb2eb9', '8f84e00f-fa04-4354-90bb-7bcab1324e52')
+2026-05-08 13:10:02,597 INFO sqlalchemy.engine.Engine ROLLBACK
+python : Traceback (most recent call last):
+En línea: 1 Carácter: 53
++ ... ennova.db"; python backend/scripts/seed_demo_data.py > seed_log.txt 2 ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 
+2118, in _exec_insertmany_context
+    dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~^
+        cursor,
+        ^^^^^^^
+    ...<2 lines>...
+        context,
+        ^^^^^^^^
+    )
+    ^
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 
+951, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: table aprendices has no column named nombre
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Miguel\Documents\Aplicaciones\_projects\sennova\backend\scripts\seed_demo_data.py", line 344, in 
+<module>
+    seed_data()
+    ~~~~~~~~~^^
+  File "C:\Users\Miguel\Documents\Aplicaciones\_projects\sennova\backend\scripts\seed_demo_data.py", line 207, in 
+seed_data
+    db.flush()
+    ~~~~~~~~^^
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 
+4345, in flush
+    self._flush(objects)
+    ~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 
+4480, in _flush
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", 
+line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 
+4441, in _flush
+    flush_context.execute()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 
+466, in execute
+    rec.execute(self)
+    ~~~~~~~~~~~^^^^^^
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 
+642, in execute
+    util.preloaded.orm_persistence.save_obj(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.mapper,
+        ^^^^^^^^^^^^
+        uow.states_for_mapper_hierarchy(self.mapper, False, False),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        uow,
+        ^^^^
+    )
+    ^
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\persistence.py", line 
+93, in save_obj
+    _emit_insert_statements(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        base_mapper,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        insert,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\persistence.py", line 
+1143, in _emit_insert_statements
+    result = connection.execute(
+        statement, multiparams, execution_options=execution_options
+    )
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 
+1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\sql\elements.py", line 
+526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 
+1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 
+1844, in _execute_context
+    return self._exec_insertmany_context(dialect, context)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 
+2126, in _exec_insertmany_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e,
+        ^^
+    ...<4 lines>...
+        is_sub_exec=True,
+        ^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 
+2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 
+2118, in _exec_insertmany_context
+    dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~^
+        cursor,
+        ^^^^^^^
+    ...<2 lines>...
+        context,
+        ^^^^^^^^
+    )
+    ^
+  File "C:\Users\Miguel\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 
+951, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) table aprendices has no column named nombre
+[SQL: INSERT INTO aprendices (id, estado, fecha_ingreso, fecha_egreso, nombre, ficha, programa, semillero_id, user_id) 
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, 
+?)]
+[parameters: ('24f3132a-3192-4d83-9717-42b264a5189d', 'Activo', '2026-05-08', None, None, None, None, 
+'45a2e6e4-05d6-4c23-8571-c983667f8c96', 'aa8e6466-cb02-46ac-b324-78803256d559', 
+'2ff2d8ef-f209-46c7-9cb1-ddd3bf0bf853', 'Activo', '2026-05-08', None, None, None, None, 
+'45a2e6e4-05d6-4c23-8571-c983667f8c96', '2b8f901b-5d18-4b57-b9f1-900b57e74aa2', 
+'cce1f0db-8667-4967-be21-ef003d5b27b6', 'Activo', '2026-05-08', None, None, None, None, 
+'eee4737e-abcd-404c-a61c-cf9c4dbe6989', '251b04a3-b177-4f7e-99cc-8f039be131f4', 
+'93366e7c-8cbd-416b-aeb2-2e532e574f26', 'Activo', '2026-05-08', None, None, None, None, 
+'bf6c09b5-7277-4d6d-afa2-c6327edb2eb9', '8f84e00f-fa04-4354-90bb-7bcab1324e52')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)

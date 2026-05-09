@@ -100,6 +100,7 @@ const GruposModule = ({ currentUser, onNotify }) => {
   const [usuarios, setUsuarios] = useState([]);
   const [selectedGrupo, setSelectedGrupo] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [memberForm, setMemberForm] = useState({ user_id: '', rol: 'Investigador' });
@@ -171,11 +172,14 @@ const GruposModule = ({ currentUser, onNotify }) => {
     setSelectedGrupo(grupo);
     setShowMembers(true);
     setMenuOpenId(null);
+    setLoadingMembers(true);
     try {
       const m = await GruposAPI.getMembers(grupo.id);
       setIntegrantes(m || []);
     } catch {
       onNotify?.('Error al cargar integrantes', 'error');
+    } finally {
+      setLoadingMembers(false);
     }
   };
 
@@ -905,36 +909,49 @@ const GruposModule = ({ currentUser, onNotify }) => {
                   )}
 
                   <div className="flex items-center justify-between mb-4">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <UserPlus size={14} className="text-emerald-600" /> Vincular Integrante
-                    </p>
-                    <button onClick={() => setIsPoolVisible(!isPoolVisible)} className="text-[10px] font-black text-indigo-600 uppercase hover:underline">
-                      {isPoolVisible ? 'Cerrar Directorio' : 'Vincular Talento'}
-                    </button>
+                    <div className="flex flex-col">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <UserPlus size={14} className="text-emerald-600" /> Vincular Integrante
+                      </p>
+                      <p className="text-[9px] text-slate-400 font-medium">Busca o arrastra talento al grupo</p>
+                    </div>
+                    <Button 
+                      onClick={() => setIsPoolVisible(!isPoolVisible)} 
+                      variant={isPoolVisible ? "secondary" : "outline"}
+                      size="xs"
+                      className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5"
+                    >
+                      {isPoolVisible ? 'Cerrar Directorio' : 'Abrir Talent Pool'}
+                    </Button>
                   </div>
                   
                   <div className="flex flex-col gap-4">
-                    <div className="p-5 bg-slate-900 rounded-2xl space-y-4 shadow-xl relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl -mr-12 -mt-12" />
+                    <div className="p-5 bg-slate-900 rounded-2xl space-y-4 shadow-xl relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl -mr-12 -mt-12 transition-transform group-hover:scale-110" />
                       <div className="relative z-10 flex gap-3">
-                        <select 
-                          className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none cursor-pointer"
-                          onChange={(e) => {
-                            const u = usuarios.find(usr => usr.id === e.target.value);
-                            if (u) {
-                              setMemberToLink(u);
-                              setLinkingRole(u.ficha ? 'Aprendiz' : 'Investigador');
-                            }
-                            e.target.value = ""; 
-                          }}
-                          value=""
-                        >
-                          <option value="">Buscar en el directorio CGAO...</option>
-                          {usuarios.filter(u => !integrantes.some(m => m.id === u.id)).map(u => (
-                            <option key={u.id} value={u.id}>{u.nombre} {u.ficha ? `(Aprendiz)` : ''}</option>
-                          ))}
-                        </select>
-                        <div className="hidden sm:flex items-center px-4 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">
+                        <div className="relative flex-1">
+                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                            <Search size={16} />
+                          </div>
+                          <select 
+                            className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none cursor-pointer"
+                            onChange={(e) => {
+                              const u = usuarios.find(usr => usr.id === e.target.value);
+                              if (u) {
+                                setMemberToLink(u);
+                                setLinkingRole(u.ficha ? 'Aprendiz' : 'Investigador');
+                              }
+                              e.target.value = ""; 
+                            }}
+                            value=""
+                          >
+                            <option value="">Buscar talento en el directorio CGAO...</option>
+                            {usuarios.filter(u => !integrantes.some(m => m.id === u.id)).map(u => (
+                              <option key={u.id} value={u.id}>{u.nombre} {u.ficha ? `(Aprendiz)` : '(Investigador)'}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="hidden sm:flex items-center px-4 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">
                           <Plus size={16} />
                         </div>
                       </div>
@@ -949,11 +966,16 @@ const GruposModule = ({ currentUser, onNotify }) => {
                     </h4>
                   </div>
                   
-                  {integrantes.length === 0 ? (
+                  {loadingMembers ? (
+                    <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                      <Loader2 size={48} className="text-indigo-500 animate-spin mb-4" />
+                      <p className="text-slate-400 font-black text-xs uppercase tracking-widest">Cargando equipo...</p>
+                    </div>
+                  ) : integrantes.length === 0 ? (
                     <div className="text-center py-16 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-100">
                       <Users size={48} className="mx-auto text-slate-200 mb-4" />
                       <p className="text-slate-400 font-black text-xs uppercase tracking-widest">Sin investigadores vinculados</p>
-                      <p className="text-[10px] text-slate-400 mt-1 italic">Vincule talento para comenzar el registro de producción</p>
+                      <p className="text-[10px] text-slate-400 mt-1 italic">Use el buscador o el directorio de talento para vincular investigadores</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-4">

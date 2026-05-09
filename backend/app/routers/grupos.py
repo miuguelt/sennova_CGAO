@@ -45,8 +45,8 @@ def _make_grupo_dict(grupo: Grupo, db: Session) -> dict:
         "estado": grupo.estado,
         "owner_id": str(grupo.owner_id),
         "owner": None,
-        "integrantes": [],  # Will be populated by batch if needed
-        "total_integrantes": 0,
+        "integrantes": integrantes,
+        "total_integrantes": len(integrantes),
         "created_at": grupo.created_at
     }
 

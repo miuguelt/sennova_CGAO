@@ -24,6 +24,9 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
   const [uploadingCV,  setUploadingCV]  = useState(false);
   const [validandoURL, setValidandoURL] = useState(false);
   const [urlValida,    setUrlValida]    = useState(null);
+  const [changingPass, setChangingPass] = useState(false);
+  const [passData,     setPassData]     = useState({ old: '', new: '', confirm: '' });
+  const [passError,    setPassError]    = useState(null);
 
   useEffect(() => {
     setUser(currentUser);
@@ -126,6 +129,32 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
       notify('CVLAC eliminado');
     } catch (err) {
       notify('Error al eliminar CV: ' + err.message, 'error');
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPassError(null);
+    
+    if (passData.new !== passData.confirm) {
+      setPassError('Las contraseñas nuevas no coinciden');
+      return;
+    }
+    
+    if (passData.new.length < 6) {
+      setPassError('La nueva contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    setChangingPass(true);
+    try {
+      await AuthAPI.changePassword(passData.old, passData.new);
+      notify('Contraseña actualizada correctamente');
+      setPassData({ old: '', new: '', confirm: '' });
+    } catch (err) {
+      setPassError(err.message || 'Error al cambiar contraseña');
+    } finally {
+      setChangingPass(false);
     }
   };
 
@@ -363,6 +392,51 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
                 />
               )}
             </div>
+          </Card>
+
+          {/* ── Security / Password ── */}
+          <Card className="p-5 border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-900 mb-4">Seguridad y Acceso</h3>
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <Input 
+                label="Contraseña Actual" 
+                type="password" 
+                value={passData.old} 
+                onChange={(e) => setPassData({ ...passData, old: e.target.value })}
+                required
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input 
+                  label="Nueva Contraseña" 
+                  type="password" 
+                  value={passData.new} 
+                  onChange={(e) => setPassData({ ...passData, new: e.target.value })}
+                  required
+                />
+                <Input 
+                  label="Confirmar Nueva" 
+                  type="password" 
+                  value={passData.confirm} 
+                  onChange={(e) => setPassData({ ...passData, confirm: e.target.value })}
+                  required
+                />
+              </div>
+              
+              {passError && (
+                <div className="p-3 bg-rose-50 text-rose-600 text-xs font-bold rounded-lg border border-rose-100 flex items-center gap-2">
+                  <AlertCircle size={14} /> {passError}
+                </div>
+              )}
+              
+              <Button 
+                type="submit" 
+                variant="primary" 
+                className="w-full justify-center" 
+                disabled={changingPass || !passData.old || !passData.new}
+              >
+                {changingPass ? <Loader2 size={15} className="animate-spin" /> : 'Actualizar Contraseña'}
+              </Button>
+            </form>
           </Card>
         </div>
       </div>

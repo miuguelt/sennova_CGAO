@@ -64,6 +64,8 @@ def seed_data():
         nivel_academico="Doctorado en Biotecnología",
         sede="CGAO Vélez",
         regional="Santander",
+        estado_cv_lac="Actualizado",
+        cv_lac_url="https://scienti.minciencias.gov.co/cvlac/visualizador/generarCurriculoCv.do?cod_rh=0001",
         lineas_investigacion=["Agroindustria", "Biotecnología", "Seguridad Alimentaria"]
     )
     inv2 = User(
@@ -75,6 +77,8 @@ def seed_data():
         nivel_academico="Maestría en TI",
         sede="CGAO Vélez",
         regional="Santander",
+        estado_cv_lac="Desactualizado",
+        cv_lac_url="https://scienti.minciencias.gov.co/cvlac/visualizador/generarCurriculoCv.do?cod_rh=0002",
         lineas_investigacion=["Software", "IoT", "Inteligencia Artificial"]
     )
     inv3 = User(
@@ -86,6 +90,7 @@ def seed_data():
         nivel_academico="Maestría en Desarrollo Rural",
         sede="CGAO Vélez",
         regional="Santander",
+        estado_cv_lac="Sin CVLAC",
         lineas_investigacion=["Economía Naranja", "Turismo Sostenible"]
     )
     db.add_all([inv1, inv2, inv3])
@@ -326,6 +331,16 @@ def seed_data():
         is_verificado=False
     )
     db.add_all([prod1, prod2])
+    
+    # Vincular investigadores y aprendices al grupo GIA-CGAO para visualización en dashboard
+    print("🔗 Vinculando integrantes al grupo GIA-CGAO...")
+    db.execute(grupo_integrantes.insert().values(grupo_id=str(grupo.id), user_id=str(inv1.id), rol_en_grupo='Investigador'))
+    db.execute(grupo_integrantes.insert().values(grupo_id=str(grupo.id), user_id=str(inv2.id), rol_en_grupo='Investigador'))
+    db.execute(grupo_integrantes.insert().values(grupo_id=str(grupo.id), user_id=str(inv3.id), rol_en_grupo='Investigador'))
+    db.execute(grupo_integrantes.insert().values(grupo_id=str(grupo.id), user_id=str(apr1.id), rol_en_grupo='Aprendiz'))
+    db.execute(grupo_integrantes.insert().values(grupo_id=str(grupo.id), user_id=str(apr2.id), rol_en_grupo='Aprendiz'))
+    db.execute(grupo_integrantes.insert().values(grupo_id=str(grupo.id), user_id=str(apr3.id), rol_en_grupo='Aprendiz'))
+    db.execute(grupo_integrantes.insert().values(grupo_id=str(grupo.id), user_id=str(apr4.id), rol_en_grupo='Aprendiz'))
 
     db.commit()
     print("✨ ¡Escenarios de prueba SENNOVA CGAO creados exitosamente!")

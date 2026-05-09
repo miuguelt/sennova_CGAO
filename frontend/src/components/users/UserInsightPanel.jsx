@@ -37,6 +37,10 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
   const [availableItems, setAvailableItems] = useState([]);
   const [linking, setLinking] = useState(false);
 
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetting, setResetting] = useState(false);
+
   const loadStats = async () => {
     if (!user?.id) return;
     setLoading(true);
@@ -58,11 +62,29 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
       await UsuariosAPI.update(user.id, editData);
       onNotify?.('Datos actualizados correctamente', 'success');
       setEditMode(false);
-      // Recargar datos si es necesario (el padre debería refrescar si el objeto user cambió)
     } catch (err) {
       onNotify?.('Error al actualizar: ' + err.message, 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (newPassword.length < 6) {
+      onNotify?.('La contraseña debe tener al menos 6 caracteres', 'error');
+      return;
+    }
+    setResetting(true);
+    try {
+      const { UsuariosAPI } = await import('../../api/usuarios');
+      await UsuariosAPI.resetPassword(user.id, newPassword);
+      onNotify?.('Contraseña reseteada exitosamente', 'success');
+      setShowResetModal(false);
+      setNewPassword('');
+    } catch (err) {
+      onNotify?.('Error al resetear contraseña: ' + err.message, 'error');
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -72,6 +94,8 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
       setEditData({ ...user });
       setActiveTab('overview');
       setConfirmDeleteId(null);
+      setShowResetModal(false);
+      setNewPassword('');
     }
   }, [isOpen, user?.id]);
 
@@ -333,12 +357,50 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
     );
   };
 
+  const ResetModal = () => {
+    if (!showResetModal) return null;
+    return (
+      <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowResetModal(false)} />
+        <Card variant="elevated" className="w-full max-w-sm animate-scaleIn relative z-[310] overflow-hidden">
+          <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="font-black text-slate-900 uppercase text-sm tracking-widest flex items-center gap-2">
+              <Key size={16} className="text-amber-500" /> Resetear Contraseña
+            </h3>
+            <button onClick={() => setShowResetModal(false)}><X size={18} className="text-slate-400" /></button>
+          </div>
+          <div className="p-6 space-y-4">
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              Esta acción establecerá una nueva contraseña temporal para <strong>{user.nombre}</strong>. El usuario podrá cambiarla después desde su perfil.
+            </p>
+            <Input 
+              label="Nueva Contraseña" 
+              type="password" 
+              value={newPassword} 
+              onChange={e => setNewPassword(e.target.value)} 
+              placeholder="Mínimo 6 caracteres"
+              autoFocus
+            />
+          </div>
+          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <Button variant="outline" size="sm" onClick={() => setShowResetModal(false)}>Cancelar</Button>
+            <Button variant="sena" size="sm" onClick={handleResetPassword} disabled={resetting}>
+              {resetting ? <Loader2 size={14} className="animate-spin mr-2" /> : <Shield size={14} className="mr-2" />}
+              Confirmar Reset
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-[200] overflow-hidden print:static print:block print:overflow-visible">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity print:hidden" onClick={onClose} />
       
       <NestedDetailModal />
       <LinkModal />
+      <ResetModal />
 
       <div className="absolute inset-y-0 right-0 max-w-full flex pl-10 print:static print:block print:w-full print:pl-0">
         <div className="w-screen max-w-3xl bg-white shadow-2xl flex flex-col transform transition-transform duration-500 print:w-full print:max-w-none print:shadow-none print:transform-none print:static">
@@ -353,8 +415,8 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" title="Enviar Mensaje"><MessageSquare size={16} /></Button>
-                <Button variant="outline" size="sm" title="Cambiar Clave"><Key size={16} /></Button>
+                <Button variant="outline" size="sm" title="Enviar Mensaje" onClick={() => onNotify?.(`Funcionalidad de mensajería para ${user.email} en desarrollo`, 'info')}><MessageSquare size={16} /></Button>
+                <Button variant="outline" size="sm" title="Cambiar Clave" onClick={() => setShowResetModal(true)}><Key size={16} /></Button>
                 <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full ml-2"><X size={24} className="text-slate-400" /></button>
               </div>
             </div>
