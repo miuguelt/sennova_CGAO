@@ -96,38 +96,61 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
     {
       label: 'Gestión',
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-        { id: 'perfil',    label: 'Mi Perfil',  icon: User },
-        { id: 'reportes',  label: 'Reportes',   icon: FileText },
+        { id: 'dashboard', label: 'Dashboard',   icon: BarChart3 },
+        { id: 'perfil',    label: 'Mi Perfil',   icon: User },
+        { id: 'reportes',  label: 'Reportes',    icon: FileText },
       ]
     },
     {
       label: 'Investigación',
       items: [
-        { id: 'proyectos',     label: 'Proyectos',     icon: FolderOpen },
-        { id: 'bitacora',      label: 'Bitácora',      icon: Book },
-        { id: 'cronograma',    label: 'Cronograma',    icon: Calendar },
-        { id: 'productos',     label: 'Productos',     icon: Award },
+        { id: 'proyectos',     label: 'Proyectos',      icon: FolderOpen },
+        { id: 'bitacora',      label: 'Bitácora',       icon: Book },
+        { id: 'cronograma',    label: 'Cronograma',     icon: Calendar },
+        { id: 'productos',     label: 'Productos',      icon: Award },
         { id: 'retos',         label: 'Banco de Retos', icon: Lightbulb },
-        { id: 'convocatorias', label: 'Convocatorias', icon: Calendar },
+        { id: 'convocatorias', label: 'Convocatorias',  icon: Calendar },
       ]
     },
     {
-      label: 'Estructuras',
+      label: 'Grupo CGAO',
       items: [
-        { id: 'grupos',         label: 'Grupos',        icon: Layers },
+        { id: 'grupos',         label: 'Grupo CGAO',    icon: Layers },
         { id: 'semilleros',     label: 'Semilleros',    icon: GraduationCap },
         { id: 'investigadores', label: 'Investigadores', icon: Users },
-        { id: 'aprendices',     label: 'Aprendices',     icon: GraduationCap },
+        { id: 'aprendices',     label: 'Aprendices',    icon: GraduationCap },
       ]
     },
     {
       label: 'Sistema',
       items: [
-        { id: 'cvlac-admin',   label: 'Control CVLAC', icon: FileText },
-        { id: 'auditoria',     label: 'Auditoría Completa', icon: Shield },
-        { id: 'biblioteca',    label: 'Biblioteca',    icon: Layers },
-        { id: 'configuracion', label: 'Configuración', icon: Settings },
+        { id: 'cvlac-admin',   label: 'Control CvLAC',  icon: FileText },
+        { id: 'repositorio',   label: 'Repositorio',    icon: Book },
+        { id: 'auditoria',     label: 'Auditoría',      icon: Shield },
+        { id: 'configuracion', label: 'Configuración',  icon: Settings },
+      ]
+    }
+  ] : currentUser?.rol === 'aprendiz' ? [
+    {
+      label: 'Mi Espacio',
+      items: [
+        { id: 'dashboard', label: 'Mi Tablero', icon: BarChart3 },
+        { id: 'perfil',    label: 'Mi Perfil',  icon: User },
+      ]
+    },
+    {
+      label: 'Investigación',
+      items: [
+        { id: 'bitacora',      label: 'Mis Bitácoras', icon: Book },
+        { id: 'cronograma',    label: 'Mis Tareas',    icon: Calendar },
+        { id: 'retos',         label: 'Explorar Retos', icon: Lightbulb },
+      ]
+    },
+    {
+      label: 'Formación',
+      items: [
+        { id: 'semilleros',  label: 'Semilleros',   icon: GraduationCap },
+        { id: 'repositorio', label: 'Repositorio',  icon: Book },
       ]
     }
   ] : [
@@ -141,9 +164,17 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
     {
       label: 'Investigación',
       items: [
-        { id: 'mis-proyectos', label: 'Mis Proyectos', icon: FolderOpen },
-        { id: 'mis-productos', label: 'Mis Productos', icon: Award },
+        { id: 'proyectos',     label: 'Proyectos',     icon: FolderOpen },
+        { id: 'productos',     label: 'Productos',     icon: Award },
+        { id: 'bitacora',      label: 'Bitácora',      icon: Book },
         { id: 'retos',         label: 'Banco de Retos', icon: Lightbulb },
+      ]
+    },
+    {
+      label: 'Red',
+      items: [
+        { id: 'investigadores', label: 'Colegas',      icon: Users },
+        { id: 'aprendices',     label: 'Mis Aprendices', icon: GraduationCap },
       ]
     }
   ];

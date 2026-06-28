@@ -419,5 +419,178 @@ export const PDFGenerator = {
     doc.text(doc.splitTextToSize(glosario_seguridad, 170), 20, 40);
 
     doc.save(`Bitacora_Oficial_${proyecto.codigo || 'Proyecto'}.pdf`);
+  },
+
+  /**
+   * Genera el Formato de Etapa Productiva (Documento inicial)
+   */
+  generateEtapaProductiva: (proyecto) => {
+    const doc = new jsPDF();
+    
+    // Encabezado
+    doc.setFillColor(16, 185, 129); // SENA Green
+    doc.rect(0, 0, 210, 45, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.text('FORMATO ETAPA PRODUCTIVA', 105, 20, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE', 105, 30, { align: 'center' });
+    doc.text('SISTEMA DE INVESTIGACIÓN, INNOVACIÓN Y DESARROLLO TECNOLÓGICO', 105, 35, { align: 'center' });
+
+    // Info del Proyecto
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(14);
+    doc.text('DATOS GENERALES DEL PROYECTO', 20, 60);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(20, 62, 190, 62);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Nombre:', 20, 75);
+    doc.setFont('helvetica', 'normal');
+    doc.text(doc.splitTextToSize(proyecto.nombre || 'Sin definir', 150), 40, 75);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('Código SGPS:', 20, 95);
+    doc.setFont('helvetica', 'normal');
+    doc.text(proyecto.codigo_sgps || 'N/A', 50, 95);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Tipología:', 20, 105);
+    doc.setFont('helvetica', 'normal');
+    doc.text(proyecto.tipologia || 'N/A', 40, 105);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Vigencia:', 20, 115);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${proyecto.vigencia || 12} meses`, 45, 115);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Presupuesto Total:', 20, 125);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`$${(proyecto.presupuesto_total || 0).toLocaleString('es-CO')} COP`, 60, 125);
+
+    // Integrantes
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('EQUIPO DE TRABAJO', 20, 145);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(20, 147, 190, 147);
+
+    const equipo = proyecto.equipo || [];
+    doc.autoTable({
+      startY: 155,
+      head: [['Nombre', 'Rol', 'Horas Asignadas']],
+      body: equipo.map(m => [
+        m.nombre, 
+        m.pivot?.rol_en_proyecto || 'Investigador',
+        m.pivot?.horas_dedicadas || '20'
+      ]),
+      headStyles: { fillColor: [16, 185, 129] },
+      styles: { fontSize: 9 }
+    });
+
+    doc.save(`Formato_Etapa_Productiva_${proyecto.codigo_sgps || 'Proyecto'}.pdf`);
+  },
+
+  /**
+   * Genera el Formato de Seguimiento de Proyecto
+   */
+  generateSeguimiento: (proyecto) => {
+    const doc = new jsPDF();
+    
+    // Encabezado
+    doc.setFillColor(30, 64, 175); // Blue 800
+    doc.rect(0, 0, 210, 45, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.text('FORMATO DE SEGUIMIENTO TÉCNICO', 105, 20, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text('SISTEMA DE INVESTIGACIÓN, INNOVACIÓN Y DESARROLLO TECNOLÓGICO', 105, 30, { align: 'center' });
+
+    // Info
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(12);
+    doc.text(`Proyecto: ${proyecto.nombre_corto || proyecto.codigo_sgps}`, 20, 60);
+    doc.text(`Fecha de Seguimiento: ${new Date().toLocaleDateString()}`, 20, 68);
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('HITOS Y ENTREGABLES PROGRAMADOS', 20, 85);
+    
+    const entregables = proyecto.entregables || [];
+    doc.autoTable({
+      startY: 90,
+      head: [['Fase', 'Título', 'Fecha Límite', 'Estado']],
+      body: entregables.map(e => [
+        e.fase, 
+        e.titulo, 
+        new Date(e.fecha_entrega).toLocaleDateString(),
+        e.estado.toUpperCase()
+      ]),
+      headStyles: { fillColor: [30, 64, 175] },
+      styles: { fontSize: 9 }
+    });
+
+    const finalY = doc.lastAutoTable.finalY || 100;
+    doc.setFont('helvetica', 'bold');
+    doc.text('OBSERVACIONES DE SEGUIMIENTO', 20, finalY + 15);
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(20, finalY + 20, 170, 40);
+
+    doc.save(`Formato_Seguimiento_${proyecto.codigo_sgps || 'Proyecto'}.pdf`);
+  },
+
+  /**
+   * Genera el Informe Final del Proyecto
+   */
+  generateInformeFinal: (proyecto) => {
+    const doc = new jsPDF();
+    
+    // Encabezado
+    doc.setFillColor(15, 23, 42); // Slate 900
+    doc.rect(0, 0, 210, 45, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.text('INFORME FINAL DE PROYECTO SENNOVA', 105, 20, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE', 105, 30, { align: 'center' });
+
+    // Info
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(12);
+    doc.text(`Proyecto: ${proyecto.nombre}`, 20, 60);
+    doc.text(`Código SGPS: ${proyecto.codigo_sgps}`, 20, 68);
+    doc.text(`Estado de Cierre: FINALIZADO`, 20, 76);
+
+    // Productos Alcanzados
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMEN DE RESULTADOS', 20, 95);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(20, 97, 190, 97);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total Productos Generados: ${proyecto.total_productos || 0}`, 20, 105);
+    doc.text(`Presupuesto Total Ejecutado: $${(proyecto.presupuesto_total || 0).toLocaleString('es-CO')}`, 20, 112);
+
+    const entregables = proyecto.entregables || [];
+    const aprobados = entregables.filter(e => e.estado === 'aprobado').length;
+    doc.text(`Entregables Aprobados: ${aprobados} de ${entregables.length}`, 20, 119);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('FIRMAS DE CIERRE', 20, 150);
+    doc.setDrawColor(200, 200, 200);
+    doc.line(30, 180, 80, 180);
+    doc.line(130, 180, 180, 180);
+    doc.setFontSize(9);
+    doc.text('INVESTIGADOR PRINCIPAL', 55, 185, { align: 'center' });
+    doc.text('SUBDIRECTOR DE CENTRO', 155, 185, { align: 'center' });
+
+    doc.save(`Informe_Final_${proyecto.codigo_sgps || 'Proyecto'}.pdf`);
   }
 };

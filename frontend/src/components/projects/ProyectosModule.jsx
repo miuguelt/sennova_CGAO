@@ -11,7 +11,7 @@ import {
   Bar, XAxis, YAxis, CartesianGrid 
 } from 'recharts';
 import { ProyectosAPI } from '../../api/proyectos';
-import { UsersAPI } from '../../api/auth';
+import { UsuariosAPI as UsersAPI } from '../../api/usuarios';
 import { SemillerosAPI } from '../../api/semilleros';
 import { RetosAPI } from '../../api/retos';
 import { ConvocatoriasAPI } from '../../api/convocatorias';
@@ -103,7 +103,7 @@ const ProjectTimeline = ({ entregables = [] }) => {
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const STATES = ['Formulación', 'Aprobado', 'En ejecución', 'Finalizado'];
+const STATES = ['Aprobado', 'En ejecución', 'Finalizado'];
 
 const RUBROS = [
   { id: 'personal', label: 'Talento Humano', icon: Users, color: 'text-emerald-600' },
@@ -126,6 +126,9 @@ const EMPTY_FORM = {
   linea_investigacion: '', descripcion: '',
   linea_programatica: '', reto_origen_id: null,
   convocatoria_id: null,
+  año: new Date().getFullYear(),
+  año_fin: new Date().getFullYear(),
+  continua_siguiente_año: false,
   objetivos_especificos: [],
   presupuesto_detallado: { personal: 0, materiales: 0, viaticos: 0, servicios: 0, equipos: 0 }
 };
@@ -153,9 +156,9 @@ const Skeleton = () => (
 );
 
 // ─── Kanban card ──────────────────────────────────────────────────────────────
-const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick, onEdit, onDelete, onClickMenu, isMenuOpen, menuRef }) => (
+const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick, onEdit, onDelete, onClickMenu, isMenuOpen, menuRef, canEdit }) => (
   <Card
-    draggable
+    draggable={canEdit}
     onDragStart={onDragStart}
     onDragEnd={onDragEnd}
     onClick={onClick}
@@ -194,24 +197,28 @@ const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick,
             <div className="px-3 py-2 mb-1 border-b border-slate-50">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones</p>
             </div>
-            <button
-              onClick={(e) => { e.stopPropagation(); onEdit(p); }}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all group/item"
-            >
-              <div className="p-1.5 bg-slate-100 rounded-lg group-hover/item:bg-emerald-100 group-hover/item:text-emerald-600 transition-colors">
-                <Edit2 size={14} />
-              </div>
-              Editar Proyecto
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(p.id); }}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-rose-500 hover:bg-rose-50 transition-all group/item"
-            >
-              <div className="p-1.5 bg-slate-100 rounded-lg group-hover/item:bg-rose-100 group-hover/item:text-rose-600 transition-colors">
-                <Trash2 size={14} />
-              </div>
-              Eliminar Proyecto
-            </button>
+            {canEdit && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onEdit(p); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all group/item"
+                >
+                  <div className="p-1.5 bg-slate-100 rounded-lg group-hover/item:bg-emerald-100 group-hover/item:text-emerald-600 transition-colors">
+                    <Edit2 size={14} />
+                  </div>
+                  Editar Proyecto
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(p.id); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-rose-500 hover:bg-rose-50 transition-all group/item"
+                >
+                  <div className="p-1.5 bg-slate-100 rounded-lg group-hover/item:bg-rose-100 group-hover/item:text-rose-600 transition-colors">
+                    <Trash2 size={14} />
+                  </div>
+                  Eliminar Proyecto
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -271,6 +278,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [draggingId,       setDraggingId]       = useState(null);
   const [searchTerm,       setSearchTerm]       = useState('');
   const [statusFilter,     setStatusFilter]     = useState('');
+  const [selectedYear,     setSelectedYear]     = useState(new Date().getFullYear());
   const [formData,         setFormData]         = useState(EMPTY_FORM);
   const [activeTab,        setActiveTab]        = useState('summary');
   const [menuOpenId,       setMenuOpenId]       = useState(null);
@@ -283,7 +291,10 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [linkingHours,     setLinkingHours]     = useState(20);
   const [formTab,           setFormTab]          = useState('basic'); // 'basic', 'tech', 'budget'
   const [dragOverProjectId, setDragOverProjectId] = useState(null);
+  const [generatingFormatId, setGeneratingFormatId] = useState(null);
   const menuRef = React.useRef(null);
+
+  const isOwnerOrAdmin = (project) => currentUser?.rol === 'admin' || project?.owner_id === currentUser?.id;
 
   useClickOutside(menuRef, () => setMenuOpenId(null));
 
@@ -378,6 +389,9 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       reto_origen_id: proyecto.reto_origen_id || '',
       semillero_id: proyecto.semillero_id || '',
       convocatoria_id: proyecto.convocatoria_id || '',
+      año: proyecto.año || new Date().getFullYear(),
+      año_fin: proyecto.año_fin || new Date().getFullYear(),
+      continua_siguiente_año: proyecto.continua_siguiente_año || false,
       presupuesto_detallado: proyecto.presupuesto_detallado || { personal: 0, materiales: 0, viaticos: 0, servicios: 0, equipos: 0 }
     });
     setIsEditing(true);
@@ -405,6 +419,9 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
         semillero_id: (formData.semillero_id && formData.semillero_id !== '') ? formData.semillero_id : null,
         convocatoria_id: (formData.convocatoria_id && formData.convocatoria_id !== '') ? formData.convocatoria_id : null,
         vigencia: parseInt(formData.vigencia) || 12,
+        año: parseInt(formData.año) || new Date().getFullYear(),
+        año_fin: parseInt(formData.año_fin) || new Date().getFullYear(),
+        continua_siguiente_año: Boolean(formData.continua_siguiente_año),
         presupuesto_total: parseFloat(formData.presupuesto_total) || 0,
         objetivos_especificos: Array.isArray(formData.objetivos_especificos) ? formData.objetivos_especificos : []
       };
@@ -524,6 +541,39 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     }
   };
 
+  const handleGenerateFormat = async (formatId) => {
+    if (!selectedProyecto) return;
+    setGeneratingFormatId(formatId);
+    try {
+      switch (formatId) {
+        case 'etapa_productiva':
+          PDFGenerator.generateEtapaProductiva(selectedProyecto);
+          onNotify?.('Formato Etapa Productiva generado exitosamente', 'success');
+          break;
+        case 'seguimiento':
+          PDFGenerator.generateSeguimiento(selectedProyecto);
+          onNotify?.('Formato de Seguimiento generado exitosamente', 'success');
+          break;
+        case 'informe_final':
+          PDFGenerator.generateInformeFinal(selectedProyecto);
+          onNotify?.('Informe Final generado exitosamente', 'success');
+          break;
+        case 'bitacora':
+          const bitacoraData = await PlantillasAPI.getBitacoraOficial(selectedProyecto.id);
+          PDFGenerator.generateBitacoraReport(bitacoraData);
+          onNotify?.('Bitácora Oficial generada exitosamente', 'success');
+          break;
+        default:
+          onNotify?.('Formato no soportado', 'error');
+      }
+    } catch (err) {
+      onNotify?.('Error al generar el formato: ' + err.message, 'error');
+    } finally {
+      setGeneratingFormatId(null);
+    }
+  };
+
+
 
   const handleOpenLiquidation = async () => {
     if (!selectedProyecto) return;
@@ -614,8 +664,13 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     const haySearch = !searchTerm || (p.nombre + (p.nombre_corto ?? '') + (p.codigo_sgps ?? ''))
       .toLowerCase().includes(searchTerm.toLowerCase());
     const hayStatus = !statusFilter || p.estado === statusFilter;
-    return haySearch && hayStatus;
+    const hayAño = p.año === selectedYear;
+    return haySearch && hayStatus && hayAño;
   });
+
+  const availableYears = [...new Set(proyectos.map(p => p.año).filter(Boolean)), new Date().getFullYear()].sort((a, b) => b - a);
+  // Eliminar duplicados si el año actual ya existía
+  const uniqueYears = [...new Set(availableYears)];
 
   const byState = (state) => filtered.filter(p => p.estado === state);
 
@@ -699,6 +754,24 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
         </div>
       )}
 
+      {/* ── Year Folders ── */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        {uniqueYears.map(year => (
+          <button
+            key={year}
+            onClick={() => setSelectedYear(year)}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-t-xl border-b-2 font-black text-xs uppercase tracking-widest transition-all ${
+              selectedYear === year 
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-500 shadow-sm' 
+                : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
+            }`}
+          >
+            <FolderOpen size={16} className={selectedYear === year ? 'text-emerald-500' : 'text-slate-400'} />
+            {year}
+          </button>
+        ))}
+      </div>
+
       {/* ── Filters ── */}
       <Card variant="ghost" className="p-2 md:p-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
@@ -775,6 +848,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                         onClickMenu={(id) => setMenuOpenId(menuOpenId === id ? null : id)}
                         isMenuOpen={menuOpenId === p.id}
                         menuRef={menuRef}
+                        canEdit={isOwnerOrAdmin(p)}
                       />
                       {dragOverProjectId === p.id && (
                         <div className="mt-2 px-3 py-1.5 bg-amber-600 text-white text-[9px] font-black uppercase tracking-widest text-center rounded-lg animate-pulse">
@@ -894,6 +968,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                     { id: 'summary', label: 'Resumen', icon: FileText },
                     { id: 'team',    label: 'Equipo',  icon: Users },
                     { id: 'timeline', label: 'Línea de Tiempo', icon: Clock3 },
+                    { id: 'formats',  label: 'Formatos', icon: FileText },
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -1036,14 +1111,16 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                       <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                         <Users size={12} /> Equipo de Investigación
                       </h3>
-                      <Button 
-                        variant={isPoolVisible ? 'secondary' : 'outline'} 
-                        size="sm" 
-                        className="h-8 text-[10px] font-black uppercase tracking-widest"
-                        onClick={() => setIsPoolVisible(!isPoolVisible)}
-                      >
-                        {isPoolVisible ? 'Cerrar Directorio' : 'Vincular Talento'}
-                      </Button>
+                      {isOwnerOrAdmin(selectedProyecto) && (
+                        <Button 
+                          variant={isPoolVisible ? 'secondary' : 'outline'} 
+                          size="sm" 
+                          className="h-8 text-[10px] font-black uppercase tracking-widest"
+                          onClick={() => setIsPoolVisible(!isPoolVisible)}
+                        >
+                          {isPoolVisible ? 'Cerrar Directorio' : 'Vincular Talento'}
+                        </Button>
+                      )}
                     </div>
 
                     <div className="relative">
@@ -1196,13 +1273,15 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                                 </div>
                               </div>
                             </div>
-                            <button 
-                              onClick={() => handleRemoveMember(m.id)}
-                              className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                              title="Remover del equipo"
-                            >
-                              <X size={16} />
-                            </button>
+                            {isOwnerOrAdmin(selectedProyecto) && (
+                              <button 
+                                onClick={() => handleRemoveMember(m.id)}
+                                className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                                title="Remover del equipo"
+                              >
+                                <X size={16} />
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1222,15 +1301,17 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                       <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
                         Genera certificados automáticos para los integrantes del equipo que hayan cumplido con sus entregables.
                       </p>
-                      <Button 
-                        variant="sena" 
-                        size="sm" 
-                        className="w-full h-10 text-[10px] font-black uppercase tracking-widest mt-2"
-                        onClick={handleOpenLiquidation}
-                        disabled={selectedProyecto.estado === 'Finalizado'}
-                      >
-                        {selectedProyecto.estado === 'Finalizado' ? 'Proyecto Liquidado' : 'Liquidar Proyecto'}
-                      </Button>
+                      {isOwnerOrAdmin(selectedProyecto) && (
+                        <Button 
+                          variant="sena" 
+                          size="sm" 
+                          className="w-full h-10 text-[10px] font-black uppercase tracking-widest mt-2"
+                          onClick={handleOpenLiquidation}
+                          disabled={selectedProyecto.estado === 'Finalizado'}
+                        >
+                          {selectedProyecto.estado === 'Finalizado' ? 'Proyecto Liquidado' : 'Liquidar Proyecto'}
+                        </Button>
+                      )}
                     </Card>
 
                     {/* Summary Tab Content */}
@@ -1284,6 +1365,49 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                       <Clock3 size={12} /> Progreso de Hitos SENNOVA
                     </h3>
                     <ProjectTimeline entregables={selectedProyecto.entregables || []} />
+                  </div>
+                )}
+
+                {activeTab === 'formats' && (
+                  <div className="space-y-6 animate-fadeIn">
+                    <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
+                      <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <FileText size={14} className="text-slate-400" />
+                        Formatos y Seguimiento
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {[
+                          { id: 'etapa_productiva', label: 'Formato Etapa Productiva', desc: 'Documento inicial de etapa productiva', icon: FileText },
+                          { id: 'bitacora', label: 'Bitácora de Proyecto', desc: 'Registro de actividades y novedades', icon: Clock3 },
+                          { id: 'seguimiento', label: 'Formato de Seguimiento', desc: 'Reporte periódico de avances', icon: Target },
+                          { id: 'informe_final', label: 'Informe Final', desc: 'Documento de cierre y resultados', icon: CheckCircle2 }
+                        ].map(formato => (
+                          <div key={formato.id} className="p-4 bg-white border border-slate-200 rounded-xl hover:border-emerald-300 hover:shadow-md transition-all group flex items-start justify-between cursor-pointer">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <formato.icon size={14} className="text-emerald-500" />
+                                <p className="text-xs font-bold text-slate-800">{formato.label}</p>
+                              </div>
+                              <p className="text-[10px] text-slate-500 mt-1">{formato.desc}</p>
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => handleGenerateFormat(formato.id)}
+                              disabled={generatingFormatId === formato.id}
+                            >
+                              {generatingFormatId === formato.id ? (
+                                <><Loader2 size={12} className="animate-spin mr-1" /> Generando</>
+                              ) : 'Generar'}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase mt-4 italic text-center">
+                        * Los formatos se autocompletan con la información del proyecto y los investigadores.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1375,17 +1499,55 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                             className="bg-emerald-50/30 border-emerald-100"
                           />
                         </div>
-                        <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1.5">
-                          <Clock size={12} className="text-blue-500" /> Vigencia (Meses)
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.vigencia}
-                          onChange={patch('vigencia')}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
-                        />
-                      </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:col-span-2">
+                          <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1.5">
+                              <Calendar size={12} className="text-emerald-500" /> Año Inicio
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.año}
+                              onChange={patch('año')}
+                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1.5">
+                              <Calendar size={12} className="text-slate-500" /> Año Fin
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.año_fin}
+                              onChange={patch('año_fin')}
+                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1.5">
+                              <Clock size={12} className="text-blue-500" /> Vigencia (Meses)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.vigencia}
+                              onChange={patch('vigencia')}
+                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
+                            />
+                          </div>
+                        </div>
+                        <div className="md:col-span-2 mt-2">
+                          <label className="flex items-center gap-3 cursor-pointer p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={formData.continua_siguiente_año}
+                              onChange={(e) => patch('continua_siguiente_año')(e.target.checked)}
+                              className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <div>
+                              <span className="text-sm font-bold text-slate-800">Continúa el siguiente año</span>
+                              <p className="text-[10px] text-slate-500 mt-0.5">El proyecto es multianual y se mantendrá en ejecución durante el próximo período lectivo.</p>
+                            </div>
+                          </label>
+                        </div>
                       <div className="md:col-span-2">
                           <Select 
                             label="Convocatoria SENNOVA" 

@@ -47,16 +47,20 @@ export const getHeaders = () => {
 const normalizePath = (value) => `/${String(value || '').replace(/^\/+/, '')}`;
 
 const buildApiUrl = (endpoint) => {
-  // Si es una URL absoluta, retornar tal cual
   if (/^https?:\/\//i.test(endpoint)) return endpoint;
-  
+
   const base = (API_URL || '/api').replace(/\/+$/, '');
   const path = String(endpoint || '').replace(/^\/+/, '');
-  
-  // Si el path ya contiene el base (ej: /api/usuarios), no duplicarlo
-  const baseRelative = base.startsWith('/') ? base : new URL(base, window.location.origin).pathname;
-  if (path.startsWith(baseRelative.replace(/^\/+/, ''))) {
-      return `${window.location.origin}/${path}`;
+
+  // Si el base es URL absoluta, usarla directamente
+  if (/^https?:\/\//i.test(base)) {
+    return `${base}/${path}`;
+  }
+
+  // Si el path ya contiene el base relativo (ej: /api/usuarios), no duplicarlo
+  const baseClean = base.replace(/^\/+/, '');
+  if (baseClean && path.startsWith(baseClean)) {
+    return `${window.location.origin}/${path}`;
   }
 
   return `${base}/${path}`;

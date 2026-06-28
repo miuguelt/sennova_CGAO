@@ -105,6 +105,13 @@ class GrupoBase(BaseModel):
     lineas_investigacion: Optional[List[str]] = None
     is_publico: bool = True
     estado: str = "activo"
+    # Campos CGAO
+    director_nombre: Optional[str] = None
+    director_email: Optional[str] = None
+    descripcion_grupo: Optional[str] = None
+    mision: Optional[str] = None
+    vision: Optional[str] = None
+    convocatoria_activa: Optional[str] = None
 
 
 class GrupoCreate(GrupoBase):
@@ -120,6 +127,12 @@ class GrupoUpdate(BaseModel):
     lineas_investigacion: Optional[List[str]] = None
     is_publico: Optional[bool] = None
     estado: Optional[str] = None
+    director_nombre: Optional[str] = None
+    director_email: Optional[str] = None
+    descripcion_grupo: Optional[str] = None
+    mision: Optional[str] = None
+    vision: Optional[str] = None
+    convocatoria_activa: Optional[str] = None
 
 
 class IntegranteInfo(BaseModel):
@@ -196,6 +209,9 @@ class AprendizResponse(BaseModel):
 
 class SemilleroBase(BaseModel):
     nombre: str
+    sigla: Optional[str] = None               # Sigla del semillero (SEMIPROVEL, SIAMB...)
+    descripcion: Optional[str] = None         # Descripción del semillero
+    lider_nombre: Optional[str] = None        # Nombre del líder/tutor
     linea_investigacion: Optional[str] = None
     plan_accion: Optional[str] = None
     horas_dedicadas: Optional[int] = None
@@ -208,6 +224,9 @@ class SemilleroCreate(SemilleroBase):
 
 class SemilleroUpdate(BaseModel):
     nombre: Optional[str] = None
+    sigla: Optional[str] = None
+    descripcion: Optional[str] = None
+    lider_nombre: Optional[str] = None
     linea_investigacion: Optional[str] = None
     plan_accion: Optional[str] = None
     horas_dedicadas: Optional[int] = None
@@ -246,6 +265,7 @@ class ConvocatoriaBase(BaseModel):
     fecha_cierre: Optional[date] = None
     estado: str = "abierta"  # abierta, cerrada, en_evaluacion, resultados_publicados
     descripcion: Optional[str] = None
+    fuente: str = "SENNOVA"  # SENNOVA, Minciencias, Capacidad_Instalada, Otra
 
 
 class ConvocatoriaCreate(ConvocatoriaBase):
@@ -260,6 +280,7 @@ class ConvocatoriaUpdate(BaseModel):
     fecha_cierre: Optional[date] = None
     estado: Optional[str] = None
     descripcion: Optional[str] = None
+    fuente: Optional[str] = None
 
 
 class ConvocatoriaResponse(ConvocatoriaBase):
@@ -286,7 +307,7 @@ class ProyectoBase(BaseModel):
     codigo_sgps: Optional[str] = None
     nombre: str
     nombre_corto: Optional[str] = None
-    estado: str = "Formulación"  # Formulación, Enviado, Aprobado, En ejecución, Finalizado, Rechazado
+    estado: str = "Aprobado"  # Aprobado, En ejecución, Finalizado
     vigencia: Optional[int] = None
     presupuesto_total: Optional[float] = None
     tipologia: Optional[str] = None
@@ -300,6 +321,10 @@ class ProyectoBase(BaseModel):
     linea_programatica: Optional[str] = None
     reto_origen_id: Optional[UUID] = None
     semillero_id: Optional[UUID] = None
+    # Campos temporales
+    año: Optional[int] = None              # Año de inicio
+    año_fin: Optional[int] = None          # Año de finalización
+    continua_siguiente_año: bool = False   # Proyecto multi-año
 
 
 class ProyectoCreate(ProyectoBase):
@@ -326,6 +351,9 @@ class ProyectoUpdate(BaseModel):
     linea_programatica: Optional[str] = None
     reto_origen_id: Optional[UUID] = None
     semillero_id: Optional[UUID] = None
+    año: Optional[int] = None
+    año_fin: Optional[int] = None
+    continua_siguiente_año: Optional[bool] = None
 
 
 class EquipoMiembroInfo(BaseModel):
@@ -358,12 +386,16 @@ class ProyectoResponse(ProyectoBase):
 # ==========================================
 
 class ProductoBase(BaseModel):
-    tipo: str  # software, articulo, capitulo_libro, patente, ponencia, video, prototipo
+    # Tipología Minciencias: A1-A7, B1-B6, C1-C6, D1-D4
+    tipo: str   # Código Minciencias (A1, B1, C2, D2, etc.)
+    categoria: Optional[str] = None   # A, B, C, D
     nombre: str
     descripcion: Optional[str] = None
     fecha_publicacion: Optional[date] = None
     doi: Optional[str] = None
     url: Optional[str] = None
+    año_reporte: Optional[int] = None  # Año convocatoria en que se reporta
+    requisitos_cumplidos: Optional[dict] = None  # Checklist de requisitos Minciencias
 
 
 class ProductoCreate(ProductoBase):
@@ -372,12 +404,15 @@ class ProductoCreate(ProductoBase):
 
 class ProductoUpdate(BaseModel):
     tipo: Optional[str] = None
+    categoria: Optional[str] = None
     nombre: Optional[str] = None
     descripcion: Optional[str] = None
     fecha_publicacion: Optional[date] = None
     doi: Optional[str] = None
     url: Optional[str] = None
     proyecto_id: Optional[UUID] = None
+    año_reporte: Optional[int] = None
+    requisitos_cumplidos: Optional[dict] = None
 
 
 class ProductoVerificar(BaseModel):
@@ -541,6 +576,9 @@ class NotificacionListResponse(BaseModel):
     id: UUID
     tipo: str
     titulo: str
+    mensaje: str
+    entidad_tipo: Optional[str] = None
+    entidad_id: Optional[UUID] = None
     leida: bool
     prioridad: str
     created_at: datetime

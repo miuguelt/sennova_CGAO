@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
@@ -24,11 +25,11 @@ def listar_bitacora(
 ):
     """Obtiene todas las entradas de bitácora de un proyecto específico."""
     try:
-        proyecto = db.query(Proyecto).filter(Proyecto.id == proyecto_id).first()
+        proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
         if not proyecto:
             raise HTTPException(status_code=404, detail=f"Proyecto con ID {proyecto_id} no encontrado")
         
-        entries = db.query(BitacoraEntry).filter(BitacoraEntry.proyecto_id == proyecto_id).order_by(BitacoraEntry.fecha.desc()).all()
+        entries = db.query(BitacoraEntry).filter(BitacoraEntry.proyecto_id == str(proyecto_id)).order_by(BitacoraEntry.fecha.desc()).all()
         
         # Enriquecer las entradas con el nombre del usuario de forma segura
         for entry in entries:
@@ -42,12 +43,11 @@ def listar_bitacora(
                 entry.user_nombre = "Error de carga"
             
         return entries
+    except sa.exc.OperationalError as db_err:
+        raise db_err
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        print(f"❌ Error crítico en listar_bitacora: {str(e)}")
-        traceback.print_exc()
         raise HTTPException(
             status_code=500, 
             detail=f"Error interno al listar bitácora: {str(e)}"
@@ -60,35 +60,56 @@ def obtener_entrada(
     current_user: User = Depends(get_current_user)
 ):
     """Obtiene una entrada específica de bitácora."""
-    entry = db.query(BitacoraEntry).filter(BitacoraEntry.id == entry_id).first()
-    if not entry:
-        raise HTTPException(status_code=404, detail="Entrada no encontrada")
-    
-    entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
-    return entry
+    try:
+        entry = db.query(BitacoraEntry).filter(BitacoraEntry.id == str(entry_id)).first()
+        if not entry:
+            raise HTTPException(status_code=404, detail="Entrada no encontrada")
+        
+        entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
+        return entry
+    except sa.exc.OperationalError as db_err:
+        raise db_err
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/", response_model=BitacoraResponse)
+@router.post("", response_model=BitacoraResponse, status_code=201)
+@router.post("/", response_model=BitacoraResponse, status_code=201)
 def crear_entrada(
     entry_in: BitacoraCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Crea una nueva entrada en la bitácora técnica."""
-    proyecto = db.query(Proyecto).filter(Proyecto.id == entry_in.proyecto_id).first()
-    if not proyecto:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    try:
+        proyecto = db.query(Proyecto).filter(Proyecto.id == str(entry_in.proyecto_id)).first()
+        if not proyecto:
+            raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+            
+        payload = entry_in.dict()
+        payload["proyecto_id"] = str(entry_in.proyecto_id)
         
-    new_entry = BitacoraEntry(
-        **entry_in.dict(),
-        user_id=current_user.id
-    )
-    
-    db.add(new_entry)
-    db.commit()
-    db.refresh(new_entry)
-    
-    new_entry.user_nombre = current_user.nombre
-    return new_entry
+        new_entry = BitacoraEntry(
+            **payload,
+            user_id=current_user.id
+        )
+        
+        db.add(new_entry)
+        db.commit()
+        db.refresh(new_entry)
+        
+        new_entry.user_nombre = current_user.nombre
+        return new_entry
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/{entry_id}/sign", response_model=BitacoraResponse)
 def firmar_entrada(
@@ -99,51 +120,60 @@ def firmar_entrada(
     current_user: User = Depends(get_current_user)
 ):
     """Firma digitalmente una entrada de bitácora."""
-    entry = db.query(BitacoraEntry).filter(BitacoraEntry.id == entry_id).first()
-    if not entry:
-        raise HTTPException(status_code=404, detail="Entrada no encontrada")
+    try:
+        entry = db.query(BitacoraEntry).filter(BitacoraEntry.id == str(entry_id)).first()
+        if not entry:
+            raise HTTPException(status_code=404, detail="Entrada no encontrada")
 
-    # Determinar qué rol está firmando
-    # Investigador: Admin, Gestor, Instructor, Investigador
-    es_investigador = current_user.rol.lower() in ['admin', 'gestor', 'instructor', 'investigador']
-    es_aprendiz = current_user.rol.lower() == 'aprendiz'
+        # Determinar qué rol está firmando
+        es_investigador = current_user.rol in ['admin', 'investigador']
+        es_aprendiz = current_user.rol == 'aprendiz'
 
-    if not es_investigador and not es_aprendiz:
-        raise HTTPException(status_code=403, detail="Su rol no está autorizado para firmar bitácoras")
+        if not es_investigador and not es_aprendiz:
+            raise HTTPException(status_code=403, detail="Su rol no está autorizado para firmar bitácoras")
 
-    # Generar Hash de integridad del contenido
-    content_str = f"{entry.titulo}|{entry.contenido}|{entry.categoria}|{entry.proyecto_id}"
-    integrity_hash = hashlib.sha256(content_str.encode()).hexdigest()
+        # Generar Hash de integridad del contenido
+        content_str = f"{entry.titulo}|{entry.contenido}|{entry.categoria}|{entry.proyecto_id}"
+        integrity_hash = hashlib.sha256(content_str.encode()).hexdigest()
 
-    # Preparar evidencia
-    evidence = {
-        "user_id": str(current_user.id),
-        "user_email": current_user.email,
-        "ip": request.client.host,
-        "user_agent": request.headers.get("user-agent"),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "integrity_hash": integrity_hash
-    }
+        # Preparar evidencia
+        evidence = {
+            "user_id": str(current_user.id),
+            "user_email": current_user.email,
+            "ip": request.client.host,
+            "user_agent": request.headers.get("user-agent"),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "integrity_hash": integrity_hash
+        }
 
-    if es_investigador:
-        entry.is_firmado_investigador = True
-        entry.fecha_firma_investigador = datetime.now(timezone.utc)
-        meta = dict(entry.signature_metadata or {})
-        meta["investigador"] = evidence
-        entry.signature_metadata = meta
-        flag_modified(entry, "signature_metadata")
-    else:
-        entry.is_firmado_aprendiz = True
-        entry.fecha_firma_aprendiz = datetime.now(timezone.utc)
-        meta = dict(entry.signature_metadata or {})
-        meta["aprendiz"] = evidence
-        entry.signature_metadata = meta
-        flag_modified(entry, "signature_metadata")
+        if es_investigador:
+            entry.is_firmado_investigador = True
+            entry.fecha_firma_investigador = datetime.now(timezone.utc)
+            meta = dict(entry.signature_metadata or {})
+            meta["investigador"] = evidence
+            entry.signature_metadata = meta
+            flag_modified(entry, "signature_metadata")
+        else:
+            entry.is_firmado_aprendiz = True
+            entry.fecha_firma_aprendiz = datetime.now(timezone.utc)
+            meta = dict(entry.signature_metadata or {})
+            meta["aprendiz"] = evidence
+            entry.signature_metadata = meta
+            flag_modified(entry, "signature_metadata")
 
-    db.commit()
-    db.refresh(entry)
-    entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
-    return entry
+        db.commit()
+        db.refresh(entry)
+        entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
+        return entry
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/{entry_id}", response_model=BitacoraResponse)
 def actualizar_entrada(
@@ -153,24 +183,34 @@ def actualizar_entrada(
     current_user: User = Depends(get_current_user)
 ):
     """Actualiza una entrada existente (solo si no está firmada por ambos)."""
-    entry = db.query(BitacoraEntry).filter(BitacoraEntry.id == entry_id).first()
-    if not entry:
-        raise HTTPException(status_code=404, detail="Entrada no encontrada")
-    
-    if entry.is_firmado_investigador and entry.is_firmado_aprendiz:
-        raise HTTPException(status_code=400, detail="No se puede editar una bitácora con firmas completas")
+    try:
+        entry = db.query(BitacoraEntry).filter(BitacoraEntry.id == str(entry_id)).first()
+        if not entry:
+            raise HTTPException(status_code=404, detail="Entrada no encontrada")
+        
+        if entry.is_firmado_investigador and entry.is_firmado_aprendiz:
+            raise HTTPException(status_code=400, detail="No se puede editar una bitácora con firmas completas")
 
-    if entry.user_id != current_user.id and current_user.rol != 'admin':
-        raise HTTPException(status_code=403, detail="No tiene permisos para editar esta entrada")
-        
-    update_data = entry_in.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(entry, key, value)
-        
-    db.commit()
-    db.refresh(entry)
-    entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
-    return entry
+        if entry.user_id != current_user.id and current_user.rol != 'admin':
+            raise HTTPException(status_code=403, detail="No tiene permisos para editar esta entrada")
+            
+        update_data = entry_in.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(entry, key, value)
+            
+        db.commit()
+        db.refresh(entry)
+        entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
+        return entry
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{entry_id}")
 def eliminar_entrada(
@@ -179,19 +219,29 @@ def eliminar_entrada(
     current_user: User = Depends(get_current_user)
 ):
     """Elimina una entrada de bitácora."""
-    entry = db.query(BitacoraEntry).filter(BitacoraEntry.id == entry_id).first()
-    if not entry:
-        raise HTTPException(status_code=404, detail="Entrada no encontrada")
-        
-    if entry.is_firmado_investigador or entry.is_firmado_aprendiz:
-         raise HTTPException(status_code=400, detail="No se puede eliminar una bitácora firmada")
+    try:
+        entry = db.query(BitacoraEntry).filter(BitacoraEntry.id == str(entry_id)).first()
+        if not entry:
+            raise HTTPException(status_code=404, detail="Entrada no encontrada")
+            
+        if entry.is_firmado_investigador or entry.is_firmado_aprendiz:
+             raise HTTPException(status_code=400, detail="No se puede eliminar una bitácora firmada")
 
-    if entry.user_id != current_user.id and current_user.rol != 'admin':
-        raise HTTPException(status_code=403, detail="No tiene permisos para eliminar esta entrada")
-        
-    db.delete(entry)
-    db.commit()
-    return {"status": "deleted"}
+        if entry.user_id != current_user.id and current_user.rol != 'admin':
+            raise HTTPException(status_code=403, detail="No tiene permisos para eliminar esta entrada")
+            
+        db.delete(entry)
+        db.commit()
+        return {"status": "deleted"}
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 
@@ -203,41 +253,51 @@ async def upload_adjunto_bitacora(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    entry = db.query(BitacoraEntry).filter(BitacoraEntry.id == entry_id).first()
-    if not entry:
-        raise HTTPException(status_code=404, detail="Entrada no encontrada")
-    
-    if entry.is_firmado_investigador and entry.is_firmado_aprendiz:
-        raise HTTPException(status_code=400, detail="No se pueden añadir adjuntos a una bitácora firmada")
+    try:
+        entry = db.query(BitacoraEntry).filter(BitacoraEntry.id == str(entry_id)).first()
+        if not entry:
+            raise HTTPException(status_code=404, detail="Entrada no encontrada")
+        
+        if entry.is_firmado_investigador and entry.is_firmado_aprendiz:
+            raise HTTPException(status_code=400, detail="No se pueden añadir adjuntos a una bitácora firmada")
 
-    # Usar el servicio de documentos
-    from app.routers.documentos import upload_documento
-    
-    # Simulamos el Form de upload_documento
-    doc = await upload_documento(
-        entidad_tipo="proyecto", # O podríamos crear un tipo 'bitacora'
-        entidad_id=str(entry.proyecto_id),
-        tipo="evidencia_bitacora",
-        file=file,
-        current_user=current_user,
-        db=db
-    )
-    
-    # Actualizar adjuntos en la bitácora
-    current_adjuntos = list(entry.adjuntos or [])
-    current_adjuntos.append({
-        "id": str(doc.id),
-        "nombre": doc.nombre_archivo,
-        "url": f"/api/documentos/{doc.id}/view",
-        "tipo": doc.content_type,
-        "fecha": datetime.now(timezone.utc).isoformat()
-    })
-    
-    entry.adjuntos = current_adjuntos
-    flag_modified(entry, "adjuntos")
-    db.commit()
-    db.refresh(entry)
-    
-    entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
-    return entry
+        # Usar el servicio de documentos
+        from app.routers.documentos import upload_documento
+        
+        # Simulamos el Form de upload_documento
+        doc = await upload_documento(
+            entidad_tipo="proyecto", # O podríamos crear un tipo 'bitacora'
+            entidad_id=str(entry.proyecto_id),
+            tipo="evidencia_bitacora",
+            file=file,
+            current_user=current_user,
+            db=db
+        )
+        
+        # Actualizar adjuntos en la bitácora
+        current_adjuntos = list(entry.adjuntos or [])
+        current_adjuntos.append({
+            "id": str(doc.id),
+            "nombre": doc.nombre_archivo,
+            "url": f"/api/documentos/{doc.id}/view",
+            "tipo": doc.content_type,
+            "fecha": datetime.now(timezone.utc).isoformat()
+        })
+        
+        entry.adjuntos = current_adjuntos
+        flag_modified(entry, "adjuntos")
+        db.commit()
+        db.refresh(entry)
+        
+        entry.user_nombre = entry.user.nombre if entry.user else "Usuario Desconocido"
+        return entry
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 

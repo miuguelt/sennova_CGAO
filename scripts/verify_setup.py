@@ -69,8 +69,8 @@ def main():
         ("backend/app/main.py", "Backend FastAPI"),
         ("backend/requirements.txt", "Dependencias Python"),
         ("backend/Dockerfile", "Dockerfile Backend"),
-        ("src/api/config.js", "Configuración API Frontend"),
-        ("src/App.jsx", "Aplicación React"),
+        ("frontend/src/api/config.js", "Configuración API Frontend"),
+        ("frontend/src/App.tsx", "Aplicación React"),
         ("docker-compose.yml", "Docker Compose"),
         (".env.example", "Template de Variables"),
     ]
@@ -96,7 +96,12 @@ def main():
     backend_dir = base_dir / "backend"
     if backend_dir.exists():
         checks_total += 1
-        success, _, _ = run_command("pip list | grep fastapi", cwd=str(backend_dir))
+        # Intentar usar el pip del entorno virtual de Windows primero
+        pip_cmd = "venv_win\\Scripts\\pip" if (backend_dir / "venv_win/Scripts/pip.exe").exists() else "pip"
+        success, _, _ = run_command(f"{pip_cmd} list", cwd=str(backend_dir))
+        # Si tiene éxito y contiene fastapi
+        if success:
+            success = "fastapi" in _ or "FastAPI" in _
         if success:
             print(check_color("✅ FastAPI instalado", "green"))
             checks_passed += 1

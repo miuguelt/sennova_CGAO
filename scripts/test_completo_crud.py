@@ -197,10 +197,14 @@ def test_all_tables():
             print_table_row("Semilleros", "GET", "GET", r.status_code, "OK" if success else "FAIL")
             
             # CREATE Aprendiz
-            r = requests.post(f"{BASE_URL}/semilleros/{semillero_id}/aprendices", headers=headers, json={
+            r = requests.post(f"{BASE_URL}/semilleros/{semillero_id}/aprendices/full", headers=headers, json={
+                "email": f"aprendiz_{datetime.now().timestamp()}@sena.edu.co",
                 "nombre": "Aprendiz de Prueba",
+                "password": "password123",
                 "ficha": "12345678",
-                "programa": "ADSO"
+                "programa_formacion": "ADSO",
+                "semillero_id": str(semillero_id),
+                "estado": "activo"
             })
             aprendiz_id = r.json().get("id") if r.status_code == 201 else None
             success = r.status_code == 201

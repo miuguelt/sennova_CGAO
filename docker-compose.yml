@@ -29,6 +29,7 @@ services:
       - ${PORT:-8000}
     volumes:
       - sennova_storage:/app/storage # Persistencia de documentos
+      - ./backend/sennova.db:/app/sennova.db # Persistencia de base de datos SQLite (si se usa)
     networks:
       - coolify
     # Healthcheck usa variable PORT para ser consistente con la configuración
@@ -57,8 +58,8 @@ services:
         - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://backend:8000}
     container_name: sennova-frontend
     restart: unless-stopped
-    expose:
-      - 80
+    ports:
+      - "8001:80"
     environment:
       # Variables en runtime para referencia (build ya está hecho)
       - API_URL=/api

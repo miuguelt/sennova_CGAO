@@ -1,6 +1,7 @@
 from uuid import UUID
 from typing import List, Optional
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -56,6 +57,7 @@ def list_grupos(
     clasificacion: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Listar todos los grupos con sus integrantes."""
@@ -117,7 +119,7 @@ def get_grupo(
 @router.post("", status_code=201)
 def create_grupo(
     grupo_data: GrupoCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """Crear un nuevo grupo de investigación."""
@@ -132,20 +134,27 @@ def create_grupo(
         owner_id=str(current_user.id)
     )
     
-    db.add(grupo)
-    db.commit()
-    db.refresh(grupo)
-    
-    # Owner es automáticamente líder del grupo
-    db.execute(
-        grupo_integrantes.insert().values(
-            grupo_id=str(grupo.id),
-            user_id=str(current_user.id),
-            rol_en_grupo='Líder'
+    try:
+        db.add(grupo)
+        db.commit()
+        db.refresh(grupo)
+        
+        # Owner es automáticamente líder del grupo
+        db.execute(
+            grupo_integrantes.insert().values(
+                grupo_id=str(grupo.id),
+                user_id=str(current_user.id),
+                rol_en_grupo='Líder'
+            )
         )
-    )
-    db.commit()
-    db.refresh(grupo)
+        db.commit()
+        db.refresh(grupo)
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al crear grupo: {str(e)}")
     
     # Registrar actividad
     log_actividad(
@@ -172,7 +181,9 @@ def update_grupo(
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
     
-    # Solo admin o owner pueden editar
+    # Solo admin o owner pueden editar (aprendices no)
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar grupos")
     if current_user.rol != "admin" and str(grupo.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso para editar")
     
@@ -180,8 +191,15 @@ def update_grupo(
     for field, value in update_data.items():
         setattr(grupo, field, value)
     
-    db.commit()
-    db.refresh(grupo)
+    try:
+        db.commit()
+        db.refresh(grupo)
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al actualizar grupo: {str(e)}")
     
     # Registrar actividad
     log_actividad(
@@ -207,11 +225,20 @@ def delete_grupo(
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
     
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar grupos")
     if current_user.rol != "admin" and str(grupo.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso para eliminar")
     
-    db.delete(grupo)
-    db.commit()
+    try:
+        db.delete(grupo)
+        db.commit()
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al eliminar grupo: {str(e)}")
     
     return {"message": "Grupo eliminado"}
 
@@ -234,6 +261,8 @@ def add_integrante(
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
     
     # Solo admin o owner pueden agregar integrantes
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar grupos")
     if current_user.rol != "admin" and str(grupo.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
     
@@ -248,26 +277,33 @@ def add_integrante(
     ).first()
     
     from datetime import date
-    if existing:
-        # Actualizar rol si ya existe
+    try:
+        if existing:
+            # Actualizar rol si ya existe
+            db.execute(
+                grupo_integrantes.update().where(
+                    grupo_integrantes.c.grupo_id == str(grupo_id),
+                    grupo_integrantes.c.user_id == str(user_id)
+                ).values(rol_en_grupo=rol_en_grupo)
+            )
+            db.commit()
+            return {"message": "Rol de integrante actualizado"}
+        
         db.execute(
-            grupo_integrantes.update().where(
-                grupo_integrantes.c.grupo_id == str(grupo_id),
-                grupo_integrantes.c.user_id == str(user_id)
-            ).values(rol_en_grupo=rol_en_grupo)
+            grupo_integrantes.insert().values(
+                grupo_id=str(grupo.id),
+                user_id=str(user.id),
+                rol_en_grupo=rol_en_grupo,
+                fecha_vinculacion=date.today()
+            )
         )
         db.commit()
-        return {"message": "Rol de integrante actualizado"}
-    
-    db.execute(
-        grupo_integrantes.insert().values(
-            grupo_id=str(grupo.id),
-            user_id=str(user.id),
-            rol_en_grupo=rol_en_grupo,
-            fecha_vinculacion=date.today()
-        )
-    )
-    db.commit()
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al gestionar integrante: {str(e)}")
     
     return {"message": "Integrante agregado"}
 
@@ -284,6 +320,8 @@ def remove_integrante(
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
     
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar grupos")
     if current_user.rol != "admin" and str(grupo.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
     
@@ -291,12 +329,19 @@ def remove_integrante(
     if str(grupo.owner_id) == user_id:
         raise HTTPException(status_code=400, detail="No se puede remover al líder del grupo")
     
-    db.execute(
-        grupo_integrantes.delete().where(
-            grupo_integrantes.c.grupo_id == grupo_id,
-            grupo_integrantes.c.user_id == user_id
+    try:
+        db.execute(
+            grupo_integrantes.delete().where(
+                grupo_integrantes.c.grupo_id == grupo_id,
+                grupo_integrantes.c.user_id == user_id
+            )
         )
-    )
-    db.commit()
+        db.commit()
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al remover integrante: {str(e)}")
     
     return {"message": "Integrante removido"}

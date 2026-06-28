@@ -99,10 +99,10 @@ def test_all():
     
     # 8. CREATE Aprendiz
     if sem_id:
+        users_resp = requests.get(f"{BASE_URL}/usuarios", headers=headers)
+        first_user_id = users_resp.json()[0]["id"]
         r = requests.post(f"{BASE_URL}/semilleros/{sem_id}/aprendices", headers=headers, json={
-            "nombre": "Juan Perez",
-            "ficha": "123456",
-            "programa": "ADSO"
+            "user_id": first_user_id
         })
         appr_id = r.json().get("id") if r.status_code == 201 else None
         results.append(("CREATE Aprendiz", r.status_code, appr_id))

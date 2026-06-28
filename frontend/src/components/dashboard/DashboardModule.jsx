@@ -50,6 +50,10 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
   const [userImpact, setUserImpact] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const isAprendiz = currentUser?.rol === 'aprendiz';
+  const isInvestigador = currentUser?.rol === 'investigador';
+  const isAdmin = currentUser?.rol === 'admin';
+
   useEffect(() => {
     const loadAllData = async () => {
       setLoading(true);
@@ -92,7 +96,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
   if (loading) {
     return (
       <div className="space-y-8 animate-pulse">
-        <div className="h-20 bg-slate-100 rounded-3xl w-1/3"></div>
+        <div className="h-20 bg-slate-100 rounded-[2.5rem] w-full"></div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[1,2,3,4].map(i => <div key={i} className="h-32 bg-slate-100 rounded-3xl"></div>)}
         </div>
@@ -106,9 +110,149 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
 
   const stats = data || {};
 
-  return (
-    <div className="space-y-8 pb-20 animate-in fade-in zoom-in-95 duration-700">
-      
+  // ── Contenido Específico para Aprendices ──
+  const ApprenticeDashboard = () => (
+    <div className="space-y-8 animate-fadeIn">
+      {/* Welcome Section */}
+      <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 p-10 rounded-[3rem] text-white relative overflow-hidden shadow-2xl">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="space-y-4 text-center md:text-left">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 rounded-full backdrop-blur-md text-[10px] font-black uppercase tracking-widest">
+              <GraduationCap size={14} /> Panel del Aprendiz
+            </div>
+            <h2 className="text-4xl font-black tracking-tight">Hola, {(currentUser?.nombre || '').split(' ')[0]} 👋</h2>
+            <p className="text-emerald-50 text-lg font-medium max-w-md">
+              Tu camino en la investigación científica comienza aquí. Revisa tus bitácoras y avances en el semillero.
+            </p>
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white hover:text-emerald-700" onClick={() => onModuleAction({ module: 'bitacora', form: 'create' })}>
+                <Plus size={18} className="mr-2" /> Nueva Bitácora
+              </Button>
+              <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white hover:text-emerald-700" onClick={() => onModuleAction({ module: 'cronograma' })}>
+                <Calendar size={18} className="mr-2" /> Mis Tareas
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-col items-center p-6 bg-white/10 rounded-[2.5rem] backdrop-blur-md border border-white/10 text-center w-64">
+             <div className="relative mb-4">
+                <svg className="w-24 h-24 transform -rotate-90">
+                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-white/10" />
+                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={251.2} strokeDashoffset={251.2 - (251.2 * (userImpact?.cumplimiento || 0)) / 100} className="text-white" strokeLinecap="round" />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center text-xl font-black">{userImpact?.cumplimiento || 0}%</div>
+              </div>
+              <p className="text-xs font-black uppercase tracking-widest">Tu Progreso</p>
+              <p className="text-[10px] text-emerald-100 mt-1 font-medium italic">Sigue así, vas por buen camino.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-8 space-y-8">
+          {/* Stats for Apprentice */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <StatCard title="Mis Semilleros" value={userImpact?.semilleros_count || 0} icon={GraduationCap} color="bg-indigo-600" subtitle="Grupos de investigación" />
+            <StatCard title="Tareas Pendientes" value={stats.tareas_criticas?.proximas?.length || 0} icon={CheckCircle2} color="bg-amber-500" subtitle="Próximos entregables" />
+            <StatCard title="Bitácoras Totales" value={userImpact?.productos_count || 0} icon={FileText} color="bg-emerald-600" subtitle="Registros realizados" />
+          </div>
+
+          {/* Apprentice Specific Info */}
+          <Card className="p-8 border-0 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="font-black text-slate-900 text-lg">Próximos Pasos</h3>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Tu agenda de investigación</p>
+              </div>
+              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                <Target size={24} />
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              {stats.tareas_criticas?.proximas?.length > 0 ? (
+                stats.tareas_criticas.proximas.map(task => (
+                  <div key={task.id} className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-md transition-all group">
+                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-slate-100 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                      <Calendar size={20} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-black text-slate-900">{task.titulo}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{task.proyecto}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-black text-indigo-600">{new Date(task.fecha).toLocaleDateString()}</p>
+                      <Badge variant="info" className="mt-1 text-[8px]">PENDIENTE</Badge>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-10">
+                  <p className="text-slate-400 italic">No tienes tareas pendientes asignadas.</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-4 space-y-8">
+          <Card className="p-8 bg-slate-900 text-white border-0 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700"></div>
+            <div className="relative z-10 space-y-6">
+              <h3 className="text-xl font-black tracking-tight flex items-center gap-2">
+                <Award size={24} className="text-emerald-400" /> Mi Perfil
+              </h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-400 uppercase">Rol Actual</span>
+                  <Badge variant="emerald" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 font-black">APRENDIZ INVESTIGADOR</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-400 uppercase">Bitácoras</span>
+                  <span className="text-sm font-black text-white">{userImpact?.productos_count || 0}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-400 uppercase">Estado</span>
+                  <span className="flex items-center gap-1.5 text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Activo
+                  </span>
+                </div>
+              </div>
+              <div className="pt-4 border-t border-white/10">
+                <p className="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest">Mentores / Tutores</p>
+                <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-[10px] font-black">T</div>
+                  <p className="text-xs font-black">Tutor de Semillero</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-0 border-0 shadow-sm overflow-hidden bg-white">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-900">Actividad Reciente</h3>
+              <Activity size={16} className="text-slate-400" />
+            </div>
+            <div className="divide-y divide-slate-50">
+              {stats.historial_reciente?.slice(0, 5).map(item => (
+                <div key={item.id} className="p-4 flex gap-4 hover:bg-slate-50 transition-all cursor-pointer">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                  <div>
+                    <p className="text-xs font-black text-slate-900 leading-snug">{item.descripcion}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{new Date(item.fecha).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Contenido Específico para Investigadores / Admin ──
+  const ResearcherDashboard = () => (
+    <>
       {/* ── Header Premium ── */}
       <div className="bg-white/40 backdrop-blur-md p-8 rounded-[2.5rem] border border-white shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
@@ -120,7 +264,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.3em]">Centro de Operaciones</span>
           </div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none">
-            Hola, {(currentUser?.nombre || '').split(' ')[0] || 'Investigador'}
+            Hola, {(currentUser?.nombre || '').split(' ')[0]}
           </h1>
           <p className="text-slate-500 mt-3 font-medium max-w-md leading-relaxed">
             Tienes <span className="text-indigo-600 font-bold">{stats?.tareas_criticas?.proximas?.length || 0} entregables</span> programados para esta semana. Sigue impulsando la ciencia.
@@ -183,7 +327,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                     <div>
                       <p className="text-sm font-bold">Impulsar Producción</p>
                       <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                        Tu ratio de productos por proyecto está por debajo del promedio (3.5). Considera registrar bitácoras o software.
+                        Tu ratio de productos por proyecto está por debajo del promedio. Considera registrar bitácoras o software.
                       </p>
                     </div>
                   </div>
@@ -204,7 +348,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                   <div>
                     <p className="text-sm font-bold">Gestión de Talento</p>
                     <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                      Tus semilleros han estado inactivos en registros esta semana. Revisa los avances con tus aprendices.
+                      Revisa los avances con tus aprendices en los semilleros vinculados.
                     </p>
                   </div>
                 </div>
@@ -221,9 +365,9 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
               </div>
               <div>
                 <p className="text-sm font-bold text-white">Nivel de Desempeño</p>
-                <p className="text-[10px] text-emerald-400 font-black uppercase tracking-tighter mt-1">Óptimo para el Centro</p>
+                <p className="text-[10px] text-emerald-400 font-black uppercase tracking-tighter mt-1">Impacto Investigativo</p>
               </div>
-              <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 w-full" onClick={() => onModuleAction({ module: 'proyectos', form: 'list' })}>
+              <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 w-full" onClick={() => onModuleAction({ module: 'proyectos' })}>
                 Optimizar Ahora
               </Button>
             </div>
@@ -233,52 +377,19 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
 
       {/* ── Stats Grid ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Proyectos Activos" 
-          value={stats.proyectos?.activos || 0} 
-          icon={Briefcase} 
-          color="bg-indigo-600"
-          trend="+2"
-        />
-        <StatCard 
-          title="Productos Científicos" 
-          value={stats.productos?.total || 0} 
-          icon={Trophy} 
-          color="bg-emerald-600"
-          trend="+4"
-        />
-        <StatCard 
-          title="Cumplimiento Real" 
-          value={`${userImpact?.cumplimiento || 0}%`} 
-          icon={Target} 
-          color="bg-amber-500"
-          subtitle="Basado en metas logradas"
-        />
-        <StatCard 
-          title="Aprendices Vinculados" 
-          value={stats.aprendices?.total || 0} 
-          icon={GraduationCap} 
-          color="bg-rose-500"
-          subtitle="En semilleros activos"
-        />
-        <StatCard 
-          title="Presupuesto Bajo Gestión" 
-          value={`$${((userImpact?.presupuesto_total || 0) / 1e6).toFixed(1)}M`} 
-          icon={Zap} 
-          color="bg-amber-500"
-          subtitle="Presupuesto total liderado"
-        />
+        <StatCard title="Proyectos Activos" value={stats.proyectos?.activos || 0} icon={Briefcase} color="bg-indigo-600" trend={stats.proyectos?.trend} />
+        <StatCard title="Productos Científicos" value={stats.productos?.total || 0} icon={Trophy} color="bg-emerald-600" trend={stats.productos?.trend} />
+        <StatCard title="Cumplimiento Real" value={`${userImpact?.cumplimiento || 0}%`} icon={Target} color="bg-amber-500" subtitle="Metas logradas" />
+        <StatCard title="Aprendices Vinculados" value={stats.aprendices?.total || 0} icon={GraduationCap} color="bg-rose-500" subtitle="En semilleros" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* ── Main Production Chart ── */}
         <div className="lg:col-span-8 space-y-8">
-          <Card className="p-8 border-0 shadow-sm overflow-hidden">
+          <Card className="p-8 border-0 shadow-sm overflow-hidden bg-white">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="font-black text-slate-900 text-lg">Evolución de Producción</h3>
-                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Nuevos Proyectos vs Productos</p>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Tendencia de Impacto</p>
               </div>
               <div className="flex gap-4">
                 <div className="flex items-center gap-2">
@@ -306,201 +417,121 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="mes_nombre" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}}
-                  />
+                  <XAxis dataKey="mes_nombre" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} />
                   <YAxis hide />
-                  <ReTooltip 
-                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="proyectos_nuevos" 
-                    stroke="#10b981" 
-                    strokeWidth={4}
-                    fillOpacity={1} 
-                    fill="url(#colorPrj)" 
-                    name="Proyectos"
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="productos_nuevos" 
-                    stroke="#6366f1" 
-                    strokeWidth={4}
-                    fillOpacity={1} 
-                    fill="url(#colorProd)" 
-                    name="Productos"
-                  />
+                  <ReTooltip contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}} />
+                  <Area type="monotone" dataKey="proyectos_nuevos" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorPrj)" name="Proyectos" />
+                  <Area type="monotone" dataKey="productos_nuevos" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorProd)" name="Productos" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </Card>
 
-          {/* ── Critical Deliverables ── */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="p-0 border-0 shadow-sm overflow-hidden">
+            <Card className="p-0 border-0 shadow-sm overflow-hidden bg-white">
               <div className="p-6 bg-rose-50/50 border-b border-rose-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-rose-500 text-white rounded-xl">
-                    <AlertCircle size={18} />
-                  </div>
-                  <h3 className="font-bold text-slate-900">Entregables Vencidos</h3>
-                </div>
-                <Badge variant="danger" className="rounded-lg">{stats?.tareas_criticas?.vencidas?.length || 0}</Badge>
+                <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Tareas Vencidas</h3>
+                <Badge variant="danger">{stats?.tareas_criticas?.vencidas?.length || 0}</Badge>
               </div>
               <div className="divide-y divide-slate-50">
-                {stats?.tareas_criticas?.vencidas?.length > 0 ? (
-                  stats.tareas_criticas.vencidas.map(task => (
-                    <div 
-                      key={task.id} 
-                      className="p-4 flex items-center justify-between hover:bg-slate-50 transition-all cursor-pointer group/task"
-                      onClick={() => onModuleAction({ module: 'cronograma', initialData: { proyecto_id: task.proyecto_id } })}
-                    >
-                      <div>
-                        <p className="text-sm font-bold text-slate-800 group-hover/task:text-indigo-600 transition-colors">{task.titulo}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">{task.proyecto}</p>
-                      </div>
-                      <p className="text-xs font-bold text-rose-500 tabular-nums">{new Date(task.fecha).toLocaleDateString()}</p>
+                {stats?.tareas_criticas?.vencidas?.map(task => (
+                  <div key={task.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => onModuleAction({ module: 'cronograma' })}>
+                    <div>
+                      <p className="text-xs font-black text-slate-900">{task.titulo}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">{task.proyecto}</p>
                     </div>
-                  ))
-                ) : (
-                  <div className="p-8 text-center text-slate-400 italic text-sm">Todo al día por aquí ✨</div>
-                )}
+                    <span className="text-[10px] font-black text-rose-600">{new Date(task.fecha).toLocaleDateString()}</span>
+                  </div>
+                ))}
               </div>
             </Card>
 
-            <Card className="p-0 border-0 shadow-sm overflow-hidden">
+            <Card className="p-0 border-0 shadow-sm overflow-hidden bg-white">
               <div className="p-6 bg-indigo-50/50 border-b border-indigo-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-500 text-white rounded-xl">
-                    <Clock size={18} />
-                  </div>
-                  <h3 className="font-bold text-slate-900">Próximos Vencimientos</h3>
-                </div>
-                <Badge variant="info" className="rounded-lg">{stats?.tareas_criticas?.proximas?.length || 0}</Badge>
+                <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Actividad de Red</h3>
+                <Activity size={16} className="text-indigo-400" />
               </div>
               <div className="divide-y divide-slate-50">
-                {stats?.tareas_criticas?.proximas?.length > 0 ? (
-                  stats.tareas_criticas.proximas.map(task => (
-                    <div 
-                      key={task.id} 
-                      className="p-4 flex items-center justify-between hover:bg-slate-50 transition-all cursor-pointer group/task"
-                      onClick={() => onModuleAction({ module: 'cronograma', initialData: { proyecto_id: task.proyecto_id } })}
-                    >
-                      <div>
-                        <p className="text-sm font-bold text-slate-800 group-hover/task:text-indigo-600 transition-colors">{task.titulo}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">{task.proyecto}</p>
-                      </div>
-                      <p className="text-xs font-bold text-indigo-500 tabular-nums">{new Date(task.fecha).toLocaleDateString()}</p>
+                {stats.historial_reciente?.slice(0, 4).map(item => (
+                  <div key={item.id} className="p-4 flex gap-3 hover:bg-slate-50 transition-colors">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-800 leading-snug"><span className="text-indigo-600">{item.usuario}</span> {item.descripcion}</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">{new Date(item.fecha).toLocaleTimeString()}</p>
                     </div>
-                  ))
-                ) : (
-                  <div className="p-8 text-center text-slate-400 italic text-sm">No hay tareas próximas</div>
-                )}
+                  </div>
+                ))}
               </div>
             </Card>
           </div>
         </div>
 
-        {/* ── Sidebar: Global Activity & Impact ── */}
         <div className="lg:col-span-4 space-y-8">
-          
           <Card 
-            className="p-0 border-0 shadow-sm overflow-hidden bg-slate-900 text-white cursor-pointer hover:shadow-2xl hover:shadow-emerald-500/10 transition-all group"
+            className="p-8 border-0 shadow-sm overflow-hidden bg-slate-900 text-white cursor-pointer hover:shadow-2xl hover:shadow-emerald-500/10 transition-all group"
             onClick={() => { setSelectedUser(currentUser); setShowInsight(true); }}
           >
-            <div className="p-8 space-y-8">
-              <div className="flex items-center justify-between">
+            <div className="space-y-6">
+              <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Impacto Global</p>
-                  <p className="text-4xl font-black text-emerald-400 tracking-tighter">842</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Impacto 360</p>
+                  <p className="text-4xl font-black text-emerald-400 tracking-tighter">
+                    {userImpact ? (userImpact.proyectos_count * 100) + (userImpact.productos_count * 50) + (userImpact.cumplimiento * 2) : '---'}
+                  </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nivel</p>
-                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Investigador Senior</Badge>
-                </div>
+                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Nivel {userImpact?.productos_count > 5 ? 'Senior' : 'Junior'}</Badge>
               </div>
-              
               <div className="space-y-2">
                 <div className="flex justify-between text-[10px] font-bold uppercase text-slate-400">
-                  <span>Cumplimiento Metas</span>
+                  <span>Cumplimiento Global</span>
                   <span>{userImpact?.cumplimiento || 0}%</span>
                 </div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                   <div className="h-full bg-emerald-500 rounded-full" style={{width: `${userImpact?.cumplimiento || 0}%`}} />
                 </div>
               </div>
-
-              <div className="grid grid-cols-3 gap-2 pt-4">
-                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5 group-hover:bg-white/10 transition-colors">
-                  <p className="text-xl font-black text-white">{userImpact?.proyectos_count || 0}</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">PRJs</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5">
+                  <p className="text-lg font-black text-white">{userImpact?.proyectos_count || 0}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase">Proyectos</p>
                 </div>
-                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5 group-hover:bg-white/10 transition-colors">
-                  <p className="text-xl font-black text-white">{userImpact?.productos_count || 0}</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">PRODs</p>
+                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5">
+                  <p className="text-lg font-black text-white">{userImpact?.productos_count || 0}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase">Productos</p>
                 </div>
-                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5 group-hover:bg-white/10 transition-colors">
-                  <p className="text-xl font-black text-white">{userImpact?.semilleros_count || 0}</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">SEMs</p>
+                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5">
+                  <p className="text-lg font-black text-white">{userImpact?.semilleros_count || 0}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase">Semilleros</p>
                 </div>
               </div>
-            </div>
-            <div className="px-8 py-4 bg-white/5 border-t border-white/5 flex items-center justify-between group-hover:bg-emerald-500 group-hover:text-white transition-all">
-              <span className="text-[10px] font-black uppercase tracking-widest">Ver Perfil Completo</span>
-              <ArrowUpRight size={14} />
+              <Button variant="ghost" className="w-full text-white hover:bg-white/10 text-[10px] font-black uppercase tracking-widest">Ver Perfil Completo <ArrowUpRight size={14} className="ml-2" /></Button>
             </div>
           </Card>
 
-          {/* Global Activity Feed */}
-          <Card className="p-0 border-0 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-bold text-slate-900">Actividad Global</h3>
-              <Activity size={16} className="text-slate-400" />
-            </div>
-            <div className="divide-y divide-slate-50 max-h-[350px] overflow-y-auto scrollbar-thin">
-              {(stats?.historial_reciente || []).map((item) => (
-                <div 
-                  key={item.id} 
-                  className="flex gap-4 p-3 rounded-2xl hover:bg-slate-50 transition-all cursor-pointer group"
-                  onClick={() => {
-                    if (item.user_id) {
-                      setSelectedUser({ id: item.user_id, nombre: item.usuario });
-                      setShowInsight(true);
-                    }
-                  }}
-                >
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 group-hover:bg-white group-hover:shadow-md transition-all">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-slate-900 font-bold truncate">
-                      <span className="text-indigo-600 group-hover:underline">{item.usuario}</span> {item.descripcion}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">{item.accion}</span>
-                      <span className="text-[10px] text-slate-300">•</span>
-                      <span className="text-[10px] text-slate-400 font-medium">
-                        {new Date(item.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
+          <Card className="p-8 border-0 shadow-sm bg-white overflow-hidden">
+            <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider mb-6">Próximos Vencimientos</h3>
+            <div className="space-y-6">
+              {stats.tareas_criticas?.proximas?.slice(0, 3).map(task => (
+                <div key={task.id} className="flex gap-4 relative">
+                  <div className="w-px h-full bg-slate-100 absolute left-2 top-8" />
+                  <div className="w-4 h-4 rounded-full bg-indigo-500 shrink-0 z-10" />
+                  <div>
+                    <p className="text-xs font-black text-slate-900 leading-tight">{task.titulo}</p>
+                    <p className="text-[10px] text-indigo-600 font-bold mt-1 uppercase">{new Date(task.fecha).toLocaleDateString()}</p>
                   </div>
                 </div>
               ))}
             </div>
-            <Button 
-              variant="ghost" 
-              className="w-full py-6 rounded-none text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-emerald-600 bg-slate-50/50"
-              onClick={() => onModuleAction?.({ module: 'auditoria' })}
-            >
-              Ver Auditoría Completa <ChevronRight size={14} />
-            </Button>
           </Card>
         </div>
       </div>
+    </>
+  );
+
+  return (
+    <div className="space-y-8 pb-20 animate-fadeIn">
+      {isAprendiz ? <ApprenticeDashboard /> : <ResearcherDashboard />}
+      
       <UserInsightPanel
         user={selectedUser}
         isOpen={showInsight}

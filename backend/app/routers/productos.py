@@ -2,15 +2,17 @@ from uuid import UUID
 from typing import List, Optional
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from app.auth import get_current_user, get_current_admin
 from app.database import get_db
-from app.models import Producto, Proyecto, User
+from app.models import Producto, Proyecto, User, Notificacion
 from app.schemas import ProductoCreate, ProductoUpdate, ProductoResponse, ProductoVerificar
 from app.utils import log_actividad
+from app.services import EmailService
 
 router = APIRouter(prefix="/productos", tags=["Productos de Investigación"])
 
@@ -97,15 +99,20 @@ def get_producto(
 @router.post("", status_code=201)
 def create_producto(
     producto_data: ProductoCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Crear un nuevo producto."""
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para crear productos")
     # Verificar que el proyecto existe y pertenece al usuario
+    proyecto_nombre = "Sin Proyecto"
     if producto_data.proyecto_id:
         proyecto = db.query(Proyecto).filter(Proyecto.id == str(producto_data.proyecto_id)).first()
         if not proyecto:
             raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        proyecto_nombre = proyecto.nombre_corto or proyecto.nombre
         
         # Verificar acceso al proyecto
         has_access = (
@@ -128,9 +135,17 @@ def create_producto(
         is_verificado=False  # Siempre falso al crear
     )
     
-    db.add(producto)
-    db.commit()
-    db.refresh(producto)
+    try:
+        db.add(producto)
+        db.commit()
+        db.refresh(producto)
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al crear producto: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al crear producto")
     
     # Registrar actividad
     log_actividad(
@@ -141,6 +156,39 @@ def create_producto(
         entidad_tipo="producto",
         entidad_id=str(producto.id)
     )
+    
+    # Notificar a los administradores
+    try:
+        admins = db.query(User).filter(User.rol == 'admin', User.is_active == True).all()
+        for admin_usr in admins:
+            notif = Notificacion(
+                user_id=str(admin_usr.id),
+                tipo='producto',
+                titulo="Nuevo Producto por Verificar",
+                mensaje=f"El investigador {current_user.nombre} ha registrado el producto '{producto.nombre}' ({producto.tipo}) en el proyecto '{proyecto_nombre}'. Requiere verificación.",
+                entidad_tipo='producto',
+                entidad_id=str(producto.id),
+                prioridad='normal'
+            )
+            db.add(notif)
+            
+            body_html = f"""
+            <h3>Hola Administrador,</h3>
+            <p>Se ha registrado un nuevo producto científico en la plataforma SENNOVA:</p>
+            <ul>
+                <li><b>Registrado por:</b> {current_user.nombre}</li>
+                <li><b>Nombre del Producto:</b> {producto.nombre}</li>
+                <li><b>Tipo:</b> {producto.tipo}</li>
+                <li><b>Proyecto:</b> {proyecto_nombre}</li>
+            </ul>
+            <p>Por favor, ingresa a la plataforma para verificar los requisitos de este producto.</p>
+            <br/>
+            <p>Atentamente,<br/>Plataforma SENNOVA CGAO</p>
+            """
+            EmailService.send_email_async(admin_usr.email, "Nuevo Producto Pendiente de Verificación", body_html, background_tasks)
+        db.commit()
+    except Exception as e:
+        print(f"Error al notificar sobre nuevo producto: {e}")
     
     return _make_producto_dict(producto)
 
@@ -157,7 +205,9 @@ def update_producto(
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     
-    # Solo admin o owner pueden editar
+    # Solo admin o owner pueden editar (aprendices no)
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar productos")
     if current_user.rol != "admin" and str(producto.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso para editar")
     
@@ -170,8 +220,16 @@ def update_producto(
     for field, value in update_data.items():
         setattr(producto, field, value)
     
-    db.commit()
-    db.refresh(producto)
+    try:
+        db.commit()
+        db.refresh(producto)
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al actualizar producto: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al actualizar producto")
     
     # Registrar actividad
     log_actividad(
@@ -197,6 +255,9 @@ def delete_producto(
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     
+    # Aprendices no pueden eliminar productos
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para eliminar productos")
     # Si está verificado, solo admin puede eliminar
     if producto.is_verificado and current_user.rol != "admin":
         raise HTTPException(status_code=403, detail="Producto verificado, solo admin puede eliminar")
@@ -205,8 +266,16 @@ def delete_producto(
     if current_user.rol != "admin" and str(producto.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso para eliminar")
     
-    db.delete(producto)
-    db.commit()
+    try:
+        db.delete(producto)
+        db.commit()
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al eliminar producto: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al eliminar producto")
     
     return {"message": "Producto eliminado"}
 
@@ -219,6 +288,7 @@ def delete_producto(
 def verificar_producto(
     producto_id: str,
     verificacion: ProductoVerificar,
+    background_tasks: BackgroundTasks,
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -235,8 +305,12 @@ def verificar_producto(
         producto.verificado_por = None
         producto.fecha_verificacion = None
     
-    db.commit()
-    db.refresh(producto)
+    try:
+        db.commit()
+        db.refresh(producto)
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
     
     # Registrar actividad
     log_actividad(
@@ -248,6 +322,40 @@ def verificar_producto(
         entidad_id=str(producto.id)
     )
     
+    # Notificar al creador/owner del producto
+    try:
+        owner = db.query(User).filter(User.id == producto.owner_id).first()
+        if owner:
+            estado_txt = "Aprobado / Verificado" if verificacion.is_verificado else "Marcado como Pendiente de Revisión"
+            notif = Notificacion(
+                user_id=str(owner.id),
+                tipo='producto',
+                titulo=f"Producto Verificado: {producto.nombre}" if verificacion.is_verificado else f"Producto Rechazado: {producto.nombre}",
+                mensaje=f"Tu producto científico '{producto.nombre}' ({producto.tipo}) ha sido verificado como '{estado_txt}' por la coordinación.",
+                entidad_tipo='producto',
+                entidad_id=str(producto.id),
+                prioridad='alta' if verificacion.is_verificado else 'normal'
+            )
+            db.add(notif)
+            db.commit()
+            
+            body_html = f"""
+            <h3>Hola {owner.nombre},</h3>
+            <p>El estado de verificación de tu producto científico en SENNOVA ha sido actualizado:</p>
+            <ul>
+                <li><b>Producto:</b> {producto.nombre}</li>
+                <li><b>Tipo:</b> {producto.tipo}</li>
+                <li><b>Nuevo Estado:</b> {estado_txt}</li>
+                <li><b>Revisado por:</b> {admin.nombre}</li>
+            </ul>
+            <p>Puedes ver los detalles e ingresar evidencias adicionales en tu tablero de investigador.</p>
+            <br/>
+            <p>Atentamente,<br/>Coordinación SENNOVA CGAO</p>
+            """
+            EmailService.send_email_async(owner.email, f"Actualización de Producto: {producto.nombre}", body_html, background_tasks)
+    except Exception as e:
+        print(f"Error al notificar al propietario del producto: {e}")
+        
     return _make_producto_dict(producto)
 
 
@@ -309,6 +417,8 @@ def generar_productos_base(
     db: Session = Depends(get_db)
 ):
     """Genera automáticamente productos placeholder basados en la tipología del proyecto."""
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para generar productos")
     proyecto = db.query(Proyecto).filter(Proyecto.id == proyecto_id).first()
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")

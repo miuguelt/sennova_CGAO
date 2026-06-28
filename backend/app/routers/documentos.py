@@ -164,6 +164,8 @@ async def upload_documento(
     db: Session = Depends(get_db)
 ):
     """Subir un nuevo documento (max 10MB) al sistema de archivos."""
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para subir documentos")
     content_type = validate_file(file)
     
     content = await file.read()
@@ -247,7 +249,9 @@ def delete_documento(
     if not doc:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
     
-    # Solo admin o owner pueden eliminar
+    # Solo admin o owner pueden eliminar (aprendices no)
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para eliminar documentos")
     if current_user.rol != "admin" and doc.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Sin permiso para eliminar")
     

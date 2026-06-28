@@ -254,9 +254,9 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
         <div className="space-y-8 animate-fadeIn">
           {/* Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <MetricCard label="Proyectos Totales" value={projectsData.length} trend={12} icon={Briefcase} colorCls="text-emerald-600" />
-            <MetricCard label="Productos Registrados" value={stats?.totales?.productos || 0} trend={5} icon={Trophy} colorCls="text-indigo-600" />
-            <MetricCard label="Presupuesto Ejecutado" value={`$${(projectsData.reduce((a,b) => a + (b.presupuesto_total || 0), 0) / 1e6).toFixed(1)}M`} trend={8} icon={Zap} colorCls="text-amber-600" />
+            <MetricCard label="Proyectos Totales" value={projectsData.length} trend={stats?.proyectos?.trend} icon={Briefcase} colorCls="text-emerald-600" />
+            <MetricCard label="Productos Registrados" value={stats?.totales?.productos || 0} trend={stats?.productos?.trend} icon={Trophy} colorCls="text-indigo-600" />
+            <MetricCard label="Presupuesto Ejecutado" value={`$${(projectsData.reduce((a,b) => a + (b.presupuesto_total || 0), 0) / 1e6).toFixed(1)}M`} trend={stats?.proyectos?.presupuesto_trend} icon={Zap} colorCls="text-amber-600" />
             <MetricCard label="Talento Humano" value={stats?.totales?.investigadores || 0} icon={Users} colorCls="text-rose-600" />
           </div>
 

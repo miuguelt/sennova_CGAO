@@ -141,6 +141,19 @@ class Grupo(Base):
     gruplac_url = Column(Text)
     lineas_investigacion = get_array_column(String)
     
+    # ── Campos CGAO ──────────────────────────────────────────────────
+    director_nombre = Column(String(255))  # Director del grupo
+    director_email = Column(String(255))   # Email del director
+    fecha_reconocimiento = Column(Date)    # Fecha de reconocimiento Minciencias
+    vigencia_hasta = Column(Date)          # Vigencia de la categoría
+    descripcion_grupo = Column(Text)       # Descripción/misión del grupo
+    mision = Column(Text)
+    vision = Column(Text)
+    plan_operativo_path = Column(String(255))  # Ruta del PDF del plan operativo
+    mision_path = Column(String(255))     # Ruta de doc misión
+    convocatoria_activa = Column(String(100))  # Ej: 'Convocatoria 957-2024'
+    # ─────────────────────────────────────────────────────────────────
+    
     owner_id = get_uuid_column(ForeignKey("users.id"), nullable=False)
     is_publico = Column(Boolean, default=True)
     estado = Column(String(50), default='activo')  # activo, inactivo
@@ -157,10 +170,14 @@ class Semillero(Base):
     
     id = get_uuid_column(primary_key=True, default=uuid.uuid4)
     nombre = Column(String(255), nullable=False)
+    sigla = Column(String(20))             # Ej: SEMIPROVEL, SIAMB, SIACF
+    descripcion = Column(Text)             # Descripción del semillero
+    lider_nombre = Column(String(255))     # Nombre del líder/tutor
     linea_investigacion = Column(Text)
     plan_accion = Column(Text)
     horas_dedicadas = Column(Integer)
-    estado = Column(String(50), default='activo')  # activo, inactivo
+    estado = Column(String(50), default='activo')  # activo, inactivo, en_convocatoria
+    formatos_paths = Column(JSON, nullable=True)   # Lista de rutas de formatos del semillero
     
     grupo_id = get_uuid_column(ForeignKey("grupos.id"), nullable=False)
     owner_id = get_uuid_column(ForeignKey("users.id"), nullable=False)
@@ -220,13 +237,14 @@ class Convocatoria(Base):
     __tablename__ = "convocatorias"
     
     id = get_uuid_column(primary_key=True, default=uuid.uuid4)
-    numero_oe = Column(String(50), nullable=False)  # Oferta de Empleo
+    numero_oe = Column(String(50), nullable=False)  # Número de oferta/convocatoria
     nombre = Column(Text, nullable=False)
     año = Column(Integer, nullable=False)
     fecha_apertura = Column(Date)
     fecha_cierre = Column(Date)
     estado = Column(String(50), default='abierta')  # abierta, cerrada, en_evaluacion, resultados_publicados
     descripcion = Column(Text)
+    fuente = Column(String(50), default='SENNOVA')  # SENNOVA, Minciencias, Capacidad_Instalada, Otra
     
     owner_id = get_uuid_column(ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -244,11 +262,19 @@ class Proyecto(Base):
     nombre = Column(Text, nullable=False)
     nombre_corto = Column(String(255))
     
-    estado = Column(String(50), default='Formulación')  # Formulación, Enviado, Aprobado, En ejecución, Finalizado, Rechazado
+    # Estado: solo Aprobado, En ejecución, Finalizado (Formulación eliminado)
+    estado = Column(String(50), default='Aprobado')  # Aprobado, En ejecución, Finalizado
     vigencia = Column(Integer)  # meses
     presupuesto_total = Column(Float)
     
-    tipologia = Column(String(100))  # Red, Impacto, Innovación, etc.
+    # ── Organización temporal ─────────────────────────────────────────
+    año = Column(Integer)                   # Año de inicio del proyecto (ej: 2024)
+    año_fin = Column(Integer)               # Año de finalización (puede ser diferente)
+    continua_siguiente_año = Column(Boolean, default=False)  # Proyecto multi-año
+    modificaciones_log = Column(JSON, nullable=True)  # [{fecha, autor, campo, antes, despues}]
+    # ─────────────────────────────────────────────────────────────────
+    
+    tipologia = Column(String(100))  # Innovación, Investigación, Modernización
     linea_investigacion = Column(Text)
     red_conocimiento = Column(String(100))
     descripcion = Column(Text)
@@ -256,12 +282,18 @@ class Proyecto(Base):
     objetivos_especificos = get_array_column(String)
     
     # Finanzas Detalladas
-    presupuesto_detallado = Column(JSON)  # { "materiales": 0, "viaticos": 0, "servicios": 0, ... }
+    presupuesto_detallado = Column(JSON)  # { "personal": 0, "materiales": 0, ... }
     linea_programatica = Column(String(100))  # Ej: 65, 82, etc.
+    
+    # ── Formatos de Etapa Productiva ─────────────────────────────────
+    formato_bitacora_path = Column(String(255))     # Formato de bitácora subido
+    formato_seguimiento_path = Column(String(255))  # Formato de seguimiento subido
+    informe_final_path = Column(String(255))        # Informe final subido
+    # ─────────────────────────────────────────────────────────────────
     
     # Vinculación con Retos y Semilleros
     reto_origen_id = get_uuid_column(ForeignKey("retos.id"))
-    semillero_id = get_uuid_column(ForeignKey("semilleros.id"))
+    semillero_id = get_uuid_column(ForeignKey("semilleros.id"))  # Semillero al que pertenece
     
     convocatoria_id = get_uuid_column(ForeignKey("convocatorias.id"))
     owner_id = get_uuid_column(ForeignKey("users.id"), nullable=False)
@@ -284,12 +316,19 @@ class Producto(Base):
     __tablename__ = "productos"
     
     id = get_uuid_column(primary_key=True, default=uuid.uuid4)
-    tipo = Column(String(50), nullable=False)  # software, articulo, capitulo_libro, patente, ponencia, video, prototipo
+    # Tipología Minciencias: A1-A7, B1-B6, C1-C6, D1-D4
+    tipo = Column(String(50), nullable=False)   # Código: A1, B1, C2, D2, etc. (ajustado para soportar descripciones de tipo)
+    categoria = Column(String(5))               # Categoría: A, B, C, D
     nombre = Column(Text, nullable=False)
     descripcion = Column(Text)
     fecha_publicacion = Column(Date)
     doi = Column(String(255))
     url = Column(Text)
+    año_reporte = Column(Integer)               # Año de la convocatoria en la que se reporta
+    
+    # ── Trazabilidad de requisitos Minciencias ────────────────────────
+    requisitos_cumplidos = Column(JSON, nullable=True)  # {"req1": true, "req2": false, ...}
+    # ─────────────────────────────────────────────────────────────────
     
     is_verificado = Column(Boolean, default=False)  # Solo admin puede verificar
     verificado_por = get_uuid_column(ForeignKey("users.id"))

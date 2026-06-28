@@ -164,11 +164,9 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
         await ProyectosAPI.addEquipo(itemId, user.id, 'Investigador', 20);
       } else if (linkType === 'semillero') {
         await SemillerosAPI.addAprendiz(itemId, { 
-          nombre: user.nombre, 
-          email: user.email,
-          documento: 'S/D',
-          ficha: 'N/A',
-          programa: 'N/A'
+          user_id: user.id,
+          estado: 'Activo',
+          fecha_ingreso: new Date().toISOString().split('T')[0]
         });
       }
       onNotify?.('Vinculación exitosa', 'success');

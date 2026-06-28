@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus, Search, Award, X, ExternalLink, Edit2,
   FileText, Code, Microscope, BookOpen,
-  Trash2, ChevronRight, User, Folder, Loader2,
+  Trash2, ChevronRight, User, Users, Folder, Loader2,
   Globe, MoreVertical, Shield, CheckCircle2,
   TrendingUp, BarChart, Info, Zap, ArrowUpRight,
-  Link as LinkIcon, Calendar
+  Link as LinkIcon, Calendar, UploadCloud
 } from 'lucide-react';
 import { ProductosAPI } from '../../api/productos';
 import { ProyectosAPI } from '../../api/proyectos';
+import { DocumentosAPI } from '../../api/documentos';
 import { CVLAC_URL_PLACEHOLDER } from '../../api/config';
 import useClickOutside from '../../hooks/useClickOutside';
 import Button from '../ui/Button';
@@ -18,25 +19,79 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import TextArea from '../ui/TextArea';
 
-// ─── Constants ─────────────────────────────────────────────────────────────
-const TIPOS = [
-  { value: 'software',      label: 'Software / App',       Icon: Code,      color: 'text-blue-600',   bg: 'bg-blue-100',   border: 'border-blue-200' },
-  { value: 'articulo',      label: 'Artículo Científico',  Icon: BookOpen,  color: 'text-emerald-700', bg: 'bg-emerald-100', border: 'border-emerald-200' },
-  { value: 'prototipo',     label: 'Prototipo / Producto', Icon: Microscope, color: 'text-amber-600', bg: 'bg-amber-100',   border: 'border-amber-200' },
-  { value: 'capitulo_libro', label: 'Capítulo de Libro',   Icon: FileText,  color: 'text-indigo-600', bg: 'bg-indigo-100',  border: 'border-indigo-200' },
-  { value: 'ponencia',      label: 'Ponencia / Evento',    Icon: Globe,     color: 'text-rose-600',   bg: 'bg-rose-100',    border: 'border-rose-200' },
+
+// ─── Tipología Minciencias ──────────────────────────────────────────────────
+// Categoría A: Generación de Nuevo Conocimiento
+const CATEGORIA_A = [
+  { value: 'A1', label: 'A1 · Artículo en revista indexada (Q1-Q4)', Icon: BookOpen, color: 'text-blue-700',   bg: 'bg-blue-100',   border: 'border-blue-200',
+    requisitos: ['Publicado en revista con ISSN', 'Indexada en Scopus, WoS o SJR', 'DOI registrado', 'Afiliación institucional SENA visible', 'Acceso abierto o repositorio'] },
+  { value: 'A2', label: 'A2 · Libro resultado de investigación', Icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100',
+    requisitos: ['ISBN registrado', 'Editorial con comité editorial', 'Proceso de evaluación por pares', 'Afiliación SENA en portada'] },
+  { value: 'A3', label: 'A3 · Capítulo de libro resultado de investigación', Icon: FileText, color: 'text-indigo-600', bg: 'bg-indigo-100', border: 'border-indigo-200',
+    requisitos: ['ISBN del libro', 'Evaluación por pares del capítulo', 'DOI o URL del capítulo', 'Afiliación SENA del autor'] },
+  { value: 'A4', label: 'A4 · Patente de invención', Icon: Award, color: 'text-violet-600', bg: 'bg-violet-100', border: 'border-violet-200',
+    requisitos: ['Número de solicitud o concesión', 'Titular: SENA o investigador SENA', 'Fecha de solicitud oficial', 'Certificado SIC o entidad competente'] },
 ];
 
-const getTipo = (v) => TIPOS.find(t => t.value === v) ?? { Icon: Award, color: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200', label: v };
+// Categoría B: Desarrollo Tecnológico e Innovación
+const CATEGORIA_B = [
+  { value: 'B1', label: 'B1 · Software (Registro de derechos de autor)', Icon: Code, color: 'text-emerald-700', bg: 'bg-emerald-100', border: 'border-emerald-200',
+    requisitos: ['Registro DNDA o certificado', 'Documentación técnica del software', 'Funcionamiento demostrable', 'Contrato/acta de propiedad intelectual SENA'] },
+  { value: 'B2', label: 'B2 · Planta piloto / Prototipo industrial', Icon: Microscope, color: 'text-amber-700', bg: 'bg-amber-100', border: 'border-amber-200',
+    requisitos: ['Informe técnico del prototipo', 'Pruebas de funcionamiento documentadas', 'Memoria descriptiva', 'Evaluación de impacto'] },
+  { value: 'B3', label: 'B3 · Diseño industrial (Registro)', Icon: Code, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100',
+    requisitos: ['Registro SIC o equivalente', 'Planos o especificaciones técnicas', 'Titular: SENA'] },
+  { value: 'B6', label: 'B6 · Innovación en procesos/servicios', Icon: Zap, color: 'text-teal-700', bg: 'bg-teal-100', border: 'border-teal-200',
+    requisitos: ['Informe de implementación', 'Evidencia de adopción por empresa/organización', 'Análisis de impacto documentado'] },
+];
+
+// Categoría C: Apropiación Social del Conocimiento
+const CATEGORIA_C = [
+  { value: 'C1', label: 'C1 · Evento científico (organización)', Icon: Globe, color: 'text-rose-700', bg: 'bg-rose-100', border: 'border-rose-200',
+    requisitos: ['Informe del evento con asistentes', 'Programa oficial del evento', 'Memorias o publicación', 'Evidencia fotográfica'] },
+  { value: 'C2', label: 'C2 · Ponencia en evento (con memorias)', Icon: Globe, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100',
+    requisitos: ['Certificado de participación como ponente', 'Carta de aceptación del evento', 'Memorias o ISBN del evento', 'Afiliación SENA en el resumen'] },
+  { value: 'C4', label: 'C4 · Curso / Diplomado de extensión', Icon: BookOpen, color: 'text-orange-700', bg: 'bg-orange-100', border: 'border-orange-200',
+    requisitos: ['Programa curricular del curso', 'Lista de asistentes certificados', 'Acta de apertura y cierre', 'Evaluación de satisfacción'] },
+  { value: 'C6', label: 'C6 · Producción técnica (normas, mapas, BD)', Icon: FileText, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100',
+    requisitos: ['Documento técnico completo', 'Entidad adoptante', 'Fecha de publicación o adopción'] },
+];
+
+// Categoría D: Formación de Recursos Humanos
+const CATEGORIA_D = [
+  { value: 'D1', label: 'D1 · Trabajo de grado (pregrado/maestría)', Icon: Award, color: 'text-purple-700', bg: 'bg-purple-100', border: 'border-purple-200',
+    requisitos: ['Acta de grado o certificado', 'Título de la tesis', 'Vinculación al proyecto SENNOVA', 'Nombre del director/asesor'] },
+  { value: 'D2', label: 'D2 · Proyectos de Etapa Productiva SENA', Icon: FileText, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100',
+    requisitos: ['Formato de etapa productiva diligenciado', 'Informe del aprendiz', 'Evaluación del instructor', 'Acta de inicio y fin'] },
+  { value: 'D3', label: 'D3 · Jóvenes Investigadores', Icon: Users, color: 'text-pink-700', bg: 'bg-pink-100', border: 'border-pink-200',
+    requisitos: ['Contrato o acuerdo formalizado', 'Actas de seguimiento mensuales', 'Informe de actividades', 'Certificado de participación'] },
+];
+
+const TODOS_TIPOS = [...CATEGORIA_A, ...CATEGORIA_B, ...CATEGORIA_C, ...CATEGORIA_D];
+
+const CATEGORIAS_MINCIENCIAS = [
+  { cat: 'A', label: 'A — Generación de Nuevo Conocimiento', tipos: CATEGORIA_A, color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', dot: 'bg-blue-500' },
+  { cat: 'B', label: 'B — Desarrollo Tecnológico e Innovación', tipos: CATEGORIA_B, color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500' },
+  { cat: 'C', label: 'C — Apropiación Social del Conocimiento', tipos: CATEGORIA_C, color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200', dot: 'bg-rose-500' },
+  { cat: 'D', label: 'D — Formación de Recursos Humanos', tipos: CATEGORIA_D, color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200', dot: 'bg-purple-500' },
+];
+
+const getTipo = (v) => TODOS_TIPOS.find(t => t.value === v) ?? { Icon: Award, color: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200', label: v, requisitos: [] };
+
+// Tambien mantener TIPOS como alias para compatibilidad
+const TIPOS = TODOS_TIPOS;
 
 const EMPTY_FORM = {
-  tipo: 'software',
+  tipo: 'A1',
+  categoria: 'A',
   nombre: '',
   descripcion: '',
   fecha_publicacion: new Date().toISOString().split('T')[0],
   doi: '',
   url: '',
   proyecto_id: '',
+  año_reporte: new Date().getFullYear(),
+  requisitos_cumplidos: {},
 };
 
 // ─── Components ─────────────────────────────────────────────────────────────
@@ -186,6 +241,58 @@ const ProductosModule = ({ currentUser, onNotify }) => {
       loadData();
     } catch (err) { 
       onNotify?.('Error en verificación: ' + err.message, 'error'); 
+    }
+  };
+
+  const fileInputRefs = useRef({});
+
+  const handleChecklistToggle = async (reqIndex, currentValue) => {
+    if (!selectedProducto) return;
+    const reqKey = `req_${reqIndex}`;
+    const newCumplidos = { 
+      ...(selectedProducto.requisitos_cumplidos || {}), 
+      [reqKey]: !currentValue 
+    };
+    
+    try {
+      const updated = await ProductosAPI.update(selectedProducto.id, {
+        ...selectedProducto,
+        requisitos_cumplidos: newCumplidos
+      });
+      setSelectedProducto(updated);
+      setProductos(prev => prev.map(p => p.id === updated.id ? updated : p));
+    } catch (err) {
+      onNotify?.('Error al guardar requisito', 'error');
+    }
+  };
+
+  const handleFileUpload = async (reqIndex, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      onNotify?.('El archivo excede los 10MB permitidos', 'error');
+      return;
+    }
+
+    try {
+      const uploadData = new FormData();
+      uploadData.append('entidad_tipo', 'producto');
+      uploadData.append('entidad_id', selectedProducto.id);
+      uploadData.append('tipo', `checklist_req_${reqIndex}`);
+      uploadData.append('file', file);
+      
+      onNotify?.('Subiendo evidencia...', 'info');
+      await DocumentosAPI.upload(uploadData);
+      
+      // Auto check the requirement if it wasn't already checked
+      const reqKey = `req_${reqIndex}`;
+      if (!selectedProducto.requisitos_cumplidos?.[reqKey]) {
+        await handleChecklistToggle(reqIndex, false);
+      }
+      
+      onNotify?.('Evidencia subida exitosamente', 'success');
+    } catch (err) {
+      onNotify?.('Error subiendo evidencia: ' + err.message, 'error');
     }
   };
 
@@ -474,8 +581,73 @@ const ProductosModule = ({ currentUser, onNotify }) => {
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto px-8 py-8 space-y-10 scrollbar-thin">
+                <div className="flex-1 overflow-y-auto px-8 py-8 space-y-8 scrollbar-thin">
                   
+                  {/* Requisitos Minciencias */}
+                  {(() => {
+                    const tipoInfo = getTipo(selectedProducto.tipo);
+                    const requisitos = tipoInfo?.requisitos || [];
+                    if (!requisitos.length) return null;
+                    const cumplidos = selectedProducto.requisitos_cumplidos || {};
+                    const nCumplidos = Object.values(cumplidos).filter(Boolean).length;
+                    return (
+                      <section>
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                          <CheckCircle2 size={14} className="text-emerald-500" /> Trazabilidad de Requisitos Minciencias
+                        </h3>
+                        <div className="mb-2 flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${Math.round((nCumplidos / requisitos.length) * 100)}%` }} />
+                          </div>
+                          <span className="text-[10px] font-black text-slate-500">{nCumplidos}/{requisitos.length}</span>
+                        </div>
+                        <div className="space-y-1.5 mt-4">
+                          {requisitos.map((req, i) => {
+                            const checked = cumplidos[`req_${i}`] || false;
+                            return (
+                              <div key={i} className={`flex items-start justify-between gap-2.5 p-3 rounded-xl text-xs transition-colors ${
+                                checked ? 'bg-emerald-50 border border-emerald-200' : 'bg-white border border-slate-200 hover:border-emerald-300'
+                              }`}>
+                                <label className="flex items-start gap-3 cursor-pointer flex-1">
+                                  <input 
+                                    type="checkbox" 
+                                    className="mt-0.5 w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                    checked={checked}
+                                    onChange={() => handleChecklistToggle(i, checked)}
+                                  />
+                                  <span className={`font-medium leading-relaxed ${checked ? 'text-emerald-900 line-through opacity-70' : 'text-slate-700'}`}>
+                                    {req}
+                                  </span>
+                                </label>
+                                <div className="flex-shrink-0">
+                                  <input 
+                                    type="file" 
+                                    className="hidden" 
+                                    ref={el => fileInputRefs.current[i] = el}
+                                    onChange={(e) => handleFileUpload(i, e)}
+                                    accept=".pdf,.doc,.docx,.zip,.rar"
+                                  />
+                                  <button 
+                                    onClick={() => fileInputRefs.current[i]?.click()}
+                                    className={`p-1.5 rounded-lg transition-colors flex items-center gap-1.5 border ${
+                                      checked 
+                                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200' 
+                                        : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700'
+                                    }`}
+                                    title="Adjuntar Evidencia"
+                                  >
+                                    <UploadCloud size={14} />
+                                    <span className="text-[10px] font-bold">Evidencia</span>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    );
+                  })()}
+
                   <section>
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                       <FileText size={14} className="text-indigo-500" /> Descripción Técnica
@@ -593,35 +765,122 @@ const ProductosModule = ({ currentUser, onNotify }) => {
             </div>
 
             {/* Form Content */}
-            <div className="p-8 bg-white min-h-[360px] max-h-[60vh] overflow-y-auto scrollbar-thin">
+            <div className="p-8 bg-white min-h-[360px] max-h-[65vh] overflow-y-auto scrollbar-thin">
               {formStep === 1 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
                   <Input label="Nombre del Producto / Innovación" value={formData.nombre} onChange={patch('nombre')} required placeholder="Ej: Prototipo de sensor IoT..." />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Select
-                      label="Tipología de Producto"
-                      options={TIPOS.map(t => ({ value: t.value, label: t.label }))}
-                      value={formData.tipo}
-                      onChange={patch('tipo')}
-                      required
-                    />
+                  
+                  {/* Selector de Categoría Minciencias */}
+                  <div>
+                    <p className="text-xs font-black text-slate-600 uppercase tracking-widest mb-3">Categoría Minciencias</p>
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      {CATEGORIAS_MINCIENCIAS.map(cat => (
+                        <button
+                          key={cat.cat}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, categoria: cat.cat, tipo: cat.tipos[0].value, requisitos_cumplidos: {} }))}
+                          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left transition-all text-xs font-bold ${
+                            formData.categoria === cat.cat
+                              ? `${cat.border} ${cat.bg} ${cat.color} shadow-sm`
+                              : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'
+                          }`}
+                        >
+                          <div className={`w-2 h-2 rounded-full ${cat.dot} flex-shrink-0`} />
+                          <span className="leading-tight">{cat.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {/* Sub-tipos de la categoría seleccionada */}
+                    {formData.categoria && (
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tipo específico</p>
+                        {CATEGORIAS_MINCIENCIAS.find(c => c.cat === formData.categoria)?.tipos.map(t => (
+                          <button
+                            key={t.value}
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, tipo: t.value, requisitos_cumplidos: {} }))}
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border text-left transition-all text-xs ${
+                              formData.tipo === t.value
+                                ? `${t.border} ${t.bg} ${t.color} font-black border-2`
+                                : 'border-slate-100 hover:border-slate-200 text-slate-600 font-medium'
+                            }`}
+                          >
+                            <t.Icon size={14} className={formData.tipo === t.value ? t.color : 'text-slate-400'} />
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
                     <Select
                       label="Vincular a Proyecto"
                       options={proyectos.map(p => ({ value: p.id, label: p.nombre_corto || p.nombre }))}
                       value={formData.proyecto_id}
                       onChange={patch('proyecto_id')}
-                      required
                     />
+                    <Input label="Año de Reporte" type="number" value={formData.año_reporte || new Date().getFullYear()} onChange={patch('año_reporte')} />
                   </div>
-                  <Input label="Fecha de Lanzamiento / Publicación" type="date" value={formData.fecha_publicacion} onChange={patch('fecha_publicacion')} />
+                  <Input label="Fecha de Publicación / Registro" type="date" value={formData.fecha_publicacion} onChange={patch('fecha_publicacion')} />
                 </div>
               )}
 
               {formStep === 2 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                  {/* Checklist de requisitos Minciencias */}
+                  {(() => {
+                    const tipoInfo = getTipo(formData.tipo);
+                    if (!tipoInfo?.requisitos?.length) return null;
+                    return (
+                      <div>
+                        <p className="text-xs font-black text-slate-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                          <CheckCircle2 size={14} className="text-emerald-500" /> Requisitos Minciencias para {formData.tipo}
+                        </p>
+                        <div className="space-y-2">
+                          {tipoInfo.requisitos.map((req, i) => {
+                            const key = `req_${i}`;
+                            const checked = formData.requisitos_cumplidos?.[key] || false;
+                            return (
+                              <label key={i} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                                checked ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-100 hover:border-slate-200'
+                              }`}>
+                                <input
+                                  type="checkbox"
+                                  className="mt-0.5 w-4 h-4 accent-emerald-600 rounded flex-shrink-0"
+                                  checked={checked}
+                                  onChange={e => setFormData(prev => ({
+                                    ...prev,
+                                    requisitos_cumplidos: { ...prev.requisitos_cumplidos, [key]: e.target.checked }
+                                  }))}
+                                />
+                                <span className={`text-xs font-medium leading-relaxed ${
+                                  checked ? 'text-emerald-800 line-through opacity-70' : 'text-slate-700'
+                                }`}>{req}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                              style={{
+                                width: `${Math.round((Object.values(formData.requisitos_cumplidos || {}).filter(Boolean).length / tipoInfo.requisitos.length) * 100)}%`
+                              }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-black text-slate-500">
+                            {Object.values(formData.requisitos_cumplidos || {}).filter(Boolean).length}/{tipoInfo.requisitos.length} requisitos
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <Input label="URL de Repositorio o Publicación" value={formData.url} onChange={patch('url')} placeholder="https://github.com/..." />
                   <Input label="DOI / Código de Registro" value={formData.doi} onChange={patch('doi')} placeholder="Ej: 10.1000/xyz123" />
-                  <TextArea label="Resumen Técnico y Resultados" value={formData.descripcion} onChange={patch('descripcion')} rows={5} placeholder="Describa el impacto, metodología y resultados clave..." />
+                  <TextArea label="Resumen Técnico y Resultados" value={formData.descripcion} onChange={patch('descripcion')} rows={4} placeholder="Describa el impacto, metodología y resultados clave..." />
                 </div>
               )}
             </div>

@@ -580,13 +580,17 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                 </div>
               </div>
 
-              <div className="flex border-b border-slate-100 bg-slate-50/50">
-                <button onClick={() => setActiveTab('info')} className={`flex-1 py-4 text-xs font-black uppercase tracking-widest ${activeTab === 'info' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400'}`}>Información</button>
-                <button onClick={() => setActiveTab('stats')} className={`flex-1 py-4 text-xs font-black uppercase tracking-widest ${activeTab === 'stats' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400'}`}>Impacto</button>
+              <div className="flex overflow-x-auto border-b border-slate-100 bg-slate-50/50 scrollbar-none">
+                <button onClick={() => setActiveTab('info')} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'info' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Información</button>
+                <button onClick={() => setActiveTab('stats')} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'stats' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Impacto</button>
+                <button onClick={() => { setActiveTab('investigadores'); handleOpenAprendices(selectedSemillero); setMemberType('investigador'); }} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'investigadores' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Investigadores</button>
+                <button onClick={() => { setActiveTab('aprendices'); handleOpenAprendices(selectedSemillero); setMemberType('aprendiz'); }} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'aprendices' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Aprendices</button>
+                <button onClick={() => setActiveTab('proyectos')} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'proyectos' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Proyectos</button>
+                <button onClick={() => setActiveTab('formatos')} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'formatos' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Formatos</button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 space-y-10 scrollbar-thin bg-white">
-                {activeTab === 'info' ? (
+                {activeTab === 'info' && (
                   <div className="space-y-8 animate-fadeIn">
                     <section>
                       <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -610,7 +614,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                         <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Aprendices</p>
                         <div className="flex items-center justify-between">
                           <p className="font-black text-emerald-600 text-xl">{selectedSemillero.total_aprendices}</p>
-                          <button onClick={() => handleOpenAprendices(selectedSemillero)} className="text-[10px] font-black text-indigo-600 hover:underline uppercase">Ver Todos</button>
+                          <button onClick={() => { setActiveTab('aprendices'); handleOpenAprendices(selectedSemillero); setMemberType('aprendiz'); }} className="text-[10px] font-black text-indigo-600 hover:underline uppercase">Ver Todos</button>
                         </div>
                       </div>
                     </section>
@@ -630,7 +634,9 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                       </div>
                     </section>
                   </div>
-                ) : (
+                )}
+                
+                {activeTab === 'stats' && (
                   <div className="space-y-10 animate-fadeIn">
                     <section>
                       <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
@@ -689,13 +695,166 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                     </div>
                   </div>
                 )}
+
+                {(activeTab === 'investigadores' || activeTab === 'aprendices') && (
+                  <div className="space-y-8 animate-fadeIn">
+                    <div 
+                      className={`bg-slate-50 p-6 rounded-3xl border-2 border-dashed transition-all ${dragOver ? 'border-emerald-500 bg-emerald-50 scale-[1.02]' : 'border-slate-100'}`}
+                      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={handleDrop}
+                    >
+                      {/* Lógica de vinculación simplificada para el detalle */}
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <UserPlus size={14} className={activeTab === 'aprendices' ? 'text-indigo-600' : 'text-emerald-600'} /> Vincular {activeTab === 'aprendices' ? 'Aprendiz' : 'Investigador'}
+                        </p>
+                      </div>
+                      
+                      <div className="flex gap-3">
+                        <select 
+                          className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer"
+                          onChange={async (e) => {
+                            if (!e.target.value) return;
+                            try {
+                              if (activeTab === 'aprendices') {
+                                await SemillerosAPI.addAprendiz(selectedSemillero.id, { user_id: e.target.value, estado: 'activo' });
+                              } else {
+                                await SemillerosAPI.addInvestigador(selectedSemillero.id, { user_id: e.target.value, rol_en_semillero: 'Coinvestigador' });
+                              }
+                              onNotify?.('Integrante vinculado correctamente', 'success');
+                              const [data, semData] = await Promise.all([
+                                SemillerosAPI.listAprendices(selectedSemillero.id),
+                                SemillerosAPI.get(selectedSemillero.id)
+                              ]);
+                              setAprendices(data || []);
+                              setInvestigadores(semData.investigadores || []);
+                              loadData();
+                            } catch (err) {
+                              onNotify?.('Error al vincular: ' + (err.response?.data?.detail || err.message), 'error');
+                            }
+                            e.target.value = "";
+                          }}
+                        >
+                          <option value="">Seleccionar del directorio CGAO...</option>
+                          {usuarios
+                            .filter(u => !aprendices.some(a => a.user_id === u.id) && !investigadores.some(inv => inv.id === u.id))
+                            .map(u => (
+                              <option key={u.id} value={u.id}>{u.nombre}</option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {activeTab === 'aprendices' ? (
+                      <div className="space-y-4">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <GraduationCap size={14} className="text-indigo-500" /> Aprendices Vinculados ({aprendices.length})
+                        </h4>
+                        {aprendices.length === 0 ? (
+                          <div className="p-8 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-100 text-center">
+                            <p className="text-[10px] text-slate-400 font-black uppercase">Sin aprendices</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 gap-3">
+                            {aprendices.map(a => (
+                              <div key={a.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl hover:border-indigo-300 transition-all">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black">
+                                    {(a.nombre || '?').charAt(0)}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-black text-slate-900 group-hover:text-indigo-700">{a.nombre}</p>
+                                    <p className="text-[10px] text-slate-500 font-bold uppercase">{a.programa || 'Sin programa'} • Ficha: {a.ficha || 'N/A'}</p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button onClick={() => handleGenerateCertificate(a)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl" title="Generar Certificado"><Award size={18} /></button>
+                                  <button onClick={() => handleRemoveAprendiz(a.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl" title="Desvincular"><Trash2 size={18} /></button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <Shield size={14} className="text-emerald-500" /> Investigadores ({investigadores.length})
+                        </h4>
+                        {investigadores.length === 0 ? (
+                          <div className="p-8 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-100 text-center">
+                            <p className="text-[10px] text-slate-400 font-black uppercase">Sin investigadores</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 gap-3">
+                            {investigadores.map(inv => (
+                              <div key={inv.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl hover:border-emerald-300 transition-all">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black">
+                                    {(inv.nombre || '?').charAt(0)}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-black text-slate-900 group-hover:text-emerald-700">{inv.nombre}</p>
+                                    <p className="text-[10px] text-slate-500 font-bold uppercase">{inv.rol_en_semillero} • {inv.email}</p>
+                                  </div>
+                                </div>
+                                <button onClick={() => handleRemoveInvestigador(inv.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl"><Trash2 size={18} /></button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'proyectos' && (
+                  <div className="space-y-8 animate-fadeIn">
+                     <section>
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <Target size={14} className="text-indigo-500" /> Proyectos Vinculados
+                      </h3>
+                      <div className="p-8 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 text-center">
+                        <Target size={32} className="mx-auto text-slate-300 mb-3" />
+                        <p className="text-sm font-bold text-slate-600 mb-1">Integración en Desarrollo</p>
+                        <p className="text-xs text-slate-500">Los proyectos vinculados a este semillero se mostrarán aquí. Por ahora, gestiona los proyectos desde el módulo principal.</p>
+                      </div>
+                    </section>
+                  </div>
+                )}
+
+                {activeTab === 'formatos' && (
+                  <div className="space-y-8 animate-fadeIn">
+                     <section>
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <FileText size={14} className="text-rose-500" /> Formatos Etapa Productiva / D2
+                      </h3>
+                      <div className="grid grid-cols-1 gap-3">
+                        {['Bitácora de Seguimiento', 'Formato Planeación Etapa Productiva', 'Informe Final de Proyecto'].map((f, i) => (
+                          <div key={i} className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-rose-300 transition-all cursor-pointer group">
+                            <div className="flex items-center gap-4">
+                              <div className="p-3 bg-rose-50 text-rose-600 rounded-xl group-hover:bg-rose-100 transition-colors">
+                                <FileText size={20} />
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-slate-800">{f}</p>
+                                <p className="text-[10px] text-slate-500 uppercase">Plantilla Oficial SENA</p>
+                              </div>
+                            </div>
+                            <Button variant="outline" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Download size={14} className="mr-2" /> Descargar
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  </div>
+                )}
               </div>
 
               <div className="px-8 py-6 border-t border-slate-100 bg-slate-50/50 flex gap-4">
-                <Button className="flex-1" variant="outline" onClick={() => setDetailOpen(false)}>Cerrar</Button>
-                <Button className="flex-1" variant="sena" onClick={() => handleOpenAprendices(selectedSemillero)}>
-                  <Users size={16} className="mr-2" /> Gestionar Aprendices
-                </Button>
+                <Button className="flex-1" variant="outline" onClick={() => setDetailOpen(false)}>Cerrar Panel</Button>
               </div>
             </div>
           </div>
@@ -742,236 +901,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
         </div>
       )}
 
-      {/* ── Member Modal ── */}
-      {showMemberModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <Card className="w-full max-w-2xl animate-scaleIn flex flex-col max-h-[85vh] border-0 shadow-2xl overflow-hidden">
-            <div className="px-8 py-6 bg-indigo-700 text-white flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Users size={24} /></div>
-                <div>
-                  <h2 className="text-xl font-black">Directorio de Aprendices</h2>
-                  <p className="text-indigo-100 text-[10px] font-black uppercase tracking-widest mt-1 opacity-80">{selectedSemillero?.nombre}</p>
-                </div>
-              </div>
-              <button onClick={() => setShowMemberModal(false)} className="p-2 hover:bg-white/20 rounded-full transition-colors"><X size={20} /></button>
-            </div>
 
-            <div className="flex-1 overflow-y-auto flex flex-col scrollbar-thin bg-white relative">
-              
-              <div className="p-8 space-y-8 flex-1">
-                {/* Member Type Selector */}
-                <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-100 mb-6">
-                  <button 
-                    onClick={() => setMemberType('aprendiz')}
-                    className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 ${memberType === 'aprendiz' ? 'bg-white text-indigo-700 shadow-md ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
-                  >
-                    <GraduationCap size={16} /> Directorio de Aprendices
-                  </button>
-                  <button 
-                    onClick={() => setMemberType('investigador')}
-                    className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 ${memberType === 'investigador' ? 'bg-white text-emerald-700 shadow-md ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
-                  >
-                    <Users size={16} /> Equipo de Investigadores
-                  </button>
-                </div>
-
-                <div 
-                  className={`bg-slate-50 p-6 rounded-3xl border-2 border-dashed transition-all ${dragOver ? 'border-emerald-500 bg-emerald-50 scale-[1.02]' : 'border-slate-100'}`}
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={handleDrop}
-                >
-                  {memberToLink && (
-                    <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-md flex flex-col items-center justify-center p-8 animate-fadeIn text-center rounded-[2rem]">
-                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg ${memberType === 'aprendiz' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                        <Users size={32} />
-                      </div>
-                      <h4 className="text-sm font-black text-slate-900 mb-1">Vincular a {memberToLink.nombre}</h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">Configuración de Rol</p>
-                      
-                      <div className="w-full max-w-xs space-y-4">
-                        <div className="space-y-1.5 text-left">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Rol en el Semillero</label>
-                          <select 
-                            value={linkingRole}
-                            onChange={(e) => setLinkingRole(e.target.value)}
-                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
-                          >
-                            {memberType === 'aprendiz' 
-                              ? <option value="Aprendiz">Aprendiz Investigador</option>
-                              : ROLES_SEMILLERO.map(r => <option key={r.value} value={r.value}>{r.label}</option>)
-                            }
-                          </select>
-                        </div>
-
-                        <div className="flex gap-3 pt-4">
-                          <Button variant="secondary" className="flex-1" onClick={() => setMemberToLink(null)}>Cancelar</Button>
-                          <Button variant="sena" className="flex-1" onClick={async () => {
-                            try {
-                              if (memberType === 'aprendiz') {
-                                await SemillerosAPI.addAprendiz(selectedSemillero.id, { user_id: memberToLink.id, estado: 'activo' });
-                              } else {
-                                await SemillerosAPI.addInvestigador(selectedSemillero.id, { user_id: memberToLink.id, rol_en_semillero: linkingRole });
-                              }
-                              onNotify?.('Integrante vinculado correctamente', 'success');
-                              setMemberToLink(null);
-                              const [data, semData] = await Promise.all([
-                                SemillerosAPI.listAprendices(selectedSemillero.id),
-                                SemillerosAPI.get(selectedSemillero.id)
-                              ]);
-                              setAprendices(data || []);
-                              setInvestigadores(semData.investigadores || []);
-                              loadData();
-                            } catch (err) {
-                              onNotify?.('Error al vincular: ' + err.message, 'error');
-                            }
-                          }}>Vincular</Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between mb-4">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <UserPlus size={14} className={memberType === 'aprendiz' ? 'text-indigo-600' : 'text-emerald-600'} /> Vincular Talento
-                    </p>
-                    <button onClick={() => setIsPoolVisible(!isPoolVisible)} className={`text-[10px] font-black uppercase hover:underline ${memberType === 'aprendiz' ? 'text-indigo-600' : 'text-emerald-600'}`}>
-                      {isPoolVisible ? 'Cerrar Directorio' : 'Abrir Pool'}
-                    </button>
-                  </div>
-
-                  <div className="flex flex-col gap-4">
-                    {memberType === 'aprendiz' && (
-                      <div className="flex bg-slate-100 p-1 rounded-xl mb-2">
-                        <button onClick={() => setLinkMode('existing')} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'existing' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}>Vincular Existente</button>
-                        <button onClick={() => setLinkMode('new')} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${linkMode === 'new' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}>Registrar y Vincular</button>
-                      </div>
-                    )}
-
-                    <div className="p-5 bg-slate-900 rounded-2xl space-y-4 shadow-xl relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl -mr-12 -mt-12" />
-                      
-                      {linkMode === 'new' && memberType === 'aprendiz' ? (
-                        <div className="space-y-4 relative z-10">
-                           <div className="grid grid-cols-2 gap-3">
-                              <input placeholder="Email" className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white" value={aprendizForm.email} onChange={e => setAprendizForm({...aprendizForm, email: e.target.value})} />
-                              <input placeholder="Nombre" className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white" value={aprendizForm.nombre} onChange={e => setAprendizForm({...aprendizForm, nombre: e.target.value})} />
-                           </div>
-                           <Button variant="sena" className="w-full h-10 text-[10px]" onClick={handleAddAprendiz}>Registrar Aprendiz</Button>
-                        </div>
-                      ) : (
-                        <div className="relative z-10 flex gap-3">
-                          <select 
-                            className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer"
-                            onChange={(e) => {
-                              const u = usuarios.find(usr => usr.id === e.target.value);
-                              if (u) {
-                                setMemberToLink(u);
-                                setLinkingRole(memberType === 'aprendiz' ? 'Aprendiz' : 'Investigador');
-                              }
-                              e.target.value = ""; 
-                            }}
-                            value=""
-                          >
-                            <option value="">Buscar en el directorio CGAO...</option>
-                            {usuarios
-                              .filter(u => !aprendices.some(a => a.user_id === u.id) && !investigadores.some(inv => inv.id === u.id))
-                              .filter(u => memberType === 'aprendiz' ? (u.ficha || u.programa_formacion) : (!u.ficha && !u.programa_formacion))
-                              .map(u => (
-                                <option key={u.id} value={u.id}>{u.nombre} {u.ficha ? `(Ficha: ${u.ficha})` : ''}</option>
-                              ))}
-                          </select>
-                          <div className={`hidden sm:flex items-center px-4 rounded-xl text-[10px] font-black uppercase tracking-widest ${memberType === 'aprendiz' ? 'bg-indigo-600' : 'bg-emerald-600'} text-white`}>
-                            <Plus size={16} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-6 pb-10">
-                  {/* Aprendices List */}
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <GraduationCap size={14} className="text-indigo-500" /> Aprendices Vinculados ({aprendices.length})
-                    </h4>
-                    {aprendices.length === 0 ? (
-                      <div className="p-8 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-100 text-center">
-                        <p className="text-[10px] text-slate-400 font-black uppercase">Sin aprendices</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-3">
-                        {aprendices.map(a => (
-                          <div key={a.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300">
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 text-white flex items-center justify-center font-black text-lg shadow-lg shadow-indigo-500/20">
-                                {(a.nombre || '?').charAt(0)}
-                              </div>
-                              <div>
-                                <p className="text-sm font-black text-slate-900 group-hover:text-indigo-700 transition-colors">{a.nombre}</p>
-                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-                                  {a.programa || 'Sin programa'} • Ficha: {a.ficha || 'N/A'}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => handleGenerateCertificate(a)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl" title="Generar Certificado"><Award size={18} /></button>
-                              <button onClick={() => handleRemoveAprendiz(a.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl" title="Desvincular"><Trash2 size={18} /></button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Investigadores List */}
-                  <div className="space-y-4 pt-6 border-t border-slate-100">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <Shield size={14} className="text-emerald-500" /> Equipo de Investigadores ({investigadores.length})
-                    </h4>
-                    {investigadores.length === 0 ? (
-                      <div className="p-8 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-100 text-center">
-                        <p className="text-[10px] text-slate-400 font-black uppercase">Sin investigadores</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-3">
-                        {investigadores.map(inv => (
-                          <div key={inv.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl hover:border-emerald-300 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-300">
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-black text-lg shadow-lg shadow-emerald-500/20">
-                                {(inv.nombre || '?').charAt(0)}
-                              </div>
-                              <div>
-                                <p className="text-sm font-black text-slate-900 group-hover:text-emerald-700 transition-colors">{inv.nombre}</p>
-                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-                                  {inv.rol_en_semillero} • {inv.email}
-                                </p>
-                              </div>
-                            </div>
-                            <button 
-                              onClick={() => handleRemoveInvestigador(inv.id)} 
-                              className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
-                              disabled={inv.id === selectedSemillero.owner_id}
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="px-8 py-5 bg-slate-50 border-t border-slate-100 flex justify-end">
-              <Button variant="primary" onClick={() => setShowMemberModal(false)}>Cerrar Gestión</Button>
-            </div>
-          </Card>
-        </div>
-      )}
     </div>
   );
 };

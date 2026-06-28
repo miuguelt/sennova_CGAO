@@ -11,6 +11,7 @@ const ACTIONS = [
   { id: 'new-user',    label: 'Invitar Investigador',  desc: 'Añadir talento al centro',          Icon: UserPlus,   iconCls: 'bg-emerald-50 text-emerald-700',module: 'investigadores', form: 'create' },
   { id: 'new-call',    label: 'Crear Convocatoria',    desc: 'Abrir nueva línea de fomento',      Icon: Calendar,   iconCls: 'bg-rose-50 text-rose-600',     module: 'convocatorias',  form: 'create' },
   { id: 'upload-doc',  label: 'Subir Documento',       desc: 'Actas, contratos o guías',          Icon: FilePlus,   iconCls: 'bg-violet-50 text-violet-600', module: 'documentos',     form: 'upload' },
+  { id: 'sync-cvlac',  label: 'Sincronizar CVLaC',     desc: 'Actualizar producción científica',  Icon: LayoutGrid, iconCls: 'bg-orange-50 text-orange-600', module: 'perfil',         form: 'cvlac' },
 ];
 
 const QuickActionHub = ({ isOpen, onClose, onAction }) => {

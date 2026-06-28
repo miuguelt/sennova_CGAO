@@ -1,6 +1,7 @@
 from uuid import UUID
 from typing import List, Optional
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -29,6 +30,11 @@ def check_proyecto_access(proyecto: Proyecto, user: User) -> bool:
     return False
 
 
+def can_edit_proyecto(proyecto: Proyecto, user: User) -> bool:
+    """Solo admin o owner pueden editar/eliminar/liquidar un proyecto."""
+    return user.rol == "admin" or str(proyecto.owner_id) == str(user.id)
+
+
 @router.get("")
 def list_proyectos(
     skip: int = 0,
@@ -48,8 +54,11 @@ def list_proyectos(
     )
     
     if current_user.rol != "admin":
-        # Ver proyectos donde es owner
-        query = query.filter(Proyecto.owner_id == str(current_user.id))
+        # Ver proyectos donde es owner o miembro del equipo
+        query = query.filter(
+            (Proyecto.owner_id == str(current_user.id)) | 
+            (Proyecto.equipo.any(User.id == current_user.id))
+        )
     
     if estado:
         query = query.filter(Proyecto.estado == estado)
@@ -194,6 +203,9 @@ def create_proyecto(
     db: Session = Depends(get_db)
 ):
     """Crear un nuevo proyecto."""
+    if current_user.rol == 'aprendiz':
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para crear proyectos")
+        
     # Convertir UUID a string para SQLite
     convocatoria_id_str = str(proyecto_data.convocatoria_id) if proyecto_data.convocatoria_id else None
     
@@ -219,27 +231,34 @@ def create_proyecto(
         owner_id=str(current_user.id)
     )
     
-    db.add(proyecto)
-    db.flush()  # Para obtener el ID
-    proyecto_id_str = str(proyecto.id)
-    
-    # Agregar equipo si se especificó
-    if proyecto_data.equipo:
-        for miembro_data in proyecto_data.equipo:
-            miembro_user_id = str(miembro_data.user_id)
-            miembro = db.query(User).filter(User.id == miembro_user_id).first()
-            if miembro:
-                db.execute(
-                    proyecto_equipo.insert().values(
-                        proyecto_id=proyecto_id_str,
-                        user_id=str(miembro.id),
-                        rol_en_proyecto=miembro_data.rol_en_proyecto,
-                        horas_dedicadas=miembro_data.horas_dedicadas
+    try:
+        db.add(proyecto)
+        db.flush()  # Para obtener el ID
+        proyecto_id_str = str(proyecto.id)
+        
+        # Agregar equipo si se especificó
+        if proyecto_data.equipo:
+            for miembro_data in proyecto_data.equipo:
+                miembro_user_id = str(miembro_data.user_id)
+                miembro = db.query(User).filter(User.id == miembro_user_id).first()
+                if miembro:
+                    db.execute(
+                        proyecto_equipo.insert().values(
+                            proyecto_id=proyecto_id_str,
+                            user_id=str(miembro.id),
+                            rol_en_proyecto=miembro_data.rol_en_proyecto,
+                            horas_dedicadas=miembro_data.horas_dedicadas
+                        )
                     )
-                )
-    
-    db.commit()
-    db.refresh(proyecto)
+        
+        db.commit()
+        db.refresh(proyecto)
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al crear proyecto: {str(e)}")
     
     # Registrar actividad
     log_actividad(
@@ -294,29 +313,47 @@ def update_proyecto(
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     
     # Solo admin o owner pueden editar
-    if current_user.rol != "admin" and str(proyecto.owner_id) != str(current_user.id):
+    if not can_edit_proyecto(proyecto, current_user):
         raise HTTPException(status_code=403, detail="Sin permiso para editar")
+
+    # Los aprendices no pueden cambiar estados de proyectos
+    if current_user.rol == 'aprendiz':
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar proyectos")
     
-    update_data = proyecto_update.dict(exclude_unset=True)
+    update_data = proyecto_update.model_dump(exclude_unset=True)
     
     # Validación de Liquidación (Finalizado)
     if update_data.get("estado") == "Finalizado":
-        check = check_liquidacion(proyecto_id, db, current_user)
-        if not check["can_liquidate"]:
+        try:
+            check = check_liquidacion(proyecto_id, db, current_user)
+            if not check["can_liquidate"]:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"No se puede finalizar el proyecto. {check['message']}"
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
             raise HTTPException(
-                status_code=400, 
-                detail=f"No se puede finalizar el proyecto. {check['message']}"
+                status_code=500,
+                detail=f"Error al validar liquidación: {str(e)}"
             )
 
     for field, value in update_data.items():
         if field != "equipo":  # Equipo se maneja separado
-            # Si el campo es convocatoria_id, asegurar que sea string para SQLite
-            if field == "convocatoria_id" and value:
+            if field in ("convocatoria_id", "reto_origen_id", "semillero_id") and value:
                 value = str(value)
             setattr(proyecto, field, value)
     
-    db.commit()
-    db.refresh(proyecto)
+    try:
+        db.commit()
+        db.refresh(proyecto)
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al actualizar proyecto: {str(e)}")
 
     # Registrar actividad
     log_actividad(
@@ -341,45 +378,57 @@ def check_liquidacion(
     """
     Verifica si un proyecto cumple con todos los requisitos para ser liquidado (Finalizado).
     """
-    proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
-    if not proyecto:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    
-    # 1. Verificación de Productos
-    productos_verificados = [p for p in proyecto.productos if p.is_verificado]
-    min_productos = 1 if proyecto.tipologia == "Red" else 2
-    ok_productos = len(productos_verificados) >= min_productos
-    
-    # 2. Verificación de Bitácoras (Firmas)
-    bitacoras = proyecto.bitacora
-    firmas_completas = all(b.is_firmado_investigador and b.is_firmado_aprendiz for b in bitacoras) if bitacoras else True
-    ok_bitacoras = firmas_completas
-    
-    # 3. Informe Final
-    informe_final = db.query(Documento).filter(
-        Documento.entidad_tipo == "proyecto",
-        Documento.entidad_id == str(proyecto.id),
-        Documento.tipo == "informe_final"
-    ).first()
-    ok_informe = informe_final is not None
-    
-    # 4. Presupuesto (Debe tener un valor asignado)
-    ok_presupuesto = (proyecto.presupuesto_total or 0) > 0
-    
-    checklist = [
-        {"id": "productos", "label": f"Productos Verificados ({len(productos_verificados)}/{min_productos})", "status": ok_productos},
-        {"id": "bitacoras", "label": "Bitácoras con Firmas Digitales Completas", "status": ok_bitacoras},
-        {"id": "informe", "label": "Informe Final Técnico Cargado", "status": ok_informe},
-        {"id": "presupuesto", "label": "Presupuesto Asignado y Reportado", "status": ok_presupuesto}
-    ]
-    
-    can_liquidate = all(item["status"] for item in checklist)
-    
-    return {
-        "can_liquidate": can_liquidate,
-        "checklist": checklist,
-        "message": "Proyecto apto para liquidación" if can_liquidate else "Faltan requisitos para el cierre técnico"
-    }
+    try:
+        proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
+        if not proyecto:
+            raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        
+        # Solo admin o owner pueden verificar liquidación
+        if not can_edit_proyecto(proyecto, current_user):
+            raise HTTPException(status_code=403, detail="No tienes permiso para verificar liquidación de este proyecto")
+        
+        # 1. Verificación de Productos
+        productos_verificados = [p for p in (proyecto.productos or []) if getattr(p, 'is_verificado', False)]
+        min_productos = 1 if proyecto.tipologia == "Red" else 2
+        ok_productos = len(productos_verificados) >= min_productos
+        
+        # 2. Verificación de Bitácoras (Firmas)
+        bitacoras = proyecto.bitacora or []
+        firmas_completas = all(
+            getattr(b, 'is_firmado_investigador', False) and getattr(b, 'is_firmado_aprendiz', False) 
+            for b in bitacoras
+        ) if bitacoras else True
+        ok_bitacoras = firmas_completas
+        
+        # 3. Informe Final
+        informe_final = db.query(Documento).filter(
+            Documento.entidad_tipo == "proyecto",
+            Documento.entidad_id == str(proyecto.id),
+            Documento.tipo == "informe_final"
+        ).first()
+        ok_informe = informe_final is not None
+        
+        # 4. Presupuesto (Debe tener un valor asignado)
+        ok_presupuesto = (proyecto.presupuesto_total or 0) > 0
+        
+        checklist = [
+            {"id": "productos", "label": f"Productos Verificados ({len(productos_verificados)}/{min_productos})", "status": ok_productos},
+            {"id": "bitacoras", "label": "Bitácoras con Firmas Digitales Completas", "status": ok_bitacoras},
+            {"id": "informe", "label": "Informe Final Técnico Cargado", "status": ok_informe},
+            {"id": "presupuesto", "label": "Presupuesto Asignado y Reportado", "status": ok_presupuesto}
+        ]
+        
+        can_liquidate = all(item["status"] for item in checklist)
+        
+        return {
+            "can_liquidate": can_liquidate,
+            "checklist": checklist,
+            "message": "Proyecto apto para liquidación" if can_liquidate else "Faltan requisitos para el cierre técnico"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al verificar liquidación: {str(e)}")
 
 
 @router.delete("/{proyecto_id}")
@@ -394,14 +443,21 @@ def delete_proyecto(
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
     # Solo admin o owner pueden eliminar
-    if current_user.rol != "admin" and str(proyecto.owner_id) != str(current_user.id):
+    if not can_edit_proyecto(proyecto, current_user):
         raise HTTPException(status_code=403, detail="Sin permiso para eliminar")
 
     # Guardar nombre para el log antes de borrar
     nombre_proyecto = proyecto.nombre
 
-    db.delete(proyecto)
-    db.commit()
+    try:
+        db.delete(proyecto)
+        db.commit()
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al eliminar proyecto: {str(e)}")
 
     # Registrar actividad
     log_actividad(
@@ -434,7 +490,7 @@ def add_proyecto_miembro(
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     
     # Solo admin o owner pueden añadir miembros
-    if current_user.rol != "admin" and str(proyecto.owner_id) != str(current_user.id):
+    if not can_edit_proyecto(proyecto, current_user):
         raise HTTPException(status_code=403, detail="Sin permiso para editar equipo")
     
     # Verificar si el usuario ya es miembro
@@ -442,16 +498,23 @@ def add_proyecto_miembro(
         if str(m.id) == str(miembro_data.user_id):
             raise HTTPException(status_code=400, detail="El usuario ya es miembro del proyecto")
     
-    # Añadir a la tabla de asociación
-    db.execute(
-        proyecto_equipo.insert().values(
-            proyecto_id=str(proyecto_id),
-            user_id=str(miembro_data.user_id),
-            rol_en_proyecto=miembro_data.rol_en_proyecto,
-            horas_dedicadas=miembro_data.horas_dedicadas
+    try:
+        # Añadir a la tabla de asociación
+        db.execute(
+            proyecto_equipo.insert().values(
+                proyecto_id=str(proyecto_id),
+                user_id=str(miembro_data.user_id),
+                rol_en_proyecto=miembro_data.rol_en_proyecto,
+                horas_dedicadas=miembro_data.horas_dedicadas
+            )
         )
-    )
-    db.commit()
+        db.commit()
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al añadir miembro: {str(e)}")
     
     return {"message": "Miembro añadido correctamente"}
 
@@ -469,20 +532,27 @@ def remove_proyecto_miembro(
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     
     # Solo admin o owner pueden quitar miembros
-    if current_user.rol != "admin" and str(proyecto.owner_id) != str(current_user.id):
+    if not can_edit_proyecto(proyecto, current_user):
         raise HTTPException(status_code=403, detail="Sin permiso para editar equipo")
     
     # No permitir quitar al dueño
     if str(proyecto.owner_id) == str(user_id):
         raise HTTPException(status_code=400, detail="No se puede eliminar al dueño del proyecto")
     
-    db.execute(
-        proyecto_equipo.delete().where(
-            proyecto_equipo.c.proyecto_id == str(proyecto_id),
-            proyecto_equipo.c.user_id == str(user_id)
+    try:
+        db.execute(
+            proyecto_equipo.delete().where(
+                proyecto_equipo.c.proyecto_id == str(proyecto_id),
+                proyecto_equipo.c.user_id == str(user_id)
+            )
         )
-    )
-    db.commit()
+        db.commit()
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al eliminar miembro: {str(e)}")
     
     return {"message": "Miembro eliminado correctamente"}
 @router.post("/{proyecto_id}/generate-budget-template")
@@ -515,7 +585,14 @@ def generate_budget_template(
     elif proyecto.tipologia == "Modernización":
         rubros_base.append({"categoria": "Infraestructura", "item": "Adecuaciones Locativas", "valor": 0, "descripcion": "Mejoras al ambiente de formación"})
 
-    proyecto.presupuesto_detallado = {"items": rubros_base, "total_estimado": 0}
-    db.commit()
+    try:
+        proyecto.presupuesto_detallado = {"items": rubros_base, "total_estimado": 0}
+        db.commit()
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al generar plantilla: {str(e)}")
     
     return {"status": "template_generated", "items_count": len(rubros_base)}

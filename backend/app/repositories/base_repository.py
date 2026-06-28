@@ -19,24 +19,36 @@ class BaseRepository(Generic[T]):
         return self.db.query(self.model).offset(skip).limit(limit).all()
 
     def create(self, obj_in: Any) -> T:
-        db_obj = self.model(**obj_in.dict())
-        self.db.add(db_obj)
-        self.db.commit()
-        self.db.refresh(db_obj)
-        return db_obj
+        try:
+            db_obj = self.model(**obj_in.dict())
+            self.db.add(db_obj)
+            self.db.commit()
+            self.db.refresh(db_obj)
+            return db_obj
+        except Exception:
+            self.db.rollback()
+            raise
 
     def update(self, db_obj: T, obj_in: Any) -> T:
-        obj_data = obj_in.dict(exclude_unset=True)
-        for field in obj_data:
-            setattr(db_obj, field, obj_data[field])
-        self.db.commit()
-        self.db.refresh(db_obj)
-        return db_obj
+        try:
+            obj_data = obj_in.dict(exclude_unset=True)
+            for field in obj_data:
+                setattr(db_obj, field, obj_data[field])
+            self.db.commit()
+            self.db.refresh(db_obj)
+            return db_obj
+        except Exception:
+            self.db.rollback()
+            raise
 
     def delete(self, id: Any) -> bool:
-        obj = self.get_by_id(id)
-        if obj:
-            self.db.delete(obj)
-            self.db.commit()
-            return True
-        return False
+        try:
+            obj = self.get_by_id(id)
+            if obj:
+                self.db.delete(obj)
+                self.db.commit()
+                return True
+            return False
+        except Exception:
+            self.db.rollback()
+            raise

@@ -7,7 +7,7 @@ from datetime import datetime, date, timedelta, timezone
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.orm import Session
-from app.database import SessionLocal, engine
+from app.database import SessionLocal, engine, Base
 from app.models import (
     User, Grupo, Semillero, Aprendiz, Convocatoria, 
     Proyecto, Producto, Reto, BitacoraEntry,
@@ -16,6 +16,7 @@ from app.models import (
 from app.auth import get_password_hash
 
 def seed_data():
+    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     print("🧹 Limpiando datos previos...")
     try:

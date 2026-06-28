@@ -27,13 +27,17 @@ class UserRepository(BaseRepository[User]):
 
     # Sobrescribimos create porque los usuarios necesitan hashing de password
     def create(self, user_data: UserCreate) -> User:
-        user_dict = user_data.dict()
-        password = user_dict.pop("password")
-        user = User(
-            **user_dict,
-            password_hash=get_password_hash(password)
-        )
-        self.db.add(user)
-        self.db.commit()
-        self.db.refresh(user)
-        return user
+        try:
+            user_dict = user_data.dict()
+            password = user_dict.pop("password")
+            user = User(
+                **user_dict,
+                password_hash=get_password_hash(password)
+            )
+            self.db.add(user)
+            self.db.commit()
+            self.db.refresh(user)
+            return user
+        except Exception:
+            self.db.rollback()
+            raise

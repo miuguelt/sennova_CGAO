@@ -24,4 +24,23 @@ export const AuditAPI = {
    * Obtiene estadísticas de auditoría
    */
   getStats: () => fetchAPI('/audit/stats'),
+
+  /**
+   * Exporta logs a CSV (retorna la URL del endpoint para descarga directa)
+   */
+  exportLogsUrl: (tipo) => {
+    const token = localStorage.getItem('token');
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+    return `${apiBase}/audit/export?tipo=${tipo}&token=${token}`;
+  },
+
+  /**
+   * Ejecuta la limpieza de logs antiguos
+   */
+  cleanup: (dias) => {
+    return fetchAPI(`/audit/cleanup?dias=${dias}`, {
+      method: 'POST'
+    });
+  }
 };
+

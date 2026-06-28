@@ -30,6 +30,7 @@ const EMPTY_FORM = {
   fecha_cierre: '',
   descripcion: '',
   enlace_externo: '',
+  fuente: 'SENNOVA',
   estado: 'abierta'
 };
 
@@ -118,6 +119,10 @@ const ConvocatoriaCard = ({ convocatoria, onEdit, onDelete, onDetail, onDropProj
           <div className="flex items-center gap-1.5">
             <FileText size={14} />
             <span>OE: {convocatoria.numero_oe || 'N/A'}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Layers size={14} />
+            <span>{convocatoria.fuente || 'SENNOVA'}</span>
           </div>
         </div>
 
@@ -501,34 +506,51 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
             </div>
             
             <div className="p-8 overflow-y-auto space-y-6 scrollbar-thin">
-              <Input 
-                label="Nombre de la Convocatoria" 
-                placeholder="Ej: Convocatoria Nacional de Proyectos I+D+i 2026" 
-                value={formData.nombre} 
-                onChange={e => setFormData({...formData, nombre: e.target.value})} 
-                required 
-              />
-              
-              <TextArea 
-                label="Descripción y Alcance" 
-                placeholder="Detalla los objetivos, requisitos y población objetivo..." 
-                value={formData.descripcion} 
-                onChange={e => setFormData({...formData, descripcion: e.target.value})} 
-                rows={4} 
-              />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <Input 
+                    label="Nombre de la Convocatoria" 
+                    placeholder="Ej: Convocatoria Nacional de Proyectos I+D+i 2026" 
+                    value={formData.nombre} 
+                    onChange={e => setFormData({...formData, nombre: e.target.value})} 
+                    required 
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <TextArea 
+                    label="Descripción y Alcance" 
+                    placeholder="Detalla los objetivos, requisitos y población objetivo..." 
+                    value={formData.descripcion} 
+                    onChange={e => setFormData({...formData, descripcion: e.target.value})} 
+                    rows={4} 
+                  />
+                </div>
+                
+                <Select
+                  label="Fuente / Entidad"
+                  value={formData.fuente || 'SENNOVA'}
+                  onChange={(e) => setFormData({...formData, fuente: e.target.value})}
+                  options={[
+                    { value: 'SENNOVA', label: 'SENNOVA' },
+                    { value: 'Minciencias', label: 'Minciencias' },
+                    { value: 'Capacidad_Instalada', label: 'Capacidad Instalada' },
+                    { value: 'Otra', label: 'Otra Entidad' }
+                  ]}
+                />
+
                 <Input 
                   label="Año" 
                   type="number"
                   value={formData.año} 
                   onChange={e => setFormData({...formData, año: e.target.value})} 
                 />
+
                 <Input 
-                  label="Número OE / Referencia" 
-                  placeholder="Ej: 2026-741" 
-                  value={formData.numero_oe} 
-                  onChange={e => setFormData({...formData, numero_oe: e.target.value})} 
+                  label="Número OE (Opcional)" 
+                  value={formData.numero_oe}
+                  onChange={(e) => setFormData({...formData, numero_oe: e.target.value})}
+                  placeholder="Ej. OE-2024-001"
                 />
               </div>
 

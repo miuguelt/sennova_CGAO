@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Edit2, Save, Loader2, AlertCircle, CheckCircle, ExternalLink,
-  FileText, Eye, Trash2, Upload, Hash, X,
+  FileText, Eye, Trash2, Upload, Hash, X, RefreshCw
 } from 'lucide-react';
 import { AuthAPI } from '../../api/auth';
 import { CVLACAPI } from '../../api/cvlac';
@@ -265,15 +265,36 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
                     placeholder={CVLAC_URL_PLACEHOLDER}
                   />
                   {user.cv_lac_url && (
-                    <a
-                      href={user.cv_lac_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                      aria-label="Abrir CVLAC en nueva pestaña"
-                    >
-                      <ExternalLink size={16} aria-hidden="true" />
-                    </a>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={async () => {
+                          try {
+                            setValidandoURL(true);
+                            const res = await CVLACAPI.importar(user.cv_lac_url);
+                            notify(`¡Éxito! Se importaron ${res.importados} productos desde tu CVLaC.`);
+                          } catch (err) {
+                            notify('Error al sincronizar: ' + err.message, 'error');
+                          } finally {
+                            setValidandoURL(false);
+                          }
+                        }}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-indigo-100 flex items-center gap-2"
+                        title="Sincronizar producción desde CVLaC"
+                        disabled={validandoURL}
+                      >
+                        {validandoURL ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                        <span className="text-[10px] font-black uppercase">Sincronizar</span>
+                      </button>
+                      <a
+                        href={user.cv_lac_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 border border-emerald-100"
+                        aria-label="Abrir CVLAC en nueva pestaña"
+                      >
+                        <ExternalLink size={16} aria-hidden="true" />
+                      </a>
+                    </div>
                   )}
                 </div>
                 {urlValida === false && (

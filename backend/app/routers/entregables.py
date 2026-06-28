@@ -6,7 +6,8 @@ Gestión de entregables y cronograma de proyectos
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+import sqlalchemy as sa
+from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -17,6 +18,7 @@ from app.schemas import (
     EntregableCreate, EntregableUpdate, EntregableResponse, 
     EntregableListResponse, NotificacionCreate
 )
+from app.services import EmailService
 
 router = APIRouter(
     prefix="/entregables",
@@ -51,6 +53,8 @@ def puede_ver_entregables(proyecto: Proyecto, user: User) -> bool:
 
 def puede_editar_entregables(proyecto: Proyecto, user: User) -> bool:
     """Verifica si el usuario puede editar entregables del proyecto."""
+    if user.rol == 'aprendiz':
+        return False
     if user.rol == 'admin':
         return True
     if proyecto.owner_id == user.id:
@@ -65,31 +69,38 @@ def listar_entregables_proyecto(
     db: Session = Depends(get_db)
 ):
     """Lista todos los entregables de un proyecto."""
-    proyecto = db.query(Proyecto).filter(Proyecto.id == proyecto_id).first()
-    if not proyecto:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    
-    if not puede_ver_entregables(proyecto, current_user):
-        raise HTTPException(status_code=403, detail="No tienes permiso para ver estos entregables")
-    
-    entregables = db.query(Entregable).filter(
-        Entregable.proyecto_id == proyecto_id
-    ).order_by(Entregable.fecha_entrega).all()
-    
-    # Calcular días restantes
-    result = []
-    for e in entregables:
-        e_dict = {
-            "id": e.id,
-            "fase": e.fase,
-            "titulo": e.titulo,
-            "estado": e.estado,
-            "fecha_entrega": e.fecha_entrega,
-            "dias_restantes": calcular_dias_restantes(e.fecha_entrega)
-        }
-        result.append(e_dict)
-    
-    return result
+    try:
+        proyecto = db.query(Proyecto).filter(Proyecto.id == proyecto_id).first()
+        if not proyecto:
+            raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        
+        if not puede_ver_entregables(proyecto, current_user):
+            raise HTTPException(status_code=403, detail="No tienes permiso para ver estos entregables")
+        
+        entregables = db.query(Entregable).filter(
+            Entregable.proyecto_id == proyecto_id
+        ).order_by(Entregable.fecha_entrega).all()
+        
+        # Calcular días restantes
+        result = []
+        for e in entregables:
+            e_dict = {
+                "id": e.id,
+                "fase": e.fase,
+                "titulo": e.titulo,
+                "estado": e.estado,
+                "fecha_entrega": e.fecha_entrega,
+                "dias_restantes": calcular_dias_restantes(e.fecha_entrega)
+            }
+            result.append(e_dict)
+        
+        return result
+    except sa.exc.OperationalError as db_err:
+        raise db_err
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/mis-entregables", response_model=List[EntregableResponse])
@@ -99,38 +110,43 @@ def listar_mis_entregables(
     db: Session = Depends(get_db)
 ):
     """Lista los entregables asignados al usuario actual."""
-    query = db.query(Entregable).filter(Entregable.responsable_id == current_user.id)
-    
-    if pendientes_only:
-        query = query.filter(Entregable.estado.in_(['pendiente', 'en_desarrollo']))
-    
-    entregables = query.order_by(Entregable.fecha_entrega).all()
-    
-    result = []
-    for e in entregables:
-        e_dict = {
-            "id": e.id,
-            "fase": e.fase,
-            "titulo": e.titulo,
-            "descripcion": e.descripcion,
-            "tipo": e.tipo,
-            "fecha_entrega": e.fecha_entrega,
-            "estado": e.estado,
-            "fecha_envio": e.fecha_envio,
-            "fecha_aprobacion": e.fecha_aprobacion,
-            "observaciones": e.observaciones,
-            "proyecto_id": e.proyecto_id,
-            "responsable_id": e.responsable_id,
-            "producto_id": e.producto_id,
-            "created_at": e.created_at,
-            "updated_at": e.updated_at,
-            "responsable_nombre": e.responsable.nombre if e.responsable else None,
-            "producto_nombre": e.producto.nombre if e.producto else None,
-            "dias_restantes": calcular_dias_restantes(e.fecha_entrega)
-        }
-        result.append(e_dict)
-    
-    return result
+    try:
+        query = db.query(Entregable).filter(Entregable.responsable_id == current_user.id)
+        
+        if pendientes_only:
+            query = query.filter(Entregable.estado.in_(['pendiente', 'en_desarrollo']))
+        
+        entregables = query.order_by(Entregable.fecha_entrega).all()
+        
+        result = []
+        for e in entregables:
+            e_dict = {
+                "id": e.id,
+                "fase": e.fase,
+                "titulo": e.titulo,
+                "descripcion": e.descripcion,
+                "tipo": e.tipo,
+                "fecha_entrega": e.fecha_entrega,
+                "estado": e.estado,
+                "fecha_envio": e.fecha_envio,
+                "fecha_aprobacion": e.fecha_aprobacion,
+                "observaciones": e.observaciones,
+                "proyecto_id": e.proyecto_id,
+                "responsable_id": e.responsable_id,
+                "producto_id": e.producto_id,
+                "created_at": e.created_at,
+                "updated_at": e.updated_at,
+                "responsable_nombre": e.responsable.nombre if e.responsable else None,
+                "producto_nombre": e.producto.nombre if e.producto else None,
+                "dias_restantes": calcular_dias_restantes(e.fecha_entrega)
+            }
+            result.append(e_dict)
+        
+        return result
+    except sa.exc.OperationalError as db_err:
+        raise db_err
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{entregable_id}", response_model=EntregableResponse)
@@ -140,120 +156,156 @@ def obtener_entregable(
     db: Session = Depends(get_db)
 ):
     """Obtiene un entregable específico."""
-    entregable = db.query(Entregable).filter(Entregable.id == entregable_id).first()
-    if not entregable:
-        raise HTTPException(status_code=404, detail="Entregable no encontrado")
-    
-    if not puede_ver_entregables(entregable.proyecto, current_user):
-        raise HTTPException(status_code=403, detail="No tienes permiso para ver este entregable")
-    
-    return {
-        "id": entregable.id,
-        "fase": entregable.fase,
-        "titulo": entregable.titulo,
-        "descripcion": entregable.descripcion,
-        "tipo": entregable.tipo,
-        "fecha_entrega": entregable.fecha_entrega,
-        "estado": entregable.estado,
-        "fecha_envio": entregable.fecha_envio,
-        "fecha_aprobacion": entregable.fecha_aprobacion,
-        "observaciones": entregable.observaciones,
-        "proyecto_id": entregable.proyecto_id,
-        "responsable_id": entregable.responsable_id,
-        "producto_id": entregable.producto_id,
-        "created_at": entregable.created_at,
-        "updated_at": entregable.updated_at,
-        "responsable_nombre": entregable.responsable.nombre if entregable.responsable else None,
-        "producto_nombre": entregable.producto.nombre if entregable.producto else None,
-        "dias_restantes": calcular_dias_restantes(entregable.fecha_entrega)
-    }
+    try:
+        entregable = db.query(Entregable).filter(Entregable.id == entregable_id).first()
+        if not entregable:
+            raise HTTPException(status_code=404, detail="Entregable no encontrado")
+        
+        if not puede_ver_entregables(entregable.proyecto, current_user):
+            raise HTTPException(status_code=403, detail="No tienes permiso para ver este entregable")
+        
+        return {
+            "id": entregable.id,
+            "fase": entregable.fase,
+            "titulo": entregable.titulo,
+            "descripcion": entregable.descripcion,
+            "tipo": entregable.tipo,
+            "fecha_entrega": entregable.fecha_entrega,
+            "estado": entregable.estado,
+            "fecha_envio": entregable.fecha_envio,
+            "fecha_aprobacion": entregable.fecha_aprobacion,
+            "observaciones": entregable.observaciones,
+            "proyecto_id": entregable.proyecto_id,
+            "responsable_id": entregable.responsable_id,
+            "producto_id": entregable.producto_id,
+            "created_at": entregable.created_at,
+            "updated_at": entregable.updated_at,
+            "responsable_nombre": entregable.responsable.nombre if entregable.responsable else None,
+            "producto_nombre": entregable.producto.nombre if entregable.producto else None,
+            "dias_restantes": calcular_dias_restantes(entregable.fecha_entrega)
+        }
+    except sa.exc.OperationalError as db_err:
+        raise db_err
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/", response_model=EntregableResponse, status_code=status.HTTP_201_CREATED)
 def crear_entregable(
     data: EntregableCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Crea un nuevo entregable en el proyecto."""
-    proyecto = db.query(Proyecto).filter(Proyecto.id == data.proyecto_id).first()
-    if not proyecto:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    
-    if not puede_editar_entregables(proyecto, current_user):
-        raise HTTPException(status_code=403, detail="No tienes permiso para crear entregables")
-    
-    # Calcular fechas de recordatorio
-    fecha_entrega = data.fecha_entrega
-    if isinstance(fecha_entrega, str):
-        from datetime import datetime as dt
-        fecha_entrega = dt.strptime(fecha_entrega, '%Y-%m-%d').date()
-    
-    recordatorio_15 = fecha_entrega - timedelta(days=15)
-    recordatorio_3 = fecha_entrega - timedelta(days=3)
-    
-    entregable = Entregable(
-        fase=data.fase,
-        titulo=data.titulo,
-        descripcion=data.descripcion,
-        tipo=data.tipo,
-        fecha_entrega=data.fecha_entrega,
-        fecha_recordatorio_15d=recordatorio_15,
-        fecha_recordatorio_3d=recordatorio_3,
-        proyecto_id=data.proyecto_id,
-        responsable_id=data.responsable_id,
-        producto_id=data.producto_id,
-        estado='pendiente'
-    )
-    
-    db.add(entregable)
-    db.commit()
-    db.refresh(entregable)
-    
-    # Registrar actividad
-    log_actividad(
-        db, 
-        current_user.id, 
-        "crear_entregable", 
-        f"Añadió el entregable: {entregable.titulo}",
-        entidad_tipo="entregable",
-        entidad_id=str(entregable.id)
-    )
-    
-    # Notificar al responsable si existe
-    if entregable.responsable_id and entregable.responsable_id != current_user.id:
-        notificacion = Notificacion(
-            user_id=entregable.responsable_id,
-            tipo='entregable',
-            titulo=f'Nuevo entregable asignado: {entregable.titulo}',
-            mensaje=f'Se te ha asignado el entregable "{entregable.titulo}" del proyecto "{proyecto.nombre_corto or proyecto.nombre}". Fecha límite: {entregable.fecha_entrega}',
-            entidad_tipo='entregable',
-            entidad_id=entregable.id,
-            prioridad='normal'
+    try:
+        proyecto = db.query(Proyecto).filter(Proyecto.id == str(data.proyecto_id)).first()
+        if not proyecto:
+            raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        
+        if not puede_editar_entregables(proyecto, current_user):
+            raise HTTPException(status_code=403, detail="No tienes permiso para crear entregables")
+        
+        # Calcular fechas de recordatorio
+        fecha_entrega = data.fecha_entrega
+        if isinstance(fecha_entrega, str):
+            from datetime import datetime as dt
+            fecha_entrega = dt.strptime(fecha_entrega, '%Y-%m-%d').date()
+        
+        recordatorio_15 = fecha_entrega - timedelta(days=15)
+        recordatorio_3 = fecha_entrega - timedelta(days=3)
+        
+        entregable = Entregable(
+            fase=data.fase,
+            titulo=data.titulo,
+            descripcion=data.descripcion,
+            tipo=data.tipo,
+            fecha_entrega=data.fecha_entrega,
+            fecha_recordatorio_15d=recordatorio_15,
+            fecha_recordatorio_3d=recordatorio_3,
+            proyecto_id=str(data.proyecto_id),
+            responsable_id=str(data.responsable_id) if data.responsable_id else None,
+            producto_id=str(data.producto_id) if data.producto_id else None,
+            estado='pendiente'
         )
-        db.add(notificacion)
+        
+        db.add(entregable)
         db.commit()
-    
-    return {
-        "id": entregable.id,
-        "fase": entregable.fase,
-        "titulo": entregable.titulo,
-        "descripcion": entregable.descripcion,
-        "tipo": entregable.tipo,
-        "fecha_entrega": entregable.fecha_entrega,
-        "estado": entregable.estado,
-        "fecha_envio": entregable.fecha_envio,
-        "fecha_aprobacion": entregable.fecha_aprobacion,
-        "observaciones": entregable.observaciones,
-        "proyecto_id": entregable.proyecto_id,
-        "responsable_id": entregable.responsable_id,
-        "producto_id": entregable.producto_id,
-        "created_at": entregable.created_at,
-        "updated_at": entregable.updated_at,
-        "responsable_nombre": entregable.responsable.nombre if entregable.responsable else None,
-        "producto_nombre": entregable.producto.nombre if entregable.producto else None,
-        "dias_restantes": calcular_dias_restantes(entregable.fecha_entrega)
-    }
+        db.refresh(entregable)
+        
+        # Registrar actividad
+        log_actividad(
+            db, 
+            current_user.id, 
+            "crear_entregable", 
+            f"Añadió el entregable: {entregable.titulo}",
+            entidad_tipo="entregable",
+            entidad_id=str(entregable.id)
+        )
+        
+        # Notificar al responsable si existe
+        if entregable.responsable_id and entregable.responsable_id != current_user.id:
+            responsable = db.query(User).filter(User.id == entregable.responsable_id).first()
+            if responsable:
+                notificacion = Notificacion(
+                    user_id=entregable.responsable_id,
+                    tipo='entregable',
+                    titulo=f'Nuevo entregable asignado: {entregable.titulo}',
+                    mensaje=f'Se te ha asignado el entregable "{entregable.titulo}" del proyecto "{proyecto.nombre_corto or proyecto.nombre}". Fecha límite: {entregable.fecha_entrega}',
+                    entidad_tipo='entregable',
+                    entidad_id=entregable.id,
+                    prioridad='normal'
+                )
+                db.add(notificacion)
+                db.commit()
+                
+                body_html = f"""
+                <h3>Hola {responsable.nombre},</h3>
+                <p>Se te ha asignado una nueva tarea/entregable en la plataforma SENNOVA:</p>
+                <ul>
+                    <li><b>Proyecto:</b> {proyecto.nombre}</li>
+                    <li><b>Entregable:</b> {entregable.titulo}</li>
+                    <li><b>Fase:</b> {entregable.fase}</li>
+                    <li><b>Fecha Límite:</b> {entregable.fecha_entrega}</li>
+                </ul>
+                <p>Por favor ingresa al sistema para revisar los requerimientos y subir tus avances.</p>
+                <br/>
+                <p>Atentamente,<br/>Coordinación SENNOVA CGAO</p>
+                """
+                EmailService.send_email_async(responsable.email, f"Nuevo Entregable Asignado: {entregable.titulo}", body_html, background_tasks)
+
+        
+        return {
+            "id": entregable.id,
+            "fase": entregable.fase,
+            "titulo": entregable.titulo,
+            "descripcion": entregable.descripcion,
+            "tipo": entregable.tipo,
+            "fecha_entrega": entregable.fecha_entrega,
+            "estado": entregable.estado,
+            "fecha_envio": entregable.fecha_envio,
+            "fecha_aprobacion": entregable.fecha_aprobacion,
+            "observaciones": entregable.observaciones,
+            "proyecto_id": entregable.proyecto_id,
+            "responsable_id": entregable.responsable_id,
+            "producto_id": entregable.producto_id,
+            "created_at": entregable.created_at,
+            "updated_at": entregable.updated_at,
+            "responsable_nombre": entregable.responsable.nombre if entregable.responsable else None,
+            "producto_nombre": entregable.producto.nombre if entregable.producto else None,
+            "dias_restantes": calcular_dias_restantes(entregable.fecha_entrega)
+        }
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/{entregable_id}", response_model=EntregableResponse)
@@ -264,51 +316,61 @@ def actualizar_entregable(
     db: Session = Depends(get_db)
 ):
     """Actualiza un entregable existente."""
-    entregable = db.query(Entregable).filter(Entregable.id == entregable_id).first()
-    if not entregable:
-        raise HTTPException(status_code=404, detail="Entregable no encontrado")
-    
-    if not puede_editar_entregables(entregable.proyecto, current_user):
-        raise HTTPException(status_code=403, detail="No tienes permiso para editar este entregable")
-    
-    # Actualizar campos
-    update_data = data.model_dump(exclude_unset=True)
-    
-    # Si cambia la fecha de entrega, recalcular recordatorios
-    if 'fecha_entrega' in update_data and update_data['fecha_entrega']:
-        fecha = update_data['fecha_entrega']
-        if isinstance(fecha, str):
-            from datetime import datetime as dt
-            fecha = dt.strptime(fecha, '%Y-%m-%d').date()
-        entregable.fecha_recordatorio_15d = fecha - timedelta(days=15)
-        entregable.fecha_recordatorio_3d = fecha - timedelta(days=3)
-    
-    for field, value in update_data.items():
-        setattr(entregable, field, value)
-    
-    db.commit()
-    db.refresh(entregable)
-    
-    return {
-        "id": entregable.id,
-        "fase": entregable.fase,
-        "titulo": entregable.titulo,
-        "descripcion": entregable.descripcion,
-        "tipo": entregable.tipo,
-        "fecha_entrega": entregable.fecha_entrega,
-        "estado": entregable.estado,
-        "fecha_envio": entregable.fecha_envio,
-        "fecha_aprobacion": entregable.fecha_aprobacion,
-        "observaciones": entregable.observaciones,
-        "proyecto_id": entregable.proyecto_id,
-        "responsable_id": entregable.responsable_id,
-        "producto_id": entregable.producto_id,
-        "created_at": entregable.created_at,
-        "updated_at": entregable.updated_at,
-        "responsable_nombre": entregable.responsable.nombre if entregable.responsable else None,
-        "producto_nombre": entregable.producto.nombre if entregable.producto else None,
-        "dias_restantes": calcular_dias_restantes(entregable.fecha_entrega)
-    }
+    try:
+        entregable = db.query(Entregable).filter(Entregable.id == entregable_id).first()
+        if not entregable:
+            raise HTTPException(status_code=404, detail="Entregable no encontrado")
+        
+        if not puede_editar_entregables(entregable.proyecto, current_user):
+            raise HTTPException(status_code=403, detail="No tienes permiso para editar este entregable")
+        
+        # Actualizar campos
+        update_data = data.model_dump(exclude_unset=True)
+        
+        # Si cambia la fecha de entrega, recalcular recordatorios
+        if 'fecha_entrega' in update_data and update_data['fecha_entrega']:
+            fecha = update_data['fecha_entrega']
+            if isinstance(fecha, str):
+                from datetime import datetime as dt
+                fecha = dt.strptime(fecha, '%Y-%m-%d').date()
+            entregable.fecha_recordatorio_15d = fecha - timedelta(days=15)
+            entregable.fecha_recordatorio_3d = fecha - timedelta(days=3)
+        
+        for field, value in update_data.items():
+            setattr(entregable, field, value)
+        
+        db.commit()
+        db.refresh(entregable)
+        
+        return {
+            "id": entregable.id,
+            "fase": entregable.fase,
+            "titulo": entregable.titulo,
+            "descripcion": entregable.descripcion,
+            "tipo": entregable.tipo,
+            "fecha_entrega": entregable.fecha_entrega,
+            "estado": entregable.estado,
+            "fecha_envio": entregable.fecha_envio,
+            "fecha_aprobacion": entregable.fecha_aprobacion,
+            "observaciones": entregable.observaciones,
+            "proyecto_id": entregable.proyecto_id,
+            "responsable_id": entregable.responsable_id,
+            "producto_id": entregable.producto_id,
+            "created_at": entregable.created_at,
+            "updated_at": entregable.updated_at,
+            "responsable_nombre": entregable.responsable.nombre if entregable.responsable else None,
+            "producto_nombre": entregable.producto.nombre if entregable.producto else None,
+            "dias_restantes": calcular_dias_restantes(entregable.fecha_entrega)
+        }
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/{entregable_id}")
@@ -318,68 +380,111 @@ def eliminar_entregable(
     db: Session = Depends(get_db)
 ):
     """Elimina un entregable."""
-    entregable = db.query(Entregable).filter(Entregable.id == entregable_id).first()
-    if not entregable:
-        raise HTTPException(status_code=404, detail="Entregable no encontrado")
-    
-    if not puede_editar_entregables(entregable.proyecto, current_user):
-        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este entregable")
-    
-    db.delete(entregable)
-    db.commit()
-    
-    return {"message": "Entregable eliminado correctamente"}
+    try:
+        entregable = db.query(Entregable).filter(Entregable.id == entregable_id).first()
+        if not entregable:
+            raise HTTPException(status_code=404, detail="Entregable no encontrado")
+        
+        if not puede_editar_entregables(entregable.proyecto, current_user):
+            raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este entregable")
+        
+        db.delete(entregable)
+        db.commit()
+        
+        return {"message": "Entregable eliminado correctamente"}
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{entregable_id}/cambiar-estado")
 def cambiar_estado_entregable(
     entregable_id: str,
     nuevo_estado: str,
+    background_tasks: BackgroundTasks,
     observaciones: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Cambia el estado de un entregable (enviado, aprobado, ajustes_requeridos)."""
-    entregable = db.query(Entregable).filter(Entregable.id == entregable_id).first()
-    if not entregable:
-        raise HTTPException(status_code=404, detail="Entregable no encontrado")
-    
-    estados_validos = ['pendiente', 'en_desarrollo', 'enviado', 'aprobado', 'ajustes_requeridos']
-    if nuevo_estado not in estados_validos:
-        raise HTTPException(status_code=400, detail=f"Estado no válido. Use: {', '.join(estados_validos)}")
-    
-    entregable.estado = nuevo_estado
-    
-    if observaciones:
-        entregable.observaciones = observaciones
-    
-    # Actualizar fechas según estado
-    if nuevo_estado == 'enviado':
-        entregable.fecha_envio = datetime.now(timezone.utc).date()
-    elif nuevo_estado == 'aprobado':
-        entregable.fecha_aprobacion = datetime.now(timezone.utc).date()
-    
-    db.commit()
-    
-    # Notificar al responsable del cambio
-    if entregable.responsable_id and entregable.responsable_id != current_user.id:
-        notificacion = Notificacion(
-            user_id=entregable.responsable_id,
-            tipo='entregable',
-            titulo=f'Entregable actualizado: {entregable.titulo}',
-            mensaje=f'El entregable "{entregable.titulo}" ha cambiado a estado: {nuevo_estado}. {observaciones or ""}',
-            entidad_tipo='entregable',
-            entidad_id=entregable.id,
-            prioridad='normal' if nuevo_estado != 'ajustes_requeridos' else 'alta'
-        )
-        db.add(notificacion)
+    try:
+        entregable = db.query(Entregable).filter(Entregable.id == entregable_id).first()
+        if not entregable:
+            raise HTTPException(status_code=404, detail="Entregable no encontrado")
+        
+        # Solo admin, owner del proyecto o responsable pueden cambiar estado
+        proyecto = entregable.proyecto
+        if current_user.rol != "admin" and str(proyecto.owner_id) != str(current_user.id) and str(entregable.responsable_id) != str(current_user.id):
+            raise HTTPException(status_code=403, detail="No tienes permiso para cambiar el estado de este entregable")
+
+        estados_validos = ['pendiente', 'en_desarrollo', 'enviado', 'aprobado', 'ajustes_requeridos']
+        if nuevo_estado not in estados_validos:
+            raise HTTPException(status_code=400, detail=f"Estado no válido. Use: {', '.join(estados_validos)}")
+        
+        entregable.estado = nuevo_estado
+        
+        if observaciones:
+            entregable.observaciones = observaciones
+        
+        # Actualizar fechas según estado
+        if nuevo_estado == 'enviado':
+            entregable.fecha_envio = datetime.now(timezone.utc).date()
+        elif nuevo_estado == 'aprobado':
+            entregable.fecha_aprobacion = datetime.now(timezone.utc).date()
+        
         db.commit()
-    
-    return {
-        "message": f"Estado actualizado a: {nuevo_estado}",
-        "entregable_id": entregable_id,
-        "nuevo_estado": nuevo_estado
-    }
+        
+        # Notificar al responsable del cambio
+        if entregable.responsable_id and entregable.responsable_id != current_user.id:
+            responsable = db.query(User).filter(User.id == entregable.responsable_id).first()
+            if responsable:
+                notificacion = Notificacion(
+                    user_id=entregable.responsable_id,
+                    tipo='entregable',
+                    titulo=f'Entregable actualizado: {entregable.titulo}',
+                    mensaje=f'El entregable "{entregable.titulo}" ha cambiado a estado: {nuevo_estado}. {observaciones or ""}',
+                    entidad_tipo='entregable',
+                    entidad_id=entregable.id,
+                    prioridad='normal' if nuevo_estado != 'ajustes_requeridos' else 'alta'
+                )
+                db.add(notificacion)
+                db.commit()
+                
+                body_html = f"""
+                <h3>Hola {responsable.nombre},</h3>
+                <p>El estado de tu entregable/tarea ha sido actualizado en la plataforma SENNOVA:</p>
+                <ul>
+                    <li><b>Entregable:</b> {entregable.titulo}</li>
+                    <li><b>Proyecto:</b> {proyecto.nombre}</li>
+                    <li><b>Nuevo Estado:</b> {nuevo_estado}</li>
+                    <li><b>Observaciones:</b> {observaciones or 'Ninguna'}</li>
+                </ul>
+                <p>Por favor ingresa al sistema para verificar los detalles y realizar los ajustes si es necesario.</p>
+                <br/>
+                <p>Atentamente,<br/>Coordinación SENNOVA CGAO</p>
+                """
+                EmailService.send_email_async(responsable.email, f"Actualización de Entregable: {entregable.titulo}", body_html, background_tasks)
+        
+        return {
+            "message": f"Estado actualizado a: {nuevo_estado}",
+            "entregable_id": entregable_id,
+            "nuevo_estado": nuevo_estado
+        }
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/alertas/proximos")
@@ -389,43 +494,50 @@ def entregables_proximos(
     db: Session = Depends(get_db)
 ):
     """Lista entregables que vencen en los próximos N días."""
-    from datetime import date, timedelta
-    hoy = date.today()
-    fecha_limite = hoy + timedelta(days=dias)
-    
-    query = db.query(Entregable).filter(
-        Entregable.fecha_entrega <= fecha_limite,
-        Entregable.fecha_entrega >= hoy,
-        Entregable.estado.in_(['pendiente', 'en_desarrollo'])
-    )
-    
-    # Si no es admin, solo mostrar los del usuario
-    if current_user.rol != 'admin':
-        # Entregables donde es responsable o miembro del proyecto
-        query = query.join(Proyecto).filter(
-            (Entregable.responsable_id == current_user.id) |
-            (Proyecto.owner_id == current_user.id)
+    try:
+        from datetime import date, timedelta
+        hoy = date.today()
+        fecha_limite = hoy + timedelta(days=dias)
+        
+        query = db.query(Entregable).filter(
+            Entregable.fecha_entrega <= fecha_limite,
+            Entregable.fecha_entrega >= hoy,
+            Entregable.estado.in_(['pendiente', 'en_desarrollo'])
         )
-    
-    entregables = query.order_by(Entregable.fecha_entrega).all()
-    
-    result = []
-    for e in entregables:
-        result.append({
-            "id": e.id,
-            "titulo": e.titulo,
-            "fase": e.fase,
-            "proyecto_nombre": e.proyecto.nombre_corto or e.proyecto.nombre,
-            "fecha_entrega": e.fecha_entrega,
-            "dias_restantes": calcular_dias_restantes(e.fecha_entrega),
-            "responsable_nombre": e.responsable.nombre if e.responsable else "Sin asignar"
-        })
-    
-    return {
-        "total": len(result),
-        "dias_consulta": dias,
-        "entregables": result
-    }
+        
+        # Si no es admin, solo mostrar los del usuario
+        if current_user.rol != 'admin':
+            # Entregables donde es responsable o miembro del proyecto
+            query = query.join(Proyecto).filter(
+                (Entregable.responsable_id == current_user.id) |
+                (Proyecto.owner_id == current_user.id)
+            )
+        
+        entregables = query.order_by(Entregable.fecha_entrega).all()
+        
+        result = []
+        for e in entregables:
+            result.append({
+                "id": e.id,
+                "titulo": e.titulo,
+                "fase": e.fase,
+                "proyecto_nombre": e.proyecto.nombre_corto or e.proyecto.nombre,
+                "fecha_entrega": e.fecha_entrega,
+                "dias_restantes": calcular_dias_restantes(e.fecha_entrega),
+                "responsable_nombre": e.responsable.nombre if e.responsable else "Sin asignar"
+            })
+        
+        return {
+            "total": len(result),
+            "dias_consulta": dias,
+            "entregables": result
+        }
+    except sa.exc.OperationalError as db_err:
+        raise db_err
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/proyecto/{proyecto_id}/generate-template")
 def generar_cronograma_base(
     proyecto_id: str,
@@ -433,75 +545,85 @@ def generar_cronograma_base(
     db: Session = Depends(get_db)
 ):
     """Genera automáticamente hitos y entregables basados en la tipología del proyecto."""
-    proyecto = db.query(Proyecto).filter(Proyecto.id == proyecto_id).first()
-    if not proyecto:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    
-    if not puede_editar_entregables(proyecto, current_user):
-        raise HTTPException(status_code=403, detail="No tienes permiso para modificar este proyecto")
-    
-    # Verificar si ya tiene entregables
-    existentes = db.query(Entregable).filter(Entregable.proyecto_id == proyecto_id).count()
-    if existentes > 0:
-        raise HTTPException(status_code=400, detail="El proyecto ya cuenta con hitos programados")
+    try:
+        proyecto = db.query(Proyecto).filter(Proyecto.id == proyecto_id).first()
+        if not proyecto:
+            raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        
+        if not puede_editar_entregables(proyecto, current_user):
+            raise HTTPException(status_code=403, detail="No tienes permiso para modificar este proyecto")
+        
+        # Verificar si ya tiene entregables
+        existentes = db.query(Entregable).filter(Entregable.proyecto_id == proyecto_id).count()
+        if existentes > 0:
+            raise HTTPException(status_code=400, detail="El proyecto ya cuenta con hitos programados")
 
-    # Definir Plantillas
-    PLANTILLAS = {
-        "Investigación": [
-            {"fase": "Fase I", "titulo": "Estado del Arte y Marco Teórico", "tipo": "informe", "offset_dias": 60},
-            {"fase": "Fase II", "titulo": "Metodología y Captura de Datos", "tipo": "informe", "offset_dias": 120},
-            {"fase": "Fase III", "titulo": "Desarrollo de Prototipo/Software", "tipo": "producto", "offset_dias": 180},
-            {"fase": "Final", "titulo": "Informe Final y Artículo", "tipo": "informe", "offset_dias": 240},
-        ],
-        "Innovación": [
-            {"fase": "Fase I", "titulo": "Diagnóstico y Requerimientos", "tipo": "informe", "offset_dias": 45},
-            {"fase": "Fase II", "titulo": "Diseño de Solución Tecnológica", "tipo": "documento", "offset_dias": 90},
-            {"fase": "Fase III", "titulo": "Pruebas Piloto y Validación", "tipo": "producto", "offset_dias": 150},
-            {"fase": "Final", "titulo": "Transferencia de Conocimiento", "tipo": "documento", "offset_dias": 210},
-        ],
-        "Modernización": [
-            {"fase": "Fase I", "titulo": "Especificaciones Técnicas de Compra", "tipo": "documento", "offset_dias": 30},
-            {"fase": "Fase II", "titulo": "Instalación y Puesta en Marcha", "tipo": "informe", "offset_dias": 90},
-            {"fase": "Final", "titulo": "Capacitación y Cierre Técnico", "tipo": "evaluacion", "offset_dias": 150},
-        ],
-        "Cultura": [
-            {"fase": "Fase I", "titulo": "Plan de Divulgación y Talleres", "tipo": "documento", "offset_dias": 30},
-            {"fase": "Fase II", "titulo": "Ejecución de Eventos Masivos", "tipo": "evaluacion", "offset_dias": 120},
-            {"fase": "Final", "titulo": "Memoria de Impacto Regional", "tipo": "informe", "offset_dias": 180},
-        ]
-    }
+        # Definir Plantillas
+        PLANTILLAS = {
+            "Investigación": [
+                {"fase": "Fase I", "titulo": "Estado del Arte y Marco Teórico", "tipo": "informe", "offset_dias": 60},
+                {"fase": "Fase II", "titulo": "Metodología y Captura de Datos", "tipo": "informe", "offset_dias": 120},
+                {"fase": "Fase III", "titulo": "Desarrollo de Prototipo/Software", "tipo": "producto", "offset_dias": 180},
+                {"fase": "Final", "titulo": "Informe Final y Artículo", "tipo": "informe", "offset_dias": 240},
+            ],
+            "Innovación": [
+                {"fase": "Fase I", "titulo": "Diagnóstico y Requerimientos", "tipo": "informe", "offset_dias": 45},
+                {"fase": "Fase II", "titulo": "Diseño de Solución Tecnológica", "tipo": "documento", "offset_dias": 90},
+                {"fase": "Fase III", "titulo": "Pruebas Piloto y Validación", "tipo": "producto", "offset_dias": 150},
+                {"fase": "Final", "titulo": "Transferencia de Conocimiento", "tipo": "documento", "offset_dias": 210},
+            ],
+            "Modernización": [
+                {"fase": "Fase I", "titulo": "Especificaciones Técnicas de Compra", "tipo": "documento", "offset_dias": 30},
+                {"fase": "Fase II", "titulo": "Instalación y Puesta en Marcha", "tipo": "informe", "offset_dias": 90},
+                {"fase": "Final", "titulo": "Capacitación y Cierre Técnico", "tipo": "evaluacion", "offset_dias": 150},
+            ],
+            "Cultura": [
+                {"fase": "Fase I", "titulo": "Plan de Divulgación y Talleres", "tipo": "documento", "offset_dias": 30},
+                {"fase": "Fase II", "titulo": "Ejecución de Eventos Masivos", "tipo": "evaluacion", "offset_dias": 120},
+                {"fase": "Final", "titulo": "Memoria de Impacto Regional", "tipo": "informe", "offset_dias": 180},
+            ]
+        }
 
-    # Seleccionar plantilla (por defecto Investigación si no coincide)
-    tipo = proyecto.tipologia or "Investigación"
-    hitos = next((v for k, v in PLANTILLAS.items() if k.lower() in tipo.lower()), PLANTILLAS["Investigación"])
-    
-    # Fecha base (hoy)
-    fecha_base = datetime.now(timezone.utc).date()
-    
-    nuevos_entregables = []
-    for h in hitos:
-        fecha_hito = fecha_base + timedelta(days=h["offset_dias"])
-        entregable = Entregable(
-            proyecto_id=proyecto_id,
-            fase=h["fase"],
-            titulo=h["titulo"],
-            tipo=h["tipo"],
-            fecha_entrega=fecha_hito,
-            fecha_recordatorio_15d=fecha_hito - timedelta(days=15),
-            fecha_recordatorio_3d=fecha_hito - timedelta(days=3),
-            responsable_id=proyecto.owner_id,
-            estado='pendiente'
+        # Seleccionar plantilla (por defecto Investigación si no coincide)
+        tipo = proyecto.tipologia or "Investigación"
+        hitos = next((v for k, v in PLANTILLAS.items() if k.lower() in tipo.lower()), PLANTILLAS["Investigación"])
+        
+        # Fecha base (hoy)
+        fecha_base = datetime.now(timezone.utc).date()
+        
+        nuevos_entregables = []
+        for h in hitos:
+            fecha_hito = fecha_base + timedelta(days=h["offset_dias"])
+            entregable = Entregable(
+                proyecto_id=proyecto_id,
+                fase=h["fase"],
+                titulo=h["titulo"],
+                tipo=h["tipo"],
+                fecha_entrega=fecha_hito,
+                fecha_recordatorio_15d=fecha_hito - timedelta(days=15),
+                fecha_recordatorio_3d=fecha_hito - timedelta(days=3),
+                responsable_id=proyecto.owner_id,
+                estado='pendiente'
+            )
+            db.add(entregable)
+            nuevos_entregables.append(entregable)
+
+        db.commit()
+        
+        # Log
+        log_actividad(
+            db, current_user.id, "generate_cronograma", 
+            f"Generó cronograma automático ({len(hitos)} hitos) para proyecto: {proyecto.nombre_corto or proyecto.id}",
+            entidad_tipo="proyecto", entidad_id=proyecto_id
         )
-        db.add(entregable)
-        nuevos_entregables.append(entregable)
 
-    db.commit()
-    
-    # Log
-    log_actividad(
-        db, current_user.id, "generate_cronograma", 
-        f"Generó cronograma automático ({len(hitos)} hitos) para proyecto: {proyecto.nombre_corto or proyecto.id}",
-        entidad_tipo="proyecto", entidad_id=proyecto_id
-    )
-
-    return {"message": f"Cronograma generado exitosamente ({len(hitos)} hitos)", "count": len(hitos)}
+        return {"message": f"Cronograma generado exitosamente ({len(hitos)} hitos)", "count": len(hitos)}
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

@@ -49,11 +49,11 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Registrar un nuevo investigador."""
-    # Solo permitir rol investigador en registro público
-    if user_data.rol == "admin":
+    # Solo permitir roles de investigador o aprendiz en registro público
+    if user_data.rol not in ["investigador", "aprendiz"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="No se puede registrar como admin"
+            detail="Rol no permitido para registro público"
         )
     
     user = AuthService.register_user(

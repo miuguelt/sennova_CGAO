@@ -7,6 +7,7 @@ Solo accesible por administradores
 import uuid
 from typing import List, Optional
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -61,49 +62,61 @@ def list_usuarios(
     rol: Optional[str] = None,
     is_active: Optional[bool] = None,
     search: Optional[str] = None,
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Listar todos los usuarios (solo admin)."""
-    query = db.query(User)
-    
-    if rol:
-        query = query.filter(User.rol == rol)
-    if is_active is not None:
-        query = query.filter(User.is_active == is_active)
-    if search:
-        search_filter = f"%{search}%"
-        query = query.filter(
-            (User.nombre.ilike(search_filter)) |
-            (User.email.ilike(search_filter))
-        )
-    
-    usuarios = query.offset(skip).limit(limit).all()
-    
-    # Pre-cargar documentos de CV para evitar N+1
-    user_ids = [str(u.id) for u in usuarios]
-    cv_docs_map = {}
-    if user_ids:
-        # Solo traer el más reciente para cada usuario
-        cv_docs = db.query(Documento).filter(
-            Documento.entidad_tipo == "user",
-            Documento.entidad_id.in_(user_ids),
-            Documento.tipo == "cvlac_pdf"
-        ).order_by(Documento.created_at.desc()).all()
+    """Listar todos los usuarios (solo admin, o investigador si filtra por aprendices)."""
+    try:
+        # Regla de acceso: Admin ve todo. 
+        # Investigador puede ver a otros (investigadores y aprendices), pero filtramos admins si no es admin.
+        query = db.query(User)
         
-        # Como order_by es global, el primero que encontremos para cada id en el bucle será el más reciente
-        for doc in cv_docs:
-            u_id = str(doc.entidad_id)
-            if u_id not in cv_docs_map:
-                cv_docs_map[u_id] = str(doc.id)
+        if current_user.rol != "admin":
+            query = query.filter(User.rol != "admin")
+            # Si pidió un rol específico (ej: aprendiz), lo respetamos.
+            if rol:
+                query = query.filter(User.rol == rol)
+        elif rol:
+            query = query.filter(User.rol == rol)
+        if is_active is not None:
+            query = query.filter(User.is_active == is_active)
+        if search:
+            search_filter = f"%{search}%"
+            query = query.filter(
+                (User.nombre.ilike(search_filter)) |
+                (User.email.ilike(search_filter))
+            )
+        
+        usuarios = query.offset(skip).limit(limit).all()
+        
+        # Pre-cargar documentos de CV para evitar N+1
+        user_ids = [str(u.id) for u in usuarios]
+        cv_docs_map = {}
+        if user_ids:
+            # Solo traer el más reciente para cada usuario
+            cv_docs = db.query(Documento).filter(
+                Documento.entidad_tipo == "user",
+                Documento.entidad_id.in_(user_ids),
+                Documento.tipo == "cvlac_pdf"
+            ).order_by(Documento.created_at.desc()).all()
+            
+            # Como order_by es global, el primero que encontremos para cada id en el bucle será el más reciente
+            for doc in cv_docs:
+                u_id = str(doc.entidad_id)
+                if u_id not in cv_docs_map:
+                    cv_docs_map[u_id] = str(doc.id)
 
-    result = []
-    for u in usuarios:
-        u_dict = _make_user_dict(u)
-        u_dict["cv_pdf_id"] = cv_docs_map.get(str(u.id))
-        result.append(u_dict)
-        
-    return result
+        result = []
+        for u in usuarios:
+            u_dict = _make_user_dict(u)
+            u_dict["cv_pdf_id"] = cv_docs_map.get(str(u.id))
+            result.append(u_dict)
+            
+        return result
+    except sa.exc.OperationalError as db_err:
+        raise db_err
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{user_id}")
@@ -113,32 +126,63 @@ def get_usuario(
     db: Session = Depends(get_db)
 ):
     """Obtener detalle de un usuario (admin o el propio usuario)."""
-    # Permitir si es admin O si es el mismo usuario
-    if current_user.rol != "admin" and str(current_user.id) != str(user_id):
-        raise HTTPException(status_code=403, detail="No tiene permiso para ver este perfil")
-        
-    user = db.query(User).filter(User.id == str(user_id)).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return _make_user_dict(user, db)
+    try:
+        # Permitir si es admin O si es el mismo usuario
+        if current_user.rol != "admin" and str(current_user.id) != str(user_id):
+            raise HTTPException(status_code=403, detail="No tiene permiso para ver este perfil")
+            
+        user = db.query(User).filter(User.id == str(user_id)).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        return _make_user_dict(user, db)
+    except sa.exc.OperationalError as db_err:
+        raise db_err
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 
 @router.post("", status_code=201)
 def create_usuario(
     user_data: UserCreate,
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Crear un nuevo usuario usando Repository Pattern (solo admin)."""
-    repo = UserRepository(db)
-    
-    # Verificar email único
-    if repo.get_by_email(user_data.email):
-        raise HTTPException(status_code=400, detail="Email ya registrado")
-    
-    user = repo.create(user_data)
-    return _make_user_dict(user, db)
+    """Crear un nuevo usuario (admin crea cualquiera, investigador crea aprendices)."""
+    try:
+        # Seguridad: Aprendices no pueden crear usuarios
+        if current_user.rol == "aprendiz":
+            raise HTTPException(
+                status_code=403, 
+                detail="Los aprendices no tienen permiso para crear usuarios"
+            )
+        # Seguridad: Si no es admin, solo puede crear aprendices
+        if current_user.rol != "admin":
+            if user_data.rol != "aprendiz":
+                raise HTTPException(
+                    status_code=403, 
+                    detail="Los investigadores solo pueden registrar aprendices."
+                )
+                
+        repo = UserRepository(db)
+        
+        # Verificar email único
+        if repo.get_by_email(user_data.email):
+            raise HTTPException(status_code=400, detail="Email ya registrado")
+        
+        user = repo.create(user_data)
+        return _make_user_dict(user, db)
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 
@@ -150,71 +194,96 @@ def update_usuario(
     db: Session = Depends(get_db)
 ):
     """Actualizar un usuario (admin o el propio usuario)."""
-    # Permitir si es admin O si es el mismo usuario
-    if current_user.rol != "admin" and str(current_user.id) != str(user_id):
-        raise HTTPException(status_code=403, detail="No tiene permiso para actualizar este perfil")
+    try:
+        # Permitir si es admin O si es el mismo usuario
+        if current_user.rol != "admin" and str(current_user.id) != str(user_id):
+            raise HTTPException(status_code=403, detail="No tiene permiso para actualizar este perfil")
 
-    user = db.query(User).filter(User.id == str(user_id)).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    
-    # REGLA DE SEGURIDAD: Solo admin puede cambiar roles o estado activo
-    update_data = user_update.dict(exclude_unset=True)
-    
-    if current_user.rol != "admin":
-        # Si no es admin, quitar campos sensibles
-        sensitive_fields = ["rol", "is_active", "rol_sennova", "email"]
-        for field in sensitive_fields:
-            if field in update_data:
-                del update_data[field]
-    else:
-        # Si es admin, aplicar lógica de seguridad para el último admin
-        if user.rol == "admin" and update_data.get("rol") == "investigador":
-            admin_count = db.query(User).filter(User.rol == "admin").count()
-            if admin_count <= 1:
-                raise HTTPException(status_code=400, detail="No se puede cambiar el rol del único admin")
-    
-    # Si viene password, hashearla
-    if "password" in update_data and update_data["password"]:
-        from app.auth import get_password_hash
-        user.password_hash = get_password_hash(update_data["password"])
-        del update_data["password"]
+        user = db.query(User).filter(User.id == str(user_id)).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        # REGLA DE SEGURIDAD: Solo admin puede cambiar roles o estado activo
+        update_data = user_update.dict(exclude_unset=True)
+        
+        if current_user.rol != "admin":
+            # Si no es admin, quitar campos sensibles
+            sensitive_fields = ["rol", "is_active", "rol_sennova", "email"]
+            for field in sensitive_fields:
+                if field in update_data:
+                    del update_data[field]
+        else:
+            # Si es admin, aplicar lógica de seguridad para el último admin
+            if user.rol == "admin" and update_data.get("rol") == "investigador":
+                admin_count = db.query(User).filter(User.rol == "admin").count()
+                if admin_count <= 1:
+                    raise HTTPException(status_code=400, detail="No se puede cambiar el rol del único admin")
+        
+        # Si viene password, hashearla
+        if "password" in update_data and update_data["password"]:
+            from app.auth import get_password_hash
+            user.password_hash = get_password_hash(update_data["password"])
+            del update_data["password"]
 
-    for field, value in update_data.items():
-        setattr(user, field, value)
-    
-    user.updated_at = func.now()
-    db.commit()
-    db.refresh(user)
-    
-    return _make_user_dict(user, db)
+        for field, value in update_data.items():
+            setattr(user, field, value)
+        
+        user.updated_at = func.now()
+        db.commit()
+        db.refresh(user)
+        
+        return _make_user_dict(user, db)
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/{user_id}")
 def delete_usuario(
     user_id: str,
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Eliminar un usuario (solo admin)."""
-    user = db.query(User).filter(User.id == str(user_id)).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    
-    # No permitir eliminarse a sí mismo
-    if str(user.id) == str(admin.id):
-        raise HTTPException(status_code=400, detail="No puedes eliminarte a ti mismo")
-    
-    # No permitir eliminar el último admin
-    if user.rol == "admin":
-        admin_count = db.query(User).filter(User.rol == "admin").count()
-        if admin_count <= 1:
-            raise HTTPException(status_code=400, detail="No se puede eliminar el único admin")
-    
-    db.delete(user)
-    db.commit()
-    
-    return {"message": "Usuario eliminado"}
+    """Eliminar un usuario (admin elimina cualquiera, investigador elimina aprendices)."""
+    try:
+        user = db.query(User).filter(User.id == str(user_id)).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        # Reglas de permiso
+        if current_user.rol != "admin":
+            if user.rol != "aprendiz":
+                raise HTTPException(status_code=403, detail="No tiene permiso para eliminar este usuario")
+        
+        # No permitir eliminarse a sí mismo
+        if str(user.id) == str(current_user.id):
+            raise HTTPException(status_code=400, detail="No puedes eliminarte a ti mismo")
+        
+        # No permitir eliminar el último admin
+        if user.rol == "admin":
+            admin_count = db.query(User).filter(User.rol == "admin").count()
+            if admin_count <= 1:
+                raise HTTPException(status_code=400, detail="No se puede eliminar el único admin")
+        
+        db.delete(user)
+        db.commit()
+        
+        return {"message": "Usuario eliminado"}
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{user_id}/reset-password")
@@ -225,43 +294,68 @@ def reset_password(
     db: Session = Depends(get_db)
 ):
     """Resetear contraseña de un usuario (solo admin)."""
-    if len(new_password) < 6:
-        raise HTTPException(status_code=400, detail="Contraseña debe tener al menos 6 caracteres")
-    
-    user = db.query(User).filter(User.id == str(user_id)).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    
-    user.password_hash = get_password_hash(new_password)
-    user.updated_at = func.now()
-    db.commit()
-    
-    return {"message": "Contraseña actualizada"}
+    try:
+        if len(new_password) < 6:
+            raise HTTPException(status_code=400, detail="Contraseña debe tener al menos 6 caracteres")
+        
+        user = db.query(User).filter(User.id == str(user_id)).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        user.password_hash = get_password_hash(new_password)
+        user.updated_at = func.now()
+        db.commit()
+        
+        return {"message": "Contraseña actualizada"}
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{user_id}/toggle-active")
 def toggle_user_active(
     user_id: str,
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Activar/desactivar usuario (solo admin)."""
-    user = db.query(User).filter(User.id == str(user_id)).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    
-    # No permitir desactivarse a sí mismo
-    if str(user.id) == str(admin.id):
-        raise HTTPException(status_code=400, detail="No puedes desactivarte a ti mismo")
-    
-    user.is_active = not user.is_active
-    user.updated_at = func.now()
-    db.commit()
-    
-    return {
-        "message": f"Usuario {'activado' if user.is_active else 'desactivado'}",
-        "is_active": user.is_active
-    }
+    """Activar/desactivar usuario (admin cualquiera, investigador aprendices)."""
+    try:
+        user = db.query(User).filter(User.id == str(user_id)).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        # Reglas de permiso
+        if current_user.rol != "admin":
+            if user.rol != "aprendiz":
+                raise HTTPException(status_code=403, detail="No tiene permiso para modificar este usuario")
+                
+        # No permitir desactivarse a sí mismo
+        if str(user.id) == str(current_user.id):
+            raise HTTPException(status_code=400, detail="No puedes desactivarte a ti mismo")
+        
+        user.is_active = not user.is_active
+        user.updated_at = func.now()
+        db.commit()
+        
+        return {
+            "message": f"Usuario {'activado' if user.is_active else 'desactivado'}",
+            "is_active": user.is_active
+        }
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==========================================
@@ -274,36 +368,41 @@ def get_usuarios_stats(
     db: Session = Depends(get_db)
 ):
     """Estadísticas de usuarios (Acceso investigadores)."""
-    # Convertir Rows de SQLAlchemy a diccionarios o listas simples
-    por_rol = [
-        {"rol": row[0], "count": row[1]} 
-        for row in db.query(User.rol, func.count(User.id)).group_by(User.rol).all()
-    ]
-    
-    por_sede = [
-        {"sede": row[0], "count": row[1]} 
-        for row in db.query(User.sede, func.count(User.id)).filter(User.sede != None).group_by(User.sede).all()
-    ]
-    
-    por_regional = [
-        {"regional": row[0], "count": row[1]} 
-        for row in db.query(User.regional, func.count(User.id)).filter(User.regional != None).group_by(User.regional).all()
-    ]
+    try:
+        # Convertir Rows de SQLAlchemy a diccionarios o listas simples
+        por_rol = [
+            {"rol": row[0], "count": row[1]} 
+            for row in db.query(User.rol, func.count(User.id)).group_by(User.rol).all()
+        ]
+        
+        por_sede = [
+            {"sede": row[0], "count": row[1]} 
+            for row in db.query(User.sede, func.count(User.id)).filter(User.sede != None).group_by(User.sede).all()
+        ]
+        
+        por_regional = [
+            {"regional": row[0], "count": row[1]} 
+            for row in db.query(User.regional, func.count(User.id)).filter(User.regional != None).group_by(User.regional).all()
+        ]
 
-    por_nivel = [
-        {"nivel": row[0], "count": row[1]} 
-        for row in db.query(User.nivel_academico, func.count(User.id)).filter(User.nivel_academico != None).group_by(User.nivel_academico).all()
-    ]
+        por_nivel = [
+            {"nivel": row[0], "count": row[1]} 
+            for row in db.query(User.nivel_academico, func.count(User.id)).filter(User.nivel_academico != None).group_by(User.nivel_academico).all()
+        ]
 
-    return {
-        "total": db.query(User).count(),
-        "activos": db.query(User).filter(User.is_active == True).count(),
-        "inactivos": db.query(User).filter(User.is_active == False).count(),
-        "por_rol": por_rol,
-        "por_sede": por_sede,
-        "por_regional": por_regional,
-        "por_nivel": {item['nivel']: item['count'] for item in por_nivel},
-    }
+        return {
+            "total": db.query(User).count(),
+            "activos": db.query(User).filter(User.is_active == True).count(),
+            "inactivos": db.query(User).filter(User.is_active == False).count(),
+            "por_rol": por_rol,
+            "por_sede": por_sede,
+            "por_regional": por_regional,
+            "por_nivel": {item['nivel']: item['count'] for item in por_nivel},
+        }
+    except sa.exc.OperationalError as db_err:
+        raise db_err
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{user_id}/actividad")
@@ -313,23 +412,30 @@ def get_user_actividad(
     db: Session = Depends(get_db)
 ):
     """Obtener actividad completa de un usuario (solo admin)."""
-    user = db.query(User).filter(User.id == str(user_id)).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    
-    return {
-        "usuario": _make_user_dict(user, db),
-        "proyectos_creados": db.query(Proyecto).filter(Proyecto.owner_id == str(user.id)).count(),
-        "proyectos_miembro": len(user.proyectos_miembro) if user.proyectos_miembro else 0,
-        "grupos_creados": db.query(Grupo).filter(Grupo.owner_id == str(user.id)).count(),
-        "grupos_miembro": len(user.grupos_miembro) if user.grupos_miembro else 0,
-        "semilleros_creados": db.query(Semillero).filter(Semillero.owner_id == str(user.id)).count(),
-        "productos_creados": db.query(Producto).filter(Producto.owner_id == str(user.id)).count(),
-        "productos_verificados": db.query(Producto).filter(
-            Producto.owner_id == str(user.id),
-            Producto.is_verificado == True
-        ).count()
-    }
+    try:
+        user = db.query(User).filter(User.id == str(user_id)).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        return {
+            "usuario": _make_user_dict(user, db),
+            "proyectos_creados": db.query(Proyecto).filter(Proyecto.owner_id == str(user.id)).count(),
+            "proyectos_miembro": len(user.proyectos_miembro) if user.proyectos_miembro else 0,
+            "grupos_creados": db.query(Grupo).filter(Grupo.owner_id == str(user.id)).count(),
+            "grupos_miembro": len(user.grupos_miembro) if user.grupos_miembro else 0,
+            "semilleros_creados": db.query(Semillero).filter(Semillero.owner_id == str(user.id)).count(),
+            "productos_creados": db.query(Producto).filter(Producto.owner_id == str(user.id)).count(),
+            "productos_verificados": db.query(Producto).filter(
+                Producto.owner_id == str(user.id),
+                Producto.is_verificado == True
+            ).count()
+        }
+    except sa.exc.OperationalError as db_err:
+        raise db_err
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{user_id}/historial", response_model=List[ActividadResponse])
@@ -340,7 +446,12 @@ def get_user_historial(
     db: Session = Depends(get_db)
 ):
     """Obtener el historial de interacciones de un usuario (solo admin)."""
-    historial = db.query(Actividad).filter(
-        Actividad.user_id == str(user_id)
-    ).order_by(Actividad.created_at.desc()).limit(limit).all()
-    return historial
+    try:
+        historial = db.query(Actividad).filter(
+            Actividad.user_id == str(user_id)
+        ).order_by(Actividad.created_at.desc()).limit(limit).all()
+        return historial
+    except sa.exc.OperationalError as db_err:
+        raise db_err
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

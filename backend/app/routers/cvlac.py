@@ -105,9 +105,12 @@ def subir_cvlac_pdf(
 
 @router.get("/usuarios/sin-cvlac")
 def get_usuarios_sin_cvlac(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Lista usuarios que no han actualizado su CVLaC."""
+    """Lista usuarios que no han actualizado su CVLaC. Solo admin."""
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="ADMIN_ROLE_REQUIRED")
     usuarios = db.query(User).filter(
         User.rol == "investigador",
         User.estado_cv_lac == "No actualizado"
@@ -118,10 +121,13 @@ def get_usuarios_sin_cvlac(
 @router.get("/usuarios/{user_id}/estado")
 def get_user_cvlac_status(
     user_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Obtiene el estado detallado del CVLaC para un usuario específico."""
+    """Obtiene el estado detallado del CVLaC para un usuario específico. Solo admin o el propio usuario."""
     user = db.query(User).filter(User.id == user_id).first()
+    if current_user.rol != "admin" and str(current_user.id) != user_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return {

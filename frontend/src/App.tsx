@@ -6,7 +6,7 @@ import DashboardModule from './components/dashboard/DashboardModule';
 import ProyectosModule from './components/projects/ProyectosModule';
 import InvestigadoresModule from './components/users/InvestigadoresModule';
 import ProductosModule from './components/products/ProductosModule';
-import GruposModule from './components/groups/GruposModule';
+import GrupoModule from './components/groups/GrupoModule';
 import SemillerosModule from './components/seedbeds/SemillerosModule';
 import ConvocatoriasModule from './components/calls/ConvocatoriasModule';
 import ReportesModule from './components/reports/ReportesModule';
@@ -131,7 +131,7 @@ function AppContent() {
       case 'aprendices':     return <AprendicesModule {...props} />;
       case 'productos':      return <ProductosModule {...props} />;
       case 'mis-productos':  return <ProductosModule {...props} />;
-      case 'grupos':         return <GruposModule {...props} />;
+      case 'grupos':         return <GrupoModule {...props} />;
       case 'semilleros':     return <SemillerosModule {...props} />;
       case 'convocatorias':  return <ConvocatoriasModule {...props} />;
       case 'reportes':       return <ReportesModule {...props} />;
@@ -145,7 +145,7 @@ function AppContent() {
       case 'cvlac-admin':    return <CVLACAdminModule {...props} />;
       case 'auditoria':      return currentUser?.rol === 'admin' ? <AuditoriaModule {...props} /> : <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} />;
       case 'documentos':     return <DocumentCenterModule {...props} />;
-      case 'biblioteca':     return <DocumentCenterModule {...props} />;
+      case 'repositorio':    return <DocumentCenterModule {...props} />;
       default:               return <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} />;
     }
   };

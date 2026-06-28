@@ -61,6 +61,31 @@ const AuditoriaModule = ({ onNotify }) => {
     return <span className="text-amber-500 font-bold">{code}</span>;
   };
 
+  const handleExport = () => {
+    try {
+      const tipoExport = activeTab === 'actividades' ? 'actividades' : 'logs';
+      const url = AuditAPI.exportLogsUrl(tipoExport);
+      window.open(url, '_blank');
+      onNotify?.('Exportación iniciada', 'success');
+    } catch (err) {
+      onNotify?.('Error al exportar logs', 'error');
+    }
+  };
+
+  const handleCleanup = async () => {
+    if (!window.confirm('¿Está seguro de que desea depurar los logs antiguos? Esta acción no se puede deshacer.')) return;
+    try {
+      setLoading(true);
+      const res = await AuditAPI.cleanup(30);
+      onNotify?.(`Limpieza exitosa. Se eliminaron ${res.deleted_logs} logs y ${res.deleted_activities} actividades antiguas.`, 'success');
+      loadData();
+    } catch (err) {
+      onNotify?.('Error al depurar logs antiguos', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn pb-20 px-4 md:px-0">
       
@@ -84,17 +109,22 @@ const AuditoriaModule = ({ onNotify }) => {
           </div>
           
           <div className="flex w-full lg:w-auto gap-3">
+            <Button variant="outline" onClick={handleCleanup} className="flex-1 lg:flex-none justify-center border-rose-500/30 text-rose-400 hover:bg-rose-500/10">
+              <AlertTriangle size={18} className="mr-2" />
+              <span>Depurar &gt;30d</span>
+            </Button>
             <Button variant="outline" onClick={loadData} className="flex-1 lg:flex-none justify-center">
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
               <span className="ml-2 lg:hidden">Refrescar</span>
             </Button>
-            <Button variant="sena" className="flex-1 lg:flex-none justify-center px-4 md:px-8">
+            <Button variant="sena" onClick={handleExport} className="flex-1 lg:flex-none justify-center px-4 md:px-8">
               <Download size={18} className="mr-2" /> 
-              <span className="hidden sm:inline">Exportar Logs</span>
+              <span className="hidden sm:inline">Exportar {activeTab === 'actividades' ? 'Actividades' : 'Logs'}</span>
               <span className="sm:hidden">Exportar</span>
             </Button>
           </div>
         </div>
+
 
         {/* Mini Stats Bar */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-8 pt-8 border-t border-slate-800">

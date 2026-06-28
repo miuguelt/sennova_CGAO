@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from app.auth import get_current_user, get_current_admin
 from app.database import get_db
@@ -129,6 +130,9 @@ def create_semillero(
     db: Session = Depends(get_db)
 ):
     """Crear un nuevo semillero."""
+    if current_user.rol == 'aprendiz':
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para crear semilleros")
+        
     # Verificar que el grupo existe
     grupo = db.query(Grupo).filter(Grupo.id == str(semillero_data.grupo_id)).first()
     if not grupo:
@@ -144,9 +148,17 @@ def create_semillero(
         owner_id=str(current_user.id)
     )
     
-    db.add(semillero)
-    db.commit()
-    db.refresh(semillero)
+    try:
+        db.add(semillero)
+        db.commit()
+        db.refresh(semillero)
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al crear semillero: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor al crear el semillero")
     
     # Registrar actividad
     log_actividad(
@@ -173,7 +185,9 @@ def update_semillero(
     if not semillero:
         raise HTTPException(status_code=404, detail="Semillero no encontrado")
     
-    # Solo admin o owner pueden editar
+    # Solo admin o owner pueden editar (aprendices no)
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar semilleros")
     if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso para editar")
     
@@ -181,8 +195,16 @@ def update_semillero(
     for field, value in update_data.items():
         setattr(semillero, field, value)
     
-    db.commit()
-    db.refresh(semillero)
+    try:
+        db.commit()
+        db.refresh(semillero)
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al actualizar semillero: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al actualizar el semillero")
     
     # Registrar actividad
     log_actividad(
@@ -208,11 +230,21 @@ def delete_semillero(
     if not semillero:
         raise HTTPException(status_code=404, detail="Semillero no encontrado")
     
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar semilleros")
     if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso para eliminar")
     
-    db.delete(semillero)
-    db.commit()
+    try:
+        db.delete(semillero)
+        db.commit()
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al eliminar semillero: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al eliminar el semillero")
     
     return {"message": "Semillero eliminado"}
 
@@ -270,6 +302,8 @@ def add_aprendiz(
         raise HTTPException(status_code=404, detail="Semillero no encontrado")
     
     # Solo admin o owner pueden agregar aprendices
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar semilleros")
     if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
     
@@ -293,9 +327,17 @@ def add_aprendiz(
         fecha_ingreso=aprendiz_data.fecha_ingreso or datetime.now(timezone.utc).date()
     )
     
-    db.add(aprendiz)
-    db.commit()
-    db.refresh(aprendiz)
+    try:
+        db.add(aprendiz)
+        db.commit()
+        db.refresh(aprendiz)
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al vincular aprendiz: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al vincular aprendiz")
     
     log_actividad(db, current_user.id, "vincular_aprendiz", f"Vinculó a {user.nombre} al semillero {semillero.nombre}")
     
@@ -315,9 +357,11 @@ def create_full_aprendiz(
         raise HTTPException(status_code=404, detail="Semillero no encontrado")
     
     # Solo admin o owner pueden agregar aprendices
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar semilleros")
     if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
-
+    
     # 1. Crear el usuario
     repo = UserRepository(db)
     if repo.get_by_email(data.email):
@@ -333,19 +377,28 @@ def create_full_aprendiz(
         ficha=data.ficha,
         programa_formacion=data.programa_formacion
     )
-    user = repo.create(user_create)
-
-    # 2. Crear el registro de aprendiz
-    aprendiz = Aprendiz(
-        semillero_id=str(semillero.id),
-        user_id=str(user.id),
-        estado=data.estado,
-        fecha_ingreso=datetime.now(timezone.utc).date()
-    )
     
-    db.add(aprendiz)
-    db.commit()
-    db.refresh(aprendiz)
+    try:
+        user = repo.create(user_create)
+
+        # 2. Crear el registro de aprendiz
+        aprendiz = Aprendiz(
+            semillero_id=str(semillero.id),
+            user_id=str(user.id),
+            estado=data.estado,
+            fecha_ingreso=datetime.now(timezone.utc).date()
+        )
+        
+        db.add(aprendiz)
+        db.commit()
+        db.refresh(aprendiz)
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al crear y vincular aprendiz: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al crear y vincular aprendiz")
     
     log_actividad(db, current_user.id, "crear_vincular_aprendiz", f"Creó y vinculó a {user.nombre} al semillero {semillero.nombre}")
     
@@ -369,6 +422,8 @@ def update_aprendiz(
     if not aprendiz:
         raise HTTPException(status_code=404, detail="Aprendiz no encontrado")
     
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar semilleros")
     if current_user.rol != "admin" and str(aprendiz.semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
     
@@ -376,8 +431,17 @@ def update_aprendiz(
     for field, value in update_data.items():
         setattr(aprendiz, field, value)
     
-    db.commit()
-    db.refresh(aprendiz)
+    try:
+        db.commit()
+        db.refresh(aprendiz)
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al actualizar aprendiz: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al actualizar aprendiz")
+        
     return _make_aprendiz_dict(aprendiz)
 
 
@@ -397,11 +461,21 @@ def delete_aprendiz(
     if not aprendiz:
         raise HTTPException(status_code=404, detail="Aprendiz no encontrado")
     
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar semilleros")
     if current_user.rol != "admin" and str(aprendiz.semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
     
-    db.delete(aprendiz)
-    db.commit()
+    try:
+        db.delete(aprendiz)
+        db.commit()
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al eliminar aprendiz: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al eliminar aprendiz")
     
     return {"message": "Vinculación de aprendiz eliminada"}
 
@@ -424,6 +498,8 @@ def add_investigador_semillero(
         raise HTTPException(status_code=404, detail="Semillero no encontrado")
     
     # Solo admin o owner pueden agregar integrantes
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar semilleros")
     if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
     
@@ -442,24 +518,40 @@ def add_investigador_semillero(
     
     if existing:
         # Actualizar rol si ya existe
+        try:
+            db.execute(
+                semillero_investigadores.update().where(
+                    semillero_investigadores.c.semillero_id == str(semillero_id),
+                    semillero_investigadores.c.user_id == str(user_id)
+                ).values(rol_en_semillero=rol_en_semillero)
+            )
+            db.commit()
+            return {"message": "Rol de investigador actualizado"}
+        except (OperationalError, SQLAlchemyError):
+            db.rollback()
+            raise
+        except Exception as e:
+            db.rollback()
+            print(f"Error al actualizar rol de investigador: {e}")
+            raise HTTPException(status_code=500, detail="Error interno al actualizar rol de investigador")
+    
+    try:
         db.execute(
-            semillero_investigadores.update().where(
-                semillero_investigadores.c.semillero_id == str(semillero_id),
-                semillero_investigadores.c.user_id == str(user_id)
-            ).values(rol_en_semillero=rol_en_semillero)
+            semillero_investigadores.insert().values(
+                semillero_id=str(semillero.id),
+                user_id=str(user.id),
+                rol_en_semillero=rol_en_semillero,
+                fecha_vinculacion=date.today()
+            )
         )
         db.commit()
-        return {"message": "Rol de investigador actualizado"}
-    
-    db.execute(
-        semillero_investigadores.insert().values(
-            semillero_id=str(semillero.id),
-            user_id=str(user.id),
-            rol_en_semillero=rol_en_semillero,
-            fecha_vinculacion=date.today()
-        )
-    )
-    db.commit()
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al vincular investigador: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al vincular investigador")
     
     return {"message": "Investigador vinculado al semillero"}
 
@@ -476,6 +568,8 @@ def remove_investigador_semillero(
     if not semillero:
         raise HTTPException(status_code=404, detail="Semillero no encontrado")
     
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar semilleros")
     if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
     
@@ -484,13 +578,21 @@ def remove_investigador_semillero(
         raise HTTPException(status_code=400, detail="No se puede remover al líder/propietario del semillero")
     
     from app.models import semillero_investigadores
-    db.execute(
-        semillero_investigadores.delete().where(
-            semillero_investigadores.c.semillero_id == semillero_id,
-            semillero_investigadores.c.user_id == user_id
+    try:
+        db.execute(
+            semillero_investigadores.delete().where(
+                semillero_investigadores.c.semillero_id == semillero_id,
+                semillero_investigadores.c.user_id == user_id
+            )
         )
-    )
-    db.commit()
+        db.commit()
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al remover investigador: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al remover investigador")
     
     return {"message": "Investigador desvinculado"}
 

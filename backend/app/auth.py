@@ -3,7 +3,7 @@ from typing import Optional
 from uuid import UUID
 
 import bcrypt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -64,12 +64,25 @@ def decode_token(token: str) -> dict:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+    token: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ) -> User:
-    """Obtiene el usuario actual desde el token JWT."""
-    token = credentials.credentials
-    payload = decode_token(token)
+    """Obtiene el usuario actual desde el token JWT (soporta Header o Query param)."""
+    token_str = None
+    if credentials:
+        token_str = credentials.credentials
+    elif token:
+        token_str = token
+        
+    if not token_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token no proporcionado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    payload = decode_token(token_str)
     
     user_id = payload.get("sub")
     if user_id is None:
@@ -108,6 +121,7 @@ async def get_current_admin(current_user: User = Depends(get_current_user)) -> U
     return current_user
 
 
+
 class AuthService:
     """Servicio de autenticación."""
     
@@ -131,31 +145,40 @@ class AuthService:
     @staticmethod
     def register_user(db: Session, email: str, password: str, nombre: str, **kwargs) -> User:
         """Registra un nuevo usuario."""
-        # Verificar si ya existe
-        existing = db.query(User).filter(User.email == email).first()
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email ya registrado"
+        try:
+            # Verificar si ya existe
+            existing = db.query(User).filter(User.email == email).first()
+            if existing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email ya registrado"
+                )
+            
+            # Crear usuario
+            user = User(
+                email=email,
+                password_hash=get_password_hash(password),
+                nombre=nombre,
+                rol=kwargs.get("rol", "investigador"),
+                sede=kwargs.get("sede"),
+                is_active=True,
+                **{k: v for k, v in kwargs.items() if k not in ("rol", "sede")}
             )
-        
-        # Crear usuario
-        user = User(
-            email=email,
-            password_hash=get_password_hash(password),
-            nombre=nombre,
-            rol=kwargs.get("rol", "investigador"),
-            sede=kwargs.get("sede"),
-            is_active=True
-        )
-        
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        return user
+            
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            return user
+        except Exception:
+            db.rollback()
+            raise
     
     @staticmethod
     def change_password(db: Session, user: User, new_password: str) -> None:
         """Cambia la contraseña de un usuario."""
-        user.password_hash = get_password_hash(new_password)
-        db.commit()
+        try:
+            user.password_hash = get_password_hash(new_password)
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise

@@ -19,7 +19,8 @@ else:
         settings.DATABASE_URL,
         pool_pre_ping=True,
         pool_recycle=300,
-        echo=settings.DEBUG
+        echo=settings.DEBUG,
+        connect_args={"connect_timeout": 10}
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

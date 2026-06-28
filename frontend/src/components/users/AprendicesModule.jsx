@@ -14,6 +14,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import { UsuariosAPI } from '../../api/usuarios';
 import { SemillerosAPI } from '../../api/semilleros';
+import { AprendicesAPI } from '../../api/aprendices';
 import { ProyectosAPI } from '../../api/proyectos';
 import UserInsightPanel from './UserInsightPanel';
 import useClickOutside from '../../hooks/useClickOutside';
@@ -107,6 +108,18 @@ const AprendizCard = ({ user, onEdit, onDelete, onToggleActive, onViewActivity, 
         </div>
       </div>
 
+      {user.vinculacion && (
+        <div className="mt-2 p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100/50 relative z-10 group/semillero overflow-hidden">
+          <div className="absolute top-0 right-0 p-1 text-indigo-200 group-hover/semillero:text-indigo-400 transition-colors">
+            <GraduationCap size={12} />
+          </div>
+          <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1">Semillero Vinculado</p>
+          <p className="text-[10px] font-bold text-slate-700 line-clamp-1">
+            {semilleros.find(s => s.id === user.vinculacion.semillero_id)?.nombre || 'Semillero Desconocido'}
+          </p>
+        </div>
+      )}
+
       {isDragOver && (
         <div className="absolute inset-0 bg-indigo-600/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-fadeIn z-20">
           <Zap size={48} className="text-white animate-pulse mb-4" />
@@ -168,17 +181,29 @@ const AprendicesModule = ({ onNotify, currentUser }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [usersData, semillerosData] = await Promise.all([
-        UsuariosAPI.list(),
-        SemillerosAPI.list()
+      const [usersData, semillerosData, linkedAprendices] = await Promise.all([
+        UsuariosAPI.list({ rol: 'aprendiz' }),
+        SemillerosAPI.list(),
+        AprendicesAPI.list()
       ]);
-      // Filtrar por los que parecen ser aprendices (tienen ficha o rol_sennova de aprendiz)
+      
+      // Mapear vinculaciones por user_id para acceso rápido
+      const vinculacionesMap = (linkedAprendices || []).reduce((acc, curr) => {
+        acc[curr.user_id] = curr;
+        return acc;
+      }, {});
+
+      // Filtrar por los que parecen ser aprendices y enriquecer con vinculación
       const aprendices = (usersData || []).filter(u => 
         u.ficha || 
         u.programa_formacion || 
         (u.rol_sennova && u.rol_sennova.toLowerCase().includes('aprendiz')) ||
         u.rol === 'aprendiz'
-      );
+      ).map(u => ({
+        ...u,
+        vinculacion: vinculacionesMap[u.id] || null
+      }));
+
       setUsers(aprendices);
       setSemilleros(semillerosData || []);
     } catch (err) {
@@ -249,6 +274,7 @@ const AprendicesModule = ({ onNotify, currentUser }) => {
     try {
       await SemillerosAPI.addAprendiz(semilleroId, { user_id: userId, estado: 'Activo' });
       onNotify?.('Aprendiz vinculado al semillero con éxito', 'success');
+      loadData(); // Recargar para mostrar el vínculo
     } catch (err) {
       onNotify?.('Error al vincular: ' + (err.response?.data?.detail || err.message), 'error');
     }

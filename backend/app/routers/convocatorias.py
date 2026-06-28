@@ -2,15 +2,17 @@ from uuid import UUID
 from typing import List, Optional
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from app.auth import get_current_user, get_current_admin
 from app.database import get_db
-from app.models import Convocatoria, User, Proyecto
+from app.models import Convocatoria, User, Proyecto, Notificacion
 from app.schemas import ConvocatoriaCreate, ConvocatoriaUpdate, ConvocatoriaResponse
 from app.utils import log_actividad
+from app.services import EmailService
 
 router = APIRouter(prefix="/convocatorias", tags=["Convocatorias MINCIENCIAS / SENNOVA"])
 
@@ -65,6 +67,7 @@ def get_convocatoria(
 @router.post("", response_model=ConvocatoriaResponse, status_code=201)
 def create_convocatoria(
     convocatoria_data: ConvocatoriaCreate,
+    background_tasks: BackgroundTasks,
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -80,9 +83,17 @@ def create_convocatoria(
         owner_id=str(admin.id)
     )
     
-    db.add(convocatoria)
-    db.commit()
-    db.refresh(convocatoria)
+    try:
+        db.add(convocatoria)
+        db.commit()
+        db.refresh(convocatoria)
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al crear convocatoria: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al crear convocatoria")
     
     # Registrar actividad
     log_actividad(
@@ -93,6 +104,40 @@ def create_convocatoria(
         entidad_tipo="convocatoria",
         entidad_id=str(convocatoria.id)
     )
+    
+    # Notificar a todos los investigadores activos
+    try:
+        investigadores = db.query(User).filter(User.rol == 'investigador', User.is_active == True).all()
+        for inv in investigadores:
+            notif = Notificacion(
+                user_id=str(inv.id),
+                tipo='convocatoria',
+                titulo=f"Nueva Convocatoria: {convocatoria.nombre}",
+                mensaje=f"Se ha publicado la convocatoria '{convocatoria.nombre}' ({convocatoria.año}). Fecha de cierre: {convocatoria.fecha_cierre}",
+                entidad_tipo='convocatoria',
+                entidad_id=str(convocatoria.id),
+                prioridad='normal'
+            )
+            db.add(notif)
+            
+            # Enviar correo electrónico
+            body_html = f"""
+            <h3>Hola {inv.nombre},</h3>
+            <p>Se ha publicado una nueva convocatoria en la plataforma SENNOVA:</p>
+            <ul>
+                <li><b>Nombre:</b> {convocatoria.nombre}</li>
+                <li><b>Año:</b> {convocatoria.año}</li>
+                <li><b>Fecha de Cierre:</b> {convocatoria.fecha_cierre}</li>
+            </ul>
+            <p>Puedes postular tu proyecto ingresando a la plataforma.</p>
+            <br/>
+            <p>Atentamente,<br/>Coordinación SENNOVA CGAO</p>
+            """
+            EmailService.send_email_async(inv.email, f"Nueva Convocatoria Abierta: {convocatoria.nombre}", body_html, background_tasks)
+        db.commit()
+    except Exception as e:
+        print(f"Error al generar notificaciones de convocatoria: {e}")
+        # No fallar la creación de la convocatoria si fallan las notificaciones
     
     convocatoria.total_proyectos = 0
     return convocatoria
@@ -114,8 +159,16 @@ def update_convocatoria(
     for field, value in update_data.items():
         setattr(convocatoria, field, value)
     
-    db.commit()
-    db.refresh(convocatoria)
+    try:
+        db.commit()
+        db.refresh(convocatoria)
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al actualizar convocatoria: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al actualizar convocatoria")
     
     # Registrar actividad
     log_actividad(
@@ -145,8 +198,16 @@ def delete_convocatoria(
     if not convocatoria:
         raise HTTPException(status_code=404, detail="Convocatoria no encontrada")
     
-    db.delete(convocatoria)
-    db.commit()
+    try:
+        db.delete(convocatoria)
+        db.commit()
+    except (OperationalError, SQLAlchemyError):
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error al eliminar convocatoria: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al eliminar convocatoria")
     
     return {"message": "Convocatoria eliminada"}
 
