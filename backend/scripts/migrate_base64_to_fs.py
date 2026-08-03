@@ -1,13 +1,11 @@
-import os
 import sys
 import base64
-import sqlite3
 from pathlib import Path
 
 # Add backend dir to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app.database import engine, Base
+from app.database import engine
 from app.models import Documento
 from sqlalchemy.orm import Session
 from sqlalchemy import text

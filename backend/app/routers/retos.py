@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional
+from typing import List
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException

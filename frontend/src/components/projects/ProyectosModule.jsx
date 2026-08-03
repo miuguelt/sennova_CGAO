@@ -84,7 +84,7 @@ const ProjectTimeline = ({ entregables = [] }) => {
                           <div className="flex items-center gap-1.5 text-slate-400">
                             <Calendar size={10} />
                             <span className="text-[10px] font-bold tabular-nums">
-                              {new Date(item.fecha_entrega).toLocaleDateString()}
+                              {new Date(item.fecha_entrega).toLocaleDateString('es-CO')}
                             </span>
                           </div>
                         </div>

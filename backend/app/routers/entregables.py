@@ -11,12 +11,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status, Background
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.auth import get_current_user, get_current_admin
+from app.auth import get_current_user
 from app.models import User, Proyecto, Entregable, Notificacion
 from app.utils import log_actividad
 from app.schemas import (
     EntregableCreate, EntregableUpdate, EntregableResponse, 
-    EntregableListResponse, NotificacionCreate
+    EntregableListResponse
 )
 from app.services import EmailService
 

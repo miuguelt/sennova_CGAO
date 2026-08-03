@@ -335,7 +335,7 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
                              <p className="text-xs font-black text-slate-800">{item.titulo}</p>
                              <Badge variant="default" className="text-[10px]">{item.estado}</Badge>
                            </div>
-                           <p className="text-[10px] text-slate-500 mb-4">{new Date(item.fecha_entrega).toLocaleDateString()}</p>
+                           <p className="text-[10px] text-slate-500 mb-4">{new Date(item.fecha_entrega).toLocaleDateString('es-CO')}</p>
                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                              <div 
                                className={`h-full rounded-full ${item.estado === 'aprobado' ? 'bg-emerald-500' : 'bg-indigo-500'}`} 

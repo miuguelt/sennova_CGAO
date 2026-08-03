@@ -2,8 +2,6 @@ import sys
 import os
 import random
 import uuid
-from datetime import datetime, timedelta, timezone
-from sqlalchemy.orm import Session
 from faker import Faker
 
 # Añadir el directorio base al path para importar app
@@ -13,7 +11,7 @@ from app.database import SessionLocal, engine, Base
 from app.models import (
     User, Grupo, Semillero, Aprendiz, Convocatoria, Proyecto, 
     Producto, Documento, Entregable, Notificacion, Actividad, 
-    Reto, BitacoraEntry, AuditLog, grupo_integrantes, proyecto_equipo
+    Reto, BitacoraEntry, AuditLog
 )
 from app.auth import get_password_hash
 
@@ -64,7 +62,7 @@ def seed_data():
             users.append(user)
         
         db.commit()
-        print(f"✅ 100 Usuarios creados")
+        print("✅ 100 Usuarios creados")
 
         # 3. Grupos (100)
         grupos = []
@@ -82,7 +80,7 @@ def seed_data():
             grupos.append(grupo)
         
         db.commit()
-        print(f"✅ 100 Grupos creados")
+        print("✅ 100 Grupos creados")
 
         # 4. Convocatorias (100)
         convocatorias = []
@@ -100,7 +98,7 @@ def seed_data():
             convocatorias.append(conv)
         
         db.commit()
-        print(f"✅ 100 Convocatorias creadas")
+        print("✅ 100 Convocatorias creadas")
 
         # 5. Semilleros (100)
         semilleros = []
@@ -116,7 +114,7 @@ def seed_data():
             semilleros.append(semillero)
         
         db.commit()
-        print(f"✅ 100 Semilleros creados")
+        print("✅ 100 Semilleros creados")
 
         # 6. Retos (100)
         retos = []
@@ -132,7 +130,7 @@ def seed_data():
             retos.append(reto)
         
         db.commit()
-        print(f"✅ 100 Retos creados")
+        print("✅ 100 Retos creados")
 
         # 7. Proyectos (100)
         proyectos = []
@@ -151,7 +149,7 @@ def seed_data():
             proyectos.append(proyecto)
         
         db.commit()
-        print(f"✅ 100 Proyectos creados")
+        print("✅ 100 Proyectos creados")
 
         # 8. Aprendices (100)
         for i in range(100):

@@ -1,12 +1,10 @@
 import sys
 import os
-import uuid
 from datetime import datetime, date, timedelta, timezone
 
 # Añadir el directorio raíz al path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine, Base
 from app.models import (
     User, Grupo, Semillero, Aprendiz, Convocatoria, 

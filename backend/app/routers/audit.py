@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.database import get_db
 from app.models import AuditLog, Actividad, User
-from app.schemas import AuditLogResponse, ActividadResponse
 from app.auth import get_current_admin
 
 router = APIRouter(

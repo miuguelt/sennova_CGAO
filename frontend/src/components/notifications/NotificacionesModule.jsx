@@ -198,7 +198,7 @@ const NotificacionesModule = ({ currentUser, onNotify, onNavigate }) => {
                       </p>
                       <div className="flex items-center gap-4 mt-3">
                         <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                          <Clock size={12} /> {new Date(n.created_at).toLocaleString()}
+                          <Clock size={12} /> {new Date(n.created_at).toLocaleString('es-CO')}
                         </span>
                         {n.entidad_tipo && (
                           <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">

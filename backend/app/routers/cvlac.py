@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional
 import random
 from datetime import datetime, timezone
 
@@ -66,7 +65,15 @@ def import_cvlac(
         db.add(nuevo_p)
         importados += 1
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as __db_err:
+        import logging
+        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
+        try:
+            if 'session' in globals() or 'session' in locals(): db.session.rollback()
+            else: db.rollback()
+        except: pass
     
     log_actividad(
         db, current_user.id, "import_cvlac", 
@@ -99,7 +106,15 @@ def subir_cvlac_pdf(
     En esta fase se registra que el usuario ha intentado actualizar su perfil.
     """
     current_user.estado_cv_lac = "En revisión"
-    db.commit()
+    try:
+        db.commit()
+    except Exception as __db_err:
+        import logging
+        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
+        try:
+            if 'session' in globals() or 'session' in locals(): db.session.rollback()
+            else: db.rollback()
+        except: pass
     return {"message": "CVLaC recibido correctamente y en proceso de revisión"}
 
 

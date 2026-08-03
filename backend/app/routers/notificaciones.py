@@ -13,7 +13,7 @@ from sqlalchemy import desc, func
 
 from app.database import get_db
 from app.auth import get_current_user, get_current_admin
-from app.models import User, Notificacion, Entregable, Convocatoria
+from app.models import User, Notificacion
 from app.schemas import (
     NotificacionResponse, NotificacionListResponse, 
     NotificacionMarcarLeida, NotificacionStats

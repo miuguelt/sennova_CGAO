@@ -1,5 +1,4 @@
-from uuid import UUID
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
@@ -10,7 +9,7 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from app.auth import get_current_user, get_current_admin
 from app.database import get_db
 from app.models import Producto, Proyecto, User, Notificacion
-from app.schemas import ProductoCreate, ProductoUpdate, ProductoResponse, ProductoVerificar
+from app.schemas import ProductoCreate, ProductoUpdate, ProductoVerificar
 from app.utils import log_actividad
 from app.services import EmailService
 
@@ -476,7 +475,15 @@ def generar_productos_base(
         db.add(producto)
         nuevos_productos.append(producto)
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as __db_err:
+        import logging
+        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
+        try:
+            if 'session' in globals() or 'session' in locals(): db.session.rollback()
+            else: db.rollback()
+        except: pass
     
     # Log
     log_actividad(

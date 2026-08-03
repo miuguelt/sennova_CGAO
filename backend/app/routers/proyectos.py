@@ -1,16 +1,14 @@
-from uuid import UUID
-from typing import List, Optional
+from typing import Optional
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, get_current_admin
+from app.auth import get_current_user
 from app.database import get_db
-from app.models import Proyecto, User, proyecto_equipo, Convocatoria, Documento
+from app.models import Proyecto, User, proyecto_equipo, Documento
 from app.schemas import (
-    ProyectoCreate, ProyectoUpdate, ProyectoResponse,
-    EquipoMiembro, EquipoMiembroInfo
+    ProyectoCreate, ProyectoUpdate, EquipoMiembro
 )
 from app.utils import log_actividad
 

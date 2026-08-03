@@ -1,8 +1,7 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from app.models import User
-from app.schemas import UserCreate, UserUpdate
+from app.schemas import UserCreate
 from app.auth import get_password_hash
 from app.repositories.base_repository import BaseRepository
 

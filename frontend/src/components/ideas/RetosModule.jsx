@@ -280,7 +280,7 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
                         <Building size={14} className="text-slate-400" />
                         <span className="truncate max-w-[150px]">{reto.empresa_solicitante || 'Empresa Privada'}</span>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-400">{new Date(reto.created_at).toLocaleDateString()}</span>
+                      <span className="text-[10px] font-bold text-slate-400">{new Date(reto.created_at).toLocaleDateString('es-CO')}</span>
                     </div>
                     <div className="flex flex-col gap-2">
                       <div className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest w-fit ${sector.bg} ${sector.color}`}>

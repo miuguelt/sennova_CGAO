@@ -1,5 +1,4 @@
-from uuid import UUID
-from typing import List, Optional
+from typing import Optional
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user, get_current_admin
 from app.database import get_db
 from app.models import Grupo, User, grupo_integrantes
-from app.schemas import GrupoCreate, GrupoUpdate, GrupoResponse
+from app.schemas import GrupoCreate, GrupoUpdate
 from app.utils import log_actividad
 
 router = APIRouter(prefix="/grupos", tags=["Grupos de Investigación"])

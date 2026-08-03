@@ -223,7 +223,7 @@ const DocumentCenterModule = ({ onNotify }) => {
                 
                 <div className="flex items-center justify-between mt-6">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    {new Date(doc.created_at).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}
+                    {new Date(doc.created_at).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
                   </p>
                   <div className="flex gap-1">
                     <button 
@@ -275,7 +275,7 @@ const DocumentCenterModule = ({ onNotify }) => {
                       </div>
                     </td>
                     <td className="px-8 py-5 text-sm text-slate-500 font-medium">
-                      {new Date(doc.created_at).toLocaleDateString()}
+                      {new Date(doc.created_at).toLocaleDateString('es-CO')}
                     </td>
                     <td className="px-8 py-5 text-right">
                       <div className="flex justify-end gap-2">

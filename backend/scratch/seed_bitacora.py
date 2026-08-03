@@ -2,11 +2,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import BitacoraEntry, Proyecto, User
 from datetime import datetime, timezone
-import uuid
 
 def seed_bitacora():
     db = SessionLocal()

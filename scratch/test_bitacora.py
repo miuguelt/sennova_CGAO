@@ -1,4 +1,5 @@
 import requests
+import os
 
 BASE_URL = "http://localhost:8000"
 
@@ -7,7 +8,7 @@ print("🔍 Iniciando diagnóstico de endpoints de bitácora...")
 # 1. Login
 login_payload = {
     "email": "admin@sennova.dev.co",
-    "password": "DevMiguel2024!"
+    "password": os.getenv("DEV_TEST_PASSWORD", "")
 }
 r_login = requests.post(f"{BASE_URL}/auth/login", json=login_payload)
 print(f"Login Status: {r_login.status_code}")

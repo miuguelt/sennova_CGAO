@@ -10,6 +10,7 @@ verificando el control de acceso (RBAC) y generando reportes en consola e inform
 import os
 import sys
 import requests
+import os
 import json
 import uuid
 from datetime import datetime
@@ -29,17 +30,17 @@ class Colors:
 DEV_ACCOUNTS = {
     "admin": {
         "email": "admin@sennova.dev.co",
-        "password": "DevMiguel2024!",
+        "password": os.getenv("DEV_TEST_PASSWORD", ""),
         "label": "Administrador"
     },
     "investigador": {
         "email": "investigador@sennova.dev.co",
-        "password": "DevMiguel2024!",
+        "password": os.getenv("DEV_TEST_PASSWORD", ""),
         "label": "Investigador"
     },
     "aprendiz": {
         "email": "aprendiz@sennova.dev.co",
-        "password": "DevMiguel2024!",
+        "password": os.getenv("DEV_TEST_PASSWORD", ""),
         "label": "Aprendiz"
     }
 }

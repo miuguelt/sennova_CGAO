@@ -514,7 +514,7 @@ export const PDFGenerator = {
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(12);
     doc.text(`Proyecto: ${proyecto.nombre_corto || proyecto.codigo_sgps}`, 20, 60);
-    doc.text(`Fecha de Seguimiento: ${new Date().toLocaleDateString()}`, 20, 68);
+    doc.text(`Fecha de Seguimiento: ${new Date().toLocaleDateString('es-CO')}`, 20, 68);
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -527,7 +527,7 @@ export const PDFGenerator = {
       body: entregables.map(e => [
         e.fase, 
         e.titulo, 
-        new Date(e.fecha_entrega).toLocaleDateString(),
+        new Date(e.fecha_entrega).toLocaleDateString('es-CO'),
         e.estado.toUpperCase()
       ]),
       headStyles: { fillColor: [30, 64, 175] },

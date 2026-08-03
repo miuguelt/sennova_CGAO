@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
-import uuid
 from app.auth import get_current_user, get_current_admin
 from app.database import get_db
 from datetime import datetime, timedelta, timezone
@@ -17,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 from app.models import (
     User, Proyecto, Grupo, Semillero, 
     Producto, Convocatoria, Documento,
-    Entregable, Notificacion, Actividad, Aprendiz, Reto
+    Entregable, Actividad, Aprendiz, Reto
 )
 
 router = APIRouter(prefix="/stats", tags=["Estadísticas"])
@@ -87,7 +86,8 @@ def get_dashboard_stats(
         ).count()
 
         def calc_trend(actual, anterior):
-            if anterior == 0: return f"+{actual}" if actual > 0 else "0"
+            if anterior == 0:
+                return f"+{actual}" if actual > 0 else "0"
             diff = actual - anterior
             return f"{'+' if diff >= 0 else ''}{diff}"
 
@@ -185,9 +185,11 @@ def get_stats_resumen(
         inicio_mes_anterior_q = inicio_mes_anterior.replace(tzinfo=None) if is_sqlite else inicio_mes_anterior
 
         def calc_trend_pct(actual_count, total_count):
-            if total_count <= actual_count: return 0
+            if total_count <= actual_count:
+                return 0
             anterior = total_count - actual_count
-            if anterior == 0: return 100 if actual_count > 0 else 0
+            if anterior == 0:
+                return 100 if actual_count > 0 else 0
             return round((actual_count / anterior) * 100, 1)
 
         proyectos_total = db.query(Proyecto).count()
@@ -595,7 +597,7 @@ def global_search(
                 "subtitle": f"Proyecto - {p.estado}",
                 "type": "proyecto",
                 "icon": "folder",
-                "url": f"/proyectos"
+                "url": "/proyectos"
             })
             
         # 2. Buscar Investigadores
@@ -611,7 +613,7 @@ def global_search(
                 "subtitle": f"Investigador - {getattr(u, 'rol_sennova', None) or getattr(u, 'rol', 'Sin rol')}",
                 "type": "investigador",
                 "icon": "user",
-                "url": f"/investigadores"
+                "url": "/investigadores"
             })
             
         # 3. Buscar Grupos
@@ -627,7 +629,7 @@ def global_search(
                 "subtitle": f"Grupo de Investigación - {g.clasificacion or 'S.C.'}",
                 "type": "grupo",
                 "icon": "users",
-                "url": f"/grupos"
+                "url": "/grupos"
             })
             
         for pr in productos:
@@ -637,7 +639,7 @@ def global_search(
                 "subtitle": f"Producto - {pr.tipo}",
                 "type": "producto",
                 "icon": "file-text",
-                "url": f"/productos"
+                "url": "/productos"
             })
 
         # 5. Buscar Semilleros
@@ -653,7 +655,7 @@ def global_search(
                 "subtitle": f"Semillero - {s.estado}",
                 "type": "semillero",
                 "icon": "users",
-                "url": f"/semilleros"
+                "url": "/semilleros"
             })
 
         # 6. Buscar Retos
@@ -669,7 +671,7 @@ def global_search(
                 "subtitle": f"Reto - {r.estado}",
                 "type": "reto",
                 "icon": "lightbulb",
-                "url": f"/retos"
+                "url": "/retos"
             })
             
         return {"results": results}

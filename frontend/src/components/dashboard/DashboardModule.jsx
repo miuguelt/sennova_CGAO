@@ -58,20 +58,43 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
     const loadAllData = async () => {
       setLoading(true);
       try {
+        const isApprentice = currentUser?.rol === 'aprendiz';
+        
+        const statsPromise = DashboardAPI.getStats().catch(err => {
+          console.error("Error cargando stats:", err);
+          return null;
+        });
+        
+        const evolutionPromise = isApprentice 
+          ? Promise.resolve(null) 
+          : DashboardAPI.getAnalyticsEvolucion(6).catch(err => {
+              console.error("Error cargando evolución:", err);
+              return null;
+            });
+
         const [statsData, evoData] = await Promise.all([
-          DashboardAPI.getStats(),
-          DashboardAPI.getAnalyticsEvolucion(6)
+          statsPromise,
+          evolutionPromise
         ]);
         
-        setData(statsData);
-        setEvolution(evoData.evolucion_mensual || []);
+        if (statsData) {
+          setData(statsData);
+        }
+        if (evoData) {
+          setEvolution(evoData.evolucion_mensual || []);
+        }
         
         if (currentUser?.id) {
-          const impact = await DashboardAPI.getUserImpact(currentUser.id);
-          setUserImpact(impact);
+          const impact = await DashboardAPI.getUserImpact(currentUser.id).catch(err => {
+            console.error("Error cargando impacto de usuario:", err);
+            return null;
+          });
+          if (impact) {
+            setUserImpact(impact);
+          }
         }
       } catch (err) {
-        console.error("Dashboard error:", err);
+        console.error("Dashboard general error:", err);
         onNotify?.('Error al sincronizar datos del tablero', 'warning');
       } finally {
         setLoading(false);
@@ -181,7 +204,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{task.proyecto}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-black text-indigo-600">{new Date(task.fecha).toLocaleDateString()}</p>
+                      <p className="text-xs font-black text-indigo-600">{new Date(task.fecha).toLocaleDateString('es-CO')}</p>
                       <Badge variant="info" className="mt-1 text-[8px]">PENDIENTE</Badge>
                     </div>
                   </div>
@@ -239,7 +262,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                   <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
                   <div>
                     <p className="text-xs font-black text-slate-900 leading-snug">{item.descripcion}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{new Date(item.fecha).toLocaleDateString()}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{new Date(item.fecha).toLocaleDateString('es-CO')}</p>
                   </div>
                 </div>
               ))}
@@ -440,7 +463,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                       <p className="text-xs font-black text-slate-900">{task.titulo}</p>
                       <p className="text-[10px] text-slate-400 font-bold uppercase">{task.proyecto}</p>
                     </div>
-                    <span className="text-[10px] font-black text-rose-600">{new Date(task.fecha).toLocaleDateString()}</span>
+                    <span className="text-[10px] font-black text-rose-600">{new Date(task.fecha).toLocaleDateString('es-CO')}</span>
                   </div>
                 ))}
               </div>
@@ -457,7 +480,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
                     <div>
                       <p className="text-[11px] font-bold text-slate-800 leading-snug"><span className="text-indigo-600">{item.usuario}</span> {item.descripcion}</p>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">{new Date(item.fecha).toLocaleTimeString()}</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">{new Date(item.fecha).toLocaleTimeString('es-CO')}</p>
                     </div>
                   </div>
                 ))}
@@ -517,7 +540,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                   <div className="w-4 h-4 rounded-full bg-indigo-500 shrink-0 z-10" />
                   <div>
                     <p className="text-xs font-black text-slate-900 leading-tight">{task.titulo}</p>
-                    <p className="text-[10px] text-indigo-600 font-bold mt-1 uppercase">{new Date(task.fecha).toLocaleDateString()}</p>
+                    <p className="text-[10px] text-indigo-600 font-bold mt-1 uppercase">{new Date(task.fecha).toLocaleDateString('es-CO')}</p>
                   </div>
                 </div>
               ))}

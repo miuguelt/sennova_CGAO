@@ -6,16 +6,14 @@ FastAPI + PostgreSQL
 
 import os
 
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 
 from app.config import get_settings
-from app.database import engine, Base, get_db, SessionLocal
-from app.auth import get_current_user, get_current_admin, get_password_hash
+from app.database import engine, Base, SessionLocal
 from app.models import User
 from app.routers import (
     auth, proyectos, grupos, semilleros, convocatorias, 
@@ -113,7 +111,10 @@ app.add_middleware(AuditMiddleware)
 async def cors_diagnostic_middleware(request: Request, call_next):
     origin = request.headers.get("origin")
     if origin:
-        print(f"🔍 [CORS DEBUG] Request from Origin: {origin} | Path: {request.url.path}")
+        # Evitar inundar la consola con llamadas de polling periódicas e irrelevantes
+        noisy_paths = ["/notificaciones/check/pendientes", "/health", "/stats/dashboard", "/stats/analytics/evolucion"]
+        if not any(path in request.url.path for path in noisy_paths):
+            print(f"🔍 [CORS DEBUG] Request from Origin: {origin} | Path: {request.url.path}")
     response = await call_next(request)
     return response
     

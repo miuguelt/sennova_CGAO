@@ -4,18 +4,17 @@ Gestión completa de usuarios del sistema
 Solo accesible por administradores
 """
 
-import uuid
 from typing import List, Optional
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.auth import get_current_user, get_current_admin, get_password_hash
 from app.database import get_db
 from app.models import User, Proyecto, Grupo, Semillero, Producto, Actividad, Documento
-from app.schemas import UserCreate, UserUpdate, UserResponse, ActividadResponse
+from app.schemas import UserCreate, UserUpdate, ActividadResponse
 from app.repositories.user_repository import UserRepository
 
 router = APIRouter(prefix="/usuarios", tags=["Usuarios - Admin Only"])

@@ -10,7 +10,7 @@ os.environ["DEBUG"] = "true"
 
 from app.main import app
 from app.database import Base, get_db
-from app.models import User, Notificacion, Grupo, Semillero, Proyecto, Entregable, Producto, Convocatoria
+from app.models import User
 from app.auth import get_password_hash
 
 # Configurar base de datos de pruebas limpia

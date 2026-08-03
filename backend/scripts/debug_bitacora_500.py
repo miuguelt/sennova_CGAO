@@ -43,7 +43,7 @@ def debug_bitacora():
                     name = entry.user.nombre
                     print(f"  ✅ Relation works: {name}")
                 else:
-                    print(f"  ❌ Relation 'user' is NULL!")
+                    print("  ❌ Relation 'user' is NULL!")
             except Exception as re:
                 print(f"  ❌ Relation error: {re}")
                 

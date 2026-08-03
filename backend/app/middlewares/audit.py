@@ -1,12 +1,10 @@
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
-import json
 import logging
 from jose import jwt, JWTError
 from app.database import SessionLocal
 from app.models import AuditLog
 from app.config import get_settings
-from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

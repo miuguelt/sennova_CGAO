@@ -15,7 +15,7 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from app.database import get_db
 from app.auth import get_current_admin
-from app.models import User, Proyecto, Grupo, Semillero, Producto, Convocatoria, Entregable, Documento
+from app.models import User, Proyecto, Grupo, Semillero, Producto
 
 # Importar librerías de reportes
 try:
@@ -98,7 +98,7 @@ def _generar_excel_consolidado(proyectos, db, año_filtro):
     
     # Título del reporte
     año_texto = str(año_filtro) if año_filtro else "Todos"
-    ws["A1"] = f"CONSOLIDADO DE PROYECTOS SENNOVA - CGAO VÉLEZ"
+    ws["A1"] = "CONSOLIDADO DE PROYECTOS SENNOVA - CGAO VÉLEZ"
     ws["A2"] = f"Año: {año_texto} | Generado: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}"
     ws["A3"] = f"Total proyectos: {len(proyectos)}"
     

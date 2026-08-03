@@ -277,7 +277,7 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
                           <div>
                             <p className={`text-[10px] font-black uppercase tracking-tighter ${entry.is_firmado_investigador ? 'text-emerald-700' : 'text-slate-500'}`}>Investigador / Instructor</p>
                             <p className="text-[9px] font-medium text-slate-400">
-                              {entry.is_firmado_investigador ? `Firmado: ${new Date(entry.fecha_firma_investigador).toLocaleDateString()}` : 'Pendiente de firma'}
+                              {entry.is_firmado_investigador ? `Firmado: ${new Date(entry.fecha_firma_investigador).toLocaleDateString('es-CO')}` : 'Pendiente de firma'}
                             </p>
                           </div>
                         </div>
@@ -292,7 +292,7 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
                           <div>
                             <p className={`text-[10px] font-black uppercase tracking-tighter ${entry.is_firmado_aprendiz ? 'text-indigo-700' : 'text-slate-500'}`}>Talento / Aprendiz</p>
                             <p className="text-[9px] font-medium text-slate-400">
-                              {entry.is_firmado_aprendiz ? `Firmado: ${new Date(entry.fecha_firma_aprendiz).toLocaleDateString()}` : 'Pendiente de firma'}
+                              {entry.is_firmado_aprendiz ? `Firmado: ${new Date(entry.fecha_firma_aprendiz).toLocaleDateString('es-CO')}` : 'Pendiente de firma'}
                             </p>
                           </div>
                         </div>

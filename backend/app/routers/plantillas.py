@@ -1,15 +1,13 @@
 from datetime import datetime, date, timezone
-from typing import List, Optional
-from uuid import UUID
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, get_current_admin
 from app.database import get_db
 from app.models import (
     Proyecto, User, Semillero, Aprendiz, Entregable, 
-    Producto, Documento, Actividad
+    Actividad, BitacoraEntry
 )
 from app.utils import log_actividad
 
@@ -234,7 +232,8 @@ def generar_certificados_masivos(
         
         for user in proyecto.equipo:
             asoc = asoc_map.get(str(user.id))
-            if not asoc: continue
+            if not asoc:
+                continue
             
             certificados.append({
                 "entidad": "SERVICIO NACIONAL DE APRENDIZAJE - SENA",

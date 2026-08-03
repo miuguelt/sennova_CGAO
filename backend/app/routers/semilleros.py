@@ -1,15 +1,14 @@
-from uuid import UUID
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
-from app.auth import get_current_user, get_current_admin
+from app.auth import get_current_user
 from app.database import get_db
 from app.models import Semillero, Grupo, User, Aprendiz
-from app.schemas import SemilleroCreate, SemilleroUpdate, SemilleroResponse, AprendizCreate, AprendizResponse, AprendizUpdate
+from app.schemas import SemilleroCreate, SemilleroUpdate, AprendizCreate, AprendizUpdate
 from app.utils import log_actividad
 
 router = APIRouter(prefix="/semilleros", tags=["Semilleros de Investigación"])

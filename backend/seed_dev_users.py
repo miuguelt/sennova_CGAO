@@ -3,19 +3,21 @@
 """
 DevAuth — Sennova
 =================
-Resetea/crea usuarios de desarrollo con la contraseña universal.
-Contraseña: DevMiguel2024!
+Resetea/crea usuarios de desarrollo. La contraseña se inyecta mediante DEV_SEED_PASSWORD.
 
 Uso:
     python seed_dev_users.py
 """
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 import bcrypt
 
 PROJECT_NAME = "sennova"
-DEV_PASSWORD = "DevMiguel2024!"
+DEV_PASSWORD = os.getenv("DEV_SEED_PASSWORD")
+if not DEV_PASSWORD:
+    raise RuntimeError("Define DEV_SEED_PASSWORD antes de ejecutar el seed de desarrollo")
 
 DEV_USERS = [
     # (nombre,              email,                              rol,            documento)
@@ -34,7 +36,7 @@ def seed():
 
     print(f"\n🌱 DevAuth Bootstrap — {PROJECT_NAME.upper()}")
     print("=" * 50)
-    print(f"   Contraseña universal: {DEV_PASSWORD}")
+    print("   Contraseña: suministrada por DEV_SEED_PASSWORD")
     print("=" * 50)
 
     created, updated = 0, 0
@@ -60,7 +62,15 @@ def seed():
             updated += 1
             print(f"  🔄 RESET   — {email} ({rol})")
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as __db_err:
+        import logging
+        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
+        try:
+            if 'session' in globals() or 'session' in locals(): db.session.rollback()
+            else: db.rollback()
+        except: pass
     db.close()
 
     print(f"\n  Total: {created} creados, {updated} actualizados")

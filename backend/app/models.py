@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
 
 from sqlalchemy import (
     Column, String, Integer, Boolean, DateTime, Date, 
@@ -19,7 +18,8 @@ if is_sqlite:
     # SQLite: usar String para UUID y JSON para arrays
     from sqlalchemy import String as UUIDType
     from sqlalchemy import JSON
-    ARRAY = lambda x: JSON  # En SQLite, usamos JSON en lugar de ARRAY
+    def ARRAY(x):
+        return JSON
 else:
     # PostgreSQL: tipos nativos
     from sqlalchemy.dialects.postgresql import UUID as UUIDType, ARRAY

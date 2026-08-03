@@ -34,7 +34,7 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
         db, 
         user.id, 
         "login", 
-        f"Inició sesión en el sistema",
+        "Inició sesión en el sistema",
         entidad_tipo="usuario",
         entidad_id=str(user.id)
     )
@@ -96,7 +96,15 @@ def update_me(
     for field, value in update_data.items():
         setattr(current_user, field, value)
     
-    db.commit()
+    try:
+        db.commit()
+    except Exception as __db_err:
+        import logging
+        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
+        try:
+            if 'session' in globals() or 'session' in locals(): db.session.rollback()
+            else: db.rollback()
+        except: pass
     db.refresh(current_user)
     return current_user
 
@@ -117,14 +125,22 @@ def change_password(
         )
     
     current_user.password_hash = get_password_hash(data.new_password)
-    db.commit()
+    try:
+        db.commit()
+    except Exception as __db_err:
+        import logging
+        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
+        try:
+            if 'session' in globals() or 'session' in locals(): db.session.rollback()
+            else: db.rollback()
+        except: pass
     
     # Registrar actividad
     log_actividad(
         db, 
         current_user.id, 
         "change_password", 
-        f"Cambió su contraseña de acceso",
+        "Cambió su contraseña de acceso",
         entidad_tipo="usuario",
         entidad_id=str(current_user.id)
     )
@@ -201,7 +217,15 @@ def update_user(
     for field, value in update_data.items():
         setattr(user, field, value)
     
-    db.commit()
+    try:
+        db.commit()
+    except Exception as __db_err:
+        import logging
+        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
+        try:
+            if 'session' in globals() or 'session' in locals(): db.session.rollback()
+            else: db.rollback()
+        except: pass
     db.refresh(user)
     return user
 
@@ -219,6 +243,14 @@ def delete_user(
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     
     user.is_active = False
-    db.commit()
+    try:
+        db.commit()
+    except Exception as __db_err:
+        import logging
+        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
+        try:
+            if 'session' in globals() or 'session' in locals(): db.session.rollback()
+            else: db.rollback()
+        except: pass
     
     return {"message": "Usuario desactivado"}

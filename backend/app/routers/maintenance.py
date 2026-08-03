@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from app.auth import get_current_admin
 from app.models import User
 import os
-import subprocess
 from datetime import datetime
 from app.config import get_settings
 

@@ -1,7 +1,6 @@
 import hashlib
-import json
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File

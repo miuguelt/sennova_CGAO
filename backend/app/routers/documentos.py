@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, R
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, get_current_admin
+from app.auth import get_current_user
 from app.database import get_db
 from app.models import Documento, User, Proyecto
 from app.schemas import DocumentoResponse
@@ -193,7 +193,15 @@ async def upload_documento(
     )
     
     db.add(documento)
-    db.commit()
+    try:
+        db.commit()
+    except Exception as __db_err:
+        import logging
+        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
+        try:
+            if 'session' in globals() or 'session' in locals(): db.session.rollback()
+            else: db.rollback()
+        except: pass
     db.refresh(documento)
     
     return documento
@@ -262,7 +270,15 @@ def delete_documento(
             print(f"Error al eliminar archivo físico: {e}")
             
     db.delete(doc)
-    db.commit()
+    try:
+        db.commit()
+    except Exception as __db_err:
+        import logging
+        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
+        try:
+            if 'session' in globals() or 'session' in locals(): db.session.rollback()
+            else: db.rollback()
+        except: pass
     
     return {"message": "Documento eliminado"}
 

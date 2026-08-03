@@ -1,4 +1,3 @@
-from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.models import Aprendiz
 from app.repositories.base_repository import BaseRepository

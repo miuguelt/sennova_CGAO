@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine, event
+import os
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.config import get_settings
@@ -11,15 +12,18 @@ if settings.DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
         settings.DATABASE_URL,
         connect_args={"check_same_thread": False},
-        echo=settings.DEBUG
+        echo=False
     )
 else:
     # PostgreSQL u otros
     engine = create_engine(
         settings.DATABASE_URL,
+        pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
+        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "5")),
+        pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "10")),
         pool_pre_ping=True,
         pool_recycle=300,
-        echo=settings.DEBUG,
+        echo=False,
         connect_args={"connect_timeout": 10}
     )
 
