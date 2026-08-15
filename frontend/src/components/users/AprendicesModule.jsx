@@ -135,7 +135,7 @@ const AprendizCard = ({ user, onEdit, onDelete, onToggleActive, onViewActivity, 
           </div>
           <div className="flex flex-col">
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter leading-none">Estado Académico</span>
-            <span className="text-[10px] font-black text-emerald-600 uppercase">Certificable</span>
+            <span className="text-[10px] font-black text-emerald-600 uppercase">{user.vinculacion?.estado || (user.is_active ? 'Activo' : 'Inactivo')}</span>
           </div>
         </div>
         <button 
@@ -166,7 +166,7 @@ const AprendicesModule = ({ onNotify, currentUser }) => {
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
-    rol: 'investigador',
+    rol: 'aprendiz',
     rol_sennova: 'Aprendiz Investigador',
     password: '',
     ficha: '',
@@ -217,7 +217,7 @@ const AprendicesModule = ({ onNotify, currentUser }) => {
 
   const handleOpenCreate = () => {
     setFormData({ 
-      nombre: '', email: '', rol: 'investigador', rol_sennova: 'Aprendiz Investigador', 
+      nombre: '', email: '', rol: 'aprendiz', rol_sennova: 'Aprendiz Investigador', 
       password: '', ficha: '', programa_formacion: '', documento: '', celular: '',
       regional: 'CGAO', sede: 'Vélez' 
     });
@@ -440,29 +440,30 @@ const AprendicesModule = ({ onNotify, currentUser }) => {
 
       {/* ── Form Modal ── */}
       {showForm && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-fadeIn">
-          <Card className="w-full max-w-3xl animate-scaleIn shadow-2xl border-0 overflow-hidden bg-white rounded-[2.5rem]">
-            <div className="bg-gradient-to-r from-indigo-700 to-indigo-900 px-10 py-8 text-white flex items-center justify-between relative overflow-hidden">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowForm(false)} aria-hidden="true" />
+          <Card className="w-full max-w-3xl max-h-[90vh] flex flex-col animate-scaleIn shadow-2xl border-0 overflow-hidden bg-white rounded-[2.5rem] relative z-10">
+            <div className="bg-gradient-to-r from-indigo-700 to-indigo-900 px-8 sm:px-10 py-6 sm:py-8 text-white flex items-center justify-between relative overflow-hidden shrink-0">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16" />
               <div className="flex items-center gap-6 relative z-10">
-                <div className="p-4 bg-white/20 rounded-[1.5rem] backdrop-blur-md shadow-xl">
-                  {isEditing ? <Edit size={28} /> : <UserPlus size={28} />}
+                <div className="p-3.5 bg-white/20 rounded-[1.5rem] backdrop-blur-md shadow-xl">
+                  {isEditing ? <Edit size={24} /> : <UserPlus size={24} />}
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black tracking-tight">{isEditing ? 'Actualizar Ficha de Aprendiz' : 'Alta de Nuevo Aprendiz'}</h2>
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight">{isEditing ? 'Actualizar Ficha de Aprendiz' : 'Alta de Nuevo Aprendiz'}</h2>
                   <p className="text-indigo-200 text-[10px] font-black uppercase tracking-[0.3em] mt-1 opacity-90">Gestión de Talento Humano - SENNOVA CGAO</p>
                 </div>
               </div>
-              <button onClick={() => setShowForm(false)} className="p-2 hover:bg-white/20 rounded-full transition-colors relative z-10"><X size={28} /></button>
+              <button onClick={() => setShowForm(false)} className="p-2 hover:bg-white/20 text-indigo-200 hover:text-white rounded-full transition-colors relative z-10"><X size={24} /></button>
             </div>
             
-            <div className="p-10 bg-white space-y-8 max-h-[75vh] overflow-y-auto scrollbar-thin">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="p-6 sm:p-10 bg-white space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input label="Nombre Completo" placeholder="Ej: Juan Perez" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} required className="rounded-2xl" />
                 <Input label="Correo Institucional" type="email" placeholder="email@soy.sena.edu.co" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required className="rounded-2xl" />
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-1">
                   <Input label="Número de Ficha" placeholder="2560892" value={formData.ficha} onChange={e => setFormData({...formData, ficha: e.target.value})} className="rounded-2xl" />
                 </div>
@@ -471,12 +472,12 @@ const AprendicesModule = ({ onNotify, currentUser }) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input label="Número de Documento" placeholder="1098..." value={formData.documento} onChange={e => setFormData({...formData, documento: e.target.value})} className="rounded-2xl" />
                 <Input label="Celular / WhatsApp" placeholder="310..." value={formData.celular} onChange={e => setFormData({...formData, celular: e.target.value})} className="rounded-2xl" />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Select 
                   label="Rol en SENNOVA" 
                   options={[
@@ -499,7 +500,7 @@ const AprendicesModule = ({ onNotify, currentUser }) => {
               </div>
             </div>
 
-            <div className="px-10 py-8 bg-slate-50 border-t border-slate-100 flex justify-end gap-4 rounded-b-[2.5rem]">
+            <div className="px-6 sm:px-10 py-5 bg-slate-50 border-t border-slate-100 flex justify-end gap-4 rounded-b-[2.5rem] shrink-0">
               <Button variant="secondary" className="px-8 rounded-2xl h-12" onClick={() => setShowForm(false)}>Cancelar</Button>
               <Button variant="sena" className="bg-indigo-600 hover:bg-indigo-700 px-10 rounded-2xl h-12 shadow-xl shadow-indigo-500/20" onClick={handleSaveUser} disabled={saving}>
                 {saving ? <Loader2 size={18} className="animate-spin mr-3" /> : <Save size={18} className="mr-3" />}

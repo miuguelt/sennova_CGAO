@@ -53,8 +53,11 @@ const UserCard = ({ user, onEdit, onDelete, onToggleActive, onViewActivity }) =>
           {user.nombre.charAt(0)}
         </div>
         <div className="flex gap-2 mr-6">
-          <Badge variant={user.rol === 'admin' ? 'danger' : 'success'} className="font-black text-[9px] uppercase tracking-wider">
-            {user.rol === 'admin' ? 'ADMIN' : 'INVESTIGADOR'}
+          <Badge 
+            variant={user.rol === 'admin' ? 'danger' : user.rol === 'instructor' ? 'info' : 'success'} 
+            className="font-black text-[9px] uppercase tracking-wider"
+          >
+            {user.rol === 'admin' ? 'ADMIN' : user.rol === 'instructor' ? 'INSTRUCTOR' : 'INVESTIGADOR'}
           </Badge>
           {!user.is_active && <Badge variant="default" className="text-[9px] font-black uppercase">Inactivo</Badge>}
         </div>
@@ -132,7 +135,7 @@ const InvestigadoresModule = ({ onNotify }) => {
         UsuariosAPI.list(),
         UsuariosAPI.getStats()
       ]);
-      setUsers(usersData || []);
+      setUsers((usersData || []).filter(u => u.rol !== 'aprendiz'));
       setStats(statsData);
     } catch (err) {
       onNotify?.('Error al cargar datos de investigadores', 'error');
@@ -223,11 +226,11 @@ const InvestigadoresModule = ({ onNotify }) => {
           <div className="relative z-10">
             <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none mb-4">Talento SENNOVA</h1>
             <p className="text-slate-500 font-medium max-w-lg leading-relaxed">
-              Gestione el capital intelectual del Centro. Supervise perfiles, asigne roles de administración y audite el impacto académico de cada investigador.
+              Gestione el capital intelectual del Centro. Supervise perfiles de investigadores e instructores de semillero, asigne roles y audite su impacto formativo y científico.
             </p>
             <div className="flex flex-wrap gap-3 mt-8">
               <Button variant="sena" className="h-12 px-8 shadow-xl shadow-emerald-500/30" onClick={handleOpenCreate}>
-                <UserPlus size={20} className="mr-2" /> Nuevo Investigador
+                <UserPlus size={20} className="mr-2" /> Nuevo Investigador / Docente
               </Button>
               <Button variant="outline" className="h-12 px-6 border-slate-200 bg-white" onClick={() => setShowAuditModal(true)}>
                 <ShieldCheck size={20} className="mr-2" /> Auditoría de Roles
@@ -273,8 +276,9 @@ const InvestigadoresModule = ({ onNotify }) => {
             onChange={(e) => setFilter({...filter, rol: e.target.value})}
           >
             <option value="">Todos los Roles</option>
+            <option value="investigador">Investigadores SENNOVA</option>
+            <option value="instructor">Instructores</option>
             <option value="admin">Administradores</option>
-            <option value="investigador">Investigadores</option>
           </select>
           <select 
             className="px-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
@@ -305,9 +309,10 @@ const InvestigadoresModule = ({ onNotify }) => {
 
       {/* ── Form Modal ── */}
       {showForm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
-          <Card className="w-full max-w-2xl animate-scaleIn shadow-2xl border-0 overflow-hidden">
-            <div className="bg-emerald-600 px-8 py-6 text-white flex items-center justify-between">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowForm(false)} aria-hidden="true" />
+          <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col animate-scaleIn shadow-2xl border-0 overflow-hidden bg-white relative z-10">
+            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 sm:px-8 py-6 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
                   {isEditing ? <Edit size={24} /> : <UserPlus size={24} />}
@@ -317,19 +322,23 @@ const InvestigadoresModule = ({ onNotify }) => {
                   <p className="text-emerald-100 text-[10px] font-black uppercase tracking-widest mt-1 opacity-80">Sincronización de Talento CGAO</p>
                 </div>
               </div>
-              <button onClick={() => setShowForm(false)} className="p-2 hover:bg-white/20 rounded-full transition-colors"><X size={24} /></button>
+              <button onClick={() => setShowForm(false)} className="p-2 hover:bg-white/20 text-emerald-100 hover:text-white rounded-full transition-colors"><X size={24} /></button>
             </div>
             
-            <div className="p-8 bg-white space-y-6 max-h-[70vh] overflow-y-auto scrollbar-thin">
-              <div className="grid grid-cols-2 gap-6">
+            <div className="p-6 sm:p-8 bg-white space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <Input label="Nombre Completo" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} required />
                 <Input label="Correo Institucional" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
               </div>
               
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <Select 
                   label="Rol en Plataforma" 
-                  options={[{ value: 'investigador', label: 'Investigador' }, { value: 'admin', label: 'Administrador' }]} 
+                  options={[
+                    { value: 'investigador', label: 'Investigador SENNOVA' },
+                    { value: 'instructor',   label: 'Instructor Investigador' },
+                    { value: 'admin',        label: 'Administrador' }
+                  ]} 
                   value={formData.rol} 
                   onChange={e => setFormData({...formData, rol: e.target.value})} 
                 />
@@ -342,12 +351,12 @@ const InvestigadoresModule = ({ onNotify }) => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <Input label="Regional" value={formData.regional} onChange={e => setFormData({...formData, regional: e.target.value})} />
                 <Input label="Sede / Centro" placeholder="CGAO Vélez" value={formData.sede} onChange={e => setFormData({...formData, sede: e.target.value})} />
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <Select 
                   label="Nivel Académico" 
                   options={[
@@ -365,7 +374,7 @@ const InvestigadoresModule = ({ onNotify }) => {
               </div>
             </div>
 
-            <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <div className="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
               <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
               <Button variant="sena" className="bg-emerald-600 hover:bg-emerald-700 px-8" onClick={handleSaveUser} disabled={saving}>
                 {saving ? <Loader2 size={18} className="animate-spin mr-2" /> : <Save size={18} className="mr-2" />}
@@ -378,9 +387,10 @@ const InvestigadoresModule = ({ onNotify }) => {
 
       {/* ── Audit Modal ── */}
       {showAuditModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
-          <Card className="w-full max-w-2xl animate-scaleIn shadow-2xl border-0 overflow-hidden">
-            <div className="bg-slate-900 px-8 py-6 text-white flex items-center justify-between">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowAuditModal(false)} aria-hidden="true" />
+          <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col animate-scaleIn shadow-2xl border-0 overflow-hidden bg-white relative z-10">
+            <div className="bg-slate-900 px-6 sm:px-8 py-6 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md"><ShieldAlert size={24} className="text-amber-500" /></div>
                 <div>
@@ -388,30 +398,35 @@ const InvestigadoresModule = ({ onNotify }) => {
                   <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">Supervisión de Acceso al Ecosistema</p>
                 </div>
               </div>
-              <button onClick={() => setShowAuditModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={24} /></button>
+              <button onClick={() => setShowAuditModal(false)} className="p-2 hover:bg-white/10 text-slate-400 hover:text-white rounded-full transition-colors"><X size={24} /></button>
             </div>
             
-            <div className="p-8 bg-white space-y-8">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-rose-50 p-6 rounded-3xl border border-rose-100">
-                  <p className="text-4xl font-black text-rose-700">{users.filter(u => u.rol === 'admin').length}</p>
+            <div className="p-6 sm:p-8 bg-white space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-rose-50 p-5 rounded-3xl border border-rose-100">
+                  <p className="text-3xl font-black text-rose-700">{users.filter(u => u.rol === 'admin').length}</p>
                   <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mt-1">Administradores</p>
-                  <p className="text-[9px] text-rose-500 mt-2 italic font-medium">Control total sobre infraestructura y datos.</p>
+                  <p className="text-[9px] text-rose-500 mt-2 italic font-medium">Control total y gobernanza.</p>
                 </div>
-                <div className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100">
-                  <p className="text-4xl font-black text-emerald-700">{users.filter(u => u.rol === 'investigador').length}</p>
+                <div className="bg-emerald-50 p-5 rounded-3xl border border-emerald-100">
+                  <p className="text-3xl font-black text-emerald-700">{users.filter(u => u.rol === 'investigador').length}</p>
                   <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">Investigadores</p>
-                  <p className="text-[9px] text-emerald-500 mt-2 italic font-medium">Acceso operativo a proyectos y productos.</p>
+                  <p className="text-[9px] text-emerald-500 mt-2 italic font-medium">Liderazgo de proyectos I+D+i.</p>
+                </div>
+                <div className="bg-sky-50 p-5 rounded-3xl border border-sky-100">
+                  <p className="text-3xl font-black text-sky-700">{users.filter(u => u.rol === 'instructor').length}</p>
+                  <p className="text-[10px] font-black text-sky-600 uppercase tracking-widest mt-1">Instructores</p>
+                  <p className="text-[9px] text-sky-500 mt-2 italic font-medium">Coordinación de semilleros.</p>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-4">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-2">
                   <Key size={14} className="text-indigo-500" /> Privilegios y Seguridad
                 </h4>
-                <div className="max-h-64 overflow-y-auto pr-2 scrollbar-thin">
+                <div className="space-y-2">
                   {users.map(u => (
-                    <div key={u.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-2">
+                    <div key={u.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${u.rol === 'admin' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
                           {u.nombre.charAt(0)}
@@ -430,7 +445,7 @@ const InvestigadoresModule = ({ onNotify }) => {
               </div>
             </div>
 
-            <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <div className="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
               <Button variant="primary" onClick={() => setShowAuditModal(false)}>Cerrar Supervisión</Button>
             </div>
           </Card>

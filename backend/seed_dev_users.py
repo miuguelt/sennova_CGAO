@@ -68,9 +68,12 @@ def seed():
         import logging
         logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
         try:
-            if 'session' in globals() or 'session' in locals(): db.session.rollback()
-            else: db.rollback()
-        except: pass
+            if 'session' in globals() or 'session' in locals():
+                db.session.rollback()
+            else:
+                db.rollback()
+        except Exception:
+            pass
     db.close()
 
     print(f"\n  Total: {created} creados, {updated} actualizados")

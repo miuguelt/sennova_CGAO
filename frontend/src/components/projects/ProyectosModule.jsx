@@ -113,17 +113,44 @@ const RUBROS = [
   { id: 'equipos', label: 'Equipos', icon: Zap, color: 'text-rose-600' },
 ];
 
+const getRubroValue = (p, rubroId) => {
+  if (!p?.presupuesto_detallado) return 0;
+  if (typeof p.presupuesto_detallado[rubroId] === 'number') {
+    return p.presupuesto_detallado[rubroId];
+  }
+  if (Array.isArray(p.presupuesto_detallado?.items)) {
+    const mapCat = {
+      personal: ['talento humano', 'personal', 'investigador', 'honorarios'],
+      materiales: ['materiales', 'insumos', 'suministros'],
+      viaticos: ['viaticos', 'viajes', 'transporte', 'hospedaje'],
+      servicios: ['servicios', 'software', 'licencias'],
+      equipos: ['equipos', 'maquinaria', 'hardware']
+    };
+    const keywords = mapCat[rubroId] || [rubroId];
+    return p.presupuesto_detallado.items
+      .filter(it => keywords.some(k => (it.categoria || '').toLowerCase().includes(k)))
+      .reduce((sum, it) => sum + (Number(it.valor) || 0), 0);
+  }
+  return 0;
+};
+
 const STATE_DOT = {
-  'Formulación':  'bg-amber-400',
-  'Aprobado':     'bg-blue-400',
+  'Aprobado':     'bg-blue-500',
   'En ejecución': 'bg-emerald-500',
-  'Finalizado':   'bg-slate-400',
+  'Finalizado':   'bg-slate-500',
+};
+
+const normalizeEstado = (estado) => {
+  if (!estado) return 'Aprobado';
+  if (STATES.includes(estado)) return estado;
+  return 'Aprobado';
 };
 
 const EMPTY_FORM = {
-  nombre: '', nombre_corto: '', codigo_sgps: '', estado: 'Formulación',
+  nombre: '', nombre_corto: '', codigo_sgps: '', estado: 'Aprobado',
   vigencia: 12, presupuesto_total: 0, tipologia: 'Innovación',
-  linea_investigacion: '', descripcion: '',
+  linea_investigacion: '', red_conocimiento: '', descripcion: '',
+  objetivo_general: '',
   linea_programatica: '', reto_origen_id: null,
   convocatoria_id: null,
   año: new Date().getFullYear(),
@@ -156,7 +183,7 @@ const Skeleton = () => (
 );
 
 // ─── Kanban card ──────────────────────────────────────────────────────────────
-const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick, onEdit, onDelete, onClickMenu, isMenuOpen, menuRef, canEdit }) => (
+const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick, onEdit, onDelete, onLiquidar, onElaboracion, onClickMenu, isMenuOpen, menuRef, canEdit }) => (
   <Card
     draggable={canEdit}
     onDragStart={onDragStart}
@@ -193,10 +220,28 @@ const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick,
         
         {/* Dropdown Menu - Glassmorphism style */}
         {isMenuOpen && (
-          <div className="absolute right-0 mt-2 w-52 bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-white/20 z-[60] py-2 animate-in fade-in zoom-in slide-in-from-top-2 duration-200 ring-1 ring-slate-900/5">
+          <div className="absolute right-0 mt-2 w-60 bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-white/20 z-[60] py-2 animate-in fade-in zoom-in slide-in-from-top-2 duration-200 ring-1 ring-slate-900/5">
             <div className="px-3 py-2 mb-1 border-b border-slate-50">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones del Proyecto</p>
             </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); onElaboracion(p); }}
+              className="w-full flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all group/item"
+            >
+              <div className="p-1.5 bg-slate-100 rounded-lg group-hover/item:bg-emerald-100 group-hover/item:text-emerald-700 transition-colors">
+                <Sparkles size={14} className="text-emerald-600" />
+              </div>
+              Diagnóstico Elaboración
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onLiquidar(p); }}
+              className="w-full flex items-center gap-3 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition-all group/item"
+            >
+              <div className="p-1.5 bg-emerald-100/80 rounded-lg group-hover/item:bg-emerald-200 text-emerald-700 transition-colors">
+                <ShieldCheck size={14} />
+              </div>
+              Requisitos Liquidación
+            </button>
             {canEdit && (
               <>
                 <button
@@ -272,6 +317,8 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [viewMode,         setViewMode]         = useState('kanban');
   const [showLiquidation,  setShowLiquidation]  = useState(false);
   const [liqChecklist,     setLiqChecklist]     = useState(null);
+  const [showElaboracionModal, setShowElaboracionModal] = useState(false);
+  const [elaboracionData, setElaboracionData] = useState(null);
   const [showForm,         setShowForm]         = useState(false);
   const [selectedProyecto, setSelectedProyecto] = useState(null);
   const [isDetailOpen,     setIsDetailOpen]     = useState(false);
@@ -294,7 +341,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [generatingFormatId, setGeneratingFormatId] = useState(null);
   const menuRef = React.useRef(null);
 
-  const isOwnerOrAdmin = (project) => currentUser?.rol === 'admin' || project?.owner_id === currentUser?.id;
+  const isOwnerOrAdmin = (project) => currentUser?.rol !== 'aprendiz' && (currentUser?.rol === 'admin' || project?.owner_id === currentUser?.id);
 
   useClickOutside(menuRef, () => setMenuOpenId(null));
 
@@ -379,12 +426,15 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       nombre: proyecto.nombre || '',
       nombre_corto: proyecto.nombre_corto || '',
       codigo_sgps: proyecto.codigo_sgps || '',
-      estado: proyecto.estado || 'Formulación',
+      estado: proyecto.estado || 'Aprobado',
       vigencia: proyecto.vigencia || 12,
       presupuesto_total: proyecto.presupuesto_total || 0,
       tipologia: proyecto.tipologia || 'Innovación',
       linea_investigacion: proyecto.linea_investigacion || '',
+      red_conocimiento: proyecto.red_conocimiento || '',
       descripcion: proyecto.descripcion || '',
+      objetivo_general: proyecto.objetivo_general || '',
+      objetivos_especificos: proyecto.objetivos_especificos || [],
       linea_programatica: proyecto.linea_programatica || '',
       reto_origen_id: proyecto.reto_origen_id || '',
       semillero_id: proyecto.semillero_id || '',
@@ -441,6 +491,12 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       // fetchAPI lanza un Error con el detalle en el mensaje
       const errorMsg = err.message || 'Error desconocido';
       onNotify?.('Error al guardar: ' + errorMsg, 'error');
+      if (errorMsg.includes('cierre técnico') || errorMsg.includes('finalizar el proyecto')) {
+        const targetProy = proyectos.find(p => String(p.id) === String(formData.id));
+        if (targetProy) {
+          handleOpenLiquidation(targetProy);
+        }
+      }
     }
   };
 
@@ -575,15 +631,41 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
 
 
-  const handleOpenLiquidation = async () => {
-    if (!selectedProyecto) return;
+  const handleOpenLiquidation = async (proyectoToOpen = null) => {
+    const target = proyectoToOpen || selectedProyecto;
+    if (!target) return;
     try {
       setLoading(true);
-      const data = await ProyectosAPI.checkLiquidacion(selectedProyecto.id);
+      if (proyectoToOpen) {
+        setSelectedProyecto(proyectoToOpen);
+      }
+      const data = await ProyectosAPI.checkLiquidacion(target.id);
       setLiqChecklist(data);
       setShowLiquidation(true);
+      if (data.auto_finalizado) {
+        onNotify?.('🎉 ¡Proyecto auto-finalizado por cumplimiento del 100% de requisitos institucionales!', 'success');
+        loadData();
+      }
     } catch (err) {
       onNotify?.('Error al verificar liquidación: ' + err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenElaboracionDiagnostic = async (proyectoToOpen = null) => {
+    const target = proyectoToOpen || selectedProyecto;
+    if (!target) return;
+    try {
+      setLoading(true);
+      if (proyectoToOpen) {
+        setSelectedProyecto(proyectoToOpen);
+      }
+      const data = await ProyectosAPI.getElaboracionStatus(target.id);
+      setElaboracionData(data);
+      setShowElaboracionModal(true);
+    } catch (err) {
+      onNotify?.('Error al obtener diagnóstico de elaboración: ' + err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -640,13 +722,22 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
     if (!id) return;
 
+    if (newState === 'Finalizado') {
+      const targetProy = proyectos.find(p => String(p.id) === String(id));
+      if (targetProy) {
+        handleOpenLiquidation(targetProy);
+      }
+      return;
+    }
+
     // Optimistic update for kanban move
     setProyectos(prev => prev.map(p => String(p.id) === id ? { ...p, estado: newState } : p));
     try {
       await ProyectosAPI.update(id, { estado: newState });
       onNotify?.(`Proyecto movido a "${newState}"`, 'success');
-    } catch {
-      onNotify?.('Error al actualizar el estado', 'error');
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || 'Error al actualizar el estado';
+      onNotify?.(msg, 'error');
       loadData();
     }
   };
@@ -660,19 +751,23 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     setShowForm(true);
   };
 
-  const filtered = proyectos.filter(p => {
+  const filtered = proyectos.map(p => ({
+    ...p,
+    estado_normalizado: normalizeEstado(p.estado)
+  })).filter(p => {
     const haySearch = !searchTerm || (p.nombre + (p.nombre_corto ?? '') + (p.codigo_sgps ?? ''))
       .toLowerCase().includes(searchTerm.toLowerCase());
-    const hayStatus = !statusFilter || p.estado === statusFilter;
-    const hayAño = p.año === selectedYear;
+    const hayStatus = !statusFilter || p.estado_normalizado === statusFilter || p.estado === statusFilter;
+    const projectYear = p.año || (p.created_at ? new Date(p.created_at).getFullYear() : new Date().getFullYear());
+    const hayAño = projectYear === selectedYear;
     return haySearch && hayStatus && hayAño;
   });
 
-  const availableYears = [...new Set(proyectos.map(p => p.año).filter(Boolean)), new Date().getFullYear()].sort((a, b) => b - a);
+  const availableYears = [...new Set(proyectos.map(p => p.año || (p.created_at ? new Date(p.created_at).getFullYear() : new Date().getFullYear())).filter(Boolean)), new Date().getFullYear()].sort((a, b) => b - a);
   // Eliminar duplicados si el año actual ya existía
   const uniqueYears = [...new Set(availableYears)];
 
-  const byState = (state) => filtered.filter(p => p.estado === state);
+  const byState = (state) => filtered.filter(p => p.estado_normalizado === state);
 
   if (loading) return <Skeleton />;
 
@@ -719,10 +814,14 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               <ListIcon size={18} />
             </button>
           </div>
-          <div className="w-px h-5 bg-slate-200 mx-1" aria-hidden="true" />
-          <Button onClick={openCreateForm} variant="sena" size="sm" className="px-4 py-2">
-            <Plus size={16} /> <span className="hidden sm:inline">Nuevo Proyecto</span><span className="sm:hidden">Nuevo</span>
-          </Button>
+          {currentUser?.rol !== 'aprendiz' && (
+            <>
+              <div className="w-px h-5 bg-slate-200 mx-1" aria-hidden="true" />
+              <Button onClick={openCreateForm} variant="sena" size="sm" className="px-4 py-2">
+                <Plus size={16} /> <span className="hidden sm:inline">Nuevo Proyecto</span><span className="sm:hidden">Nuevo</span>
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -801,19 +900,33 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
       {/* ── Kanban ── */}
       {viewMode === 'kanban' ? (
-        <div className="flex gap-4 md:gap-5 overflow-x-auto pb-6 -mx-4 px-4 sm:mx-0 sm:px-0 min-h-[60vh] snap-x scroll-pl-4 scrollbar-hide md:scrollbar-thin">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pb-6 min-h-[60vh]">
           {STATES.map(state => {
             const cards = byState(state);
+            const totalBudget = cards.reduce((sum, c) => sum + (Number(c.presupuesto_total) || 0), 0);
+            
+            const headerThemes = {
+              'Aprobado':     { border: 'border-blue-200', bg: 'bg-blue-50/80', badge: 'bg-blue-100 text-blue-700', text: 'text-blue-900', dot: 'bg-blue-500' },
+              'En ejecución': { border: 'border-emerald-200', bg: 'bg-emerald-50/80', badge: 'bg-emerald-100 text-emerald-700', text: 'text-emerald-900', dot: 'bg-emerald-500' },
+              'Finalizado':   { border: 'border-slate-200', bg: 'bg-slate-50/80', badge: 'bg-slate-200 text-slate-700', text: 'text-slate-900', dot: 'bg-slate-500' },
+            };
+            const theme = headerThemes[state] || headerThemes['Aprobado'];
+
             return (
-              <section key={state} className="flex-1 min-w-[280px] max-w-[320px] md:max-w-[380px] flex flex-col gap-3 snap-start">
-                {/* Column header */}
-                <div className="flex items-center justify-between px-1">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${STATE_DOT[state] ?? 'bg-slate-400'} shadow-sm`} aria-hidden="true" />
-                    <h3 className="font-bold text-slate-700 text-[10px] md:text-xs uppercase tracking-widest">{state}</h3>
+              <section key={state} className="flex flex-col gap-3">
+                {/* Column Header Card */}
+                <div className={`p-3.5 rounded-2xl border ${theme.border} ${theme.bg} backdrop-blur-sm shadow-sm flex items-center justify-between`}>
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-3 h-3 rounded-full ${theme.dot} shadow-sm`} aria-hidden="true" />
+                    <div>
+                      <h3 className={`font-black text-xs uppercase tracking-widest ${theme.text}`}>{state}</h3>
+                      <p className="text-[10px] font-bold text-slate-500 mt-0.5 tabular-nums">
+                        ${totalBudget >= 1e6 ? `${(totalBudget / 1e6).toFixed(1)}M` : totalBudget.toLocaleString('es-CO')}
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full tabular-nums">
-                    {cards.length}
+                  <span className={`text-xs font-black px-2.5 py-1 rounded-xl tabular-nums ${theme.badge}`}>
+                    {cards.length} {cards.length === 1 ? 'proyecto' : 'proyectos'}
                   </span>
                 </div>
 
@@ -821,7 +934,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                 <div
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, state)}
-                  className="flex-grow rounded-2xl bg-slate-100/50 p-2.5 space-y-3 border-2 border-transparent transition-colors min-h-[400px]"
+                  className="flex-grow rounded-2xl bg-slate-50/60 p-3 space-y-3 border-2 border-dashed border-slate-200/80 transition-colors min-h-[450px]"
                   aria-label={`Columna ${state}`}
                 >
                   {cards.map(p => (
@@ -845,6 +958,8 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                         onClick={() => handleOpenDetail(p)}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
+                        onLiquidar={(target) => handleOpenLiquidation(target)}
+                        onElaboracion={(target) => handleOpenElaboracionDiagnostic(target)}
                         onClickMenu={(id) => setMenuOpenId(menuOpenId === id ? null : id)}
                         isMenuOpen={menuOpenId === p.id}
                         menuRef={menuRef}
@@ -858,8 +973,10 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                     </div>
                   ))}
                   {cards.length === 0 && (
-                    <div className="py-16 text-center text-xs text-slate-500 font-medium italic">
-                      Sin proyectos
+                    <div className="py-20 text-center flex flex-col items-center justify-center text-slate-400">
+                      <FolderOpen size={32} className="mb-2 text-slate-300 stroke-1" />
+                      <p className="text-xs font-bold uppercase tracking-wider">Sin proyectos</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Arrastra o crea un proyecto en esta etapa</p>
                     </div>
                   )}
                 </div>
@@ -911,19 +1028,29 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                       
                       {/* Table Dropdown Menu */}
                       {menuOpenId === p.id && (
-                        <div className="absolute right-10 top-1/2 -translate-y-1/2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 py-1.5 animate-in fade-in slide-in-from-right-2 duration-200">
+                        <div className="absolute right-10 top-1/2 -translate-y-1/2 w-60 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-slate-100 z-50 py-1.5 animate-in fade-in slide-in-from-right-2 duration-200">
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleEdit(p); }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); handleOpenLiquidation(p); }}
+                            className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition-colors"
                           >
-                            <Edit2 size={14} /> Editar Proyecto
+                            <ShieldCheck size={14} /> Liquidación Técnica SENNOVA
                           </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 transition-colors"
-                          >
-                            <Trash2 size={14} /> Eliminar Proyecto
-                          </button>
+                          {isOwnerOrAdmin(p) && (
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleEdit(p); }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors"
+                              >
+                                <Edit2 size={14} /> Editar Proyecto
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 transition-colors"
+                              >
+                                <Trash2 size={14} /> Eliminar Proyecto
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                       <ChevronRight size={14} className="inline-block ml-2 text-slate-300 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
@@ -947,16 +1074,36 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       {/* ── Detail slide-over — Mobile optimized ── */}
       {isDetailOpen && selectedProyecto && (
         <div className="fixed inset-0 z-[100] overflow-hidden" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fadeIn" onClick={() => setIsDetailOpen(false)} />
-          <div className="absolute inset-y-0 right-0 flex max-w-full">
-            <div className="w-screen max-w-xl bg-white shadow-2xl flex flex-col animate-slideInRight">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-fadeIn" onClick={() => setIsDetailOpen(false)} />
+          <div className="absolute inset-y-0 right-0 flex max-w-full pl-0 sm:pl-10">
+            <div className="w-screen max-w-xl h-full bg-white shadow-2xl flex flex-col animate-slideInRight">
               {/* Header */}
-              <div className="px-5 md:px-6 py-5 border-b border-slate-100 bg-slate-50/80 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
+              <div className="px-5 md:px-6 py-5 border-b border-slate-100 bg-slate-50 flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-3">
                   <StatusBadge estado={selectedProyecto.estado} />
-                  <button onClick={() => setIsDetailOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                    <X size={20} className="text-slate-500" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenElaboracionDiagnostic(selectedProyecto)}
+                      className="h-8 px-3 text-[11px] font-black text-slate-700 bg-white hover:bg-slate-50 border-slate-200 shadow-sm flex items-center gap-1.5"
+                    >
+                      <Sparkles size={13} className="text-emerald-600" />
+                      Diagnóstico Elaboración
+                    </Button>
+                    <Button
+                      variant="sena"
+                      size="sm"
+                      onClick={() => handleOpenLiquidation(selectedProyecto)}
+                      className="h-8 px-3 text-[11px] font-black tracking-wide bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white shadow-sm flex items-center gap-1.5"
+                    >
+                      <ShieldCheck size={14} />
+                      Requisitos Liquidación
+                    </Button>
+                    <button onClick={() => setIsDetailOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                      <X size={20} className="text-slate-500" />
+                    </button>
+                  </div>
                 </div>
                 <h2 className="text-lg md:text-xl font-bold text-slate-900 leading-tight">
                   {selectedProyecto.nombre}
@@ -1001,7 +1148,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                         {/* CSS-based simple bars for quick view */}
                         <div className="space-y-4">
                           {RUBROS.map(r => {
-                            const val = selectedProyecto.presupuesto_detallado?.[r.id] || 0;
+                            const val = getRubroValue(selectedProyecto, r.id);
                             const pct = selectedProyecto.presupuesto_total > 0 
                               ? (val / selectedProyecto.presupuesto_total) * 100 
                               : 0;
@@ -1025,43 +1172,59 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                         </div>
 
                         {/* Recharts Pie Visualization */}
-                        <div className="h-[200px] w-full bg-slate-50/50 rounded-3xl border border-slate-100 flex items-center justify-center relative overflow-hidden">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={RUBROS.map(r => ({
-                                  name: r.label,
-                                  value: selectedProyecto.presupuesto_detallado?.[r.id] || 0
-                                })).filter(d => d.value > 0)}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="value"
-                              >
-                                {RUBROS.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={
-                                    entry.id === 'personal' ? '#10b981' : 
-                                    entry.id === 'materiales' ? '#3b82f6' :
-                                    entry.id === 'viaticos' ? '#f59e0b' :
-                                    entry.id === 'servicios' ? '#6366f1' : '#f43f5e'
-                                  } />
-                                ))}
-                              </Pie>
-                              <ReTooltip 
-                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
-                                formatter={(value) => `$${value.toLocaleString('es-CO')}`}
-                              />
-                            </PieChart>
-                          </ResponsiveContainer>
-                          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Total</p>
-                            <p className="text-sm font-black text-slate-900 tabular-nums">
-                              ${(selectedProyecto.presupuesto_total || 0).toLocaleString('es-CO')}
-                            </p>
-                          </div>
-                        </div>
+                        {(() => {
+                          const pieData = RUBROS.map(r => ({
+                            name: r.label,
+                            value: getRubroValue(selectedProyecto, r.id)
+                          })).filter(d => d.value > 0);
+
+                          return (
+                            <div className="h-[200px] w-full bg-slate-50/50 rounded-3xl border border-slate-100 flex items-center justify-center relative overflow-hidden">
+                              {pieData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <PieChart>
+                                    <Pie
+                                      data={pieData}
+                                      cx="50%"
+                                      cy="50%"
+                                      innerRadius={60}
+                                      outerRadius={80}
+                                      paddingAngle={5}
+                                      dataKey="value"
+                                    >
+                                      {RUBROS.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={
+                                          entry.id === 'personal' ? '#10b981' : 
+                                          entry.id === 'materiales' ? '#3b82f6' :
+                                          entry.id === 'viaticos' ? '#f59e0b' :
+                                          entry.id === 'servicios' ? '#6366f1' : '#f43f5e'
+                                        } />
+                                      ))}
+                                    </Pie>
+                                    <ReTooltip 
+                                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
+                                      formatter={(value) => `$${value.toLocaleString('es-CO')}`}
+                                    />
+                                  </PieChart>
+                                </ResponsiveContainer>
+                              ) : (
+                                <div className="text-center p-4">
+                                  <DollarSign size={24} className="text-slate-300 mx-auto mb-1" />
+                                  <p className="text-xs font-bold text-slate-500">Sin rubros clasificados</p>
+                                  <p className="text-[10px] text-slate-400">Total registrado: ${(selectedProyecto.presupuesto_total || 0).toLocaleString('es-CO')}</p>
+                                </div>
+                              )}
+                              {pieData.length > 0 && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Total</p>
+                                  <p className="text-sm font-black text-slate-900 tabular-nums">
+                                    ${(selectedProyecto.presupuesto_total || 0).toLocaleString('es-CO')}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       <div className="flex flex-wrap gap-2 pt-2 mb-8">
@@ -1154,7 +1317,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/30">
                             {usuarios
                               .filter(u => !selectedProyecto.equipo?.some(m => m.id === u.id))
-                              .filter(u => talentTab === 'aprendices' ? (u.ficha || u.programa_formacion) : (!u.ficha && !u.programa_formacion))
+                              .filter(u => talentTab === 'aprendices' ? u.rol === 'aprendiz' : u.rol !== 'aprendiz')
                               .map(u => (
                               <div 
                                 key={u.id}
@@ -1238,7 +1401,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                           const user = usuarios.find(u => u.id === userId);
                           if (user) {
                             setMemberToLink(user);
-                            setLinkingRole(user.ficha ? 'Aprendiz' : 'Investigador');
+                            setLinkingRole(user.rol === 'aprendiz' ? 'Aprendiz' : 'Investigador');
                           }
                         }}
                       >
@@ -1339,7 +1502,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                         >
                           <option value="">Seleccionar investigador o aprendiz...</option>
                           {usuarios.filter(u => !selectedProyecto.equipo?.some(m => m.id === u.id)).map(u => (
-                            <option key={u.id} value={u.id}>{u.nombre} {u.ficha ? `(Ficha: ${u.ficha})` : ''}</option>
+                            <option key={u.id} value={u.id}>{u.nombre} ({u.rol === 'aprendiz' ? `Aprendiz - ${u.ficha || 'S/F'}` : 'Investigador'})</option>
                           ))}
                         </select>
                       </div>
@@ -1580,15 +1743,43 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                       </div>
                       <Input label="Línea Programática" value={formData.linea_programatica} onChange={patch('linea_programatica')} placeholder="Ej: 65, 82..." />
                       <Input label="Línea de Investigación" value={formData.linea_investigacion} onChange={patch('linea_investigacion')} placeholder="Ej: Software, Agro..." />
+                      <div className="md:col-span-2">
+                        <Input label="Red de Conocimiento" value={formData.red_conocimiento} onChange={patch('red_conocimiento')} placeholder="Ej: Red de Informática, Electrónica y Telecomunicaciones..." />
+                      </div>
                       
                       <div className="md:col-span-2">
                         <TextArea
+                          label="Objetivo General"
+                          placeholder="Formular el objetivo general del proyecto..."
+                          value={formData.objetivo_general}
+                          onChange={patch('objetivo_general')}
+                          rows={3}
+                          className="rounded-2xl"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2 space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700 ml-1">Objetivos Específicos (uno por línea)</label>
+                        <TextArea
+                          placeholder="1. Diseñar la arquitectura del sistema...&#10;2. Implementar módulo de integración...&#10;3. Evaluar resultados con aprendices..."
+                          value={Array.isArray(formData.objetivos_especificos) ? formData.objetivos_especificos.join('\n') : (formData.objetivos_especificos || '')}
+                          onChange={(e) => {
+                            const lines = e.target.value.split('\n').filter(l => l.trim() !== '');
+                            setFormData(prev => ({ ...prev, objetivos_especificos: lines }));
+                          }}
+                          rows={4}
+                          className="rounded-2xl font-sans"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <TextArea
                           label="Resumen Ejecutivo / Descripción"
-                          placeholder="Describe el alcance y objetivos del proyecto..."
+                          placeholder="Describe el alcance y contexto del proyecto..."
                           value={formData.descripcion}
                           onChange={patch('descripcion')}
-                          rows={6}
-                          className="rounded-3xl"
+                          rows={4}
+                          className="rounded-2xl"
                         />
                       </div>
                     </div>
@@ -1651,12 +1842,13 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
       {/* ── Liquidation Checklist Modal ── */}
       {showLiquidation && liqChecklist && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-fadeIn">
-          <Card className="w-full max-w-lg shadow-2xl animate-scaleIn border-0 overflow-hidden bg-white">
-            <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-8 text-white relative">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowLiquidation(false)} aria-hidden="true" />
+          <Card className="w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn border-0 overflow-hidden bg-white relative z-10 rounded-3xl">
+            <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-6 text-white relative shrink-0">
               <button 
                 onClick={() => setShowLiquidation(false)} 
-                className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-all"
+                className="absolute top-4 right-4 p-2 hover:bg-white/10 text-slate-400 hover:text-white rounded-full transition-all"
               >
                 <X size={20} />
               </button>
@@ -1665,35 +1857,63 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                   <ShieldCheck size={24} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black tracking-tight">Liquidación Técnica</h2>
-                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">Verificación de requisitos SENNOVA</p>
+                  <h2 className="text-xl font-black tracking-tight">Requisitos Institucionales SENNOVA</h2>
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">
+                    Cierre Técnico & Auto-Finalización ({liqChecklist.porcentaje_completitud ?? 0}%)
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="p-8 space-y-6">
-              <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                Para finalizar oficialmente este proyecto y emitir los certificados, el sistema debe validar los siguientes requisitos institucionales:
-              </p>
+            <div className="p-6 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+              {liqChecklist.auto_finalizado && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 animate-pulse">
+                  <Sparkles className="text-emerald-600 shrink-0" size={20} />
+                  <p className="text-xs font-black text-emerald-800">
+                    🎉 ¡PROYECTO AUTO-FINALIZADO! El sistema verificó el 100% de cumplimiento institucionales y movió el proyecto a Finalizado automáticamente.
+                  </p>
+                </div>
+              )}
+
+              {/* Progress bar */}
+              <div>
+                <div className="flex justify-between items-center text-xs font-bold mb-1">
+                  <span className="text-slate-700">Progreso de Requisitos Institucionales</span>
+                  <span className="text-emerald-600">{liqChecklist.porcentaje_completitud ?? 0}%</span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                  <div 
+                    className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" 
+                    style={{ width: `${liqChecklist.porcentaje_completitud ?? 0}%` }}
+                  />
+                </div>
+              </div>
 
               <div className="space-y-3">
                 {liqChecklist.checklist.map((item) => (
                   <div 
                     key={item.id} 
-                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${item.status ? 'bg-emerald-50/50 border-emerald-100' : 'bg-rose-50/50 border-rose-100'}`}
+                    className={`flex items-start justify-between p-4 rounded-2xl border transition-all ${item.status ? 'bg-emerald-50/50 border-emerald-100' : 'bg-rose-50/50 border-rose-100'}`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-1.5 rounded-lg ${item.status ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`p-1.5 rounded-lg mt-0.5 ${item.status ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
                         {item.status ? <Check size={14} /> : <AlertCircle size={14} />}
                       </div>
-                      <span className={`text-xs font-bold ${item.status ? 'text-emerald-700' : 'text-rose-700'}`}>
-                        {item.label}
-                      </span>
+                      <div>
+                        <span className={`text-xs font-bold block ${item.status ? 'text-emerald-800' : 'text-rose-800'}`}>
+                          {item.label}
+                        </span>
+                        {item.detalles && (
+                          <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
+                            {item.detalles}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {item.status ? (
-                      <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[8px]">CUMPLIDO</Badge>
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[8px] shrink-0">CUMPLIDO</Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-rose-50 text-rose-600 border-rose-100 text-[8px]">PENDIENTE</Badge>
+                      <Badge variant="outline" className="bg-rose-50 text-rose-600 border-rose-100 text-[8px] shrink-0">PENDIENTE</Badge>
                     )}
                   </div>
                 ))}
@@ -1703,14 +1923,13 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                 <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3">
                   <AlertCircle className="text-amber-500 shrink-0" size={18} />
                   <p className="text-[10px] font-bold text-amber-700 leading-normal">
-                    IMPORTANTE: El proyecto no puede ser liquidado hasta que se cumplan todos los puntos del checklist. 
-                    Por favor verifica los productos pendientes y las firmas de bitácora.
+                    IMPORTANTE: Cuando se apruebe el último entregable, se verifique el último producto o se suba el informe final, el sistema moverá automáticamente este proyecto a Finalizado.
                   </p>
                 </div>
               )}
             </div>
 
-            <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex gap-3">
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
               <Button variant="outline" className="flex-1" onClick={() => setShowLiquidation(false)}>
                 Cerrar
               </Button>
@@ -1721,6 +1940,85 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                 onClick={handleFinalizeProject}
               >
                 {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : 'Finalizar Proyecto'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ── Elaboración & Quality Diagnostic Modal ── */}
+      {showElaboracionModal && elaboracionData && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowElaboracionModal(false)} aria-hidden="true" />
+          <Card className="w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn border-0 overflow-hidden bg-white relative z-10 rounded-3xl">
+            <div className="bg-gradient-to-r from-emerald-800 to-teal-900 p-6 text-white relative shrink-0">
+              <button 
+                onClick={() => setShowElaboracionModal(false)} 
+                className="absolute top-4 right-4 p-2 hover:bg-white/10 text-emerald-200 hover:text-white rounded-full transition-all"
+              >
+                <X size={20} />
+              </button>
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-emerald-500 text-white rounded-2xl shadow-lg shadow-emerald-500/20">
+                  <FileText size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black tracking-tight">Diagnóstico de Elaboración SENNOVA</h2>
+                  <p className="text-emerald-200 text-[10px] font-black uppercase tracking-widest mt-1">Calidad de Formulación ({elaboracionData.score_total}/100 pts)</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+              <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                <div>
+                  <span className="text-[10px] uppercase tracking-wider text-emerald-600 font-black block">Calidad de Formulación</span>
+                  <span className="text-lg font-black text-emerald-900">{elaboracionData.nivel_calidad}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl font-black text-emerald-600">{elaboracionData.score_total}</span>
+                  <span className="text-xs text-emerald-500 font-bold">/100 pts</span>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-3">Evaluación por Criterios</h3>
+                <div className="space-y-2.5">
+                  {elaboracionData.criterios.map((crit, idx) => (
+                    <div key={idx} className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-1.5 rounded-lg ${crit.status ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {crit.status ? <Check size={14} /> : <AlertCircle size={14} />}
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-slate-800 block">{crit.categoria}</span>
+                          <span className="text-[10px] text-slate-500 font-medium">{crit.detalle}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-700 shrink-0">{crit.puntos}/{crit.max} pts</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {elaboracionData.recomendaciones && elaboracionData.recomendaciones.length > 0 && (
+                <div className="p-4 bg-indigo-50/70 border border-indigo-100 rounded-2xl space-y-2">
+                  <h4 className="text-xs font-black text-indigo-900 flex items-center gap-2">
+                    <Sparkles size={14} className="text-indigo-600" />
+                    Recomendaciones de Mejora SENNOVA
+                  </h4>
+                  <ul className="space-y-1.5 pl-5 list-disc text-xs text-indigo-800 font-medium">
+                    {elaboracionData.recomendaciones.map((rec, i) => (
+                      <li key={i}>{rec}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
+              <Button variant="outline" onClick={() => setShowElaboracionModal(false)}>
+                Cerrar Diagnóstico
               </Button>
             </div>
           </Card>

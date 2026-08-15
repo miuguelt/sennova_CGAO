@@ -27,7 +27,7 @@
         "dockerfile": "Dockerfile"
       },
       "environment": [
-        "DATABASE_URL=postgresql://sennova:${DB_PASSWORD}@postgres:5432/sennova",
+        "DATABASE_URL=${DATABASE_URL}",
         "JWT_SECRET=${JWT_SECRET}",
         "JWT_ALGORITHM=HS256",
         "JWT_EXPIRATION_HOURS=24",

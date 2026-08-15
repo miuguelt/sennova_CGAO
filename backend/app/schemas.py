@@ -683,3 +683,62 @@ class BitacoraResponse(BitacoraBase):
 
     class Config:
         from_attributes = True
+
+
+# ==========================================
+# MENSAJERÍA SCHEMAS
+# ==========================================
+
+class MensajeUserSimple(BaseModel):
+    id: str
+    nombre: str
+    email: str
+    rol: str
+    rol_sennova: Optional[str] = None
+    sede: Optional[str] = None
+    programa_formacion: Optional[str] = None
+    ficha: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class MensajeBase(BaseModel):
+    asunto: Optional[str] = None
+    contenido: str
+    es_anuncio: bool = False
+
+
+class MensajeCreate(MensajeBase):
+    destinatario_id: Optional[str] = None
+
+
+class MensajeResponse(BaseModel):
+    id: str
+    remitente_id: str
+    destinatario_id: Optional[str] = None
+    asunto: Optional[str] = None
+    contenido: str
+    leido: bool = False
+    fecha_lectura: Optional[datetime] = None
+    es_anuncio: bool = False
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    remitente: Optional[MensajeUserSimple] = None
+    destinatario: Optional[MensajeUserSimple] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ConversacionSummary(BaseModel):
+    otro_usuario: MensajeUserSimple
+    ultimo_mensaje: MensajeResponse
+    no_leidos: int
+    total_mensajes: int
+
+
+class MensajeStats(BaseModel):
+    total_recibidos: int
+    no_leidos: int
+    total_enviados: int

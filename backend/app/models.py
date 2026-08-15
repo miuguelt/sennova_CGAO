@@ -32,16 +32,16 @@ def generate_uuid():
 
 def get_uuid_column(*args, **kwargs):
     """Crea una columna UUID compatible con SQLite y PostgreSQL."""
-    # Si hay un default=uuid.uuid4, reemplazarlo por generate_uuid si es SQLite
-    if is_sqlite and kwargs.get('default') == uuid.uuid4:
+    # Reemplazar default=uuid.uuid4 por generate_uuid (retorna string) para compatibilidad universal
+    if kwargs.get('default') == uuid.uuid4:
         kwargs['default'] = generate_uuid
     
     if is_sqlite:
         # SQLite: UUID como String(36)
         return Column(String(36), *args, **kwargs)
     else:
-        # PostgreSQL: UUID nativo
-        return Column(UUIDType(as_uuid=True), *args, **kwargs)
+        # PostgreSQL: UUID nativo con fallback a String(36) en SQLite
+        return Column(UUIDType(as_uuid=True).with_variant(String(36), "sqlite"), *args, **kwargs)
 
 
 def get_array_column(item_type, *args, **kwargs):
@@ -50,12 +50,12 @@ def get_array_column(item_type, *args, **kwargs):
         # SQLite: usar JSON para almacenar arrays
         return Column(JSON, *args, **kwargs)
     else:
-        # PostgreSQL: ARRAY nativo
-        return Column(ARRAY(item_type), *args, **kwargs)
+        # PostgreSQL: ARRAY nativo con fallback a JSON en SQLite
+        return Column(ARRAY(item_type).with_variant(JSON, "sqlite"), *args, **kwargs)
 
 
 # Tablas de relación many-to-many - UUID como String(36) para SQLite
-_uuid_type = String(36) if is_sqlite else UUIDType(as_uuid=True)
+_uuid_type = String(36) if is_sqlite else UUIDType(as_uuid=True).with_variant(String(36), "sqlite")
 
 grupo_integrantes = Table(
     'grupo_integrantes',
@@ -92,7 +92,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     nombre = Column(String(255), nullable=False)
-    rol = Column(String(50), nullable=False, default='investigador')  # admin, investigador
+    rol = Column(String(50), nullable=False, default='investigador')  # admin, investigador, instructor, aprendiz
     
     # Perfil profesional
     rol_sennova = Column(String(100))
@@ -128,6 +128,11 @@ class User(Base):
     # Nuevas relaciones para entregables y notificaciones
     entregables_asignados = relationship("Entregable", back_populates="responsable", lazy="dynamic", foreign_keys="Entregable.responsable_id")
     notificaciones = relationship("Notificacion", back_populates="user", lazy="dynamic", order_by="desc(Notificacion.created_at)")
+    
+    # Mensajería
+    mensajes_enviados = relationship("Mensaje", foreign_keys="Mensaje.remitente_id", back_populates="remitente", lazy="dynamic", cascade="all, delete-orphan")
+    mensajes_recibidos = relationship("Mensaje", foreign_keys="Mensaje.destinatario_id", back_populates="destinatario", lazy="dynamic", cascade="all, delete-orphan")
+
 
 
 class Grupo(Base):
@@ -536,3 +541,27 @@ class AuditLog(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     user = relationship("User")
+
+
+class Mensaje(Base):
+    """Mensajería interna entre usuarios (Admin, Investigadores, Aprendices)"""
+    __tablename__ = "mensajes"
+    
+    id = get_uuid_column(primary_key=True, default=uuid.uuid4)
+    
+    remitente_id = get_uuid_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    destinatario_id = get_uuid_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    
+    asunto = Column(String(255), nullable=True)
+    contenido = Column(Text, nullable=False)
+    
+    leido = Column(Boolean, default=False, index=True)
+    fecha_lectura = Column(DateTime, nullable=True)
+    es_anuncio = Column(Boolean, default=False)
+    
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # Relaciones
+    remitente = relationship("User", foreign_keys=[remitente_id], back_populates="mensajes_enviados")
+    destinatario = relationship("User", foreign_keys=[destinatario_id], back_populates="mensajes_recibidos")

@@ -13,7 +13,7 @@ from sqlalchemy import func
 
 from app.auth import get_current_user, get_current_admin, get_password_hash
 from app.database import get_db
-from app.models import User, Proyecto, Grupo, Semillero, Producto, Actividad, Documento
+from app.models import User, Proyecto, Grupo, Semillero, Producto, Actividad, Documento, Entregable
 from app.schemas import UserCreate, UserUpdate, ActividadResponse
 from app.repositories.user_repository import UserRepository
 
@@ -21,9 +21,11 @@ router = APIRouter(prefix="/usuarios", tags=["Usuarios - Admin Only"])
 
 
 def _make_user_dict(user: User, db: Session = None) -> dict:
-    """Convierte un User a diccionario para serialización."""
+    """Convierte un User a diccionario para serialización con impacto calculado."""
     cv_pdf_id = None
+    impacto = 0
     if db:
+        uid = str(user.id)
         cv_doc = db.query(Documento).filter(
             Documento.entidad_tipo == "user",
             Documento.entidad_id == user.id,
@@ -31,6 +33,15 @@ def _make_user_dict(user: User, db: Session = None) -> dict:
         ).order_by(Documento.created_at.desc()).first()
         if cv_doc:
             cv_pdf_id = str(cv_doc.id)
+
+        entregables_u = db.query(Entregable).filter(Entregable.responsable_id == uid).all()
+        if entregables_u:
+            aprobados = sum(1 for e in entregables_u if e.estado == 'aprobado')
+            impacto = int((aprobados / len(entregables_u)) * 100)
+        else:
+            proys = db.query(Proyecto).filter((Proyecto.owner_id == uid) | (Proyecto.equipo.any(User.id == user.id))).count()
+            prods = db.query(Producto).filter(Producto.owner_id == uid).count()
+            impacto = min(100, (proys * 25) + (prods * 15))
 
     return {
         "id": str(user.id),
@@ -42,13 +53,14 @@ def _make_user_dict(user: User, db: Session = None) -> dict:
         "is_active": user.is_active,
         "cv_lac_url": user.cv_lac_url,
         "estado_cv_lac": user.estado_cv_lac,
-        "cv_pdf_id": None,  # Will be populated by batch if needed
+        "cv_pdf_id": cv_pdf_id,
         "nivel_academico": user.nivel_academico,
         "rol_sennova": user.rol_sennova,
         "documento": user.documento,
         "celular": user.celular,
         "ficha": user.ficha,
         "programa_formacion": user.programa_formacion,
+        "impacto": impacto,
         "created_at": user.created_at,
         "updated_at": user.updated_at
     }
@@ -107,7 +119,7 @@ def list_usuarios(
 
         result = []
         for u in usuarios:
-            u_dict = _make_user_dict(u)
+            u_dict = _make_user_dict(u, db)
             u_dict["cv_pdf_id"] = cv_docs_map.get(str(u.id))
             result.append(u_dict)
             

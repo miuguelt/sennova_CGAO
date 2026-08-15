@@ -21,6 +21,7 @@ import DocumentCenterModule from './components/admin/DocumentCenterModule';
 import PerfilModule from './components/profile/PerfilModule';
 import NotificacionesModule from './components/notifications/NotificacionesModule';
 import AprendicesModule from './components/users/AprendicesModule';
+import MensajeriaModule from './components/messages/MensajeriaModule';
 import GlobalSearch from './components/common/GlobalSearch';
 import QuickActionHub from './components/common/QuickActionHub';
 import { Toaster, toast } from 'react-hot-toast';
@@ -105,6 +106,8 @@ function AppContent() {
       grupos: 'grupos',
       producto: 'productos',
       productos: 'productos',
+      mensaje: 'mensajes',
+      mensajes: 'mensajes',
     };
 
     const routeByUrl = {
@@ -112,6 +115,7 @@ function AppContent() {
       '/investigadores': 'investigadores',
       '/grupos': 'grupos',
       '/productos': 'productos',
+      '/mensajes': 'mensajes',
     };
 
     const nextView = routeByUrl[result?.url] || routeByType[result?.type] || 'dashboard';
@@ -121,9 +125,39 @@ function AppContent() {
   const renderView = () => {
     const props = { currentUser, onNotify, onNavigate: navigateTo, onModuleAction: handleModuleAction };
     const actionFor = (module) => (pendingAction?.module === module ? { form: pendingAction.form, data: pendingAction.initialData } : undefined);
+    const rol = currentUser?.rol;
+    const isAprendiz = rol === 'aprendiz';
+    const isInvestigador = rol === 'investigador' || rol === 'instructor';
+    const isAdmin = rol === 'admin';
+
+    // RBAC Guards
+    const adminOnlyViews = ['auditoria', 'configuracion', 'cvlac-admin', 'cvlac_admin'];
+    const staffOnlyViews = ['investigadores', 'aprendices', 'presupuesto', 'grupos', 'convocatorias', 'reportes'];
+
+    if (adminOnlyViews.includes(currentView) && !isAdmin) {
+      return (
+        <DashboardModule 
+          {...props} 
+          onOpenSearch={() => setIsSearchOpen(true)} 
+          onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} 
+          onModuleAction={handleModuleAction} 
+        />
+      );
+    }
+
+    if (staffOnlyViews.includes(currentView) && isAprendiz) {
+      return (
+        <DashboardModule 
+          {...props} 
+          onOpenSearch={() => setIsSearchOpen(true)} 
+          onNewProject={() => {}} 
+          onModuleAction={handleModuleAction} 
+        />
+      );
+    }
     
     switch (currentView) {
-      case 'dashboard':      return <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} onModuleAction={handleModuleAction} />;
+      case 'dashboard':      return <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => isAprendiz ? handleModuleAction({ module: 'bitacora', form: 'create' }) : handleModuleAction({ module: 'proyectos', form: 'create' })} onModuleAction={handleModuleAction} />;
       case 'perfil':         return <PerfilModule {...props} onUpdateUser={updateUser} />;
       case 'proyectos':      return <ProyectosModule {...props} initialAction={actionFor('proyectos')} onActionHandled={handleActionHandled} />;
       case 'mis-proyectos':  return <ProyectosModule {...props} initialAction={actionFor('mis-proyectos')} onActionHandled={handleActionHandled} />;
@@ -141,12 +175,13 @@ function AppContent() {
       case 'presupuesto':    return <PresupuestoModule {...props} initialAction={actionFor('presupuesto')} onActionHandled={handleActionHandled} />;
       case 'retos':          return <RetosModule {...props} onModuleAction={handleModuleAction} />;
       case 'notificaciones': return <NotificacionesModule {...props} />;
+      case 'mensajes':       return <MensajeriaModule {...props} />;
       case 'cvlac_admin':    return <CVLACAdminModule {...props} />;
       case 'cvlac-admin':    return <CVLACAdminModule {...props} />;
-      case 'auditoria':      return currentUser?.rol === 'admin' ? <AuditoriaModule {...props} /> : <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} />;
+      case 'auditoria':      return <AuditoriaModule {...props} />;
       case 'documentos':     return <DocumentCenterModule {...props} />;
       case 'repositorio':    return <DocumentCenterModule {...props} />;
-      default:               return <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} />;
+      default:               return <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => isAprendiz ? handleModuleAction({ module: 'bitacora', form: 'create' }) : handleModuleAction({ module: 'proyectos', form: 'create' })} onModuleAction={handleModuleAction} />;
     }
   };
 

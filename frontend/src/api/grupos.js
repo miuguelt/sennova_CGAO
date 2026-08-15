@@ -35,4 +35,6 @@ export const GruposAPI = {
   removeMember: (grupoId, userId) => fetchAPI(`/grupos/${grupoId}/integrantes/${userId}`, {
     method: 'DELETE',
   }),
+
+  getStats: (id) => fetchAPI(`/grupos/${id}/stats`),
 };

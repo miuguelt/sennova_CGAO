@@ -99,10 +99,24 @@ def get_audit_stats(
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    """Resumen estadístico de auditoría."""
+    """Resumen estadístico de auditoría con telemetría real."""
     try:
+        import time
+        import shutil
         from sqlalchemy import func
         
+        # Medir latencia real de la base de datos
+        t0 = time.perf_counter()
+        db.execute(sa.text("SELECT 1"))
+        db_latency_ms = round((time.perf_counter() - t0) * 1000, 1)
+
+        # Medir uso real de disco del servidor
+        try:
+            total_d, used_d, free_d = shutil.disk_usage('.')
+            disk_usage_pct = round((used_d / total_d) * 100, 1)
+        except Exception:
+            disk_usage_pct = 0.0
+
         total_logs = db.query(AuditLog).count()
         total_actividades = db.query(Actividad).count()
         
@@ -117,7 +131,10 @@ def get_audit_stats(
             "total_logs": total_logs,
             "total_actividades": total_actividades,
             "tasa_error": (errores / total_logs * 100) if total_logs > 0 else 0,
-            "actividades_resumen": {tipo: count for tipo, count in actividades_por_tipo}
+            "actividades_resumen": {tipo: count for tipo, count in actividades_por_tipo},
+            "db_latency_ms": db_latency_ms,
+            "disk_usage_pct": disk_usage_pct,
+            "system_status": "operativo" if db_latency_ms < 500 else "degradado"
         }
     except sa.exc.OperationalError as db_err:
         raise db_err

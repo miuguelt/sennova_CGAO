@@ -208,22 +208,34 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Nombre completo"    value={user.nombre || ''}          onChange={(e) => setUser({ ...user, nombre: e.target.value })}           disabled={!editing} />
               <Input label="Email institucional"value={user.email  || ''}          disabled />
-              <Select
-                label="Rol SENNOVA"
-                options={['', 'Investigador Experto', 'Instructor Investigador', 'Responsable de Proyecto'].map(e => ({ value: e, label: e || 'Selecciona...' }))}
-                value={user.rol_sennova || ''}
-                onChange={(e) => setUser({ ...user, rol_sennova: e.target.value })}
-                disabled={!editing}
-              />
-              <Select
-                label="Nivel académico"
-                options={['', 'Técnico', 'Tecnólogo', 'Pregrado', 'Especialización', 'Maestría', 'Doctorado'].map(e => ({ value: e, label: e || 'Selecciona...' }))}
-                value={user.nivel_academico || ''}
-                onChange={(e) => setUser({ ...user, nivel_academico: e.target.value })}
-                disabled={!editing}
-              />
-              <Input label="Teléfono"   value={user.telefono  || ''} onChange={(e) => setUser({ ...user, telefono:  e.target.value })} disabled={!editing} />
-              <Input label="Extensión"  value={user.extension || ''} onChange={(e) => setUser({ ...user, extension: e.target.value })} disabled={!editing} />
+              
+              {user.rol === 'aprendiz' ? (
+                <>
+                  <Input label="Número de Documento" value={user.documento || ''} onChange={(e) => setUser({ ...user, documento: e.target.value })} disabled={!editing} />
+                  <Input label="Número de Celular"   value={user.celular || ''}   onChange={(e) => setUser({ ...user, celular: e.target.value })}   disabled={!editing} />
+                  <Input label="Ficha de Caracterización" value={user.ficha || ''} onChange={(e) => setUser({ ...user, ficha: e.target.value })} disabled={!editing} />
+                  <Input label="Programa de Formación"   value={user.programa_formacion || ''} onChange={(e) => setUser({ ...user, programa_formacion: e.target.value })} disabled={!editing} />
+                </>
+              ) : (
+                <>
+                  <Select
+                    label="Rol SENNOVA"
+                    options={['', 'Instructor Investigador', 'Líder de Semillero', 'Investigador Principal', 'Investigador Experto', 'Responsable de Proyecto', 'Dinamizador SENNOVA'].map(e => ({ value: e, label: e || 'Selecciona...' }))}
+                    value={user.rol_sennova || ''}
+                    onChange={(e) => setUser({ ...user, rol_sennova: e.target.value })}
+                    disabled={!editing}
+                  />
+                  <Select
+                    label="Nivel académico"
+                    options={['', 'Técnico', 'Tecnólogo', 'Pregrado', 'Especialización', 'Maestría', 'Doctorado'].map(e => ({ value: e, label: e || 'Selecciona...' }))}
+                    value={user.nivel_academico || ''}
+                    onChange={(e) => setUser({ ...user, nivel_academico: e.target.value })}
+                    disabled={!editing}
+                  />
+                  <Input label="Teléfono"   value={user.telefono  || ''} onChange={(e) => setUser({ ...user, telefono:  e.target.value })} disabled={!editing} />
+                  <Input label="Extensión"  value={user.extension || ''} onChange={(e) => setUser({ ...user, extension: e.target.value })} disabled={!editing} />
+                </>
+              )}
             </div>
           </Card>
 
@@ -233,8 +245,12 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Sede"     value={user.sede     || 'CGAO Vélez'} disabled />
               <Input label="Regional" value={user.regional || 'Santander'}  disabled />
-              <Input label="Horas mensuales"       type="number" value={user.horas_mensuales   || ''} onChange={(e) => setUser({ ...user, horas_mensuales:   e.target.value ? parseInt(e.target.value) : null })} disabled={!editing} />
-              <Input label="Meses de vinculación"  type="number" value={user.meses_vinculacion || ''} onChange={(e) => setUser({ ...user, meses_vinculacion: e.target.value ? parseInt(e.target.value) : null })} disabled={!editing} />
+              {user.rol !== 'aprendiz' && (
+                <>
+                  <Input label="Horas mensuales"       type="number" value={user.horas_mensuales   || ''} onChange={(e) => setUser({ ...user, horas_mensuales:   e.target.value ? parseInt(e.target.value) : null })} disabled={!editing} />
+                  <Input label="Meses de vinculación"  type="number" value={user.meses_vinculacion || ''} onChange={(e) => setUser({ ...user, meses_vinculacion: e.target.value ? parseInt(e.target.value) : null })} disabled={!editing} />
+                </>
+              )}
             </div>
           </Card>
         </div>

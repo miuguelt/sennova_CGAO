@@ -3,7 +3,9 @@ import {
   Calendar, MapPin, FileText, CheckCircle, 
   Clock, Plus, Search, Filter, ArrowUpRight,
   MoreVertical, Edit, Trash2, ExternalLink,
-  X, Info, Target, AlertCircle, Loader2
+  X, Info, Target, AlertCircle, Loader2,
+  Layers, Zap, Unlink, User, DollarSign, Send,
+  ChevronDown, ChevronUp, Briefcase, Award
 } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -13,13 +15,23 @@ import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
 import { ConvocatoriasAPI } from '../../api/convocatorias';
 import { ProyectosAPI } from '../../api/proyectos';
-import { Layers, Zap } from 'lucide-react';
 
 const ESTADOS = [
   { value: 'abierta', label: 'Abierta', variant: 'success', icon: CheckCircle },
   { value: 'en_evaluacion', label: 'En Evaluación', variant: 'warning', icon: Search },
   { value: 'resultados_publicados', label: 'Resultados', variant: 'indigo', icon: FileText },
   { value: 'cerrada', label: 'Cerrada', variant: 'default', icon: Clock }
+];
+
+const LINEAS_CGAO = [
+  'Todas las líneas',
+  'Agroindustria y Procesamiento Alimentos',
+  'Biotecnología y Bioinsumos Agropecuarios',
+  'Producción Agrícola Sostenible',
+  'Producción Pecuaria y Salud Animal',
+  'Software, TICs y Automatización Agropecuaria',
+  'Gestión Ambiental y Recurso Hídrico',
+  'Servicios Tecnológicos SENNOVA'
 ];
 
 const EMPTY_FORM = {
@@ -34,6 +46,11 @@ const EMPTY_FORM = {
   estado: 'abierta'
 };
 
+const formatCurrency = (val) => {
+  if (!val && val !== 0) return '$0';
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(val);
+};
+
 const StatusBadge = ({ status }) => {
   const config = ESTADOS.find(e => e.value === status) || ESTADOS[3];
   const Icon = config.icon;
@@ -46,8 +63,73 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const ConvocatoriaCard = ({ convocatoria, onEdit, onDelete, onDetail, onDropProject }) => {
+// ── Tarjeta de Proyecto dentro de Convocatoria ──
+const ProyectoVinculadoItem = ({ proyecto, onUnlink, onNavigate, isDraggable = true }) => {
+  const handleDragStart = (e) => {
+    e.stopPropagation();
+    e.dataTransfer.setData('proyectoId', proyecto.id);
+    e.dataTransfer.setData('sourceConvocatoriaId', proyecto.convocatoria_id || '');
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  return (
+    <div 
+      draggable={isDraggable}
+      onDragStart={handleDragStart}
+      className="p-3 bg-white rounded-xl border border-slate-200 hover:border-emerald-400 shadow-sm hover:shadow-md transition-all group/item relative cursor-grab active:cursor-grabbing"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Badge variant="emerald" className="text-[9px] font-black uppercase px-2 py-0.5 shrink-0">
+            {proyecto.codigo_sgps || 'SGPS'}
+          </Badge>
+          <h4 className="text-xs font-bold text-slate-800 truncate group-hover/item:text-emerald-700 transition-colors">
+            {proyecto.nombre}
+          </h4>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onUnlink(proyecto.id); }}
+          title="Desvincular de esta convocatoria"
+          className="text-slate-300 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition-colors shrink-0"
+        >
+          <Unlink size={13} />
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-500">
+        <span className="flex items-center gap-1 truncate max-w-[140px]">
+          <User size={11} className="text-slate-400 shrink-0" />
+          <span className="truncate">{proyecto.owner?.nombre || proyecto.responsable_nombre || 'Investigador CGAO'}</span>
+        </span>
+        <span className="font-bold text-slate-700">{formatCurrency(proyecto.presupuesto_total)}</span>
+      </div>
+
+      {onNavigate && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onNavigate(proyecto.id); }}
+          className="mt-2 w-full py-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg flex items-center justify-center gap-1 transition-colors"
+        >
+          Ver Proyecto <ArrowUpRight size={12} />
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ── Tarjeta Principal de Convocatoria ──
+const ConvocatoriaCard = ({ 
+  convocatoria, 
+  proyectosVinculados = [], 
+  onEdit, 
+  onDelete, 
+  onDetail, 
+  onDropProject,
+  onUnlinkProject,
+  onOpenPostularModal,
+  onNavigateProyecto
+}) => {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showProjectsList, setShowProjectsList] = useState(true);
 
   const daysLeft = () => {
     if (!convocatoria.fecha_cierre) return null;
@@ -56,10 +138,11 @@ const ConvocatoriaCard = ({ convocatoria, onEdit, onDelete, onDetail, onDropProj
   };
 
   const dl = daysLeft();
+  const presupuestoTotalConvocatoria = proyectosVinculados.reduce((sum, p) => sum + (p.presupuesto_total || 0), 0);
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    if (e.dataTransfer.types.includes('proyectoId')) {
+    if (e.dataTransfer.types.includes('proyectoId') || e.dataTransfer.types.includes('text/plain')) {
       setIsDragOver(true);
     }
   };
@@ -68,7 +151,9 @@ const ConvocatoriaCard = ({ convocatoria, onEdit, onDelete, onDetail, onDropProj
     e.preventDefault();
     setIsDragOver(false);
     const proyectoId = e.dataTransfer.getData('proyectoId');
-    if (proyectoId) {
+    const sourceConvocatoriaId = e.dataTransfer.getData('sourceConvocatoriaId');
+
+    if (proyectoId && sourceConvocatoriaId !== String(convocatoria.id)) {
       onDropProject(convocatoria.id, proyectoId);
     }
   };
@@ -79,93 +164,165 @@ const ConvocatoriaCard = ({ convocatoria, onEdit, onDelete, onDetail, onDropProj
       onDragOver={handleDragOver}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={handleDrop}
-      className={`group hover:shadow-xl transition-all duration-300 border-l-4 cursor-pointer relative overflow-hidden ${isDragOver ? 'bg-emerald-50 border-emerald-600 ring-4 ring-emerald-500/20 scale-[1.02]' : 'bg-white border-l-emerald-500'}`}
+      className={`group hover:shadow-2xl transition-all duration-300 border-l-4 cursor-pointer relative overflow-hidden flex flex-col justify-between ${
+        isDragOver 
+          ? 'bg-emerald-50/90 border-emerald-600 ring-4 ring-emerald-500/30 scale-[1.02] shadow-2xl' 
+          : 'bg-white border-l-emerald-500'
+      }`}
     >
       {isDragOver && (
-        <div className="absolute inset-0 bg-emerald-600/10 backdrop-blur-[1px] flex items-center justify-center pointer-events-none z-10">
-          <div className="bg-emerald-600 text-white p-3 rounded-2xl shadow-xl animate-bounce">
-            <Zap size={24} />
+        <div className="absolute inset-0 bg-emerald-600/15 backdrop-blur-[2px] flex items-center justify-center pointer-events-none z-20">
+          <div className="bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl animate-bounce flex items-center gap-3">
+            <Zap size={22} />
+            <span className="font-black text-sm">Vincular Proyecto a {convocatoria.numero_oe || 'Convocatoria'}</span>
           </div>
         </div>
       )}
+
       <div className="p-6">
-        <div className="flex justify-between items-start mb-4">
+        {/* Top Header & Status */}
+        <div className="flex justify-between items-start mb-3">
           <StatusBadge status={convocatoria.estado} />
-          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
             <button 
               onClick={(e) => { e.stopPropagation(); onEdit(convocatoria); }} 
-              className="p-1.5 text-slate-400 hover:text-blue-600 rounded-md hover:bg-blue-50 transition-colors"
+              className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+              title="Editar Convocatoria"
             >
               <Edit size={16} />
             </button>
             <button 
               onClick={(e) => { e.stopPropagation(); onDelete(convocatoria.id); }} 
-              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-md hover:bg-rose-50 transition-colors"
+              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
+              title="Eliminar Convocatoria"
             >
               <Trash2 size={16} />
             </button>
           </div>
         </div>
 
-        <h3 className="text-xl font-bold text-slate-900 mb-2 line-clamp-2 leading-snug group-hover:text-emerald-700 transition-colors">
+        {/* Title */}
+        <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-2 leading-snug group-hover:text-emerald-700 transition-colors">
           {convocatoria.nombre}
         </h3>
         
-        <div className="flex items-center gap-4 text-sm text-slate-500 mb-6">
-          <div className="flex items-center gap-1.5">
-            <Calendar size={14} />
+        {/* Meta Metadata */}
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mb-4">
+          <div className="flex items-center gap-1">
+            <Calendar size={13} className="text-slate-400" />
             <span>{convocatoria.año}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <FileText size={14} />
+          <div className="flex items-center gap-1">
+            <FileText size={13} className="text-slate-400" />
             <span>OE: {convocatoria.numero_oe || 'N/A'}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Layers size={14} />
+          <div className="flex items-center gap-1">
+            <Layers size={13} className="text-slate-400" />
             <span>{convocatoria.fuente || 'SENNOVA'}</span>
           </div>
         </div>
 
-        <div className="space-y-3 mb-6">
+        {/* Closing Progress Bar */}
+        <div className="space-y-2 mb-5 bg-slate-50 p-3 rounded-xl border border-slate-100">
           <div className="flex justify-between text-xs font-medium">
-            <span className="text-slate-400 uppercase tracking-wider">Fecha Cierre</span>
-            <span className={dl > 0 && dl <= 15 ? 'text-amber-600 font-bold' : 'text-slate-700'}>
+            <span className="text-slate-500 flex items-center gap-1">
+              <Clock size={12} className="text-slate-400" /> Cierre
+            </span>
+            <span className={dl !== null && dl > 0 && dl <= 15 ? 'text-amber-600 font-black' : 'text-slate-700 font-bold'}>
               {convocatoria.fecha_cierre || 'No definida'}
             </span>
           </div>
           {dl !== null && dl > 0 && (
-            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
               <div 
-                className={`h-full transition-all duration-1000 ${dl <= 10 ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                style={{ width: `${Math.min(100, (dl / 30) * 100)}%` }}
+                className={`h-full transition-all duration-1000 ${
+                  dl <= 5 ? 'bg-rose-500' : dl <= 15 ? 'bg-amber-500' : 'bg-emerald-500'
+                }`}
+                style={{ width: `${Math.min(100, Math.max(5, (dl / 45) * 100))}%` }}
               ></div>
             </div>
           )}
+          {dl !== null && dl > 0 && (
+            <p className="text-[10px] text-right font-medium text-slate-400">
+              {dl} días restantes para postular
+            </p>
+          )}
         </div>
 
-        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-          <div className="flex -space-x-2">
-            <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-xs font-bold text-slate-500">
-              {convocatoria.total_proyectos || 0}
-            </div>
-            <span className="pl-4 text-xs font-medium text-slate-500 self-center">Proyectos vinculados</span>
+        {/* ── SECCIÓN PROYECTOS POSTULADOS ── */}
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowProjectsList(!showProjectsList); }}
+              className="text-xs font-black text-slate-700 hover:text-emerald-700 flex items-center gap-1.5 transition-colors"
+            >
+              <Target size={14} className="text-emerald-600" />
+              <span>Proyectos Postulados ({proyectosVinculados.length})</span>
+              {showProjectsList ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            
+            {convocatoria.estado === 'abierta' && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpenPostularModal(convocatoria); }}
+                className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                title="Postular un proyecto a esta convocatoria"
+              >
+                <Plus size={12} /> Postular
+              </button>
+            )}
           </div>
-          <Button variant="ghost" size="sm" className="text-emerald-600 hover:text-emerald-700 p-0 h-auto font-bold group/btn">
-            Detalles <ArrowUpRight size={14} className="ml-1 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
-          </Button>
+
+          {showProjectsList && (
+            <div className="space-y-2 mt-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+              {proyectosVinculados.length > 0 ? (
+                proyectosVinculados.map(p => (
+                  <ProyectoVinculadoItem
+                    key={p.id}
+                    proyecto={p}
+                    onUnlink={onUnlinkProject}
+                    onNavigate={onNavigateProyecto}
+                  />
+                ))
+              ) : (
+                <div className="py-4 px-3 text-center bg-slate-50/70 border border-dashed border-slate-200 rounded-xl">
+                  <p className="text-[11px] text-slate-500 font-medium">Sin proyectos postulados aún.</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Arrastra un proyecto del pool aquí para postularlo.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* Card Footer */}
+      <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
+        <div className="text-[11px] text-slate-500">
+          <span className="text-slate-400 block text-[9px] uppercase font-bold">Presupuesto Postulado</span>
+          <span className="font-bold text-slate-800">{formatCurrency(presupuestoTotalConvocatoria)}</span>
+        </div>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={onDetail}
+          className="text-emerald-600 hover:text-emerald-700 p-0 h-auto font-bold group/btn text-xs"
+        >
+          Detalles <ArrowUpRight size={14} className="ml-1 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+        </Button>
       </div>
     </Card>
   );
 };
 
-const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
+// ── MÓDULO PRINCIPAL DE CONVOCATORIAS ──
+const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate }) => {
   const [convocatorias, setConvocatorias] = useState([]);
   const [proyectos, setProyectos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState({ estado: '' });
-  const [isPoolVisible, setIsPoolVisible] = useState(false);
+  const [filterEstado, setFilterEstado] = useState('');
+  const [filterLinea, setFilterLinea] = useState('Todas las líneas');
+  const [isPoolVisible, setIsPoolVisible] = useState(true);
+  const [isPoolDragOver, setIsPoolDragOver] = useState(false);
   
   // Modales
   const [showForm, setShowForm] = useState(false);
@@ -173,6 +330,11 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedConvocatoria, setSelectedConvocatoria] = useState(null);
+
+  // Modal Postular Proyecto
+  const [postularModalOpen, setPostularModalOpen] = useState(false);
+  const [targetConvocatoria, setTargetConvocatoria] = useState(null);
+  const [selectedProyectoToLink, setSelectedProyectoToLink] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -184,7 +346,7 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
       setConvocatorias(convData || []);
       setProyectos(proyData || []);
     } catch (err) {
-      onNotify('Error al cargar datos', 'error');
+      onNotify?.('Error al cargar convocatorias y proyectos', 'error');
     } finally {
       setLoading(false);
     }
@@ -210,11 +372,11 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
     if (!window.confirm('¿Estás seguro de eliminar esta convocatoria? Esta acción no se puede deshacer.')) return;
     try {
       await ConvocatoriasAPI.delete(id);
-      onNotify('Convocatoria eliminada correctamente', 'success');
+      onNotify?.('Convocatoria eliminada correctamente', 'success');
       loadData();
       if (selectedConvocatoria?.id === id) setDetailOpen(false);
     } catch (err) {
-      onNotify('Error al eliminar la convocatoria', 'error');
+      onNotify?.('Error al eliminar la convocatoria', 'error');
     }
   };
 
@@ -222,84 +384,149 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
     try {
       if (isEditing) {
         await ConvocatoriasAPI.update(formData.id, formData);
-        onNotify('Convocatoria actualizada con éxito', 'success');
+        onNotify?.('Convocatoria actualizada con éxito', 'success');
       } else {
         await ConvocatoriasAPI.create(formData);
-        onNotify('Convocatoria creada exitosamente', 'success');
+        onNotify?.('Convocatoria creada exitosamente', 'success');
       }
       setShowForm(false);
       loadData();
     } catch (err) {
-      onNotify(err.message || 'Error al procesar la convocatoria', 'error');
+      onNotify?.(err.message || 'Error al procesar la convocatoria', 'error');
     }
   };
 
+  // Vincular Proyecto a Convocatoria (Drop or Action)
   const handleDropProject = async (convocatoriaId, proyectoId) => {
     try {
       await ProyectosAPI.update(proyectoId, { convocatoria_id: convocatoriaId });
-      onNotify('Proyecto vinculado a la convocatoria', 'success');
+      onNotify?.('Proyecto vinculado a la convocatoria exitosamente', 'success');
       loadData();
     } catch (err) {
-      onNotify('Error al vincular proyecto: ' + err.message, 'error');
+      onNotify?.('Error al vincular proyecto: ' + (err.message || 'No autorizado'), 'error');
     }
   };
 
+  // Desvincular Proyecto (Arrastrar al Pool o darle al botón X)
+  const handleUnlinkProject = async (proyectoId) => {
+    try {
+      await ProyectosAPI.update(proyectoId, { convocatoria_id: null });
+      onNotify?.('Proyecto desvinculado de la convocatoria', 'info');
+      loadData();
+    } catch (err) {
+      onNotify?.('Error al desvincular proyecto: ' + (err.message || 'Error'), 'error');
+    }
+  };
+
+  // Abrir Modal de Postulación Directa
+  const handleOpenPostularModal = (convocatoria) => {
+    setTargetConvocatoria(convocatoria);
+    setSelectedProyectoToLink('');
+    setPostularModalOpen(true);
+  };
+
+  const handleConfirmPostular = async () => {
+    if (!selectedProyectoToLink || !targetConvocatoria) return;
+    try {
+      await ProyectosAPI.update(selectedProyectoToLink, { convocatoria_id: targetConvocatoria.id });
+      onNotify?.(`Proyecto postulado con éxito a '${targetConvocatoria.nombre}'`, 'success');
+      setPostularModalOpen(false);
+      loadData();
+    } catch (err) {
+      onNotify?.('Error al postular proyecto: ' + (err.message || 'Error'), 'error');
+    }
+  };
+
+  // Drop handler para el Pool de Proyectos (Desvincular al soltar en el Pool)
+  const handlePoolDragOver = (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.types.includes('proyectoId')) {
+      setIsPoolDragOver(true);
+    }
+  };
+
+  const handlePoolDrop = (e) => {
+    e.preventDefault();
+    setIsPoolDragOver(false);
+    const proyectoId = e.dataTransfer.getData('proyectoId');
+    if (proyectoId) {
+      handleUnlinkProject(proyectoId);
+    }
+  };
+
+  const navigateToProyecto = (proyectoId) => {
+    if (onNavigate) {
+      onNavigate('proyectos', { proyectoId });
+    } else if (onModuleAction) {
+      onModuleAction({ module: 'proyectos', proyectoId });
+    }
+  };
+
+  // Filtrado de Convocatorias
   const filteredConvocatorias = (convocatorias || []).filter(c => {
     const matchesSearch = (c.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                           (c.numero_oe || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesEstado = filter.estado ? c.estado === filter.estado : true;
-    return matchesSearch && matchesEstado;
+    const matchesEstado = filterEstado ? c.estado === filterEstado : true;
+
+    // Filtro por línea si se especifica
+    const proyectosDeConv = proyectos.filter(p => String(p.convocatoria_id) === String(c.id));
+    const matchesLinea = filterLinea === 'Todas las líneas' || proyectosDeConv.some(p => p.linea_investigacion?.includes(filterLinea));
+
+    return matchesSearch && matchesEstado && matchesLinea;
   });
+
+  // Proyectos sin convocatoria (Pool)
+  const proyectosPool = proyectos.filter(p => !p.convocatoria_id);
+
+  // Proyectos propios del usuario para el modal de postulación rápida
+  const proyectosMisDisponibles = proyectos.filter(p => !p.convocatoria_id && (currentUser?.rol === 'admin' || String(p.owner_id) === String(currentUser?.id)));
+
+  // Cálculos de Métricas SENNOVA CGAO
+  const totalAbiertas = convocatorias.filter(c => c.estado === 'abierta').length;
+  const totalProyectosPostulados = proyectos.filter(p => p.convocatoria_id).length;
+  const presupuestoTotalAcumulado = proyectos.filter(p => p.convocatoria_id).reduce((sum, p) => sum + (p.presupuesto_total || 0), 0);
+  const convocatoriasPorVencer = convocatorias.filter(c => {
+    if (!c.fecha_cierre) return false;
+    const diff = Math.ceil((new Date(c.fecha_cierre) - new Date()) / (1000 * 60 * 60 * 24));
+    return diff > 0 && diff <= 15;
+  }).length;
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="animate-spin text-emerald-500" size={40} />
-          <p className="text-slate-500 font-medium">Sincronizando convocatorias...</p>
+          <Loader2 className="animate-spin text-emerald-600" size={40} />
+          <p className="text-slate-500 font-medium text-sm">Sincronizando Convocatorias y Proyectos SENNOVA CGAO...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-10">
-      {/* ── Header & Search ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Convocatorias</h1>
-          <p className="text-slate-500 text-sm">Gestiona y consulta las convocatorias institucionales y externas.</p>
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text"
-              placeholder="Buscar convocatoria..."
-              className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all w-full md:w-64"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+    <div className="space-y-6 animate-fadeIn pb-12">
+      {/* ── HEADER Y MÉTRICAS CGAO ── */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider">
+                Centro de Gestión Agroempresarial del Oriente
+              </span>
+            </div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-1">Convocatorias I+D+i SENNOVA</h1>
+            <p className="text-slate-500 text-sm mt-0.5">
+              Gestiona, postula y realiza seguimiento a los proyectos de investigación del CGAO.
+            </p>
           </div>
           
-          <select 
-            className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-            value={filter.estado}
-            onChange={(e) => setFilter({...filter, estado: e.target.value})}
-          >
-            <option value="">Todos los estados</option>
-            {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
-          </select>
-
           {currentUser?.rol === 'admin' && (
             <div className="flex gap-2">
               <Button 
                 variant="outline" 
-                className={`h-10 border-slate-200 ${isPoolVisible ? 'bg-emerald-50 ring-2 ring-emerald-500 border-emerald-500' : ''}`}
+                className={`h-10 border-slate-200 ${isPoolVisible ? 'bg-emerald-50 ring-2 ring-emerald-500/50 border-emerald-500' : ''}`}
                 onClick={() => setIsPoolVisible(!isPoolVisible)}
               >
-                <Layers size={18} className="mr-2" /> Pool Proyectos
+                <Layers size={18} className="mr-2" /> Pool Proyectos ({proyectosPool.length})
               </Button>
               <Button onClick={handleOpenCreate} variant="primary" className="bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20">
                 <Plus size={18} className="mr-2" /> Nueva Convocatoria
@@ -307,68 +534,192 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
             </div>
           )}
         </div>
+
+        {/* Grid de KPIs */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-slate-100">
+          <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 flex items-center gap-3">
+            <div className="p-3 bg-emerald-600 text-white rounded-xl shadow-md">
+              <CheckCircle size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Convocatorias Abiertas</p>
+              <p className="text-xl font-black text-slate-900">{totalAbiertas}</p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 flex items-center gap-3">
+            <div className="p-3 bg-indigo-600 text-white rounded-xl shadow-md">
+              <Target size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Proyectos Postulados</p>
+              <p className="text-xl font-black text-slate-900">{totalProyectosPostulados}</p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3">
+            <div className="p-3 bg-slate-800 text-white rounded-xl shadow-md">
+              <DollarSign size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Presupuesto Postulado</p>
+              <p className="text-lg font-black text-slate-900">{formatCurrency(presupuestoTotalAcumulado)}</p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-100 flex items-center gap-3">
+            <div className="p-3 bg-amber-500 text-white rounded-xl shadow-md">
+              <Clock size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Próximas a Cerrar</p>
+              <p className="text-xl font-black text-slate-900">{convocatoriasPorVencer}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Filtros de Búsqueda y Línea CGAO */}
+        <div className="flex flex-wrap items-center gap-3 pt-2">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input 
+              type="text"
+              placeholder="Buscar convocatoria por nombre u oferta (OE)..."
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <select 
+            className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-slate-700"
+            value={filterEstado}
+            onChange={(e) => setFilterEstado(e.target.value)}
+          >
+            <option value="">Todos los estados</option>
+            {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+          </select>
+
+          <select 
+            className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-slate-700 max-w-[260px]"
+            value={filterLinea}
+            onChange={(e) => setFilterLinea(e.target.value)}
+          >
+            {LINEAS_CGAO.map(linea => (
+              <option key={linea} value={linea}>{linea}</option>
+            ))}
+          </select>
+
+          {(searchTerm || filterEstado || filterLinea !== 'Todas las líneas') && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => { setSearchTerm(''); setFilterEstado(''); setFilterLinea('Todas las líneas'); }}
+              className="text-xs text-slate-500"
+            >
+              Limpiar Filtros
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* ── Project Pool ── */}
+      {/* ── POOL DE PROYECTOS DISPONIBLES (Zona de Arrastre/Desvinculación) ── */}
       {isPoolVisible && (
-        <div className="bg-slate-900 p-8 rounded-[2rem] shadow-2xl animate-fadeIn relative overflow-hidden group/pool mb-6">
+        <div 
+          onDragOver={handlePoolDragOver}
+          onDragLeave={() => setIsPoolDragOver(false)}
+          onDrop={handlePoolDrop}
+          className={`p-6 rounded-[2rem] transition-all duration-300 relative overflow-hidden group/pool mb-6 border ${
+            isPoolDragOver
+              ? 'bg-slate-900 ring-4 ring-rose-500/30 border-rose-500 scale-[1.01]'
+              : 'bg-slate-900 border-slate-800 shadow-2xl'
+          }`}
+        >
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-32 -mt-32" />
-          <div className="flex items-center justify-between mb-6 relative z-10">
-            <div>
-              <h3 className="text-white font-black text-lg flex items-center gap-3">
-                <div className="p-2 bg-emerald-500/20 rounded-xl text-emerald-400"><Layers size={20} /></div>
-                Proyectos Disponibles
-              </h3>
-              <p className="text-slate-400 text-xs mt-1 font-medium">Arrastra un proyecto hacia una convocatoria para vincularlo.</p>
+          
+          {isPoolDragOver && (
+            <div className="absolute inset-0 bg-rose-900/30 backdrop-blur-[2px] flex items-center justify-center z-20 pointer-events-none">
+              <div className="bg-rose-600 text-white px-6 py-3 rounded-2xl shadow-2xl animate-bounce flex items-center gap-3">
+                <Unlink size={22} />
+                <span className="font-black text-sm">Soltar aquí para Desvincular de la Convocatoria</span>
+              </div>
             </div>
-            <Badge className="bg-white/10 text-white border-white/20 uppercase font-black text-[8px] tracking-widest px-3 py-1">
-              Recursos de Investigación
+          )}
+
+          <div className="flex items-center justify-between mb-4 relative z-10">
+            <div>
+              <h3 className="text-white font-black text-base flex items-center gap-2.5">
+                <div className="p-2 bg-emerald-500/20 rounded-xl text-emerald-400">
+                  <Layers size={18} />
+                </div>
+                Pool de Proyectos Disponibles ({proyectosPool.length})
+              </h3>
+              <p className="text-slate-400 text-xs mt-1 font-medium">
+                Arrastra un proyecto hacia una convocatoria para vincularlo. O arrastra un proyecto de una convocatoria aquí para desvincularlo.
+              </p>
+            </div>
+            <Badge className="bg-white/10 text-white border-white/20 uppercase font-black text-[9px] tracking-widest px-3 py-1">
+              Recursos de Investigación CGAO
             </Badge>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-emerald-500/50 scrollbar-track-transparent">
-            {proyectos.filter(p => !p.convocatoria_id).length > 0 ? (
-              proyectos.filter(p => !p.convocatoria_id).map(p => (
+
+          <div className="flex gap-4 overflow-x-auto pb-3 scrollbar-thin scrollbar-thumb-emerald-500/50 scrollbar-track-transparent">
+            {proyectosPool.length > 0 ? (
+              proyectosPool.map(p => (
                 <div 
                   key={p.id}
                   draggable
                   onDragStart={(e) => {
                     e.dataTransfer.setData('proyectoId', p.id);
+                    e.dataTransfer.setData('sourceConvocatoriaId', '');
                     e.dataTransfer.effectAllowed = 'copy';
                   }}
-                  className="flex-shrink-0 w-64 p-5 bg-white/5 border border-white/10 rounded-2xl cursor-grab active:cursor-grabbing hover:bg-white/10 hover:border-emerald-400 transition-all group"
+                  className="flex-shrink-0 w-64 p-4 bg-white/5 border border-white/10 rounded-2xl cursor-grab active:cursor-grabbing hover:bg-white/10 hover:border-emerald-400 transition-all group"
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <Badge variant="indigo" className="text-[8px] font-black uppercase border-0">{p.codigo_sgps || 'SIN CÓDIGO'}</Badge>
-                    <Target size={12} className="text-emerald-400" />
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge variant="indigo" className="text-[8px] font-black uppercase border-0">
+                      {p.codigo_sgps || 'SIN CÓDIGO'}
+                    </Badge>
+                    <Target size={13} className="text-emerald-400" />
                   </div>
-                  <p className="text-xs font-black text-white line-clamp-2 leading-snug group-hover:text-emerald-300 transition-colors">{p.nombre}</p>
-                  <p className="text-[9px] text-slate-500 mt-2 flex items-center gap-1 italic">
-                    {p.linea_investigacion || 'Sin línea definida'}
+                  <p className="text-xs font-black text-white line-clamp-2 leading-snug group-hover:text-emerald-300 transition-colors">
+                    {p.nombre}
                   </p>
+                  <div className="text-[9px] text-slate-400 mt-2 flex items-center justify-between font-medium">
+                    <span className="truncate max-w-[120px]">{p.linea_investigacion || 'Investigación Aplicada'}</span>
+                    <span className="text-emerald-400 font-bold">{formatCurrency(p.presupuesto_total)}</span>
+                  </div>
                 </div>
               ))
             ) : (
-              <div className="w-full py-8 text-center border border-dashed border-white/10 rounded-2xl">
-                <p className="text-slate-500 text-xs font-bold">No hay proyectos sin convocatoria asignada.</p>
+              <div className="w-full py-6 text-center border border-dashed border-white/10 rounded-2xl">
+                <p className="text-slate-400 text-xs font-bold">Todos los proyectos están postulados actualmente a convocatorias.</p>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* ── Grid ── */}
+      {/* ── GRID DE CONVOCATORIAS ── */}
       {filteredConvocatorias.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredConvocatorias.map((c) => (
-            <ConvocatoriaCard 
-              key={c.id} 
-              convocatoria={c} 
-              onEdit={handleOpenEdit} 
-              onDelete={handleDelete}
-              onDetail={() => { setSelectedConvocatoria(c); setDetailOpen(true); }}
-              onDropProject={handleDropProject}
-            />
-          ))}
+          {filteredConvocatorias.map((c) => {
+            const proyectosDeConvocatoria = proyectos.filter(p => String(p.convocatoria_id) === String(c.id));
+            return (
+              <ConvocatoriaCard 
+                key={c.id} 
+                convocatoria={c} 
+                proyectosVinculados={proyectosDeConvocatoria}
+                onEdit={handleOpenEdit} 
+                onDelete={handleDelete}
+                onDetail={() => { setSelectedConvocatoria(c); setDetailOpen(true); }}
+                onDropProject={handleDropProject}
+                onUnlinkProject={handleUnlinkProject}
+                onOpenPostularModal={handleOpenPostularModal}
+                onNavigateProyecto={navigateToProyecto}
+              />
+            );
+          })}
         </div>
       ) : (
         <Card className="p-12 text-center border-dashed border-2 border-slate-200 bg-slate-50/50">
@@ -376,75 +727,142 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
             <Filter size={32} className="text-slate-300" />
           </div>
           <h3 className="text-lg font-bold text-slate-900">No se encontraron convocatorias</h3>
-          <p className="text-slate-500 mt-1 max-w-xs mx-auto">Prueba ajustando los filtros o el término de búsqueda.</p>
-          <Button variant="outline" className="mt-6" onClick={() => { setSearchTerm(''); setFilter({ estado: '' }); }}>
+          <p className="text-slate-500 mt-1 max-w-xs mx-auto text-sm">Prueba ajustando los filtros o el término de búsqueda.</p>
+          <Button variant="outline" className="mt-6" onClick={() => { setSearchTerm(''); setFilterEstado(''); setFilterLinea('Todas las líneas'); }}>
             Limpiar filtros
           </Button>
         </Card>
       )}
 
-      {/* ── Detail Side-Over ── */}
+      {/* ── DETALLE SIDE-OVER (Drawer Lateral) ── */}
       {detailOpen && selectedConvocatoria && (
         <div className="fixed inset-0 z-[100] overflow-hidden">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-fadeIn" onClick={() => setDetailOpen(false)} />
-          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-lg bg-white shadow-2xl flex flex-col animate-slideInRight">
-              <div className="px-8 py-8 border-b border-slate-100 bg-emerald-50">
-                <div className="flex items-start justify-between mb-6">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-fadeIn" onClick={() => setDetailOpen(false)} />
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
+            <div className="w-screen max-w-xl h-full bg-white shadow-2xl flex flex-col animate-slideInRight">
+              {/* Drawer Header */}
+              <div className="px-8 py-7 border-b border-slate-100 bg-emerald-50">
+                <div className="flex items-start justify-between mb-4">
                   <div className="p-3 bg-white rounded-2xl shadow-sm text-emerald-600">
                     <Calendar size={24} />
                   </div>
                   <div className="flex gap-2">
                     {currentUser?.rol === 'admin' && (
                       <>
-                        <button onClick={() => handleOpenEdit(selectedConvocatoria)} className="p-2.5 bg-white text-blue-600 hover:bg-blue-50 rounded-xl shadow-sm border border-blue-100 transition-all"><Edit size={18} /></button>
-                        <button onClick={() => handleDelete(selectedConvocatoria.id)} className="p-2.5 bg-white text-rose-600 hover:bg-rose-50 rounded-xl shadow-sm border border-rose-100 transition-all"><Trash2 size={18} /></button>
+                        <button onClick={() => handleOpenEdit(selectedConvocatoria)} className="p-2 bg-white text-blue-600 hover:bg-blue-50 rounded-xl shadow-sm border border-blue-100 transition-all">
+                          <Edit size={18} />
+                        </button>
+                        <button onClick={() => handleDelete(selectedConvocatoria.id)} className="p-2 bg-white text-rose-600 hover:bg-rose-50 rounded-xl shadow-sm border border-rose-100 transition-all">
+                          <Trash2 size={18} />
+                        </button>
                       </>
                     )}
-                    <button onClick={() => setDetailOpen(false)} className="p-2.5 bg-white text-slate-400 hover:text-slate-600 rounded-xl shadow-sm border border-slate-100 transition-all ml-2"><X size={18} /></button>
+                    <button onClick={() => setDetailOpen(false)} className="p-2 bg-white text-slate-400 hover:text-slate-600 rounded-xl shadow-sm border border-slate-100 transition-all ml-2">
+                      <X size={18} />
+                    </button>
                   </div>
                 </div>
-                <h2 className="text-2xl font-black text-slate-900 leading-tight mb-4">{selectedConvocatoria.nombre}</h2>
-                <div className="flex flex-wrap gap-2">
+                <h2 className="text-xl font-black text-slate-900 leading-tight mb-3">{selectedConvocatoria.nombre}</h2>
+                <div className="flex flex-wrap gap-2 items-center">
                   <StatusBadge status={selectedConvocatoria.estado} />
-                  <Badge variant="emerald" className="px-3 py-1 text-xs font-bold uppercase tracking-wider">{selectedConvocatoria.año} Institucional</Badge>
+                  <Badge variant="emerald" className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                    {selectedConvocatoria.año} {selectedConvocatoria.fuente || 'SENNOVA'}
+                  </Badge>
+                  {selectedConvocatoria.numero_oe && (
+                    <Badge variant="indigo" className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                      OE: {selectedConvocatoria.numero_oe}
+                    </Badge>
+                  )}
                 </div>
               </div>
 
+              {/* Drawer Content */}
               <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin">
+                {/* Descripción */}
                 <section>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                    <Info size={14} className="text-emerald-500" /> Descripción de la Convocatoria
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                    <Info size={14} className="text-emerald-500" /> Descripción y Términos de Referencia
                   </h3>
-                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 text-slate-700 leading-relaxed text-sm shadow-inner">
-                    {selectedConvocatoria.descripcion || 'Sin descripción técnica disponible para esta convocatoria.'}
+                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-slate-700 leading-relaxed text-sm">
+                    {selectedConvocatoria.descripcion || 'Sin descripción técnica registrada para esta convocatoria.'}
                   </div>
                 </section>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Código OE</p>
-                    <p className="font-bold text-slate-900 flex items-center gap-2">
-                      <FileText size={14} className="text-slate-400" />
-                      {selectedConvocatoria.numero_oe || 'N/A'}
-                    </p>
+                {/* ── SECCIÓN DE PROYECTOS POSTULADOS DETALLADOS ── */}
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                      <Target size={14} className="text-emerald-600" /> Proyectos Postulados / Vinculados
+                    </h3>
+                    <Badge variant="emerald" className="font-bold text-[10px]">
+                      {proyectos.filter(p => String(p.convocatoria_id) === String(selectedConvocatoria.id)).length} Iniciativas
+                    </Badge>
                   </div>
-                  <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Proyectos Vinculados</p>
-                    <p className="font-bold text-emerald-600 flex items-center gap-2">
-                      <Target size={14} />
-                      {selectedConvocatoria.total_proyectos || 0} Iniciativas
-                    </p>
-                  </div>
-                </div>
 
-                <div className="space-y-4">
-                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <div className="space-y-3">
+                    {proyectos.filter(p => String(p.convocatoria_id) === String(selectedConvocatoria.id)).length > 0 ? (
+                      proyectos.filter(p => String(p.convocatoria_id) === String(selectedConvocatoria.id)).map(p => (
+                        <div key={p.id} className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                                {p.codigo_sgps || 'SIN CÓDIGO SGPS'}
+                              </span>
+                              <h4 className="font-bold text-slate-900 text-sm mt-1">{p.nombre}</h4>
+                            </div>
+                            <button
+                              onClick={() => handleUnlinkProject(p.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Desvincular proyecto de esta convocatoria"
+                            >
+                              <Unlink size={16} />
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl">
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-400 block uppercase">Línea Investigación</span>
+                              <span className="font-medium text-slate-800 truncate block">{p.linea_investigacion || 'Investigación Aplicada'}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-400 block uppercase">Presupuesto</span>
+                              <span className="font-bold text-emerald-700">{formatCurrency(p.presupuesto_total)}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-xs text-slate-500 flex items-center gap-1">
+                              <User size={13} className="text-slate-400" />
+                              {p.owner?.nombre || p.responsable_nombre || 'Investigador SENNOVA'}
+                            </span>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => { setDetailOpen(false); navigateToProyecto(p.id); }}
+                              className="text-xs text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                            >
+                              Ver Proyecto <ArrowUpRight size={13} className="ml-1" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-6 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl space-y-2">
+                        <p className="text-slate-500 text-xs font-bold">No hay proyectos postulados a esta convocatoria.</p>
+                        <p className="text-slate-400 text-xs">Arrastra un proyecto del pool o usa el botón "Postular Proyecto" a continuación.</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* Cronograma de Cierre */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                     <Clock size={14} className="text-amber-500" /> Cronograma de Cierre
                   </h3>
-                  <div className="flex items-center justify-between p-4 bg-amber-50 rounded-xl border border-amber-100">
+                  <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl border border-amber-100">
                     <div>
-                      <p className="text-[10px] font-bold text-amber-700 uppercase">Fecha Límite</p>
+                      <p className="text-[10px] font-bold text-amber-700 uppercase">Fecha Límite de Recepción</p>
                       <p className="font-black text-slate-900">{selectedConvocatoria.fecha_cierre || 'No definida'}</p>
                     </div>
                     {selectedConvocatoria.fecha_cierre && (
@@ -459,32 +877,25 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
                   <Button 
                     onClick={() => window.open(selectedConvocatoria.enlace_externo, '_blank')}
                     variant="outline" 
-                    className="w-full py-4 border-emerald-200 text-emerald-700 hover:bg-emerald-50 flex items-center justify-center gap-2"
+                    className="w-full py-3.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50 flex items-center justify-center gap-2 text-sm"
                   >
-                    <ExternalLink size={18} /> Ver Términos de Referencia
+                    <ExternalLink size={16} /> Ver Términos de Referencia Oficiales
                   </Button>
                 )}
               </div>
 
+              {/* Drawer Footer Actions */}
               <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
-                <Button variant="secondary" className="flex-1" onClick={() => setDetailOpen(false)}>Cerrar</Button>
+                <Button variant="secondary" className="flex-1" onClick={() => setDetailOpen(false)}>
+                  Cerrar
+                </Button>
                 {selectedConvocatoria.estado === 'abierta' && (
                   <Button 
                     variant="primary" 
-                    className="flex-1 bg-slate-900 hover:bg-black"
-                    onClick={() => {
-                      onModuleAction({ 
-                        module: 'proyectos', 
-                        form: 'create', 
-                        initialData: { 
-                          convocatoria_id: selectedConvocatoria.id,
-                          nombre: `Propuesta para: ${selectedConvocatoria.nombre}`,
-                          linea_investigacion: selectedConvocatoria.nombre.includes('I+D') ? 'Investigación Aplicada' : 'Innovación'
-                        } 
-                      });
-                    }}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
+                    onClick={() => handleOpenPostularModal(selectedConvocatoria)}
                   >
-                    Postular Proyecto
+                    <Send size={16} className="mr-2" /> Postular Proyecto
                   </Button>
                 )}
               </div>
@@ -493,19 +904,76 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
         </div>
       )}
 
-      {/* ── Form Modal ── */}
-      {showForm && (
-        <div className="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden animate-scaleIn border-0 shadow-2xl">
-            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
+      {/* ── MODAL POSTULAR PROYECTO ── */}
+      {postularModalOpen && targetConvocatoria && (
+        <div className="fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setPostularModalOpen(false)} aria-hidden="true" />
+          <Card className="w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-scaleIn border-0 shadow-2xl bg-white relative z-10 rounded-3xl">
+            <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shrink-0">
               <div>
-                <h2 className="text-xl font-black text-slate-900 tracking-tight">{isEditing ? 'Actualizar Convocatoria' : 'Nueva Convocatoria'}</h2>
-                <p className="text-xs text-emerald-700 font-bold uppercase tracking-widest mt-1">Gestión SENNOVA CGAO</p>
+                <h3 className="text-lg font-black tracking-tight">Postular Proyecto</h3>
+                <p className="text-xs text-emerald-100 font-bold uppercase tracking-wider">{targetConvocatoria.nombre}</p>
               </div>
-              <button onClick={() => setShowForm(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-white transition-all"><X size={20} /></button>
+              <button onClick={() => setPostularModalOpen(false)} className="p-1.5 text-slate-200 hover:text-white rounded-lg transition-colors"><X size={18} /></button>
+            </div>
+
+            <div className="p-6 space-y-5 flex-1 overflow-y-auto custom-scrollbar">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Selecciona uno de tus proyectos activos sin convocatoria para matricularlo en esta oferta institucional.
+              </p>
+
+              {proyectosMisDisponibles.length > 0 ? (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 block">Proyectos Disponibles:</label>
+                  <select 
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    value={selectedProyectoToLink}
+                    onChange={(e) => setSelectedProyectoToLink(e.target.value)}
+                  >
+                    <option value="">Selecciona un proyecto...</option>
+                    {proyectosMisDisponibles.map(p => (
+                      <option key={p.id} value={p.id}>
+                        [{p.codigo_sgps || 'SGPS'}] {p.nombre} ({formatCurrency(p.presupuesto_total)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
+                  No se encontraron proyectos disponibles para vincular. Puedes crear una nueva propuesta en el módulo de Proyectos.
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 shrink-0">
+              <Button variant="outline" onClick={() => setPostularModalOpen(false)}>Cancelar</Button>
+              <Button 
+                variant="primary" 
+                className="bg-emerald-600 hover:bg-emerald-700" 
+                disabled={!selectedProyectoToLink}
+                onClick={handleConfirmPostular}
+              >
+                Confirmar Postulación
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ── MODAL FORMULARIO CREAR / EDITAR CONVOCATORIA ── */}
+      {showForm && (
+        <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowForm(false)} aria-hidden="true" />
+          <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-scaleIn border-0 shadow-2xl bg-white relative z-10 rounded-3xl">
+            <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shrink-0">
+              <div>
+                <h2 className="text-xl font-black tracking-tight">{isEditing ? 'Actualizar Convocatoria' : 'Nueva Convocatoria'}</h2>
+                <p className="text-xs text-emerald-100 font-bold uppercase tracking-widest mt-0.5">Gestión SENNOVA CGAO</p>
+              </div>
+              <button onClick={() => setShowForm(false)} className="p-2 text-slate-200 hover:text-white rounded-xl hover:bg-white/10 transition-all"><X size={20} /></button>
             </div>
             
-            <div className="p-8 overflow-y-auto space-y-6 scrollbar-thin">
+            <div className="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <Input 
@@ -585,7 +1053,7 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction }) => {
               </div>
             </div>
 
-            <div className="px-8 py-5 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">
+            <div className="px-6 sm:px-8 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50 shrink-0">
               <Button variant="outline" onClick={() => setShowForm(false)} className="px-6">Cancelar</Button>
               <Button 
                 className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 h-11" 

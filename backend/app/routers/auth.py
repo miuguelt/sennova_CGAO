@@ -1,11 +1,13 @@
+from uuid import UUID
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth import (
     AuthService, create_access_token, get_current_user,
-    get_current_admin, get_password_hash
+    get_current_admin, get_password_hash, verify_password
 )
-from app.database import get_db
+from app.database import get_db, safe_commit
 from app.models import User
 from app.schemas import (
     LoginRequest, Token, UserCreate, UserResponse, UserUpdate,
@@ -28,8 +30,6 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
         )
     
     access_token = create_access_token(user.id, user.email, user.rol)
-    
-    # Registrar actividad
     log_actividad(
         db, 
         user.id, 
@@ -48,9 +48,8 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    """Registrar un nuevo investigador."""
-    # Solo permitir roles de investigador o aprendiz en registro público
-    if user_data.rol not in ["investigador", "aprendiz"]:
+    """Registrar un nuevo usuario (investigador, instructor o aprendiz)."""
+    if user_data.rol not in ["investigador", "instructor", "aprendiz"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Rol no permitido para registro público"
@@ -65,16 +64,14 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         sede=user_data.sede
     )
     
-    # Registrar actividad
     log_actividad(
         db, 
         user.id, 
         "registro", 
-        f"Se registró como nuevo investigador en la sede {user.sede}",
+        f"Se registró como nuevo {user.rol} en la sede {user.sede}",
         entidad_tipo="usuario",
         entidad_id=str(user.id)
     )
-    
     return user
 
 
@@ -92,19 +89,10 @@ def update_me(
 ):
     """Actualizar perfil del usuario actual."""
     update_data = user_update.dict(exclude_unset=True)
-    
     for field, value in update_data.items():
         setattr(current_user, field, value)
     
-    try:
-        db.commit()
-    except Exception as __db_err:
-        import logging
-        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
-        try:
-            if 'session' in globals() or 'session' in locals(): db.session.rollback()
-            else: db.rollback()
-        except: pass
+    safe_commit(db)
     db.refresh(current_user)
     return current_user
 
@@ -116,8 +104,6 @@ def change_password(
     db: Session = Depends(get_db)
 ):
     """Cambiar contraseña del usuario actual."""
-    from app.auth import verify_password
-    
     if not verify_password(data.old_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -125,17 +111,8 @@ def change_password(
         )
     
     current_user.password_hash = get_password_hash(data.new_password)
-    try:
-        db.commit()
-    except Exception as __db_err:
-        import logging
-        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
-        try:
-            if 'session' in globals() or 'session' in locals(): db.session.rollback()
-            else: db.rollback()
-        except: pass
+    safe_commit(db)
     
-    # Registrar actividad
     log_actividad(
         db, 
         current_user.id, 
@@ -144,7 +121,6 @@ def change_password(
         entidad_tipo="usuario",
         entidad_id=str(current_user.id)
     )
-    
     return {"message": "Contraseña actualizada correctamente"}
 
 
@@ -152,11 +128,11 @@ def change_password(
 # ADMIN ROUTES - Gestión de Usuarios
 # ==========================================
 
-@router.get("/users", response_model=list[UserResponse])
+@router.get("/users", response_model=List[UserResponse])
 def list_users(
     skip: int = 0,
     limit: int = 100,
-    rol: str = None,
+    rol: Optional[str] = None,
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -164,8 +140,7 @@ def list_users(
     query = db.query(User)
     if rol:
         query = query.filter(User.rol == rol)
-    users = query.offset(skip).limit(limit).all()
-    return users
+    return query.offset(skip).limit(limit).all()
 
 
 @router.get("/users/{user_id}", response_model=UserResponse)
@@ -175,7 +150,6 @@ def get_user(
     db: Session = Depends(get_db)
 ):
     """Obtener detalle de un usuario (solo admin)."""
-    from uuid import UUID
     user = db.query(User).filter(User.id == UUID(user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -189,7 +163,7 @@ def create_user(
     db: Session = Depends(get_db)
 ):
     """Crear usuario (solo admin, puede crear admins)."""
-    user = AuthService.register_user(
+    return AuthService.register_user(
         db,
         email=user_data.email,
         password=user_data.password,
@@ -197,7 +171,6 @@ def create_user(
         rol=user_data.rol,
         sede=user_data.sede
     )
-    return user
 
 
 @router.put("/users/{user_id}", response_model=UserResponse)
@@ -208,7 +181,6 @@ def update_user(
     db: Session = Depends(get_db)
 ):
     """Actualizar cualquier usuario (solo admin)."""
-    from uuid import UUID
     user = db.query(User).filter(User.id == UUID(user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -217,15 +189,7 @@ def update_user(
     for field, value in update_data.items():
         setattr(user, field, value)
     
-    try:
-        db.commit()
-    except Exception as __db_err:
-        import logging
-        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
-        try:
-            if 'session' in globals() or 'session' in locals(): db.session.rollback()
-            else: db.rollback()
-        except: pass
+    safe_commit(db)
     db.refresh(user)
     return user
 
@@ -237,20 +201,10 @@ def delete_user(
     db: Session = Depends(get_db)
 ):
     """Desactivar usuario (solo admin)."""
-    from uuid import UUID
     user = db.query(User).filter(User.id == UUID(user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     
     user.is_active = False
-    try:
-        db.commit()
-    except Exception as __db_err:
-        import logging
-        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
-        try:
-            if 'session' in globals() or 'session' in locals(): db.session.rollback()
-            else: db.rollback()
-        except: pass
-    
+    safe_commit(db)
     return {"message": "Usuario desactivado"}

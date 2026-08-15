@@ -275,7 +275,7 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
                             <ShieldCheck size={16} />
                           </div>
                           <div>
-                            <p className={`text-[10px] font-black uppercase tracking-tighter ${entry.is_firmado_investigador ? 'text-emerald-700' : 'text-slate-500'}`}>Investigador / Instructor</p>
+                            <p className={`text-[10px] font-black uppercase tracking-tighter ${entry.is_firmado_investigador ? 'text-emerald-700' : 'text-slate-500'}`}>Tutor / Investigador / Instructor</p>
                             <p className="text-[9px] font-medium text-slate-400">
                               {entry.is_firmado_investigador ? `Firmado: ${new Date(entry.fecha_firma_investigador).toLocaleDateString('es-CO')}` : 'Pendiente de firma'}
                             </p>
@@ -370,10 +370,11 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
 
       {/* ── Form Modal ── */}
       {showForm && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
-          <Card className="w-full max-w-2xl shadow-2xl animate-scaleIn overflow-hidden border-0">
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-6 text-white relative">
-              <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"><X size={20} /></button>
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowForm(false)} aria-hidden="true" />
+          <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn overflow-hidden border-0 bg-white relative z-10 rounded-3xl">
+            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-6 text-white relative shrink-0">
+              <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 p-2 hover:bg-white/20 text-slate-300 hover:text-white rounded-full transition-colors"><X size={20} /></button>
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Book size={24} /></div>
                 <div>
@@ -383,7 +384,7 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
               </div>
             </div>
             
-            <div className="p-8 bg-white space-y-5">
+            <div className="p-6 sm:p-8 bg-white space-y-5 flex-1 overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input 
                   label="Título de la entrada" 
@@ -404,7 +405,7 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
                 placeholder="Escribe aquí los detalles de la actividad, hallazgos o problemas encontrados..." 
                 value={formData.contenido} 
                 onChange={(e) => setFormData({...formData, contenido: e.target.value})} 
-                rows={10} 
+                rows={6} 
                 required
               />
 
@@ -462,7 +463,7 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
                 )}
               </div>
 
-            <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <div className="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
               <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
               <Button variant="primary" onClick={handleSubmit}>
                 {isEditing ? 'Actualizar Registro' : 'Guardar en Bitácora'}

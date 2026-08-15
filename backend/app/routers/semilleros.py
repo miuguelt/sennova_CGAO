@@ -15,6 +15,25 @@ router = APIRouter(prefix="/semilleros", tags=["Semilleros de Investigación"])
 
 
 
+def _make_aprendiz_dict(aprendiz: Aprendiz) -> dict:
+    """Convierte un objeto Aprendiz a diccionario usando info_consolidada."""
+    info = aprendiz.info_consolidada
+    return {
+        "id": str(aprendiz.id),
+        "user_id": str(aprendiz.user_id) if aprendiz.user_id else None,
+        "nombre": info["nombre"],
+        "documento": info["documento"],
+        "email": info["email"],
+        "ficha": info["ficha"],
+        "programa": info["programa"],
+        "celular": info["celular"],
+        "estado": aprendiz.estado,
+        "semillero_id": str(aprendiz.semillero_id),
+        "fecha_ingreso": aprendiz.fecha_ingreso,
+        "fecha_egreso": aprendiz.fecha_egreso
+    }
+
+
 def _make_semillero_dict(semillero: Semillero, db: Session, investigators_map: dict = None) -> dict:
     """Convierte un objeto Semillero a diccionario para serialización correcta."""
     investigadores = []
@@ -40,6 +59,17 @@ def _make_semillero_dict(semillero: Semillero, db: Session, investigators_map: d
             }
             investigadores.append(inv_info)
 
+    grupo_data = None
+    if semillero.grupo:
+        grupo_data = {
+            "id": str(semillero.grupo.id),
+            "nombre": semillero.grupo.nombre
+        }
+
+    aprendices_list = []
+    if semillero.aprendices:
+        aprendices_list = [_make_aprendiz_dict(a) for a in semillero.aprendices]
+
     return {
         "id": str(semillero.id),
         "nombre": semillero.nombre,
@@ -48,10 +78,11 @@ def _make_semillero_dict(semillero: Semillero, db: Session, investigators_map: d
         "horas_dedicadas": semillero.horas_dedicadas,
         "estado": semillero.estado,
         "grupo_id": str(semillero.grupo_id),
-        "grupo": None,
+        "grupo_nombre": semillero.grupo.nombre if semillero.grupo else None,
+        "grupo": grupo_data,
         "owner_id": str(semillero.owner_id),
         "investigadores": investigadores,
-        "aprendices": [],
+        "aprendices": aprendices_list,
         "total_aprendices": len(semillero.aprendices) if semillero.aprendices else 0,
         "total_investigadores": len(investigadores),
         "created_at": semillero.created_at
@@ -255,25 +286,6 @@ def delete_semillero(
 from app.schemas import AprendizFullCreate, UserCreate
 from app.repositories.user_repository import UserRepository
 
-def _make_aprendiz_dict(aprendiz: Aprendiz) -> dict:
-    """Convierte un objeto Aprendiz a diccionario usando info_consolidada."""
-    info = aprendiz.info_consolidada
-    return {
-        "id": str(aprendiz.id),
-        "user_id": str(aprendiz.user_id) if aprendiz.user_id else None,
-        "nombre": info["nombre"],
-        "documento": info["documento"],
-        "email": info["email"],
-        "ficha": info["ficha"],
-        "programa": info["programa"],
-        "celular": info["celular"],
-        "estado": aprendiz.estado,
-        "semillero_id": str(aprendiz.semillero_id),
-        "fecha_ingreso": aprendiz.fecha_ingreso,
-        "fecha_egreso": aprendiz.fecha_egreso
-    }
-
-
 @router.get("/{semillero_id}/aprendices")
 def list_aprendices(
     semillero_id: str,
@@ -310,6 +322,8 @@ def add_aprendiz(
     user = db.query(User).filter(User.id == str(aprendiz_data.user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if user.rol != "aprendiz":
+        raise HTTPException(status_code=400, detail="Solo usuarios con rol 'aprendiz' pueden ser vinculados como aprendices en un semillero")
 
     # Verificar si ya es aprendiz en este semillero
     existente = db.query(Aprendiz).filter(
@@ -505,6 +519,8 @@ def add_investigador_semillero(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if user.rol == "aprendiz":
+        raise HTTPException(status_code=400, detail="Los aprendices no pueden ser vinculados como investigadores del semillero")
     
     from app.models import semillero_investigadores
     from datetime import date
@@ -594,4 +610,3 @@ def remove_investigador_semillero(
         raise HTTPException(status_code=500, detail="Error interno al remover investigador")
     
     return {"message": "Investigador desvinculado"}
-

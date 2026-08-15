@@ -34,10 +34,10 @@ def listar_notificaciones(
 ):
     """Lista las notificaciones del usuario actual."""
     try:
-        query = db.query(Notificacion).filter(Notificacion.user_id == current_user.id)
+        query = db.query(Notificacion).filter(Notificacion.user_id == str(current_user.id))
         
         if solo_no_leidas:
-            query = query.filter(Notificacion.leida == False)
+            query = query.filter((Notificacion.leida == False) | (Notificacion.leida.is_(None)))
         
         notificaciones = query.order_by(desc(Notificacion.created_at)).limit(limite).all()
         
@@ -264,7 +264,7 @@ def enviar_notificacion_masiva(
     try:
         query = db.query(User)
         if solo_investigadores:
-            query = query.filter(User.rol == 'investigador')
+            query = query.filter(User.rol.in_(['investigador', 'instructor']))
         
         usuarios = query.all()
         
@@ -364,9 +364,9 @@ def alertar_cvlac_desactualizados(
 ):
     """Envía notificaciones a investigadores con CVLAC desactualizado o sin CVLAC."""
     try:
-        # Buscar investigadores con CVLAC no actualizado
+        # Buscar investigadores e instructores con CVLAC no actualizado
         investigadores = db.query(User).filter(
-            User.rol == 'investigador',
+            User.rol.in_(['investigador', 'instructor']),
             User.is_active == True,
             (User.estado_cv_lac != 'Actualizado') | (User.estado_cv_lac == None)
         ).all()
@@ -399,7 +399,7 @@ def alertar_cvlac_desactualizados(
         db.commit()
         
         return {
-            "message": f"Alertas CVLAC enviadas a {notificaciones_creadas} investigadores",
+            "message": f"Alertas CVLAC enviadas a {notificaciones_creadas} investigadores/instructores",
             "total_notificados": notificaciones_creadas,
             "estados_afectados": ["sin CVLAC", "desactualizado"]
         }
@@ -419,7 +419,7 @@ def get_cvlac_pendientes(
     """Retorna lista de investigadores con CVLAC pendiente (para admin)."""
     try:
         investigadores = db.query(User).filter(
-            User.rol == 'investigador',
+            User.rol.in_(['investigador', 'instructor']),
             User.is_active == True,
             (User.estado_cv_lac != 'Actualizado') | (User.estado_cv_lac == None)
         ).all()

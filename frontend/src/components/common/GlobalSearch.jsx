@@ -92,7 +92,7 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/40 sm:backdrop-blur-sm animate-fadeIn"
+        className="fixed inset-0 bg-slate-900/60 sm:backdrop-blur-sm animate-fadeIn"
         onClick={onClose}
         aria-hidden="true"
       />

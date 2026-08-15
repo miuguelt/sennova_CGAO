@@ -146,10 +146,10 @@ const StatisticsModule = ({ onNotify }) => {
 
       {/* ── Metrics Grid ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard label="Proyectos Totales" value={projectsData.length} trend={12} icon={Briefcase} colorCls="text-emerald-600" />
-        <MetricCard label="Productos Registrados" value={stats?.productos?.total || 0} trend={5} icon={Trophy} colorCls="text-indigo-600" />
-        <MetricCard label="Presupuesto Ejecutado" value={`$${(projectsData.reduce((a,b) => a + (b.presupuesto_total || 0), 0) / 1e6).toFixed(1)}M`} trend={8} icon={Zap} colorCls="text-amber-600" />
-        <MetricCard label="Talento Humano" value={stats?.investigadores?.total || 0} icon={Users} colorCls="text-rose-600" />
+        <MetricCard label="Proyectos Totales" value={projectsData.length} icon={Briefcase} colorCls="text-emerald-600" />
+        <MetricCard label="Productos Registrados" value={typeof stats?.productos === 'object' ? (stats?.productos?.total || 0) : (stats?.productos || 0)} icon={Trophy} colorCls="text-indigo-600" />
+        <MetricCard label="Presupuesto Total" value={`$${(projectsData.reduce((a,b) => a + (b.presupuesto_total || 0), 0) / 1e6).toFixed(1)}M`} icon={Zap} colorCls="text-amber-600" />
+        <MetricCard label="Talento Humano" value={typeof stats?.investigadores === 'object' ? (stats?.investigadores?.total || 0) : (stats?.investigadores || 0)} icon={Users} colorCls="text-rose-600" />
       </div>
 
       {/* ── Charts Grid ── */}
@@ -285,12 +285,17 @@ const StatisticsModule = ({ onNotify }) => {
                     ${(p.presupuesto_total || 0).toLocaleString('es-CO')}
                   </td>
                   <td className="px-8 py-5">
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: '85%' }} />
-                      </div>
-                      <span className="text-[10px] font-black text-emerald-600">85%</span>
-                    </div>
+                    {(() => {
+                      const prog = Math.round(Number(p.progreso) || (p.estado === 'Finalizado' ? 100 : (p.estado === 'En ejecución' ? 50 : 0)));
+                      return (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${prog}%` }} />
+                          </div>
+                          <span className="text-[10px] font-black text-emerald-600 tabular-nums">{prog}%</span>
+                        </div>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))}

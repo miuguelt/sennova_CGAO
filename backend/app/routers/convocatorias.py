@@ -4,10 +4,9 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from app.auth import get_current_user, get_current_admin
-from app.database import get_db
+from app.database import get_db, safe_commit
 from app.models import Convocatoria, User, Proyecto, Notificacion
 from app.schemas import ConvocatoriaCreate, ConvocatoriaUpdate, ConvocatoriaResponse
 from app.utils import log_actividad
@@ -15,6 +14,12 @@ from app.services import EmailService
 
 router = APIRouter(prefix="/convocatorias", tags=["Convocatorias MINCIENCIAS / SENNOVA"])
 
+
+def _attach_project_count(convocatorias: List[Convocatoria], db: Session):
+    for c in convocatorias:
+        c.total_proyectos = db.query(Proyecto).filter(
+            Proyecto.convocatoria_id == str(c.id)
+        ).count()
 
 
 @router.get("", response_model=List[ConvocatoriaResponse])
@@ -28,20 +33,13 @@ def list_convocatorias(
 ):
     """Listar convocatorias SENNOVA."""
     query = db.query(Convocatoria)
-    
     if año:
         query = query.filter(Convocatoria.año == año)
     if estado:
         query = query.filter(Convocatoria.estado == estado)
     
     convocatorias = query.order_by(Convocatoria.año.desc()).offset(skip).limit(limit).all()
-    
-    # Agregar conteo de proyectos
-    for c in convocatorias:
-        c.total_proyectos = db.query(Proyecto).filter(
-        Proyecto.convocatoria_id == str(c.id)
-        ).count()
-    
+    _attach_project_count(convocatorias, db)
     return convocatorias
 
 
@@ -59,7 +57,6 @@ def get_convocatoria(
     convocatoria.total_proyectos = db.query(Proyecto).filter(
         Proyecto.convocatoria_id == str(convocatoria.id)
     ).count()
-    
     return convocatoria
 
 
@@ -81,20 +78,10 @@ def create_convocatoria(
         descripcion=convocatoria_data.descripcion,
         owner_id=str(admin.id)
     )
+    db.add(convocatoria)
+    safe_commit(db)
+    db.refresh(convocatoria)
     
-    try:
-        db.add(convocatoria)
-        db.commit()
-        db.refresh(convocatoria)
-    except (OperationalError, SQLAlchemyError):
-        db.rollback()
-        raise
-    except Exception as e:
-        db.rollback()
-        print(f"Error al crear convocatoria: {e}")
-        raise HTTPException(status_code=500, detail="Error interno al crear convocatoria")
-    
-    # Registrar actividad
     log_actividad(
         db, 
         admin.id, 
@@ -106,7 +93,10 @@ def create_convocatoria(
     
     # Notificar a todos los investigadores activos
     try:
-        investigadores = db.query(User).filter(User.rol == 'investigador', User.is_active == True).all()
+        investigadores = db.query(User).filter(
+            User.rol.in_(['investigador', 'instructor']),
+            User.is_active != False
+        ).all()
         for inv in investigadores:
             notif = Notificacion(
                 user_id=str(inv.id),
@@ -115,11 +105,11 @@ def create_convocatoria(
                 mensaje=f"Se ha publicado la convocatoria '{convocatoria.nombre}' ({convocatoria.año}). Fecha de cierre: {convocatoria.fecha_cierre}",
                 entidad_tipo='convocatoria',
                 entidad_id=str(convocatoria.id),
-                prioridad='normal'
+                prioridad='normal',
+                leida=False
             )
             db.add(notif)
             
-            # Enviar correo electrónico
             body_html = f"""
             <h3>Hola {inv.nombre},</h3>
             <p>Se ha publicado una nueva convocatoria en la plataforma SENNOVA:</p>
@@ -133,10 +123,10 @@ def create_convocatoria(
             <p>Atentamente,<br/>Coordinación SENNOVA CGAO</p>
             """
             EmailService.send_email_async(inv.email, f"Nueva Convocatoria Abierta: {convocatoria.nombre}", body_html, background_tasks)
-        db.commit()
+        safe_commit(db)
     except Exception as e:
-        print(f"Error al generar notificaciones de convocatoria: {e}")
-        # No fallar la creación de la convocatoria si fallan las notificaciones
+        import logging
+        logging.getLogger(__name__).warning("Error al generar notificaciones de convocatoria: %s", e)
     
     convocatoria.total_proyectos = 0
     return convocatoria
@@ -158,18 +148,9 @@ def update_convocatoria(
     for field, value in update_data.items():
         setattr(convocatoria, field, value)
     
-    try:
-        db.commit()
-        db.refresh(convocatoria)
-    except (OperationalError, SQLAlchemyError):
-        db.rollback()
-        raise
-    except Exception as e:
-        db.rollback()
-        print(f"Error al actualizar convocatoria: {e}")
-        raise HTTPException(status_code=500, detail="Error interno al actualizar convocatoria")
+    safe_commit(db)
+    db.refresh(convocatoria)
     
-    # Registrar actividad
     log_actividad(
         db, 
         admin.id, 
@@ -182,7 +163,6 @@ def update_convocatoria(
     convocatoria.total_proyectos = db.query(Proyecto).filter(
         Proyecto.convocatoria_id == str(convocatoria.id)
     ).count()
-    
     return convocatoria
 
 
@@ -197,17 +177,8 @@ def delete_convocatoria(
     if not convocatoria:
         raise HTTPException(status_code=404, detail="Convocatoria no encontrada")
     
-    try:
-        db.delete(convocatoria)
-        db.commit()
-    except (OperationalError, SQLAlchemyError):
-        db.rollback()
-        raise
-    except Exception as e:
-        db.rollback()
-        print(f"Error al eliminar convocatoria: {e}")
-        raise HTTPException(status_code=500, detail="Error interno al eliminar convocatoria")
-    
+    db.delete(convocatoria)
+    safe_commit(db)
     return {"message": "Convocatoria eliminada"}
 
 
@@ -222,18 +193,12 @@ def get_convocatorias_activas(
 ):
     """Obtener convocatorias actualmente abiertas."""
     today = date.today()
-    
     convocatorias = db.query(Convocatoria).filter(
         Convocatoria.estado == "abierta",
         Convocatoria.fecha_apertura <= today,
         (Convocatoria.fecha_cierre >= today) | (Convocatoria.fecha_cierre == None)
     ).all()
-    
-    for c in convocatorias:
-        c.total_proyectos = db.query(Proyecto).filter(
-            Proyecto.convocatoria_id == str(c.id)
-        ).count()
-    
+    _attach_project_count(convocatorias, db)
     return convocatorias
 
 
@@ -248,19 +213,14 @@ def get_convocatorias_stats(
         func.count(Convocatoria.id).label("cantidad")
     ).group_by(Convocatoria.año).all()
     
-    por_año = [{"año": row[0], "cantidad": row[1]} for row in por_año_rows]
-    
     por_estado_rows = db.query(
         Convocatoria.estado,
         func.count(Convocatoria.id).label("cantidad")
     ).group_by(Convocatoria.estado).all()
     
-    por_estado = [{"estado": row[0], "cantidad": row[1]} for row in por_estado_rows]
-    
-    stats = {
+    return {
         "total_convocatorias": db.query(Convocatoria).count(),
-        "por_año": por_año,
-        "por_estado": por_estado,
+        "por_año": [{"año": row[0], "cantidad": row[1]} for row in por_año_rows],
+        "por_estado": [{"estado": row[0], "cantidad": row[1]} for row in por_estado_rows],
         "total_proyectos": db.query(Proyecto).count()
     }
-    return stats

@@ -21,6 +21,7 @@ import Select from '../ui/Select';
 import { SemillerosAPI } from '../../api/semilleros';
 import { GruposAPI } from '../../api/grupos';
 import { UsuariosAPI } from '../../api/usuarios';
+import { ProyectosAPI } from '../../api/proyectos';
 import { PlantillasAPI } from '../../api/plantillas';
 import { PDFGenerator } from '../../utils/pdfGenerator';
 import useClickOutside from '../../hooks/useClickOutside';
@@ -66,7 +67,7 @@ const StatCard = ({ label, value, icon: Icon, colorCls, bgCls }) => (
   </Card>
 );
 
-const SemilleroCard = ({ semillero, onEdit, onDelete, onDetail, onAddAprendiz }) => (
+const SemilleroCard = ({ semillero, onEdit, onDelete, onDetail, onAddAprendiz, canManage = true }) => (
   <Card 
     className="group hover:shadow-xl transition-all duration-300 border-l-4 border-l-emerald-500 cursor-pointer bg-white"
     onClick={() => onDetail(semillero)}
@@ -76,20 +77,22 @@ const SemilleroCard = ({ semillero, onEdit, onDelete, onDetail, onAddAprendiz })
         <Badge variant={ESTADOS.find(e => e.value === semillero.estado)?.variant || 'default'} className="font-black text-[10px] uppercase">
           {ESTADOS.find(e => e.value === semillero.estado)?.label || semillero.estado}
         </Badge>
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button 
-            onClick={(e) => { e.stopPropagation(); onEdit(semillero); }} 
-            className="p-1.5 text-slate-400 hover:text-blue-600 rounded-md hover:bg-blue-50"
-          >
-            <Edit size={14} />
-          </button>
-          <button 
-            onClick={(e) => { e.stopPropagation(); onDelete(semillero.id); }} 
-            className="p-1.5 text-slate-400 hover:text-rose-600 rounded-md hover:bg-rose-50"
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
+        {canManage && (
+          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button 
+              onClick={(e) => { e.stopPropagation(); onEdit(semillero); }} 
+              className="p-1.5 text-slate-400 hover:text-blue-600 rounded-md hover:bg-blue-50"
+            >
+              <Edit size={14} />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); onDelete(semillero.id); }} 
+              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-md hover:bg-rose-50"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        )}
       </div>
 
       <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors mb-2 line-clamp-1">
@@ -125,14 +128,25 @@ const SemilleroCard = ({ semillero, onEdit, onDelete, onDetail, onAddAprendiz })
             </div>
           )}
         </div>
-        <Button 
-          variant="primary" 
-          size="sm" 
-          className="h-8 text-[10px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700" 
-          onClick={(e) => { e.stopPropagation(); onAddAprendiz(semillero); }}
-        >
-          <UserPlus size={14} className="mr-1.5" /> Vincular
-        </Button>
+        {canManage ? (
+          <Button 
+            variant="primary" 
+            size="sm" 
+            className="h-8 text-[10px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700" 
+            onClick={(e) => { e.stopPropagation(); onAddAprendiz(semillero); }}
+          >
+            <UserPlus size={14} className="mr-1.5" /> Vincular
+          </Button>
+        ) : (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-8 text-[10px] font-black uppercase tracking-widest text-emerald-700 border-emerald-200" 
+            onClick={(e) => { e.stopPropagation(); onDetail(semillero); }}
+          >
+            Ver Información
+          </Button>
+        )}
       </div>
     </div>
   </Card>
@@ -164,14 +178,14 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
     // Fields for 'new' mode (User + Link)
     email: '',
     nombre: '',
-    password: 'password123', // Default or random
+    password: '',
     documento: '',
     celular: '',
     ficha: '',
     programa_formacion: ''
   });
   const [investigadorForm, setInvestigadorForm] = useState({ user_id: '', rol_en_semillero: 'Coinvestigador' });
-  const [semilleroStats, setSemilleroStats] = useState(null);
+  const [proyectos,        setProyectos]        = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
   const [dragOverSemilleroId, setDragOverSemilleroId] = useState(null);
   const [isGroupPoolVisible, setIsGroupPoolVisible] = useState(false);
@@ -185,14 +199,16 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [s, g, u] = await Promise.all([
+      const [s, g, u, p] = await Promise.all([
         SemillerosAPI.list(), 
         GruposAPI.list(),
-        UsuariosAPI.list()
+        UsuariosAPI.list(),
+        ProyectosAPI.list()
       ]);
       setSemilleros(s || []);
       setGrupos(g || []);
       setUsuarios(u || []);
+      setProyectos(p || []);
     } catch (err) {
       onNotify('Error al cargar datos', 'error');
     } finally {
@@ -258,20 +274,33 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
     }
   };
 
-  const handleOpenAprendices = async (s) => {
-    setSelectedSemillero(s);
-    setShowMemberModal(true);
-    setMemberType('aprendiz');
+  const loadSemilleroMembers = async (semilleroId) => {
     try {
       const [data, semData] = await Promise.all([
-        SemillerosAPI.listAprendices(s.id),
-        SemillerosAPI.get(s.id)
+        SemillerosAPI.listAprendices(semilleroId),
+        SemillerosAPI.get(semilleroId)
       ]);
       setAprendices(data || []);
       setInvestigadores(semData.investigadores || []);
     } catch {
       onNotify('Error al cargar integrantes', 'error');
     }
+  };
+
+  const handleOpenAprendices = async (s) => {
+    setSelectedSemillero(s);
+    setDetailOpen(true);
+    setActiveTab('aprendices');
+    setMemberType('aprendiz');
+    await loadSemilleroMembers(s.id);
+  };
+
+  const handleOpenInvestigadores = async (s) => {
+    setSelectedSemillero(s);
+    setDetailOpen(true);
+    setActiveTab('investigadores');
+    setMemberType('investigador');
+    await loadSemilleroMembers(s.id);
   };
 
   const handleAddAprendiz = async () => {
@@ -305,7 +334,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
       
       setAprendizForm({ 
         user_id: '', estado: 'activo', email: '', nombre: '', 
-        password: 'password123', documento: '', celular: '', ficha: '', programa_formacion: '' 
+        password: '', documento: '', celular: '', ficha: '', programa_formacion: '' 
       });
       setInvestigadorForm({ user_id: '', rol_en_semillero: 'Coinvestigador' });
       
@@ -340,6 +369,22 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
       loadData();
     } catch {
       onNotify('Error al desvincular', 'error');
+    }
+  };
+
+  const handleRemoveInvestigador = async (userId) => {
+    try {
+      await SemillerosAPI.removeInvestigador(selectedSemillero.id, userId);
+      onNotify('Investigador desvinculado', 'success');
+      const [data, semData] = await Promise.all([
+        SemillerosAPI.listAprendices(selectedSemillero.id),
+        SemillerosAPI.get(selectedSemillero.id)
+      ]);
+      setAprendices(data || []);
+      setInvestigadores(semData.investigadores || []);
+      loadData();
+    } catch (err) {
+      onNotify('Error al desvincular investigador: ' + (err.response?.data?.detail || err.message), 'error');
     }
   };
 
@@ -456,19 +501,21 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
               <p className="text-slate-500 font-medium mt-1">Dinamizando el relevo generacional de la ciencia CGAO.</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={`text-[10px] font-black uppercase tracking-widest ${isGroupPoolVisible ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400'}`}
-              onClick={() => setIsGroupPoolVisible(!isGroupPoolVisible)}
-            >
-              <Layers size={14} className="mr-1.5" /> Pool Grupos
-            </Button>
-            <Button onClick={handleOpenCreate} variant="sena" className="h-12 px-8 shadow-xl shadow-emerald-500/30">
-              <Plus size={20} className="mr-2" /> Crear Semillero
-            </Button>
-          </div>
+          {currentUser?.rol !== 'aprendiz' && (
+            <div className="flex gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className={`text-[10px] font-black uppercase tracking-widest ${isGroupPoolVisible ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400'}`}
+                onClick={() => setIsGroupPoolVisible(!isGroupPoolVisible)}
+              >
+                <Layers size={14} className="mr-1.5" /> Pool Grupos
+              </Button>
+              <Button onClick={handleOpenCreate} variant="sena" className="h-12 px-8 shadow-xl shadow-emerald-500/30">
+                <Plus size={20} className="mr-2" /> Crear Semillero
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -543,6 +590,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
               onDelete={handleDelete}
               onDetail={handleOpenDetail}
               onAddAprendiz={handleOpenAprendices}
+              canManage={currentUser?.rol !== 'aprendiz'}
             />
             {dragOverSemilleroId === s.id && (
               <div className="mt-2 px-3 py-1.5 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest text-center rounded-lg animate-pulse">
@@ -556,9 +604,9 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
       {/* ── Detail Side-Over ── */}
       {detailOpen && selectedSemillero && (
         <div className="fixed inset-0 z-[100] overflow-hidden">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md animate-fadeIn" onClick={() => setDetailOpen(false)} />
-          <div className="absolute inset-y-0 right-0 flex max-w-full pl-10">
-            <div className="w-screen max-w-lg bg-white shadow-2xl flex flex-col animate-slideInRight">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-fadeIn" onClick={() => setDetailOpen(false)} />
+          <div className="absolute inset-y-0 right-0 flex max-w-full pl-0 sm:pl-10">
+            <div className="w-screen max-w-lg h-full bg-white shadow-2xl flex flex-col animate-slideInRight">
               
               <div className="px-8 py-8 border-b border-slate-100 bg-emerald-50 relative overflow-hidden">
                 <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-white/50 rounded-full blur-3xl" />
@@ -583,8 +631,8 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
               <div className="flex overflow-x-auto border-b border-slate-100 bg-slate-50/50 scrollbar-none">
                 <button onClick={() => setActiveTab('info')} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'info' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Información</button>
                 <button onClick={() => setActiveTab('stats')} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'stats' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Impacto</button>
-                <button onClick={() => { setActiveTab('investigadores'); handleOpenAprendices(selectedSemillero); setMemberType('investigador'); }} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'investigadores' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Investigadores</button>
-                <button onClick={() => { setActiveTab('aprendices'); handleOpenAprendices(selectedSemillero); setMemberType('aprendiz'); }} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'aprendices' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Aprendices</button>
+                <button onClick={() => handleOpenInvestigadores(selectedSemillero)} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'investigadores' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Investigadores</button>
+                <button onClick={() => handleOpenAprendices(selectedSemillero)} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'aprendices' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Aprendices</button>
                 <button onClick={() => setActiveTab('proyectos')} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'proyectos' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Proyectos</button>
                 <button onClick={() => setActiveTab('formatos')} className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === 'formatos' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-white' : 'text-slate-400 hover:bg-slate-100'}`}>Formatos</button>
               </div>
@@ -614,7 +662,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                         <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Aprendices</p>
                         <div className="flex items-center justify-between">
                           <p className="font-black text-emerald-600 text-xl">{selectedSemillero.total_aprendices}</p>
-                          <button onClick={() => { setActiveTab('aprendices'); handleOpenAprendices(selectedSemillero); setMemberType('aprendiz'); }} className="text-[10px] font-black text-indigo-600 hover:underline uppercase">Ver Todos</button>
+                          <button onClick={() => handleOpenAprendices(selectedSemillero)} className="text-[10px] font-black text-indigo-600 hover:underline uppercase">Ver Todos</button>
                         </div>
                       </div>
                     </section>
@@ -690,7 +738,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                     <div className="p-5 bg-emerald-50 rounded-2xl border border-emerald-100 flex gap-4">
                       <Award className="text-emerald-600 shrink-0" size={24} />
                       <p className="text-xs text-emerald-800 font-medium leading-relaxed">
-                        Este semillero ha incrementado su base de aprendices en un **300%** este trimestre, consolidándose como uno de los más activos del centro.
+                        Este semillero cuenta actualmente con <strong className="font-black">{aprendices.length} aprendices vinculados</strong> y <strong className="font-black">{investigadores.length} investigadores</strong>, adscrito al grupo {selectedSemillero?.grupo?.nombre || 'General CGAO'}.
                       </p>
                     </div>
                   </div>
@@ -739,6 +787,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                           <option value="">Seleccionar del directorio CGAO...</option>
                           {usuarios
                             .filter(u => !aprendices.some(a => a.user_id === u.id) && !investigadores.some(inv => inv.id === u.id))
+                            .filter(u => activeTab === 'aprendices' ? u.rol === 'aprendiz' : u.rol !== 'aprendiz')
                             .map(u => (
                               <option key={u.id} value={u.id}>{u.nombre}</option>
                             ))}
@@ -813,13 +862,27 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                   <div className="space-y-8 animate-fadeIn">
                      <section>
                       <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <Target size={14} className="text-indigo-500" /> Proyectos Vinculados
+                        <Target size={14} className="text-indigo-500" /> Proyectos Vinculados ({proyectos.filter(p => p.semillero_id === selectedSemillero?.id).length})
                       </h3>
-                      <div className="p-8 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 text-center">
-                        <Target size={32} className="mx-auto text-slate-300 mb-3" />
-                        <p className="text-sm font-bold text-slate-600 mb-1">Integración en Desarrollo</p>
-                        <p className="text-xs text-slate-500">Los proyectos vinculados a este semillero se mostrarán aquí. Por ahora, gestiona los proyectos desde el módulo principal.</p>
-                      </div>
+                      {proyectos.filter(p => p.semillero_id === selectedSemillero?.id).length === 0 ? (
+                        <div className="p-8 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 text-center">
+                          <Target size={32} className="mx-auto text-slate-300 mb-3" />
+                          <p className="text-sm font-bold text-slate-600 mb-1">Sin proyectos asociados</p>
+                          <p className="text-xs text-slate-400">Este semillero aún no tiene proyectos de investigación asignados.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-3">
+                          {proyectos.filter(p => p.semillero_id === selectedSemillero?.id).map(p => (
+                            <div key={p.id} className="p-4 bg-white border border-slate-100 rounded-2xl hover:border-indigo-300 transition-all flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-black text-slate-900">{p.nombre_corto || p.nombre}</p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase">{p.codigo_sgps || 'SIN CÓDIGO'} • Estado: {p.estado}</p>
+                              </div>
+                              <span className="text-xs font-bold text-emerald-600">${(p.presupuesto_total || 0).toLocaleString('es-CO')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </section>
                   </div>
                 )}
@@ -863,15 +926,16 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
 
       {/* ── Form Modal ── */}
       {showForm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <Card className="w-full max-w-xl shadow-2xl animate-scaleIn overflow-hidden border-0">
-            <div className="bg-emerald-600 px-8 py-6 text-white relative">
-              <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"><X size={20} /></button>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowForm(false)} aria-hidden="true" />
+          <Card className="w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn overflow-hidden border-0 bg-white relative z-10">
+            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-6 text-white relative shrink-0">
+              <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 p-2 hover:bg-white/20 text-slate-200 hover:text-white rounded-full transition-colors"><X size={20} /></button>
               <h2 className="text-xl font-black">{isEditing ? 'Actualizar Semillero' : 'Nuevo Semillero de Investigación'}</h2>
               <p className="text-emerald-100 text-[10px] font-black uppercase tracking-widest mt-1 opacity-80">Gestión de Talento Humano CGAO</p>
             </div>
             
-            <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-thin bg-white">
+            <div className="p-6 sm:p-8 space-y-6 flex-1 overflow-y-auto custom-scrollbar bg-white">
               <Input label="Nombre del Semillero" placeholder="Ej: Semillero de IA aplicada al Agro" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} required />
               <div className="grid grid-cols-2 gap-4">
                 <Input label="Código / Sigla" placeholder="Ej: SIA-2026" value={formData.codigo} onChange={e => setFormData({...formData, codigo: e.target.value})} />
@@ -891,7 +955,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
               </div>
             </div>
 
-            <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <div className="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
               <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
               <Button variant="sena" className="bg-emerald-600 hover:bg-emerald-700 px-8" onClick={handleSubmit}>
                 {isEditing ? 'Guardar Cambios' : 'Registrar Semillero'}

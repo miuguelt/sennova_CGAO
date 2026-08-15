@@ -154,10 +154,12 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
   };
 
   const handleSign = () => {
-    const hash = btoa(Math.random().toString()).substring(0, 16).toUpperCase();
-    setSignatureHash('SENNOVA-' + hash);
+    const userPart = currentUser?.id ? String(currentUser.id).substring(0, 8).toUpperCase() : 'AUTH';
+    const timePart = Date.now().toString(36).toUpperCase();
+    const hash = `SENN-${userPart}-${timePart}`;
+    setSignatureHash(hash);
     setIsSigned(true);
-    onNotify?.('Reporte validado digitalmente: ' + hash, 'success');
+    onNotify?.('Reporte validado y firmado digitalmente: ' + hash, 'success');
   };
 
   const handlePrint = () => window.print();
@@ -171,10 +173,11 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
 
   // Data helpers for charts
   const proyectosPorEstado = [
-    { name: 'Formulación', value: projectsData.filter(p => p.estado === 'Formulación').length },
     { name: 'Aprobado', value: projectsData.filter(p => p.estado === 'Aprobado').length },
     { name: 'En ejecución', value: projectsData.filter(p => p.estado === 'En ejecución').length },
     { name: 'Finalizado', value: projectsData.filter(p => p.estado === 'Finalizado').length },
+    { name: 'Enviado', value: projectsData.filter(p => p.estado === 'Enviado').length },
+    { name: 'Rechazado', value: projectsData.filter(p => p.estado === 'Rechazado').length },
   ].filter(d => d.value > 0);
 
   const presupuestoPorTipo = projectsData.reduce((acc, p) => {

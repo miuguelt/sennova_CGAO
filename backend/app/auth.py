@@ -92,7 +92,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == str(user_id)).first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -119,6 +119,21 @@ async def get_current_admin(current_user: User = Depends(get_current_user)) -> U
             detail="ADMIN_ROLE_REQUIRED"
         )
     return current_user
+
+
+async def get_current_investigador_or_instructor(current_user: User = Depends(get_current_user)) -> User:
+    """Verifica que el usuario actual sea admin, investigador o instructor."""
+    if current_user.rol not in ["admin", "investigador", "instructor"]:
+        print(f"🔒 [AUTH ERROR] Usuario {current_user.email} intentó acceso DOCENTE/INVESTIGADOR con rol {current_user.rol}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="STAFF_ROLE_REQUIRED"
+        )
+    return current_user
+
+
+get_current_staff = get_current_investigador_or_instructor
+
 
 
 

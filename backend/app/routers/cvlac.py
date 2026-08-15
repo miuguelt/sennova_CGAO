@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-import random
 from datetime import datetime, timezone
 
 from app.auth import get_current_user
@@ -17,53 +16,33 @@ def import_cvlac(
     db: Session = Depends(get_db)
 ):
     """
-    Simula la extracción de datos desde una URL de CVLaC (Scienti).
-    En una implementación real, esto usaría BeautifulSoup o un servicio de scraping.
+    Sincroniza y registra la referencia CVLaC (Scienti MinCiencias) para el usuario.
     """
     if "scienti" not in url.lower() and "cvlac" not in url.lower():
         raise HTTPException(status_code=400, detail="URL de CVLaC no válida")
 
-    # Simulamos que encontramos algunos productos
-    tipos_posibles = ["software", "articulo", "prototipo", "capitulo_libro", "ponencia"]
-    nombres_ejemplo = [
-        "Sistema de Monitoreo de Cultivos Inteligente",
-        "Análisis de Redes Neuronales en Educación",
-        "Prototipo de Biofiltro para Aguas Residuales",
-        "La Inteligencia Artificial en el Agro SENA",
-        "Implementación de Blockchain en Suministros"
-    ]
+    current_user.cv_lac_url = url
+    current_user.estado_cv_lac = "En revisión"
+
+    nombre_producto = f"Perfil CVLaC - {current_user.nombre_completo or current_user.email}"
+    existente = db.query(Producto).filter(
+        Producto.nombre == nombre_producto, 
+        Producto.owner_id == str(current_user.id)
+    ).first()
     
     importados = 0
-    errores = 0
-    
-    # Generar 3-6 productos aleatorios para la demo
-    count = random.randint(3, 6)
-    
-    for i in range(count):
-        nombre = random.choice(nombres_ejemplo) + f" (Sincronizado {i+1})"
-        tipo = random.choice(tipos_posibles)
-        
-        # Verificar si ya existe para evitar duplicados en la demo
-        existente = db.query(Producto).filter(
-            Producto.nombre == nombre, 
-            Producto.owner_id == str(current_user.id)
-        ).first()
-        
-        if existente:
-            errores += 1
-            continue
-            
+    if not existente:
         nuevo_p = Producto(
-            tipo=tipo,
-            nombre=nombre,
-            descripcion=f"Producto importado automáticamente desde CVLaC. Referencia: {url}",
+            tipo="software",
+            nombre=nombre_producto,
+            descripcion=f"Perfil y productos vinculados a Scienti CVLaC: {url}",
             fecha_publicacion=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             url=url,
             owner_id=str(current_user.id),
             is_verificado=False
         )
         db.add(nuevo_p)
-        importados += 1
+        importados = 1
 
     try:
         db.commit()
@@ -71,21 +50,21 @@ def import_cvlac(
         import logging
         logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
         try:
-            if 'session' in globals() or 'session' in locals(): db.session.rollback()
-            else: db.rollback()
-        except: pass
+            db.rollback()
+        except Exception:
+            pass
     
     log_actividad(
         db, current_user.id, "import_cvlac", 
-        f"Importó {importados} productos desde CVLaC",
+        f"Sincronizó perfil CVLaC ({url})",
         entidad_tipo="user", entidad_id=str(current_user.id)
     )
     
     return {
         "success": True,
         "importados": importados,
-        "errores": errores,
-        "message": f"Sincronización finalizada: {importados} productos nuevos."
+        "errores": 0,
+        "message": f"Sincronización de CVLaC completada para {current_user.email}."
     }
 
 
@@ -112,9 +91,12 @@ def subir_cvlac_pdf(
         import logging
         logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
         try:
-            if 'session' in globals() or 'session' in locals(): db.session.rollback()
-            else: db.rollback()
-        except: pass
+            if 'session' in globals() or 'session' in locals():
+                db.session.rollback()
+            else:
+                db.rollback()
+        except Exception:
+            pass
     return {"message": "CVLaC recibido correctamente y en proceso de revisión"}
 
 
@@ -127,7 +109,7 @@ def get_usuarios_sin_cvlac(
     if current_user.rol != "admin":
         raise HTTPException(status_code=403, detail="ADMIN_ROLE_REQUIRED")
     usuarios = db.query(User).filter(
-        User.rol == "investigador",
+        User.rol.in_(["investigador", "instructor"]),
         User.estado_cv_lac == "No actualizado"
     ).all()
     return usuarios
@@ -160,21 +142,22 @@ def get_cvlac_resumen(
 ):
     """
     Obtiene un resumen global del estado de CVLaC en el sistema.
-    Solo accesible para administradores o investigadores (según política).
+    Accesible para administradores, investigadores e instructores.
     """
-    total_usuarios = db.query(User).filter(User.rol == "investigador").count()
+    roles_cvlac = ["investigador", "instructor"]
+    total_usuarios = db.query(User).filter(User.rol.in_(roles_cvlac)).count()
     actualizados = db.query(User).filter(
-        User.rol == "investigador", 
+        User.rol.in_(roles_cvlac), 
         User.estado_cv_lac == "Actualizado"
     ).count()
     
     desactualizados = db.query(User).filter(
-        User.rol == "investigador",
+        User.rol.in_(roles_cvlac),
         User.estado_cv_lac == "Desactualizado"
     ).count()
     
     sin_cvlac = db.query(User).filter(
-        User.rol == "investigador",
+        User.rol.in_(roles_cvlac),
         User.estado_cv_lac.in_(["Sin CVLAC", "No actualizado", None])
     ).count()
     
@@ -186,5 +169,6 @@ def get_cvlac_resumen(
         "desactualizados": desactualizados,
         "sin_cvlac": sin_cvlac,
         "porcentaje_actualizados": round(porcentaje, 1),
+        "requiere_atencion": desactualizados + sin_cvlac,
         "ultima_actualizacion_global": datetime.now(timezone.utc).isoformat()
     }

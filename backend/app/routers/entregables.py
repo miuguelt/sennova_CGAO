@@ -14,6 +14,7 @@ from app.database import get_db
 from app.auth import get_current_user
 from app.models import User, Proyecto, Entregable, Notificacion
 from app.utils import log_actividad
+from app.services.proyectos_service import evaluar_y_auto_finalizar_proyecto
 from app.schemas import (
     EntregableCreate, EntregableUpdate, EntregableResponse, 
     EntregableListResponse
@@ -439,6 +440,13 @@ def cambiar_estado_entregable(
             entregable.fecha_aprobacion = datetime.now(timezone.utc).date()
         
         db.commit()
+
+        # Si fue aprobado, evaluar si el proyecto ya cumplió todos los requisitos para auto-finalizar
+        if nuevo_estado == 'aprobado':
+            try:
+                evaluar_y_auto_finalizar_proyecto(str(entregable.proyecto_id), db)
+            except Exception as e:
+                print(f"Error al evaluar auto-finalización tras aprobar entregable: {e}")
         
         # Notificar al responsable del cambio
         if entregable.responsable_id and entregable.responsable_id != current_user.id:

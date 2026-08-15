@@ -223,8 +223,9 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
                   <Select
                     label="Tipo de Usuario"
                     options={[
-                      { value: 'investigador', label: 'Investigador / Instructor' },
-                      { value: 'aprendiz',     label: 'Aprendiz (Semillero)' }
+                      { value: 'investigador', label: 'Investigador SENNOVA' },
+                      { value: 'instructor',   label: 'Instructor Investigador / Tutor' },
+                      { value: 'aprendiz',     label: 'Aprendiz (Semillero de Investigación)' }
                     ]}
                     value={rol}
                     onChange={(e) => setRol(e.target.value)}
@@ -274,7 +275,7 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
                 {isLogin ? 'Iniciar Sesión' : 'Unirse Ahora'}
               </Button>
             </form>
-            {isLogin && (
+            {isLogin && import.meta.env.DEV && (
               <div className="mt-6 border-t border-slate-100 pt-6">
                 <DevLoginPanel onSelect={(id, pass) => {
                   setEmail(id);

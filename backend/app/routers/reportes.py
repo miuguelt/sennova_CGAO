@@ -12,9 +12,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
+from sqlalchemy import func
 
 from app.database import get_db
-from app.auth import get_current_admin
+from app.auth import get_current_admin, get_current_investigador_or_instructor
 from app.models import User, Proyecto, Grupo, Semillero, Producto
 
 # Importar librerías de reportes
@@ -48,7 +49,7 @@ def get_estado_color(estado: str) -> str:
 def generar_consolidado_proyectos(
     año: Optional[int] = Query(None, description="Año de los proyectos"),
     formato: Literal["excel", "csv"] = Query("excel", description="Formato de salida"),
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_investigador_or_instructor),
     db: Session = Depends(get_db)
 ):
     """
@@ -251,7 +252,7 @@ def _generar_csv_consolidado(proyectos, año_filtro):
 @router.get("/grupos-consolidado")
 def generar_consolidado_grupos(
     formato: Literal["excel", "csv"] = Query("excel"),
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_investigador_or_instructor),
     db: Session = Depends(get_db)
 ):
     """Genera reporte consolidado de grupos de investigación."""
@@ -349,7 +350,7 @@ def generar_consolidado_productos(
     año: Optional[int] = Query(None, description="Año de publicación"),
     verificados_only: bool = Query(False, description="Solo productos verificados"),
     formato: Literal["excel", "csv"] = Query("excel"),
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_investigador_or_instructor),
     db: Session = Depends(get_db)
 ):
     """Genera reporte de productos para convocatorias de recategorización."""
@@ -561,36 +562,45 @@ def get_estadisticas_resumen(
         total_productos = db.query(Producto).count()
         total_investigadores = db.query(User).filter(User.rol == 'investigador').count()
         
-        # Proyectos por estado
-        proyectos_por_estado = {}
-        for estado in ["Formulación", "Enviado", "Aprobado", "En ejecución", "Finalizado", "Rechazado"]:
-            count = db.query(Proyecto).filter(Proyecto.estado == estado).count()
-            proyectos_por_estado[estado] = count
+        # Proyectos por estado dinámico de la DB
+        proyectos_por_estado = {
+            str(estado): int(count)
+            for estado, count in db.query(Proyecto.estado, func.count(Proyecto.id))
+            .filter(Proyecto.estado.isnot(None))
+            .group_by(Proyecto.estado)
+            .all()
+        }
         
-        # Proyectos por vigencia
-        proyectos_por_año = {}
-        for año in range(current_year - 2, current_year + 2):
-            count = db.query(Proyecto).filter(Proyecto.vigencia == año).count()
-            if count > 0:
-                proyectos_por_año[str(año)] = count
+        # Proyectos por vigencia / año
+        proyectos_por_año = {
+            str(año): int(count)
+            for año, count in db.query(Proyecto.vigencia, func.count(Proyecto.id))
+            .filter(Proyecto.vigencia.isnot(None))
+            .group_by(Proyecto.vigencia)
+            .all()
+        }
         
-        # Productos por tipo
-        productos_por_tipo = {}
-        for tipo in ["software", "articulo", "capitulo_libro", "patente", "ponencia", "video", "prototipo"]:
-            count = db.query(Producto).filter(Producto.tipo == tipo).count()
-            if count > 0:
-                productos_por_tipo[tipo] = count
+        # Productos por tipo dinámico de la DB
+        productos_por_tipo = {
+            str(tipo): int(count)
+            for tipo, count in db.query(Producto.tipo, func.count(Producto.id))
+            .filter(Producto.tipo.isnot(None))
+            .group_by(Producto.tipo)
+            .all()
+        }
         
         # Productos verificados vs pendientes
         productos_verificados = db.query(Producto).filter(Producto.is_verificado == True).count()
         productos_pendientes = total_productos - productos_verificados
         
-        # Grupos por clasificación GRUPLAC
-        grupos_por_clasificacion = {}
-        for clasif in ["A1", "A", "B", "C", "D", "Reconocido", "No clasificado"]:
-            count = db.query(Grupo).filter(Grupo.clasificacion == clasif).count()
-            if count > 0:
-                grupos_por_clasificacion[clasif] = count
+        # Grupos por clasificación GRUPLAC dinámico de la DB
+        grupos_por_clasificacion = {
+            str(clasif): int(count)
+            for clasif, count in db.query(Grupo.clasificacion, func.count(Grupo.id))
+            .filter(Grupo.clasificacion.isnot(None))
+            .group_by(Grupo.clasificacion)
+            .all()
+        }
         
         return {
             "totales": {
@@ -673,10 +683,12 @@ def generar_consolidado_talento(
 @router.get("/investigador/{user_id}/certificado")
 def generar_certificado_investigador(
     user_id: str,
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_investigador_or_instructor),
     db: Session = Depends(get_db)
 ):
-    """Genera un certificado de participación en PDF para un investigador."""
+    """Genera un certificado de participación en PDF para un investigador o instructor."""
+    if current_user.rol != "admin" and str(current_user.id) != str(user_id):
+        raise HTTPException(status_code=403, detail="No autorizado para descargar este certificado")
     try:
         user = db.query(User).filter(User.id == user_id).first()
         if not user:

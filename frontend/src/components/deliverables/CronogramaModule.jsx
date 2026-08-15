@@ -363,10 +363,11 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
 
       {/* ── Form Modal ── */}
       {showForm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
-          <Card className="w-full max-w-xl shadow-2xl animate-scaleIn overflow-hidden border-0">
-            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-6 text-white relative">
-              <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"><Trash2 size={20} className="rotate-45" /></button>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowForm(false)} aria-hidden="true" />
+          <Card className="w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn overflow-hidden border-0 bg-white relative z-10 rounded-3xl">
+            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-6 text-white relative shrink-0">
+              <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 p-2 hover:bg-white/20 text-slate-200 hover:text-white rounded-full transition-colors"><X size={20} /></button>
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><CalendarDays size={24} /></div>
                 <div>
@@ -376,7 +377,7 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
               </div>
             </div>
             
-            <div className="p-8 bg-white space-y-5 max-h-[70vh] overflow-y-auto scrollbar-thin">
+            <div className="p-6 sm:p-8 bg-white space-y-5 flex-1 overflow-y-auto custom-scrollbar">
               <Input label="Título de la Tarea / Entregable" value={formData.titulo} onChange={(e) => setFormData({...formData, titulo: e.target.value})} required />
               <div className="grid grid-cols-2 gap-4">
                 <Select 
@@ -402,7 +403,7 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
               <TextArea label="Instrucciones / Descripción" value={formData.descripcion} onChange={(e) => setFormData({...formData, descripcion: e.target.value})} rows={4} />
             </div>
 
-            <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <div className="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
               <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
               <Button variant="sena" onClick={handleSubmit}>
                 {isEditing ? 'Guardar Cambios' : 'Agendar Entregable'}

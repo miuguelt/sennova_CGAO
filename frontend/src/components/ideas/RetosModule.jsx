@@ -321,9 +321,9 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
 
         return (
           <div className="fixed inset-0 z-[100] overflow-hidden print:static print:block print:overflow-visible">
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-fadeIn print:hidden" onClick={() => setIsDetailOpen(false)} />
-            <div className="absolute inset-y-0 right-0 max-w-full flex print:static print:block print:w-full">
-              <div className="w-screen max-w-lg bg-white shadow-2xl flex flex-col animate-slideInRight print:w-full print:max-w-none print:shadow-none print:animate-none print:static">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-fadeIn print:hidden" onClick={() => setIsDetailOpen(false)} />
+            <div className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10 print:static print:block print:w-full">
+              <div className="w-screen max-w-lg h-full bg-white shadow-2xl flex flex-col animate-slideInRight print:w-full print:max-w-none print:shadow-none print:animate-none print:static">
                 {/* Header Detail */}
                 <div className={`px-8 py-8 border-b border-slate-100 ${sector.bg}`}>
                   <div className="flex items-start justify-between mb-6">
@@ -391,12 +391,12 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
                       </a>
                     </div>
                     
-                    {currentUser?.rol !== 'admin' && (
+                    {currentUser?.rol !== 'admin' && currentUser?.rol !== 'aprendiz' && (
                       <Button 
                         variant="primary" 
                         className="w-full py-4 bg-slate-900 hover:bg-black text-white shadow-xl flex items-center justify-center gap-2"
                         onClick={() => {
-                          onNotify('Iniciando propuesta de proyecto basada en este reto...', 'info');
+                          onNotify('Iniciando formulación de proyecto de solución basada en este reto...', 'info');
                           onModuleAction?.({ 
                             module: 'proyectos', 
                             form: 'create', 
@@ -409,8 +409,21 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
                         }}
                       >
                         <Zap size={18} fill="currentColor" className="text-amber-400" /> 
-                        Postular Proyecto de Solución
+                        Formular Proyecto de Solución
                       </Button>
+                    )}
+                    {currentUser?.rol === 'aprendiz' && (
+                      <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 text-center">
+                        <p className="text-xs text-indigo-900 font-bold mb-2">¿Tienes una idea para este reto?</p>
+                        <p className="text-[11px] text-slate-500 mb-3">Habla con tu instructor o tutor de semillero para registrar una propuesta formativa conjunta.</p>
+                        <Button 
+                          variant="outline" 
+                          className="w-full bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50 text-xs font-bold"
+                          onClick={() => onModuleAction?.({ module: 'semilleros' })}
+                        >
+                          Explorar Semilleros Disponibles
+                        </Button>
+                      </div>
                     )}
                   </section>
                 </div>
@@ -430,17 +443,18 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
 
       {/* ── Form Modal (Crear/Editar) ── */}
       {showModal && (
-        <div className="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden animate-scaleIn border-0 shadow-2xl">
-            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-amber-50 to-white">
+        <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowModal(false)} aria-hidden="true" />
+          <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-scaleIn border-0 shadow-2xl bg-white relative z-10 rounded-3xl">
+            <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-amber-600 to-amber-700 text-white shrink-0">
               <div>
-                <h2 className="text-xl font-black text-slate-900 tracking-tight">{isEditing ? 'Actualizar Reto' : 'Publicar Nuevo Reto'}</h2>
-                <p className="text-xs text-amber-700 font-bold uppercase tracking-widest mt-1">Liderazgo Sennova CGAO</p>
+                <h2 className="text-xl font-black tracking-tight">{isEditing ? 'Actualizar Reto' : 'Publicar Nuevo Reto'}</h2>
+                <p className="text-xs text-amber-100 font-bold uppercase tracking-widest mt-0.5">Liderazgo Sennova CGAO</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-white transition-all"><X size={20} /></button>
+              <button onClick={() => setShowModal(false)} className="p-2 text-slate-200 hover:text-white rounded-xl hover:bg-white/10 transition-all"><X size={20} /></button>
             </div>
             
-            <div className="p-8 overflow-y-auto space-y-6 scrollbar-thin">
+            <div className="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
               <Input 
                 label="Título del Reto de Investigación" 
                 placeholder="Ej: Análisis de eficiencia energética en calderas industriales..." 
@@ -514,7 +528,7 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
               )}
             </div>
 
-            <div className="px-8 py-5 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">
+            <div className="px-6 sm:px-8 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50 shrink-0">
               <Button variant="outline" onClick={() => setShowModal(false)} className="px-6">Cancelar</Button>
               <Button 
                 className="bg-amber-600 hover:bg-amber-700 text-white px-8 h-11" 

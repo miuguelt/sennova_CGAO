@@ -6,11 +6,16 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Proyecto, User, proyecto_equipo, Documento
+from app.models import Proyecto, User, proyecto_equipo
 from app.schemas import (
     ProyectoCreate, ProyectoUpdate, EquipoMiembro
 )
 from app.utils import log_actividad
+from app.services.proyectos_service import (
+    evaluar_requisitos_liquidacion,
+    evaluar_y_auto_finalizar_proyecto,
+    calcular_estatus_elaboracion
+)
 
 router = APIRouter(prefix="/proyectos", tags=["Proyectos"])
 
@@ -107,6 +112,9 @@ def list_proyectos(
             "estado": p.estado,
             "vigencia": p.vigencia,
             "presupuesto_total": p.presupuesto_total,
+            "año": p.año,
+            "año_fin": p.año_fin,
+            "continua_siguiente_año": p.continua_siguiente_año,
             "tipologia": p.tipologia,
             "linea_investigacion": p.linea_investigacion,
             "red_conocimiento": p.red_conocimiento,
@@ -172,6 +180,9 @@ def get_proyecto(
         "estado": proyecto.estado,
         "vigencia": proyecto.vigencia,
         "presupuesto_total": proyecto.presupuesto_total,
+        "año": proyecto.año,
+        "año_fin": proyecto.año_fin,
+        "continua_siguiente_año": proyecto.continua_siguiente_año,
         "tipologia": proyecto.tipologia,
         "linea_investigacion": proyecto.linea_investigacion,
         "red_conocimiento": proyecto.red_conocimiento,
@@ -214,6 +225,9 @@ def create_proyecto(
         estado=proyecto_data.estado,
         vigencia=proyecto_data.vigencia,
         presupuesto_total=proyecto_data.presupuesto_total,
+        año=proyecto_data.año,
+        año_fin=proyecto_data.año_fin,
+        continua_siguiente_año=proyecto_data.continua_siguiente_año,
         tipologia=proyecto_data.tipologia,
         linea_investigacion=proyecto_data.linea_investigacion,
         red_conocimiento=proyecto_data.red_conocimiento,
@@ -276,6 +290,9 @@ def create_proyecto(
         "estado": proyecto.estado,
         "vigencia": proyecto.vigencia,
         "presupuesto_total": proyecto.presupuesto_total,
+        "año": proyecto.año,
+        "año_fin": proyecto.año_fin,
+        "continua_siguiente_año": proyecto.continua_siguiente_año,
         "tipologia": proyecto.tipologia,
         "linea_investigacion": proyecto.linea_investigacion,
         "red_conocimiento": proyecto.red_conocimiento,
@@ -339,8 +356,11 @@ def update_proyecto(
 
     for field, value in update_data.items():
         if field != "equipo":  # Equipo se maneja separado
-            if field in ("convocatoria_id", "reto_origen_id", "semillero_id") and value:
-                value = str(value)
+            if field in ("convocatoria_id", "reto_origen_id", "semillero_id"):
+                if value is not None and str(value).strip() not in ("", "null", "None"):
+                    value = str(value)
+                else:
+                    value = None
             setattr(proyecto, field, value)
     
     try:
@@ -374,7 +394,8 @@ def check_liquidacion(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Verifica si un proyecto cumple con todos los requisitos para ser liquidado (Finalizado).
+    Verifica si un proyecto cumple con todos los requisitos institucionales SENNOVA para ser liquidado (Finalizado).
+    Si cumple el 100%, activa la transición automática a estado Finalizado.
     """
     try:
         proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
@@ -385,48 +406,43 @@ def check_liquidacion(
         if not can_edit_proyecto(proyecto, current_user):
             raise HTTPException(status_code=403, detail="No tienes permiso para verificar liquidación de este proyecto")
         
-        # 1. Verificación de Productos
-        productos_verificados = [p for p in (proyecto.productos or []) if getattr(p, 'is_verificado', False)]
-        min_productos = 1 if proyecto.tipologia == "Red" else 2
-        ok_productos = len(productos_verificados) >= min_productos
-        
-        # 2. Verificación de Bitácoras (Firmas)
-        bitacoras = proyecto.bitacora or []
-        firmas_completas = all(
-            getattr(b, 'is_firmado_investigador', False) and getattr(b, 'is_firmado_aprendiz', False) 
-            for b in bitacoras
-        ) if bitacoras else True
-        ok_bitacoras = firmas_completas
-        
-        # 3. Informe Final
-        informe_final = db.query(Documento).filter(
-            Documento.entidad_tipo == "proyecto",
-            Documento.entidad_id == str(proyecto.id),
-            Documento.tipo == "informe_final"
-        ).first()
-        ok_informe = informe_final is not None
-        
-        # 4. Presupuesto (Debe tener un valor asignado)
-        ok_presupuesto = (proyecto.presupuesto_total or 0) > 0
-        
-        checklist = [
-            {"id": "productos", "label": f"Productos Verificados ({len(productos_verificados)}/{min_productos})", "status": ok_productos},
-            {"id": "bitacoras", "label": "Bitácoras con Firmas Digitales Completas", "status": ok_bitacoras},
-            {"id": "informe", "label": "Informe Final Técnico Cargado", "status": ok_informe},
-            {"id": "presupuesto", "label": "Presupuesto Asignado y Reportado", "status": ok_presupuesto}
-        ]
-        
-        can_liquidate = all(item["status"] for item in checklist)
+        # Ejecutar evaluación y auto-finalización
+        auto_res = evaluar_y_auto_finalizar_proyecto(proyecto_id, db)
+        eval_res = evaluar_requisitos_liquidacion(proyecto, db)
         
         return {
-            "can_liquidate": can_liquidate,
-            "checklist": checklist,
-            "message": "Proyecto apto para liquidación" if can_liquidate else "Faltan requisitos para el cierre técnico"
+            "can_liquidate": eval_res["can_liquidate"],
+            "porcentaje_completitud": eval_res["porcentaje_completitud"],
+            "items_cumplidos": eval_res["items_cumplidos"],
+            "total_items": eval_res["total_items"],
+            "checklist": eval_res["checklist"],
+            "auto_finalizado": auto_res.get("auto_finalizado", False),
+            "message": eval_res["message"]
         }
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al verificar liquidación: {str(e)}")
+
+
+@router.get("/{proyecto_id}/elaboracion-status")
+def get_elaboracion_status(
+    proyecto_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Obtiene el diagnóstico de calidad y completitud en la elaboración/formulación del proyecto.
+    """
+    proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
+    if not proyecto:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    
+    if not check_proyecto_access(proyecto, current_user):
+        raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
+    
+    return calcular_estatus_elaboracion(proyecto, db)
+
 
 
 @router.delete("/{proyecto_id}")

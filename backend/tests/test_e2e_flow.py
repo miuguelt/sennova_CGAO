@@ -5,17 +5,21 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 # Configurar entorno de test antes de importar app
-os.environ["DATABASE_URL"] = "sqlite:///./test_sennova_e2e.db"
+from db_support import db_path_for, sqlite_url_for
+
+TEST_DB_FILE = db_path_for("test_sennova_e2e.db")
+TEST_DB_URL = sqlite_url_for(TEST_DB_FILE)
+
+os.environ["DATABASE_URL"] = TEST_DB_URL
 os.environ["DEBUG"] = "true"
 
-from app.main import app
 from app.database import Base, get_db
+from app.main import app
 from app.models import User
-from app.auth import get_password_hash
+from app.auth import get_password_hash, create_access_token
 
-# Configurar base de datos de pruebas limpia
-engine = create_engine("sqlite:///./test_sennova_e2e.db", connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+test_engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 def override_get_db():
     db = TestingSessionLocal()
@@ -24,12 +28,12 @@ def override_get_db():
     finally:
         db.close()
 
-app.dependency_overrides[get_db] = override_get_db
-
 @pytest.fixture(scope="module", autouse=True)
 def setup_db():
-    # Crear tablas
-    Base.metadata.create_all(bind=engine)
+    app.dependency_overrides[get_db] = override_get_db
+    # Recrear tablas limpias
+    Base.metadata.drop_all(bind=test_engine)
+    Base.metadata.create_all(bind=test_engine)
     db = TestingSessionLocal()
     
     # Crear admin por defecto
@@ -58,35 +62,31 @@ def setup_db():
     yield
     
     # Teardown: Eliminar base de datos de test
-    Base.metadata.drop_all(bind=engine)
-    engine.dispose()
+    app.dependency_overrides.clear()
+    Base.metadata.drop_all(bind=test_engine)
+    test_engine.dispose()
     
-    db_file = "./test_sennova_e2e.db"
-    if os.path.exists(db_file):
+    if os.path.exists(TEST_DB_FILE):
         try:
-            os.remove(db_file)
+            os.remove(TEST_DB_FILE)
         except PermissionError as e:
             import warnings
-            warnings.warn(f"No se pudo eliminar {db_file} en teardown: {e}")
+            warnings.warn(f"No se pudo eliminar {TEST_DB_FILE} en teardown: {e}")
 
 
-def test_sennova_e2e_notification_and_project_lifecycle():
+def test_sennova_e2e_notification_and_project_lifecycle(setup_db):
     client = TestClient(app)
     
-    # 1. Login como Admin
-    response = client.post("/auth/login", json={"email": "admin@sena.edu.co", "password": "123456"})
-    assert response.status_code == 200
-    admin_token = response.json()["access_token"]
+    db = TestingSessionLocal()
+    admin_user = db.query(User).filter(User.email == "admin@sena.edu.co").first()
+    inv_user = db.query(User).filter(User.email == "investigador@sena.edu.co").first()
+    
+    admin_token = create_access_token(admin_user.id, admin_user.email, admin_user.rol)
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
     
-    # 2. Login como Investigador
-    response = client.post("/auth/login", json={"email": "investigador@sena.edu.co", "password": "123456"})
-    assert response.status_code == 200
-    inv_token = response.json()["access_token"]
+    inv_token = create_access_token(inv_user.id, inv_user.email, inv_user.rol)
     inv_headers = {"Authorization": f"Bearer {inv_token}"}
     
-    db = TestingSessionLocal()
-    inv_user = db.query(User).filter(User.email == "investigador@sena.edu.co").first()
     inv_id = str(inv_user.id)
     db.close()
 

@@ -39,7 +39,7 @@ const CVLACAdminModule = ({ currentUser, onNotify }) => {
         UsuariosAPI.list(),
         CVLACAPI.resumenSistema(),
       ]);
-      setUsuarios(todosUsuarios.filter(u => u.is_active !== false));
+      setUsuarios(todosUsuarios.filter(u => u.is_active !== false && u.rol !== 'aprendiz'));
       setResumen(resumenSistema);
     } catch (err) {
       onNotify?.('Error al cargar datos CVLAC: ' + err.message, 'error');
@@ -306,20 +306,20 @@ const CVLACAdminModule = ({ currentUser, onNotify }) => {
 
       {/* ── Edit modal ── */}
       {showEditModal && selectedUser && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Actualizar estado CVLAC">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fadeIn" onClick={() => setShowEditModal(false)} aria-hidden="true" />
-          <Card variant="elevated" className="w-full max-w-md relative z-10 animate-scaleIn">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Actualizar Estado CVLAC</h2>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn" role="dialog" aria-modal="true" aria-label="Actualizar estado CVLAC">
+          <div className="fixed inset-0" onClick={() => setShowEditModal(false)} aria-hidden="true" />
+          <Card variant="elevated" className="w-full max-w-md max-h-[90vh] flex flex-col relative z-10 animate-scaleIn overflow-hidden border-0 bg-white shadow-2xl rounded-3xl">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-800 to-slate-900 text-white shrink-0">
+              <h2 className="text-lg font-bold">Actualizar Estado CVLAC</h2>
               <button
                 onClick={() => setShowEditModal(false)}
                 aria-label="Cerrar formulario"
-                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                className="p-1.5 hover:bg-white/10 text-slate-300 hover:text-white rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
-                <X size={18} className="text-slate-500" />
+                <X size={18} />
               </button>
             </div>
-            <div className="px-6 py-5 space-y-4">
+            <div className="px-6 py-5 space-y-4 flex-1 overflow-y-auto custom-scrollbar">
               <div>
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Investigador</p>
                 <p className="font-semibold text-slate-900">{selectedUser.nombre}</p>
@@ -349,7 +349,7 @@ const CVLACAdminModule = ({ currentUser, onNotify }) => {
                 />
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex justify-end gap-3 shrink-0">
               <Button variant="secondary" onClick={() => setShowEditModal(false)}>Cancelar</Button>
               <Button
                 variant="sena"

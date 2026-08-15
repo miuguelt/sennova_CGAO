@@ -3,9 +3,10 @@ import {
   BarChart3, Users, FolderOpen, Layers, GraduationCap,
   Calendar, Award, FileText, Settings, Menu, Bell,
   User, LogOut, Lightbulb, Search, Command, X,
-  Home, Briefcase, MoreHorizontal, Book, Shield
+  Home, Briefcase, MoreHorizontal, Book, Shield, MessageSquare
 } from 'lucide-react';
 import { NotificacionesAPI } from '@/api/notificaciones';
+import { MensajesAPI } from '@/api/mensajes';
 import Badge from '../ui/Badge';
 
 const PRIORIDAD_CLASS = {
@@ -16,6 +17,7 @@ const PRIORIDAD_CLASS = {
 const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch }) => {
   const [menuOpen, setMenuOpen]                           = useState(false);
   const [notificacionesPendientes, setNotificacionesPendientes] = useState(0);
+  const [mensajesPendientes, setMensajesPendientes]       = useState(0);
   const [showNotificaciones, setShowNotificaciones]       = useState(false);
   const [notificaciones, setNotificaciones]               = useState([]);
   const [activeDropdown, setActiveDropdown]               = useState(null);
@@ -27,7 +29,11 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
   useEffect(() => {
     if (!currentUser) return;
     checkNotificaciones();
-    const id = setInterval(checkNotificaciones, 60_000);
+    checkMensajes();
+    const id = setInterval(() => {
+      checkNotificaciones();
+      checkMensajes();
+    }, 30_000);
     return () => clearInterval(id);
   }, [currentUser]);
 
@@ -68,6 +74,13 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
     } catch {}
   };
 
+  const checkMensajes = async () => {
+    try {
+      const result = await MensajesAPI.getUnreadCount();
+      setMensajesPendientes(result.no_leidos || 0);
+    } catch {}
+  };
+
   const loadNotificaciones = async () => {
     try {
       const result = await NotificacionesAPI.listar(true, 10);
@@ -97,6 +110,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
       label: 'Gestión',
       items: [
         { id: 'dashboard', label: 'Dashboard',   icon: BarChart3 },
+        { id: 'mensajes',  label: 'Mensajería',  icon: MessageSquare },
         { id: 'perfil',    label: 'Mi Perfil',   icon: User },
         { id: 'reportes',  label: 'Reportes',    icon: FileText },
       ]
@@ -117,7 +131,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
       items: [
         { id: 'grupos',         label: 'Grupo CGAO',    icon: Layers },
         { id: 'semilleros',     label: 'Semilleros',    icon: GraduationCap },
-        { id: 'investigadores', label: 'Investigadores', icon: Users },
+        { id: 'investigadores', label: 'Investigadores / Instructores', icon: Users },
         { id: 'aprendices',     label: 'Aprendices',    icon: GraduationCap },
       ]
     },
@@ -135,54 +149,75 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
       label: 'Mi Espacio',
       items: [
         { id: 'dashboard', label: 'Mi Tablero', icon: BarChart3 },
+        { id: 'mensajes',  label: 'Mensajería', icon: MessageSquare },
         { id: 'perfil',    label: 'Mi Perfil',  icon: User },
       ]
     },
     {
-      label: 'Investigación',
+      label: 'Investigación Formativa',
       items: [
-        { id: 'bitacora',      label: 'Mis Bitácoras', icon: Book },
-        { id: 'cronograma',    label: 'Mis Tareas',    icon: Calendar },
+        { id: 'bitacora',      label: 'Mis Bitácoras',  icon: Book },
+        { id: 'cronograma',    label: 'Mis Tareas',     icon: Calendar },
+        { id: 'proyectos',     label: 'Mis Proyectos',  icon: FolderOpen },
         { id: 'retos',         label: 'Explorar Retos', icon: Lightbulb },
       ]
     },
     {
       label: 'Formación',
       items: [
-        { id: 'semilleros',  label: 'Semilleros',   icon: GraduationCap },
-        { id: 'repositorio', label: 'Repositorio',  icon: Book },
+        { id: 'semilleros',  label: 'Mi Semillero',      icon: GraduationCap },
+        { id: 'repositorio', label: 'Formatos & Guías',  icon: Book },
       ]
     }
   ] : [
+    // Rol Investigador / Instructor SENNOVA
     {
       label: 'Principal',
       items: [
         { id: 'dashboard', label: 'Mi Dashboard', icon: BarChart3 },
+        { id: 'mensajes',  label: 'Mensajería',   icon: MessageSquare },
         { id: 'perfil',    label: 'Mi Perfil',    icon: User },
       ]
     },
     {
-      label: 'Investigación',
+      label: 'I+D+i',
       items: [
-        { id: 'proyectos',     label: 'Proyectos',     icon: FolderOpen },
-        { id: 'productos',     label: 'Productos',     icon: Award },
-        { id: 'bitacora',      label: 'Bitácora',      icon: Book },
-        { id: 'retos',         label: 'Banco de Retos', icon: Lightbulb },
+        { id: 'proyectos',     label: 'Proyectos I+D+i',       icon: FolderOpen },
+        { id: 'productos',     label: 'Productos Minciencias', icon: Award },
+        { id: 'bitacora',      label: 'Bitácora & Tutoría',    icon: Book },
+        { id: 'cronograma',    label: 'Cronograma Entregables',icon: Calendar },
+        { id: 'retos',         label: 'Banco de Retos',        icon: Lightbulb },
+        { id: 'convocatorias', label: 'Convocatorias',         icon: Calendar },
       ]
     },
     {
-      label: 'Red',
+      label: 'Red Científica',
       items: [
-        { id: 'investigadores', label: 'Colegas',      icon: Users },
-        { id: 'aprendices',     label: 'Mis Aprendices', icon: GraduationCap },
+        { id: 'grupos',         label: 'Grupo CGAO',         icon: Layers },
+        { id: 'semilleros',     label: 'Semilleros',         icon: GraduationCap },
+        { id: 'investigadores', label: 'Red Investigadores', icon: Users },
+        { id: 'aprendices',     label: 'Mis Aprendices',     icon: Users },
+      ]
+    },
+    {
+      label: 'Recursos',
+      items: [
+        { id: 'repositorio',   label: 'Repositorio & Formatos', icon: Book },
+        { id: 'reportes',      label: 'Reportes y GTH-F-074',   icon: FileText },
       ]
     }
   ];
 
-  const bottomNavItems = [
+  const bottomNavItems = currentUser?.rol === 'aprendiz' ? [
+    { id: 'dashboard', label: 'Inicio', icon: Home },
+    { id: 'bitacora', label: 'Bitácoras', icon: Book },
+    { id: 'mensajes', label: 'Mensajes', icon: MessageSquare, badge: mensajesPendientes },
+    { id: 'notificaciones', label: 'Notif.', icon: Bell, badge: notificacionesPendientes },
+    { id: 'menu', label: 'Más', icon: Menu, isToggle: true },
+  ] : [
     { id: 'dashboard', label: 'Inicio', icon: Home },
     { id: 'proyectos', label: 'Proyectos', icon: Briefcase },
-    { id: 'productos', label: 'Productos', icon: Award },
+    { id: 'mensajes', label: 'Mensajes', icon: MessageSquare, badge: mensajesPendientes },
     { id: 'notificaciones', label: 'Notif.', icon: Bell, badge: notificacionesPendientes },
     { id: 'menu', label: 'Más', icon: Menu, isToggle: true },
   ];
@@ -192,7 +227,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
 
   return (
     <>
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+      <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div className="px-4 sm:px-8 py-2.5">
           <div className="flex items-center justify-between gap-8">
             <div className="flex items-center gap-8">
@@ -242,6 +277,25 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
 
               <div className="flex items-center gap-1 sm:gap-2">
                 <button onClick={onOpenSearch} className="xl:hidden p-2.5 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"><Search size={20} /></button>
+                
+                {/* Botón de Mensajes con Badge */}
+                <button
+                  onClick={() => onNavigate('mensajes')}
+                  className={`relative p-2.5 rounded-xl transition-all ${
+                    currentModule === 'mensajes'
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-700'
+                  }`}
+                  title="Mensajería"
+                >
+                  <MessageSquare size={20} />
+                  {mensajesPendientes > 0 && (
+                    <span className="absolute top-2 right-2 w-4 h-4 bg-emerald-600 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                      {mensajesPendientes > 9 ? '+' : mensajesPendientes}
+                    </span>
+                  )}
+                </button>
+
                 <div className="relative" ref={notifRef}>
                   <button onClick={handleToggleNotificaciones} className="relative p-2.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-all">
                     <Bell size={20} />
@@ -274,7 +328,12 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
                 </div>
                 <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block" />
                 <button type="button" onClick={() => onNavigate('perfil')} className="hidden sm:flex items-center gap-3 pl-2 pr-1 py-1 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
-                  <div className="text-right leading-none"><p className="text-xs font-black text-slate-900">{(currentUser?.nombre || '').split(' ')[0]}</p><p className="text-[10px] text-slate-500 font-bold uppercase">{currentUser?.rol}</p></div>
+                  <div className="text-right leading-none">
+                    <p className="text-xs font-black text-slate-900">{(currentUser?.nombre || '').split(' ')[0]}</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase">
+                      {currentUser?.rol === 'admin' ? 'Líder SENNOVA' : currentUser?.rol === 'instructor' ? 'Instructor' : currentUser?.rol === 'aprendiz' ? 'Aprendiz' : 'Investigador'}
+                    </p>
+                  </div>
                   <div className="w-9 h-9 bg-gradient-to-tr from-emerald-600 to-emerald-400 rounded-xl flex items-center justify-center text-xs font-black text-white shadow-inner">{(currentUser?.nombre || '?').charAt(0)}</div>
                 </button>
                 <button onClick={onLogout} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Cerrar sesión"><LogOut size={20} /></button>
@@ -293,7 +352,9 @@ const Navbar = ({ currentUser, onLogout, onNavigate, currentModule, onOpenSearch
             <div className="relative z-10">
               <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-xl font-bold text-emerald-700 shadow-xl mb-4">{(currentUser?.nombre || '?').charAt(0)}</div>
               <h2 className="font-bold text-lg leading-tight">{currentUser?.nombre}</h2>
-              <p className="text-emerald-400 text-xs font-bold uppercase tracking-wider mt-1">{currentUser?.rol}</p>
+              <p className="text-emerald-400 text-xs font-bold uppercase tracking-wider mt-1">
+                {currentUser?.rol === 'admin' ? 'Líder SENNOVA' : currentUser?.rol === 'instructor' ? 'Instructor Investigador' : currentUser?.rol === 'aprendiz' ? 'Aprendiz Semillerista' : 'Investigador SENNOVA'}
+              </p>
             </div>
           </div>
           <div className="flex-grow overflow-y-auto scrollbar-thin p-4 space-y-6">

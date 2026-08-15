@@ -1,7 +1,12 @@
-﻿node_modules/
+node_modules/
 dist/
 .git/
 .env
 .env.*
 logs/
 .DS_Store
+
+# --- DevBrain repo hygiene (managed block) ---
+__pycache__/
+.venv/
+# --- end DevBrain repo hygiene ---

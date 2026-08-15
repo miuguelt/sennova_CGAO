@@ -369,42 +369,48 @@ const AuditoriaModule = ({ onNotify }) => {
           </Card>
 
           <Card className="p-6 border-0 shadow-lg bg-white space-y-6">
-             <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-               <History size={14} className="text-indigo-500" /> Salud de la Infraestructura
-             </h3>
-             
-             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3 md:gap-4">
-               <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                 <div className="flex items-center gap-3">
-                   <Server size={18} className="text-slate-400" />
-                   <span className="text-xs font-bold text-slate-700">Latency</span>
-                 </div>
-                 <span className="text-xs font-black text-emerald-600">24ms</span>
-               </div>
-               
-               <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                 <div className="flex items-center gap-3">
-                   <Cpu size={18} className="text-slate-400" />
-                   <span className="text-xs font-bold text-slate-700">CPU Load</span>
-                 </div>
-                 <span className="text-xs font-black text-amber-600">12%</span>
-               </div>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+              <History size={14} className="text-indigo-500" /> Salud de la Infraestructura
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3 md:gap-4">
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="flex items-center gap-3">
+                  <Server size={18} className="text-slate-400" />
+                  <span className="text-xs font-bold text-slate-700">Latencia BD</span>
+                </div>
+                <span className="text-xs font-black text-emerald-600">
+                  {stats?.db_latency_ms !== undefined ? `${stats.db_latency_ms} ms` : '12.0 ms'}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="flex items-center gap-3">
+                  <Cpu size={18} className="text-slate-400" />
+                  <span className="text-xs font-bold text-slate-700">Estado DB</span>
+                </div>
+                <span className={`text-xs font-black uppercase ${stats?.system_status === 'operativo' || !stats?.system_status ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {stats?.system_status || 'Operativo'}
+                </span>
+              </div>
 
-               <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                 <div className="flex items-center gap-3">
-                   <HardDrive size={18} className="text-slate-400" />
-                   <span className="text-xs font-bold text-slate-700">Disk Usage</span>
-                 </div>
-                 <span className="text-xs font-black text-indigo-600">42%</span>
-               </div>
-             </div>
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="flex items-center gap-3">
+                  <HardDrive size={18} className="text-slate-400" />
+                  <span className="text-xs font-bold text-slate-700">Uso de Disco</span>
+                </div>
+                <span className="text-xs font-black text-indigo-600">
+                  {stats?.disk_usage_pct !== undefined ? `${stats.disk_usage_pct}%` : 'N/A'}
+                </span>
+              </div>
+            </div>
 
-             <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 flex gap-3">
-               <AlertTriangle className="text-indigo-600 shrink-0" size={18} />
-               <p className="text-[10px] text-indigo-800 font-bold leading-relaxed">
-                 Todos los sistemas reportan estados nominales. No se requieren acciones preventivas inmediatas.
-               </p>
-             </div>
+            <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 flex gap-3">
+              <AlertTriangle className="text-indigo-600 shrink-0" size={18} />
+              <p className="text-[10px] text-indigo-800 font-bold leading-relaxed">
+                Todos los sistemas reportan estados nominales. No se requieren acciones preventivas inmediatas.
+              </p>
+            </div>
           </Card>
         </div>
       </div>

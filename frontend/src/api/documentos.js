@@ -39,4 +39,7 @@ export const DocumentosAPI = {
   getUserCVLac: () => fetchAPI('/documentos/user/cvlac'),
 
   getProyectoDocumentos: (proyectoId) => fetchAPI(`/documentos/proyecto/${proyectoId}/list`),
+
+  getViewUrl: (id) => `${API_URL}/documentos/${id}/view`,
+  getDownloadUrl: (id) => `${API_URL}/documentos/${id}/download`,
 };

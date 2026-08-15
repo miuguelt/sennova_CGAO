@@ -47,6 +47,9 @@ sennova.db
 *.sqlite3
 *.db-shm
 *.db-wal
+# Las bases de prueba viven en un directorio temporal por corrida (tests/db_support.py).
+# La regla cubre las copias antiguas que quedaron en el arbol de codigo.
+test_*.db
 # Docker Data (Local Only)
 _data/
 postgres_data/
@@ -77,3 +80,8 @@ Thumbs.db
 .gemini/
 _tmp*/
 _archive*/
+
+# --- DevBrain repo hygiene (managed block) ---
+scratch/
+debug_*
+# --- end DevBrain repo hygiene ---

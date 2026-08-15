@@ -19,6 +19,7 @@ from app.database import get_db
 from app.models import Documento, User, Proyecto
 from app.schemas import DocumentoResponse
 from app.utils import log_actividad
+from app.services.proyectos_service import evaluar_y_auto_finalizar_proyecto
 
 router = APIRouter(prefix="/documentos", tags=["Documentos"])
 
@@ -199,11 +200,22 @@ async def upload_documento(
         import logging
         logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
         try:
-            if 'session' in globals() or 'session' in locals(): db.session.rollback()
-            else: db.rollback()
-        except: pass
+            if 'session' in globals() or 'session' in locals():
+                db.session.rollback()
+            else:
+                db.rollback()
+        except Exception:
+            pass
     db.refresh(documento)
     
+    # Si se subió un informe final de proyecto, evaluar auto-finalización
+    if entidad_tipo == "proyecto" and tipo == "informe_final":
+        try:
+            evaluar_y_auto_finalizar_proyecto(entidad_id, db)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Error al evaluar auto-finalización tras subir informe_final: %s", e)
+
     return documento
 
 
@@ -276,9 +288,12 @@ def delete_documento(
         import logging
         logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
         try:
-            if 'session' in globals() or 'session' in locals(): db.session.rollback()
-            else: db.rollback()
-        except: pass
+            if 'session' in globals() or 'session' in locals():
+                db.session.rollback()
+            else:
+                db.rollback()
+        except Exception:
+            pass
     
     return {"message": "Documento eliminado"}
 

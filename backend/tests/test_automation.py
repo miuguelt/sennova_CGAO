@@ -4,11 +4,16 @@
 ====================================
 Valida el flujo de SENNOVA (Auth, Proyectos, Cronograma, Productos, Presupuesto, Bitácora y Aprendices).
 """
+import os
 import uuid
 import pytest
 import requests
 
-BASE_URL = "http://127.0.0.1:8080"
+# 8000 es el puerto canónico de sennova en _core/config.yml. Estaba fijo en 8080,
+# donde nunca hay servidor, así que el test se saltaba siempre aunque el backend
+# estuviera arriba.
+BACKEND_PORT = os.getenv("BACKEND_PORT", "8000")
+BASE_URL = f"http://127.0.0.1:{BACKEND_PORT}"
 ADMIN_EMAIL = "admin@sena.edu.co"
 ADMIN_PASS = "123456"
 
@@ -85,8 +90,21 @@ def test_sennova_automation_flow():
     res_users = requests.get(f"{BASE_URL}/usuarios", headers=headers, timeout=5)
     assert res_users.status_code == 200, f"Error al listar usuarios: {res_users.text}"
     users = res_users.json()
-    if users:
-        user_id = users[0]["id"]
+    aprendiz_user = next((u for u in users if u.get("rol") == "aprendiz"), None)
+    if not aprendiz_user:
+        apr_user_data = {
+            "nombre": "Aprendiz Test Auto",
+            "email": f"aprendiz_{uuid.uuid4().hex[:6]}@soy.sena.edu.co",
+            "password": "Password123!",
+            "rol": "aprendiz",
+            "documento": f"1098{uuid.uuid4().hex[:4]}"
+        }
+        res_create_apr = requests.post(f"{BASE_URL}/auth/register", json=apr_user_data, timeout=5)
+        if res_create_apr.status_code == 201:
+            aprendiz_user = res_create_apr.json().get("user")
+
+    if aprendiz_user:
+        user_id = aprendiz_user["id"]
         
         # Crear Semillero
         res_groups = requests.get(f"{BASE_URL}/grupos", headers=headers, timeout=5)
@@ -110,3 +128,4 @@ def test_sennova_automation_flow():
             res_apr = requests.post(f"{BASE_URL}/semilleros/{sem_id}/aprendices", json=apr_data, headers=headers, timeout=5)
             assert res_apr.status_code in (200, 201), f"Error vinculando aprendiz: {res_apr.text}"
             assert "nombre" in res_apr.json(), "El nombre del aprendiz no se auto-pobló"
+

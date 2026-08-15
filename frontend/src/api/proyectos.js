@@ -33,4 +33,10 @@ export const ProyectosAPI = {
   }),
 
   checkLiquidacion: (id) => fetchAPI(`/proyectos/${id}/liquidar/check`),
+
+  getElaboracionStatus: (id) => fetchAPI(`/proyectos/${id}/elaboracion-status`),
+
+  generarPresupuesto: (id) => fetchAPI(`/proyectos/${id}/generate-budget-template`, {
+    method: 'POST',
+  }),
 };

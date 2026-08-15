@@ -294,10 +294,11 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
 
       {/* ── Item Form Modal ── */}
       {showItemForm && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
-          <Card className="w-full max-w-lg shadow-2xl animate-scaleIn overflow-hidden border-0">
-            <div className="bg-emerald-600 px-6 py-6 text-white relative">
-              <button onClick={() => setShowItemForm(false)} className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"><X size={20} /></button>
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowItemForm(false)} aria-hidden="true" />
+          <Card className="w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn overflow-hidden border-0 bg-white relative z-10 rounded-3xl">
+            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-6 text-white relative shrink-0">
+              <button onClick={() => setShowItemForm(false)} className="absolute top-4 right-4 p-2 hover:bg-white/20 text-slate-200 hover:text-white rounded-full transition-colors"><X size={20} /></button>
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><DollarSign size={24} /></div>
                 <div>
@@ -307,7 +308,7 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
               </div>
             </div>
             
-            <div className="p-8 bg-white space-y-5">
+            <div className="p-6 sm:p-8 bg-white space-y-5 flex-1 overflow-y-auto custom-scrollbar">
               <Select 
                 label="Categoría de Gasto" 
                 options={CATEGORIAS.map(c => ({ value: c.value, label: c.value }))}
@@ -338,7 +339,7 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
               />
             </div>
 
-            <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <div className="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
               <Button variant="outline" onClick={() => setShowItemForm(false)}>Cancelar</Button>
               <Button variant="sena" onClick={editingItemIdx !== null ? handleEditItem : handleAddItem} disabled={isSaving}>
                 {isSaving ? <Loader2 className="animate-spin mr-2" size={18} /> : <Save className="mr-2" size={18} />}

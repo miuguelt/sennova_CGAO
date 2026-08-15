@@ -23,8 +23,8 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-min-32-chars-replace-now
 # Iniciar servicios Docker (ya configurado)
 docker-compose up -d db pgadmin
 
-# Cambiar en .env:
-DATABASE_URL=postgresql://sennova:sennova123@localhost:5432/sennova
+# Configurar en backend/.env la cadena de conexión a PostgreSQL:
+DATABASE_URL=postgresql://localhost:5434/sennova
 
 # Reiniciar backend
 ```

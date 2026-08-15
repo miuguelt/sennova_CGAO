@@ -70,8 +70,16 @@ def get_dashboard_stats(
                 (Proyecto.owner_id == str(current_user.id)) | 
                 (Proyecto.equipo.any(User.id == current_user.id))
             )
-            query_productos = query_productos.filter(Producto.owner_id == str(current_user.id))
-            query_entregables = query_entregables.filter(Entregable.responsable_id == str(current_user.id))
+            query_productos = query_productos.filter(
+                (Producto.owner_id == str(current_user.id)) |
+                (Producto.proyecto.has(Proyecto.owner_id == str(current_user.id))) |
+                (Producto.proyecto.has(Proyecto.equipo.any(User.id == current_user.id)))
+            )
+            query_entregables = query_entregables.filter(
+                (Entregable.responsable_id == str(current_user.id)) |
+                (Entregable.proyecto.has(Proyecto.owner_id == str(current_user.id))) |
+                (Entregable.proyecto.has(Proyecto.equipo.any(User.id == current_user.id)))
+            )
 
         proyectos_mes_actual = query_proyectos.filter(Proyecto.created_at >= inicio_mes_actual_q).count()
         proyectos_mes_anterior = query_proyectos.filter(
@@ -91,6 +99,41 @@ def get_dashboard_stats(
             diff = actual - anterior
             return f"{'+' if diff >= 0 else ''}{diff}"
 
+        # Aprendices conteo contextual
+        if is_admin:
+            aprendices_total = db.query(Aprendiz).count()
+            aprendices_activos = db.query(Aprendiz).filter(Aprendiz.estado == "activo").count()
+        elif current_user.rol in ["investigador", "instructor"]:
+            # Aprendices en semilleros del investigador
+            mis_semilleros_ids = [str(s.id) for s in db.query(Semillero).filter(
+                (Semillero.owner_id == str(current_user.id)) |
+                (Semillero.investigadores.any(User.id == current_user.id))
+            ).all()]
+            aprendices_total = db.query(Aprendiz).filter(Aprendiz.semillero_id.in_(mis_semilleros_ids)).count() if mis_semilleros_ids else 0
+            aprendices_activos = db.query(Aprendiz).filter(Aprendiz.semillero_id.in_(mis_semilleros_ids), Aprendiz.estado == "activo").count() if mis_semilleros_ids else 0
+        else:
+            # Aprendiz: cuenta su semillero
+            mi_vinculacion = db.query(Aprendiz).filter(Aprendiz.user_id == str(current_user.id)).first()
+            if mi_vinculacion:
+                aprendices_total = db.query(Aprendiz).filter(Aprendiz.semillero_id == mi_vinculacion.semillero_id).count()
+                aprendices_activos = db.query(Aprendiz).filter(Aprendiz.semillero_id == mi_vinculacion.semillero_id, Aprendiz.estado == "activo").count()
+            else:
+                aprendices_total = 0
+                aprendices_activos = 0
+
+        # Bitacoras contextual
+        query_bitacoras = db.query(from_models_bitacora := app.models.BitacoraEntry if 'app' in globals() else BitacoraEntry)
+        if not is_admin:
+            query_bitacoras = query_bitacoras.filter(
+                (BitacoraEntry.user_id == str(current_user.id)) |
+                (BitacoraEntry.proyecto.has(Proyecto.owner_id == str(current_user.id))) |
+                (BitacoraEntry.proyecto.has(Proyecto.equipo.any(User.id == current_user.id)))
+            )
+
+        total_bitacoras = query_bitacoras.count()
+        firmadas_tutor = query_bitacoras.filter(BitacoraEntry.is_firmado_investigador == True).count()
+        firmadas_aprendiz = query_bitacoras.filter(BitacoraEntry.is_firmado_aprendiz == True).count()
+
         stats = {
             "proyectos": {
                 "total": query_proyectos.count(),
@@ -102,10 +145,17 @@ def get_dashboard_stats(
                 "verificados": query_productos.filter(Producto.is_verificado == True).count(),
                 "trend": calc_trend(productos_mes_actual, productos_mes_anterior)
             },
-            "investigadores": db.query(User).filter(User.rol == "investigador", User.is_active == True).count() if is_admin else 0,
+            "investigadores": db.query(User).filter(User.rol.in_(["investigador", "instructor"]), User.is_active == True).count() if is_admin else 0,
+            "instructores": db.query(User).filter(User.rol == "instructor", User.is_active == True).count() if is_admin else 0,
             "aprendices": {
-                "total": db.query(Aprendiz).count() if is_admin else 0,
-                "activos": db.query(Aprendiz).filter(Aprendiz.estado == "activo").count() if is_admin else 0
+                "total": aprendices_total,
+                "activos": aprendices_activos
+            },
+            "bitacoras": {
+                "total": total_bitacoras,
+                "firmadas_tutor": firmadas_tutor,
+                "firmadas_aprendiz": firmadas_aprendiz,
+                "pendientes": total_bitacoras - min(firmadas_tutor, firmadas_aprendiz) if total_bitacoras > 0 else 0
             }
         }
         
@@ -297,8 +347,6 @@ def get_analytics_evolucion(
 ):
     """Retorna datos de evolución temporal para gráficos analytics."""
     try:
-        if current_user.rol == "aprendiz":
-            raise HTTPException(status_code=403, detail="Acceso no autorizado")
         # Detectar motor de base de datos de forma robusta
         is_sqlite = db.bind.dialect.name == "sqlite"
         
@@ -413,78 +461,118 @@ def get_user_impact(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Calcula el impacto 360 de un investigador basado en datos reales."""
+    """Calcula el impacto 360 de un usuario (aprendiz o investigador) basado en datos reales de la BD."""
     try:
         # Aprendices solo pueden ver su propio impacto
         if current_user.rol == "aprendiz" and str(current_user.id) != str(user_id):
             raise HTTPException(status_code=403, detail="No tienes permiso para ver este perfil")
-        uid = user_id
+        uid = str(user_id)
         user_db = db.query(User).filter(User.id == uid).first()
         if not user_db:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-        # 1. Proyectos (Liderados + Equipo)
+        # 1. Semilleros vinculados (Líder/Owner + Coinvestigador + Aprendiz)
+        from app.models import semillero_investigadores, proyecto_equipo, Aprendiz
+        semilleros_owner = db.query(Semillero).filter(Semillero.owner_id == uid).all()
+        semilleros_inv = db.query(Semillero).join(semillero_investigadores, semillero_investigadores.c.semillero_id == Semillero.id).filter(semillero_investigadores.c.user_id == uid).all()
+        semilleros_apr = db.query(Semillero).join(Aprendiz, Aprendiz.semillero_id == Semillero.id).filter(Aprendiz.user_id == uid).all()
+
+        semilleros_map = {}
+        for s in (semilleros_owner + semilleros_inv + semilleros_apr):
+            semilleros_map[str(s.id)] = s
+        todos_los_semilleros = list(semilleros_map.values())
+        user_semillero_ids = [str(s.id) for s in todos_los_semilleros]
+
+        # 2. Proyectos (Liderados + Equipo + Heredados de semillero si aplica)
         proyectos_liderados = db.query(Proyecto).filter(Proyecto.owner_id == uid).all()
-        # Para proyectos donde es miembro, consultamos la tabla intermedia
-        from app.models import proyecto_equipo
-        proyectos_miembro = db.query(Proyecto).join(proyecto_equipo).filter(proyecto_equipo.c.user_id == uid).all()
-        
-        todos_los_proyectos = list(set(proyectos_liderados + proyectos_miembro))
-        
-        # 2. Productos
-        productos = db.query(Producto).filter(Producto.owner_id == uid).all()
-        
-        # 3. Semilleros
-        semilleros = db.query(Semillero).filter(Semillero.owner_id == uid).all()
+        proyectos_miembro = db.query(Proyecto).join(proyecto_equipo, proyecto_equipo.c.proyecto_id == Proyecto.id).filter(proyecto_equipo.c.user_id == uid).all()
+        proyectos_semillero = []
+        if user_semillero_ids:
+            proyectos_semillero = db.query(Proyecto).filter(Proyecto.semillero_id.in_(user_semillero_ids)).all()
+
+        proyectos_map = {}
+        for p in (proyectos_liderados + proyectos_miembro + proyectos_semillero):
+            proyectos_map[str(p.id)] = p
+        todos_los_proyectos = list(proyectos_map.values())
+        user_proyectos_ids = [str(p.id) for p in todos_los_proyectos]
+
+        # 3. Productos (Propios + De Proyectos en los que participa)
+        productos_propios = db.query(Producto).filter(Producto.owner_id == uid).all()
+        productos_proyectos = []
+        if user_proyectos_ids:
+            productos_proyectos = db.query(Producto).filter(Producto.proyecto_id.in_(user_proyectos_ids)).all()
+        productos_map = {}
+        for pr in (productos_propios + productos_proyectos):
+            productos_map[str(pr.id)] = pr
+        todos_los_productos = list(productos_map.values())
 
         # 4. Cálculo de Cumplimiento y Progreso Real
-        entregables = db.query(Entregable).filter(Entregable.responsable_id == uid).all()
-        total_e = len(entregables)
-        aprobados = len([e for e in entregables if e.estado == 'aprobado'])
-        cumplimiento = int((aprobados / total_e * 100)) if total_e > 0 else 0
+        entregables_asignados = db.query(Entregable).filter(Entregable.responsable_id == uid).all()
+        if not entregables_asignados and user_proyectos_ids:
+            entregables_asignados = db.query(Entregable).filter(Entregable.proyecto_id.in_(user_proyectos_ids)).all()
+        
+        total_e = len(entregables_asignados)
+        aprobados = len([e for e in entregables_asignados if e.estado == 'aprobado'])
+        cumplimiento = int((aprobados / total_e * 100)) if total_e > 0 else (100 if len(todos_los_proyectos) > 0 and all(p.estado == 'Finalizado' for p in todos_los_proyectos) else 0)
 
         # 5. Finanzas Reales
-        # Sumamos el total del presupuesto de los proyectos donde es dueño
-        presupuesto_total = sum(p.presupuesto_total or 0 for p in proyectos_liderados)
-        
-        # Calculamos la distribución real del perfil basada en la cantidad de items
-        total_items = len(todos_los_proyectos) + len(productos) + len(semilleros)
-        def pct(val): return int((val / total_items * 100)) if total_items > 0 else 0
+        presupuesto_total = sum(p.presupuesto_total or 0 for p in todos_los_proyectos)
+        presupuesto_ejecutado = sum(
+            (p.presupuesto_total or 0) * (calcular_progreso_entregables(p.entregables) / 100.0)
+            for p in todos_los_proyectos
+        )
+        porcentaje_ejecucion = round((presupuesto_ejecutado / presupuesto_total * 100), 1) if presupuesto_total > 0 else 0.0
+
+        # Distribución real del perfil basada en la cantidad de items
+        distribucion_perfil = [
+            {"name": "Investigación", "value": len(todos_los_proyectos)},
+            {"name": "Producción", "value": len(todos_los_productos)},
+            {"name": "Mentoría / Semilleros", "value": len(todos_los_semilleros)}
+        ]
+
+        tipo_rol_str = "Aprendiz Investigador" if user_db.rol == 'aprendiz' else ("Instructor Investigador" if user_db.rol == 'instructor' else "Investigador SENNOVA")
+        lineas_str = ', '.join(user_db.lineas_investigacion or ['Investigación y Desarrollo'])
+        resumen_perfil = f"{tipo_rol_str} adscrito al {user_db.regional or 'CGAO'}. " + \
+            (f"Participa en {len(todos_los_semilleros)} semillero(s) y {len(todos_los_proyectos)} proyecto(s) de I+D+i." if todos_los_semilleros or todos_los_proyectos else "Cuenta con perfil activo en el ecosistema SENNOVA.")
 
         return {
-            "resumen_perfil": f"Investigador con enfoque en {', '.join(user_db.lineas_investigacion or ['Investigación General'])}. " + 
-                              f"Lidera {len(proyectos_liderados)} iniciativas y apoya {len(proyectos_miembro)} procesos de coinvestigación.",
+            "resumen_perfil": resumen_perfil,
             "proyectos_count": len(todos_los_proyectos),
-            "productos_count": len(productos),
-            "semilleros_count": len(semilleros),
+            "productos_count": len(todos_los_productos),
+            "semilleros_count": len(todos_los_semilleros),
             "cumplimiento": cumplimiento,
-            "presupuesto_total": presupuesto_total,
-            "distribucion_perfil": [
-                {"name": "Investigación", "value": len(todos_los_proyectos)},
-                {"name": "Producción", "value": len(productos)},
-                {"name": "Mentoría", "value": len(semilleros)}
-            ],
+            "presupuesto_total": round(presupuesto_total, 2),
+            "presupuesto_ejecutado": round(presupuesto_ejecutado, 2),
+            "porcentaje_ejecucion": porcentaje_ejecucion,
+            "distribucion_perfil": distribucion_perfil,
             "proyectos_lista": [{
                 "id": str(p.id),
                 "nombre": p.nombre_corto or p.nombre,
-                "rol": "Líder" if str(p.owner_id) == uid else "Coinvestigador",
+                "rol": "Líder" if str(p.owner_id) == uid else ("Investigador" if user_db.rol != 'aprendiz' else "Aprendiz Investigador"),
                 "estado": p.estado,
                 "progreso": calcular_progreso_entregables(p.entregables),
                 "presupuesto": p.presupuesto_total or 0,
-                "inicio": p.created_at.date()
+                "ejecutado": round((p.presupuesto_total or 0) * (calcular_progreso_entregables(p.entregables) / 100.0), 2),
+                "equipo": len(p.equipo) if p.equipo else 1,
+                "objetivo": p.objetivo_general or p.descripcion or "Sin objetivo formulado",
+                "inicio": p.created_at.date().isoformat() if p.created_at else None
             } for p in todos_los_proyectos],
             "productos_lista": [{
                 "id": str(pr.id),
                 "nombre": pr.nombre,
                 "tipo": pr.tipo,
-                "fecha": pr.fecha_publicacion,
+                "descripcion": pr.descripcion or "Sin descripción técnica",
+                "autores": pr.owner.nombre if pr.owner else "Investigador SENNOVA",
+                "fecha": pr.fecha_publicacion.isoformat() if pr.fecha_publicacion else (pr.created_at.date().isoformat() if pr.created_at else None),
                 "estado_registro": "Verificado" if pr.is_verificado else "Pendiente"
-            } for pr in productos],
+            } for pr in todos_los_productos],
             "semilleros_lista": [{
                 "id": str(s.id),
                 "nombre": s.nombre,
-                "estudiantes": db.query(func.count(Aprendiz.id)).filter(Aprendiz.semillero_id == s.id).scalar()
-            } for s in semilleros]
+                "sede": user_db.sede or "Centro CGAO",
+                "lineas": [s.linea_investigacion] if s.linea_investigacion else (user_db.lineas_investigacion or []),
+                "estudiantes": db.query(func.count(Aprendiz.id)).filter(Aprendiz.semillero_id == s.id).scalar() or 0
+            } for s in todos_los_semilleros]
         }
     except (OperationalError, SQLAlchemyError) as db_err:
         raise db_err
@@ -569,8 +657,6 @@ def global_search(
 ):
     """Búsqueda global unificada en todo el sistema."""
     try:
-        if current_user.rol == "aprendiz":
-            raise HTTPException(status_code=403, detail="Acceso no autorizado")
         if not q or len(q) < 2:
             return {"results": []}
         

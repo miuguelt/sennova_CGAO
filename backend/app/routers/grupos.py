@@ -344,3 +344,112 @@ def remove_integrante(
         raise HTTPException(status_code=500, detail=f"Error al remover integrante: {str(e)}")
     
     return {"message": "Integrante removido"}
+
+
+@router.get("/{grupo_id}/stats")
+def get_grupo_stats(
+    grupo_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Calcula estadísticas e impacto real de un grupo de investigación desde la BD."""
+    from app.models import Semillero, Proyecto, Producto, Aprendiz, Entregable
+    from collections import Counter
+    
+    grupo = db.query(Grupo).filter(Grupo.id == str(grupo_id)).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    
+    # 1. Semilleros del grupo
+    semilleros = db.query(Semillero).filter(Semillero.grupo_id == str(grupo.id)).all()
+    semillero_ids = [str(s.id) for s in semilleros]
+    
+    # 2. Integrantes del grupo
+    integrantes_ids = [str(u.id) for u in grupo.integrantes] + [str(grupo.owner_id)]
+    
+    # 3. Proyectos vinculados a semilleros del grupo o liderados por integrantes
+    proyectos = db.query(Proyecto).filter(
+        (Proyecto.semillero_id.in_(semillero_ids)) | (Proyecto.owner_id.in_(integrantes_ids))
+    ).all() if (semillero_ids or integrantes_ids) else []
+    
+    proyecto_ids = [str(p.id) for p in proyectos]
+    
+    # 4. Productos vinculados a proyectos o creados por integrantes
+    productos = db.query(Producto).filter(
+        (Producto.proyecto_id.in_(proyecto_ids)) | (Producto.owner_id.in_(integrantes_ids))
+    ).all() if (proyecto_ids or integrantes_ids) else []
+    
+    # Categorización de productos
+    tipo_counts = Counter()
+    for prod in productos:
+        tipo_str = prod.tipo or 'Otros'
+        if any(w in tipo_str.lower() for w in ['artículo', 'articulo', 'paper', 'revista', 'a1', 'a2']):
+            tipo_counts['Artículos'] += 1
+        elif any(w in tipo_str.lower() for w in ['software', 'aplicación', 'app', 'sistema', 'código', 'b1', 'b2']):
+            tipo_counts['Software'] += 1
+        elif any(w in tipo_str.lower() for w in ['prototipo', 'diseño', 'circuito', 'maqueta', 'c1', 'c2']):
+            tipo_counts['Prototipos'] += 1
+        elif any(w in tipo_str.lower() for w in ['libro', 'capítulo', 'manual', 'd1']):
+            tipo_counts['Libros'] += 1
+        elif any(w in tipo_str.lower() for w in ['consultoría', 'servicio', 'informe', 'técnico']):
+            tipo_counts['Consultoría'] += 1
+        else:
+            tipo_counts['Otros'] += 1
+            
+    produccion_data = [
+        {'name': 'Artículos', 'value': tipo_counts['Artículos']},
+        {'name': 'Software', 'value': tipo_counts['Software']},
+        {'name': 'Prototipos', 'value': tipo_counts['Prototipos']},
+        {'name': 'Libros', 'value': tipo_counts['Libros']},
+        {'name': 'Consultoría', 'value': tipo_counts['Consultoría']}
+    ]
+    
+    # 5. Aprendices en semilleros del grupo
+    total_aprendices = db.query(sa.func.count(Aprendiz.id)).filter(
+        Aprendiz.semillero_id.in_(semillero_ids)
+    ).scalar() if semillero_ids else 0
+    
+    # 6. Cumplimiento de entregables
+    entregables = db.query(Entregable).filter(
+        Entregable.proyecto_id.in_(proyecto_ids)
+    ).all() if proyecto_ids else []
+    
+    total_e = len(entregables)
+    aprobados = len([e for e in entregables if e.estado == 'aprobado'])
+    if total_e > 0:
+        cumplimiento = int((aprobados / total_e * 100))
+    elif len(proyectos) > 0:
+        # Calcular según el avance reportado en los proyectos del grupo
+        progresos = [p.progreso for p in proyectos if p.progreso is not None]
+        cumplimiento = int(sum(progresos) / len(progresos)) if progresos else 0
+    else:
+        cumplimiento = 0
+    
+    # 7. Distribución temporal real (últimos meses con actividad)
+    from datetime import datetime, timezone
+    meses_nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    mes_actual = datetime.now(timezone.utc).month
+    
+    impacto_regional = []
+    for i in range(5):
+        m_idx = (mes_actual - 5 + i) % 12
+        m_num = m_idx + 1
+        m_nombre = meses_nombres[m_idx]
+        
+        # Conteo de proyectos y productos creados en ese mes
+        val = sum(1 for p in proyectos if p.created_at and p.created_at.month == m_num) + \
+              sum(1 for pr in productos if pr.created_at and pr.created_at.month == m_num)
+        
+        impacto_regional.append({'month': m_nombre, 'valor': val})
+    
+    return {
+        "produccion": produccion_data,
+        "cumplimiento": cumplimiento,
+        "impacto_regional": impacto_regional,
+        "total_semilleros": len(semilleros),
+        "total_proyectos": len(proyectos),
+        "total_productos": len(productos),
+        "total_aprendices": total_aprendices or 0,
+        "total_integrantes": len(grupo.integrantes)
+    }
+

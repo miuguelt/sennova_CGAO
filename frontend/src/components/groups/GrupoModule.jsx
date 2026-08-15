@@ -38,17 +38,6 @@ const LINEAS_CGAO = [
   'Turismo, Cultura y Gestión Musical',
 ];
 
-const SEMILLEROS_CGAO = [
-  { sigla: 'SEMIPROVEL', nombre: 'Semillero de Investigación de la Provincia de Vélez', lider: 'Fredy Ramírez' },
-  { sigla: 'SIAMB',     nombre: 'Semillero de Investigación del Área Ambiental',           lider: 'Liliana Alza' },
-  { sigla: 'SIACF',     nombre: 'Semillero de Investigación del Área Contable y Financiera', lider: 'Yohana Rivera' },
-  { sigla: 'SENAGRO2',  nombre: 'Semillero de Investigación del Área Agropecuaria y Agroindustria', lider: 'Edwin Rincón' },
-  { sigla: 'SISSTYSIG', nombre: 'Semillero de Seg. y Salud en el Trabajo y Sistemas Integrados de Gestión', lider: 'Deisy Suarez' },
-  { sigla: 'SIDECI',    nombre: 'Semillero de Investigación En Deporte y Ciencia',           lider: 'Alex Barbosa' },
-  { sigla: 'FORMARTE',  nombre: 'Semillero de Investigación del Área de Pedagogía',          lider: 'Mónica Lobo Castillo' },
-  { sigla: 'SITAV',     nombre: 'Semillero de Investigación Tecnoacademia Nodo Vélez',       lider: 'Nilsa Atehortúa' },
-];
-
 // ─── InfoRow ──────────────────────────────────────────────────────────────────
 const InfoRow = ({ label, value, icon: Icon }) => (
   <div className="flex items-start gap-4 py-4 border-b border-slate-50 last:border-0">
@@ -316,53 +305,61 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate }) => {
                 <GraduationCap size={14} className="text-amber-500" /> Semilleros de Investigación CGAO
               </h2>
               <Badge className="text-xs font-black bg-amber-50 text-amber-700 border-amber-200">
-                {semilleros.length || 13} semilleros
+                {semilleros.length} semilleros
               </Badge>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(semilleros.length > 0 ? semilleros : SEMILLEROS_CGAO).map((sem, idx) => (
-                <div
-                  key={sem.id || sem.sigla}
-                  className="group p-5 bg-white border border-slate-100 rounded-2xl hover:border-amber-300 hover:shadow-md transition-all cursor-pointer"
-                  onClick={() => onNavigate?.('semilleros')}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center font-black text-sm shadow-lg shadow-amber-100">
-                      {idx + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg uppercase tracking-wide">
-                          {sem.sigla || sem.nombre?.substring(0, 6)}
-                        </span>
-                        {sem.estado && (
-                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-lg ${
-                            sem.estado === 'activo' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                          }`}>
-                            {sem.estado}
+            {semilleros.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {semilleros.map((sem, idx) => (
+                  <div
+                    key={sem.id || idx}
+                    className="group p-5 bg-white border border-slate-100 rounded-2xl hover:border-amber-300 hover:shadow-md transition-all cursor-pointer"
+                    onClick={() => onNavigate?.('semilleros')}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center font-black text-sm shadow-lg shadow-amber-100">
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg uppercase tracking-wide">
+                            {sem.sigla || sem.nombre?.substring(0, 6)}
                           </span>
-                        )}
-                      </div>
-                      <p className="text-xs font-bold text-slate-900 group-hover:text-amber-700 transition-colors line-clamp-2 leading-relaxed">
-                        {sem.nombre}
-                      </p>
-                      {(sem.lider_nombre || sem.lider) && (
-                        <p className="text-[10px] text-slate-500 mt-1 font-medium">
-                          👤 {sem.lider_nombre || sem.lider}
+                          {sem.estado && (
+                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-lg ${
+                              sem.estado === 'activo' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              {sem.estado}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-bold text-slate-900 group-hover:text-amber-700 transition-colors line-clamp-2 leading-relaxed">
+                          {sem.nombre}
                         </p>
-                      )}
-                      <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-400 font-bold">
-                        <span>{sem.total_aprendices || 0} aprendices</span>
-                        <span>·</span>
-                        <span>{sem.total_investigadores || 0} investigadores</span>
+                        {(sem.lider_nombre || sem.lider) && (
+                          <p className="text-[10px] text-slate-500 mt-1 font-medium">
+                            👤 {sem.lider_nombre || sem.lider}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-400 font-bold">
+                          <span>{sem.total_aprendices || 0} aprendices</span>
+                          <span>·</span>
+                          <span>{sem.total_investigadores || 0} investigadores</span>
+                        </div>
                       </div>
+                      <ChevronRight size={14} className="text-slate-300 group-hover:text-amber-500 flex-shrink-0 mt-1 group-hover:translate-x-1 transition-all" />
                     </div>
-                    <ChevronRight size={14} className="text-slate-300 group-hover:text-amber-500 flex-shrink-0 mt-1 group-hover:translate-x-1 transition-all" />
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <GraduationCap size={32} className="mx-auto text-slate-300 mb-2" />
+                <p className="text-xs font-bold text-slate-600">Sin semilleros vinculados</p>
+                <p className="text-[10px] text-slate-400 mt-1">No hay semilleros registrados en la base de datos para este grupo.</p>
+              </div>
+            )}
 
             <div className="mt-6 flex justify-center">
               <Button onClick={() => onNavigate?.('semilleros')} variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-50">
@@ -565,32 +562,33 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate }) => {
 
       {/* ─── Modal Editar Grupo ───────────────────────────────────────────── */}
       {showEditForm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
-          <Card className="w-full max-w-2xl shadow-2xl border-0 overflow-hidden animate-scaleIn">
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-5 text-white flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-xl"><Edit2 size={20} /></div>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowEditForm(false)} aria-hidden="true" />
+          <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl border-0 overflow-hidden animate-scaleIn relative z-10 rounded-3xl bg-white">
+            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 sm:px-8 py-5 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3.5">
+                <div className="p-2.5 bg-white/20 rounded-2xl backdrop-blur-md"><Edit2 size={20} /></div>
                 <div>
                   <h2 className="text-lg font-black">Editar Perfil del Grupo</h2>
-                  <p className="text-indigo-100 text-xs opacity-80">INVESTIGADORES CGAO</p>
+                  <p className="text-indigo-100 text-xs opacity-90 font-medium">INVESTIGADORES CGAO</p>
                 </div>
               </div>
-              <button onClick={() => setShowEditForm(false)} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
+              <button onClick={() => setShowEditForm(false)} className="p-2 hover:bg-white/20 rounded-full transition-colors text-indigo-100 hover:text-white">
                 <X size={20} />
               </button>
             </div>
 
-            <div className="p-6 max-h-[65vh] overflow-y-auto scrollbar-thin space-y-4 bg-white">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar space-y-4 bg-white flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Nombre del Grupo" value={formData.nombre || ''} onChange={patch('nombre')} />
                 <Input label="Código GrupLAC" value={formData.codigo_gruplac || ''} onChange={patch('codigo_gruplac')} placeholder="COL000XXXX" />
               </div>
               <Input label="Nombre Completo" value={formData.nombre_completo || ''} onChange={patch('nombre_completo')} />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Director(a)" value={formData.director_nombre || ''} onChange={patch('director_nombre')} placeholder="Nombre completo" />
                 <Input label="Email Director(a)" value={formData.director_email || ''} onChange={patch('director_email')} type="email" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Select label="Clasificación Minciencias" options={CLASIFICACIONES} value={formData.clasificacion || ''} onChange={patch('clasificacion')} />
                 <Input label="Convocatoria Activa" value={formData.convocatoria_activa || ''} onChange={patch('convocatoria_activa')} placeholder="Ej: Convocatoria 957-2024" />
               </div>
@@ -607,7 +605,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate }) => {
               />
             </div>
 
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <div className="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
               <Button variant="outline" onClick={() => setShowEditForm(false)}>Cancelar</Button>
               <Button variant="sena" onClick={handleSave} disabled={saving}>
                 {saving ? <><Loader2 size={16} className="mr-2 animate-spin" />Guardando...</> : 'Guardar Cambios'}

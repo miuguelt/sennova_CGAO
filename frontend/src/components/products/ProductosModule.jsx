@@ -402,8 +402,8 @@ const ProductosModule = ({ currentUser, onNotify }) => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Total Productos" value={productos.length} icon={Zap} colorCls="text-indigo-700" bgCls="bg-indigo-100" />
           <StatCard label="Verificados" value={productos.filter(p => p.is_verificado).length} icon={CheckCircle2} colorCls="text-emerald-700" bgCls="bg-emerald-100" />
-          <StatCard label="Softwares/Apps" value={productos.filter(p => p.tipo === 'software').length} icon={Code} colorCls="text-blue-700" bgCls="bg-blue-100" />
-          <StatCard label="Artículos" value={productos.filter(p => p.tipo === 'articulo').length} icon={BookOpen} colorCls="text-rose-700" bgCls="bg-rose-100" />
+          <StatCard label="Softwares / TI" value={productos.filter(p => p.tipo === 'software' || p.tipo === 'B1' || p.tipo?.toLowerCase()?.includes('software') || p.tipo?.toLowerCase()?.includes('app')).length} icon={Code} colorCls="text-blue-700" bgCls="bg-blue-100" />
+          <StatCard label="Artículos / Papers" value={productos.filter(p => p.tipo === 'articulo' || p.tipo === 'A1' || p.tipo?.toLowerCase()?.includes('artículo') || p.tipo?.toLowerCase()?.includes('articulo')).length} icon={BookOpen} colorCls="text-rose-700" bgCls="bg-rose-100" />
         </div>
       )}
 
@@ -556,9 +556,9 @@ const ProductosModule = ({ currentUser, onNotify }) => {
         const { Icon } = tipo;
         return (
           <div className="fixed inset-0 z-[100] overflow-hidden">
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md animate-fadeIn" onClick={() => setIsDetailOpen(false)} />
-            <div className="absolute inset-y-0 right-0 flex max-w-full pl-10">
-              <div className="w-screen max-w-lg bg-white shadow-2xl flex flex-col animate-slideInRight">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-fadeIn" onClick={() => setIsDetailOpen(false)} />
+            <div className="absolute inset-y-0 right-0 flex max-w-full pl-0 sm:pl-10">
+              <div className="w-screen max-w-lg h-full bg-white shadow-2xl flex flex-col animate-slideInRight">
 
                 {/* Header */}
                 <div className={`px-8 py-8 border-b border-slate-100 ${tipo.bg} relative overflow-hidden`}>
@@ -736,13 +736,14 @@ const ProductosModule = ({ currentUser, onNotify }) => {
 
       {/* ── Stepper Form Modal ── */}
       {showForm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
-          <Card className="w-full max-w-xl shadow-2xl animate-scaleIn overflow-hidden border-0">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowForm(false)} aria-hidden="true" />
+          <Card className="w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn overflow-hidden border-0 bg-white relative z-10">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-6 text-white relative">
+            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-6 text-white relative shrink-0">
               <button 
                 onClick={() => setShowForm(false)}
-                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
+                className="absolute top-4 right-4 p-2 hover:bg-white/20 text-slate-200 hover:text-white rounded-full transition-colors"
               >
                 <X size={20} />
               </button>
@@ -760,12 +761,12 @@ const ProductosModule = ({ currentUser, onNotify }) => {
             </div>
 
             {/* Stepper Progress */}
-            <div className="flex h-1 bg-slate-100">
+            <div className="flex h-1 bg-slate-100 shrink-0">
               <div className={`h-full bg-indigo-500 transition-all duration-500 ${formStep === 1 ? 'w-1/2' : 'w-full'}`} />
             </div>
 
             {/* Form Content */}
-            <div className="p-8 bg-white min-h-[360px] max-h-[65vh] overflow-y-auto scrollbar-thin">
+            <div className="p-6 sm:p-8 bg-white flex-1 overflow-y-auto custom-scrollbar">
               {formStep === 1 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
                   <Input label="Nombre del Producto / Innovación" value={formData.nombre} onChange={patch('nombre')} required placeholder="Ej: Prototipo de sensor IoT..." />
@@ -799,39 +800,50 @@ const ProductosModule = ({ currentUser, onNotify }) => {
                             key={t.value}
                             type="button"
                             onClick={() => setFormData(prev => ({ ...prev, tipo: t.value, requisitos_cumplidos: {} }))}
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border text-left transition-all text-xs ${
+                            className={`w-full text-left p-3 rounded-xl border transition-all text-xs flex items-center justify-between ${
                               formData.tipo === t.value
-                                ? `${t.border} ${t.bg} ${t.color} font-black border-2`
-                                : 'border-slate-100 hover:border-slate-200 text-slate-600 font-medium'
+                                ? 'bg-indigo-50 border-indigo-200 text-indigo-900 font-bold'
+                                : 'bg-slate-50/50 border-slate-100 text-slate-600 hover:bg-slate-100/50'
                             }`}
                           >
-                            <t.Icon size={14} className={formData.tipo === t.value ? t.color : 'text-slate-400'} />
-                            {t.label}
+                            <span>{t.label}</span>
+                            <Badge variant="outline" className="text-[9px] uppercase">{t.sub}</Badge>
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <Select
-                      label="Vincular a Proyecto"
-                      options={proyectos.map(p => ({ value: p.id, label: p.nombre_corto || p.nombre }))}
-                      value={formData.proyecto_id}
-                      onChange={patch('proyecto_id')}
-                    />
-                    <Input label="Año de Reporte" type="number" value={formData.año_reporte || new Date().getFullYear()} onChange={patch('año_reporte')} />
-                  </div>
-                  <Input label="Fecha de Publicación / Registro" type="date" value={formData.fecha_publicacion} onChange={patch('fecha_publicacion')} />
+                  <Select
+                    label="Proyecto Vinculado"
+                    value={formData.proyecto_id}
+                    onChange={patch('proyecto_id')}
+                    options={[
+                      { value: '', label: 'Seleccionar proyecto...' },
+                      ...proyectos.map(p => ({ value: p.id, label: `[${p.codigo_sgps || 'SGPS'}] ${p.nombre}` }))
+                    ]}
+                    required
+                  />
+
+                  <Select
+                    label="Estado de Verificación"
+                    value={formData.is_verificado ? 'verificado' : 'pendiente'}
+                    onChange={(val) => setFormData(prev => ({ ...prev, is_verificado: val === 'verificado' }))}
+                    options={[
+                      { value: 'pendiente', label: 'Pendiente de Verificación' },
+                      { value: 'verificado', label: 'Verificado por SENNOVA' }
+                    ]}
+                  />
                 </div>
               )}
 
               {formStep === 2 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
-                  {/* Checklist de requisitos Minciencias */}
+                  {/* Checklist de requisitos de Minciencias */}
                   {(() => {
-                    const tipoInfo = getTipo(formData.tipo);
-                    if (!tipoInfo?.requisitos?.length) return null;
+                    const catObj = CATEGORIAS_MINCIENCIAS.find(c => c.cat === formData.categoria);
+                    const tipoInfo = catObj?.tipos.find(t => t.value === formData.tipo);
+                    if (!tipoInfo?.requisitos) return null;
                     return (
                       <div>
                         <p className="text-xs font-black text-slate-600 uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -886,7 +898,7 @@ const ProductosModule = ({ currentUser, onNotify }) => {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-8 py-6 bg-slate-50/80 border-t border-slate-100 flex justify-between items-center">
+            <div className="px-6 sm:px-8 py-4 bg-slate-50/80 border-t border-slate-100 flex justify-between items-center shrink-0">
               <Button 
                 variant="outline" 
                 onClick={() => formStep === 1 ? setShowForm(false) : setFormStep(s => s - 1)}
@@ -914,9 +926,10 @@ const ProductosModule = ({ currentUser, onNotify }) => {
       )}
       {/* ── CVLAC Import Modal ── */}
       {showImportModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
-          <Card className="w-full max-w-lg shadow-2xl animate-scaleIn border-0 overflow-hidden">
-            <div className="bg-slate-900 px-6 py-6 text-white flex items-center justify-between">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => { setShowImportModal(false); setImportResults(null); }} aria-hidden="true" />
+          <Card className="w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn border-0 overflow-hidden bg-white relative z-10">
+            <div className="bg-slate-900 px-6 py-6 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <Globe size={24} className="text-indigo-400" />
                 <h2 className="text-xl font-bold">Importar desde CVLAC</h2>
@@ -926,7 +939,7 @@ const ProductosModule = ({ currentUser, onNotify }) => {
               </Button>
             </div>
             
-            <div className="p-8 space-y-6">
+            <div className="p-6 sm:p-8 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
               {!importResults ? (
                 <>
                   <p className="text-sm text-slate-500 font-medium">
@@ -956,11 +969,11 @@ const ProductosModule = ({ currentUser, onNotify }) => {
                   </div>
                   <div className="grid grid-cols-2 gap-4 mt-6">
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      <p className="text-2xl font-black text-indigo-600">{importResults.importados}</p>
+                      <p className="text-2xl font-black text-indigo-600">{importResults.importados || importResults.count || 0}</p>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Productos Nuevos</p>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      <p className="text-2xl font-black text-slate-400">{importResults.errores}</p>
+                      <p className="text-2xl font-black text-slate-400">{importResults.errores || 0}</p>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Duplicados/Error</p>
                     </div>
                   </div>

@@ -11,6 +11,7 @@ El script transforma los IDs y migra todos los datos manteniendo relaciones.
 """
 
 import json
+import os
 import sys
 import uuid
 from datetime import datetime
@@ -23,7 +24,9 @@ from passlib.context import CryptContext
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Configurar conexión PostgreSQL
-DATABASE_URL = "postgresql://sennova:sennova123@localhost:5432/sennova"
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    sys.exit("Falta DATABASE_URL. Definela en el .env del proyecto antes de migrar.")
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 

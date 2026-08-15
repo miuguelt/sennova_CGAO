@@ -258,24 +258,22 @@ const GruposModule = ({ currentUser, onNotify }) => {
     (g.nombre_completo || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Simulated Stats Data
-  const getMockStats = (grupo) => ({
-    produccion: [
-      { name: 'Artículos', value: (grupo.total_integrantes || 2) * 3 },
-      { name: 'Software', value: (grupo.total_integrantes || 1) * 2 },
-      { name: 'Libros', value: 1 },
-      { name: 'Prototipos', value: 4 },
-      { name: 'Consultoría', value: 2 }
-    ],
-    cumplimiento: 85,
-    impacto_regional: [
-      { month: 'Ene', valor: 40 },
-      { month: 'Feb', valor: 55 },
-      { month: 'Mar', valor: 70 },
-      { month: 'Abr', valor: 65 },
-      { month: 'May', valor: 85 }
-    ]
-  });
+  // Real Group Stats Data from DB
+  const [grupoStats, setGrupoStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  const loadGrupoStats = async (grupoId) => {
+    if (!grupoId) return;
+    setLoadingStats(true);
+    try {
+      const statsData = await GruposAPI.getStats(grupoId);
+      setGrupoStats(statsData);
+    } catch (err) {
+      console.error('Error loading group stats:', err);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   const loadGrupoSemilleros = async (grupoId) => {
     setLoadingSemilleros(true);
@@ -294,6 +292,7 @@ const GruposModule = ({ currentUser, onNotify }) => {
     setIsDetailOpen(true);
     setActiveTab('overview');
     loadGrupoSemilleros(grupo.id);
+    loadGrupoStats(grupo.id);
   };
 
   const ActionMenu = ({ grupo }) => {
@@ -451,9 +450,9 @@ const GruposModule = ({ currentUser, onNotify }) => {
       {/* ─── Detail Side-Over (with Stats) ────────────────────────────── */}
       {isDetailOpen && selectedGrupo && (
         <div className="fixed inset-0 z-[100] overflow-hidden print:static print:block print:overflow-visible">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md animate-fadeIn print:hidden" onClick={() => setIsDetailOpen(false)} />
-          <div className="absolute inset-y-0 right-0 flex max-w-full pl-10 print:static print:block print:w-full print:pl-0">
-            <div className="w-screen max-w-3xl bg-white shadow-2xl flex flex-col animate-slideInRight print:w-full print:max-w-none print:shadow-none print:static">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-fadeIn print:hidden" onClick={() => setIsDetailOpen(false)} />
+          <div className="absolute inset-y-0 right-0 flex max-w-full pl-0 sm:pl-10 print:static print:block print:w-full print:pl-0">
+            <div className="w-screen max-w-3xl h-full bg-white shadow-2xl flex flex-col animate-slideInRight print:w-full print:max-w-none print:shadow-none print:static">
 
               {/* Header Detail */}
               <div className="px-8 py-8 border-b border-slate-100 bg-gradient-to-br from-indigo-600 to-indigo-800 text-white relative overflow-hidden">
@@ -594,78 +593,106 @@ const GruposModule = ({ currentUser, onNotify }) => {
                   </div>
                 ) : (
                   <div className="space-y-10 animate-fadeIn">
-                    {/* Simulated Stats */}
-                    <div className="grid grid-cols-2 gap-6">
-                      <section>
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                          <PieChart size={14} className="text-indigo-500" /> Mix de Producción
-                        </h3>
-                        <div className="h-64">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <RePie>
-                              <Pie 
-                                data={getMockStats(selectedGrupo).produccion} 
-                                innerRadius={60} 
-                                outerRadius={80} 
-                                paddingAngle={5} 
-                                dataKey="value"
-                              >
-                                {getMockStats(selectedGrupo).produccion.map((entry, index) => (
-                                  <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip />
-                            </RePie>
-                          </ResponsiveContainer>
-                        </div>
-                      </section>
-
-                      <section>
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                          <BarChart3 size={14} className="text-emerald-500" /> Cumplimiento de Metas
-                        </h3>
-                        <div className="h-64 flex flex-col justify-center items-center">
-                           <div className="relative w-40 h-40">
-                              <svg className="w-full h-full" viewBox="0 0 100 100">
-                                <circle className="text-slate-100 stroke-current" strokeWidth="8" cx="50" cy="50" r="40" fill="transparent"></circle>
-                                <circle className="text-emerald-500 stroke-current" strokeWidth="8" strokeLinecap="round" cx="50" cy="50" r="40" fill="transparent" strokeDasharray="251.2" strokeDashoffset={251.2 * (1 - 0.85)}></circle>
-                              </svg>
-                              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-3xl font-black text-slate-900">85%</span>
-                                <span className="text-[10px] font-black text-slate-400 uppercase">OE-2026</span>
-                              </div>
-                           </div>
-                           <p className="mt-4 text-xs font-bold text-slate-500 italic text-center">Basado en el cumplimiento de entregables técnicos del periodo.</p>
-                        </div>
-                      </section>
-                    </div>
-
-                    <section>
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                        <TrendingUp size={14} className="text-indigo-500" /> Evolución de Impacto Regional (Impact Score)
-                      </h3>
-                      <div className="h-56 bg-slate-50 rounded-2xl p-6 border border-slate-100">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={getMockStats(selectedGrupo).impacto_regional}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} />
-                            <YAxis hide />
-                            <Tooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
-                            <Bar dataKey="valor" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={40} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                    {loadingStats ? (
+                      <div className="h-64 flex flex-col items-center justify-center space-y-3">
+                        <Loader2 className="animate-spin text-indigo-600" size={36} />
+                        <p className="text-xs font-bold text-slate-500">Calculando estadísticas reales del grupo...</p>
                       </div>
-                    </section>
-                    
-                    <div className="p-5 bg-indigo-50 rounded-2xl border border-indigo-100">
-                       <div className="flex items-center gap-3 mb-3">
-                          <CheckCircle2 size={18} className="text-indigo-600" />
-                          <h4 className="text-xs font-black text-indigo-900 uppercase">Conclusiones de Rendimiento</h4>
-                       </div>
-                       <p className="text-xs text-indigo-700/80 leading-relaxed">
-                          El grupo presenta una tendencia de crecimiento sólida en la categoría **C**. Se recomienda fortalecer la vinculación de semilleros de investigación para aumentar el capital humano de base y aspirar a la categoría **B** en la próxima medición de MinCiencias.
-                       </p>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-6">
+                          <section>
+                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                              <PieChart size={14} className="text-indigo-500" /> Mix de Producción
+                            </h3>
+                            {grupoStats?.produccion?.some(p => p.value > 0) ? (
+                              <div className="h-64">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <RePie>
+                                    <Pie 
+                                      data={grupoStats.produccion.filter(p => p.value > 0)} 
+                                      innerRadius={55} 
+                                      outerRadius={80} 
+                                      paddingAngle={5} 
+                                      dataKey="value"
+                                    >
+                                      {grupoStats.produccion.filter(p => p.value > 0).map((entry, index) => (
+                                        <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                                      ))}
+                                    </Pie>
+                                    <Tooltip />
+                                  </RePie>
+                                </ResponsiveContainer>
+                              </div>
+                            ) : (
+                              <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                <Package size={32} className="text-slate-300 mb-2" />
+                                <p className="text-xs font-bold text-slate-600">Sin productos registrados</p>
+                                <p className="text-[10px] text-slate-400 mt-1">Los integrantes del grupo aún no tienen productos reportados en la BD.</p>
+                              </div>
+                            )}
+                          </section>
+
+                          <section>
+                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                              <BarChart3 size={14} className="text-emerald-500" /> Cumplimiento de Metas
+                            </h3>
+                            <div className="h-64 flex flex-col justify-center items-center">
+                               <div className="relative w-40 h-40">
+                                  <svg className="w-full h-full" viewBox="0 0 100 100">
+                                    <circle className="text-slate-100 stroke-current" strokeWidth="8" cx="50" cy="50" r="40" fill="transparent"></circle>
+                                    <circle 
+                                      className="text-emerald-500 stroke-current transition-all duration-1000" 
+                                      strokeWidth="8" 
+                                      strokeLinecap="round" 
+                                      cx="50" 
+                                      cy="50" 
+                                      r="40" 
+                                      fill="transparent" 
+                                      strokeDasharray="251.2" 
+                                      strokeDashoffset={251.2 * (1 - ((grupoStats?.cumplimiento ?? 0) / 100))}
+                                    />
+                                  </svg>
+                                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span className="text-3xl font-black text-slate-900">{grupoStats?.cumplimiento ?? 0}%</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase">OE-2026</span>
+                                  </div>
+                               </div>
+                               <p className="mt-4 text-xs font-bold text-slate-500 italic text-center">Basado en el cumplimiento de entregables técnicos aprobados en DB.</p>
+                            </div>
+                          </section>
+                        </div>
+
+                        <section>
+                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                            <TrendingUp size={14} className="text-indigo-500" /> Actividad Reciente (Proyectos y Productos en BD)
+                          </h3>
+                          <div className="h-56 bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={grupoStats?.impacto_regional || []}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} />
+                                <YAxis hide />
+                                <Tooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                                <Bar dataKey="valor" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={40} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </section>
+                        
+                        <div className="p-5 bg-indigo-50 rounded-2xl border border-indigo-100 flex items-start gap-4">
+                           <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl shrink-0 mt-0.5">
+                             <CheckCircle2 size={18} />
+                           </div>
+                           <div>
+                             <h4 className="text-xs font-black text-indigo-900 uppercase">Métricas Consolidadas en Base de Datos</h4>
+                             <p className="text-xs text-indigo-700/90 leading-relaxed mt-1">
+                               El grupo cuenta con <strong>{grupoStats?.total_semilleros || 0}</strong> semilleros activos, <strong>{grupoStats?.total_proyectos || 0}</strong> proyectos de I+D+i, <strong>{grupoStats?.total_productos || 0}</strong> productos registrados y <strong>{grupoStats?.total_aprendices || 0}</strong> aprendices vinculados en el Centro CGAO.
+                             </p>
+                           </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -684,14 +711,15 @@ const GruposModule = ({ currentUser, onNotify }) => {
         </div>
       )}
 
-      {/* ─── Form Modal ────────────────────────────────────────────────── */}
+      {/* ─── Create/Edit Modal ─────────────────────────────────────────── */}
       {showForm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
-          <Card className="w-full max-w-xl shadow-2xl animate-scaleIn overflow-hidden border-0">
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-6 text-white relative">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowForm(false)} aria-hidden="true" />
+          <Card className="w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn overflow-hidden border-0 bg-white relative z-10">
+            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-6 text-white relative shrink-0">
               <button 
                 onClick={() => setShowForm(false)}
-                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
+                className="absolute top-4 right-4 p-2 hover:bg-white/20 text-slate-200 hover:text-white rounded-full transition-colors"
               >
                 <X size={20} />
               </button>
@@ -708,11 +736,11 @@ const GruposModule = ({ currentUser, onNotify }) => {
               </div>
             </div>
 
-            <div className="flex h-1 bg-slate-100">
+            <div className="flex h-1 bg-slate-100 shrink-0">
               <div className={`h-full bg-indigo-500 transition-all duration-500 ${formStep === 1 ? 'w-1/3' : formStep === 2 ? 'w-2/3' : 'w-full'}`} />
             </div>
 
-            <div className="p-8 bg-white min-h-[360px] max-h-[60vh] overflow-y-auto scrollbar-thin">
+            <div className="p-6 sm:p-8 bg-white flex-1 overflow-y-auto custom-scrollbar">
               {formStep === 1 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
                   <Input label="Sigla o Nombre Corto" value={formData.nombre} onChange={patch('nombre')} placeholder="Ej: GIDTA" required />
@@ -760,7 +788,7 @@ const GruposModule = ({ currentUser, onNotify }) => {
               )}
             </div>
 
-            <div className="px-8 py-6 bg-slate-50/80 border-t border-slate-100 flex justify-between items-center">
+            <div className="px-6 sm:px-8 py-4 bg-slate-50/80 border-t border-slate-100 flex justify-between items-center shrink-0">
               <Button 
                 variant="outline" 
                 onClick={() => formStep === 1 ? setShowForm(false) : setFormStep(s => s - 1)}
@@ -789,9 +817,10 @@ const GruposModule = ({ currentUser, onNotify }) => {
 
       {/* ─── Member Management Modal ───────────────────────────────────── */}
       {showMembers && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
-          <Card className="w-full max-w-2xl relative z-10 animate-scaleIn flex flex-col max-h-[85vh] border-0 shadow-2xl overflow-hidden">
-            <div className="px-8 py-6 bg-emerald-700 text-white flex items-center justify-between">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0" onClick={() => setShowMembers(false)} aria-hidden="true" />
+          <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col relative z-10 animate-scaleIn border-0 shadow-2xl overflow-hidden bg-white">
+            <div className="px-6 py-6 bg-gradient-to-r from-emerald-700 to-emerald-800 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Users size={24} /></div>
                 <div>
@@ -799,7 +828,7 @@ const GruposModule = ({ currentUser, onNotify }) => {
                   <p className="text-emerald-100 text-xs font-medium opacity-80 uppercase tracking-widest mt-1">{selectedGrupo?.nombre}</p>
                 </div>
               </div>
-              <button onClick={() => setShowMembers(false)} className="p-2 hover:bg-white/20 rounded-full transition-colors"><X size={20} /></button>
+              <button onClick={() => setShowMembers(false)} className="p-2 hover:bg-white/20 text-emerald-100 hover:text-white rounded-full transition-colors"><X size={20} /></button>
             </div>
 
             <div className="p-8 overflow-y-auto flex-1 space-y-8 scrollbar-thin bg-white">
@@ -840,7 +869,7 @@ const GruposModule = ({ currentUser, onNotify }) => {
                       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/30">
                         {usuarios
                           .filter(u => !integrantes.some(m => m.id === u.id))
-                          .filter(u => talentTab === 'aprendices' ? (u.ficha || u.programa_formacion) : (!u.ficha && !u.programa_formacion))
+                          .filter(u => talentTab === 'aprendices' ? u.rol === 'aprendiz' : u.rol !== 'aprendiz')
                           .map(u => (
                           <div 
                             key={u.id}
@@ -939,7 +968,7 @@ const GruposModule = ({ currentUser, onNotify }) => {
                               const u = usuarios.find(usr => usr.id === e.target.value);
                               if (u) {
                                 setMemberToLink(u);
-                                setLinkingRole(u.ficha ? 'Aprendiz' : 'Investigador');
+                                setLinkingRole(u.rol === 'aprendiz' ? 'Aprendiz' : 'Investigador');
                               }
                               e.target.value = ""; 
                             }}

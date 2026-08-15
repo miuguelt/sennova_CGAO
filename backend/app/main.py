@@ -19,7 +19,7 @@ from app.routers import (
     auth, proyectos, grupos, semilleros, convocatorias, 
     productos, documentos, usuarios, stats, reportes, 
     entregables, notificaciones, cvlac, retos, bitacora, 
-    maintenance, audit, plantillas, aprendices
+    maintenance, audit, plantillas, aprendices, mensajes
 )
 from app.middlewares.audit import AuditMiddleware
 
@@ -217,6 +217,7 @@ app.include_router(maintenance.router)
 app.include_router(audit.router)
 app.include_router(plantillas.router)
 app.include_router(aprendices.router)
+app.include_router(mensajes.router)
 
 
 # ==========================================

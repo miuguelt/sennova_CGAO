@@ -125,7 +125,7 @@ def firmar_entrada(
             raise HTTPException(status_code=404, detail="Entrada no encontrada")
 
         # Determinar qué rol está firmando
-        es_investigador = current_user.rol in ['admin', 'investigador']
+        es_investigador = current_user.rol in ['admin', 'investigador', 'instructor']
         es_aprendiz = current_user.rol == 'aprendiz'
 
         if not es_investigador and not es_aprendiz:
