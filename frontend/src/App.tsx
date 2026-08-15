@@ -27,7 +27,7 @@ import QuickActionHub from './components/common/QuickActionHub';
 import { Toaster, toast } from 'react-hot-toast';
 
 function AppContent() {
-  const { currentUser, login, register, logout, updateUser } = useAuth();
+  const { currentUser, login, register, logout, updateUser, apiError } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
@@ -62,23 +62,9 @@ function AppContent() {
   if (!currentUser) {
     return (
       <LoginScreen
-        onLogin={async (e, p) => {
-          try {
-            await login(e, p);
-            return { success: true };
-          } catch (err) {
-            return { success: false, error: err.message };
-          }
-        }}
-        onRegister={async (data) => {
-          try {
-            await register(data);
-            return { success: true };
-          } catch (err) {
-            return { success: false, error: err.message };
-          }
-        }}
-        apiError={null}
+        onLogin={login}
+        onRegister={register}
+        apiError={apiError}
       />
     );
   }

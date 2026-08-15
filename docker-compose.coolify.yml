@@ -24,7 +24,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
         VITE_FRONTEND_URL: ${VITE_FRONTEND_URL}
     image: sennova-frontend:${APP_VERSION:-latest}
     container_name: sennova_frontend
@@ -102,7 +103,9 @@ services:
       sennova-db:
         condition: service_healthy
     networks:
-      - sennova-net
+      sennova-net:
+        aliases:
+          - backend
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 30s
