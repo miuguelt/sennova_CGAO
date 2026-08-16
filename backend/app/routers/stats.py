@@ -1,9 +1,6 @@
-"""
-Router de Estadísticas
-Dashboard y estadísticas del sistema
-"""
-
 from typing import Optional
+import logging
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -11,13 +8,16 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from app.auth import get_current_user, get_current_admin
 from app.database import get_db
-from datetime import datetime, timedelta, timezone
 
 from app.models import (
     User, Proyecto, Grupo, Semillero, 
     Producto, Convocatoria, Documento,
-    Entregable, Actividad, Aprendiz, Reto
+    Entregable, Actividad, Aprendiz, Reto,
+    BitacoraEntry, AuditLog,
+    semillero_investigadores, proyecto_equipo
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/stats", tags=["Estadísticas"])
 
@@ -67,17 +67,17 @@ def get_dashboard_stats(
         if not is_admin:
             # Filtrar por owner o equipo
             query_proyectos = query_proyectos.filter(
-                (Proyecto.owner_id == str(current_user.id)) | 
+                (Proyecto.owner_id == current_user.id) | 
                 (Proyecto.equipo.any(User.id == current_user.id))
             )
             query_productos = query_productos.filter(
-                (Producto.owner_id == str(current_user.id)) |
-                (Producto.proyecto.has(Proyecto.owner_id == str(current_user.id))) |
+                (Producto.owner_id == current_user.id) |
+                (Producto.proyecto.has(Proyecto.owner_id == current_user.id)) |
                 (Producto.proyecto.has(Proyecto.equipo.any(User.id == current_user.id)))
             )
             query_entregables = query_entregables.filter(
-                (Entregable.responsable_id == str(current_user.id)) |
-                (Entregable.proyecto.has(Proyecto.owner_id == str(current_user.id))) |
+                (Entregable.responsable_id == current_user.id) |
+                (Entregable.proyecto.has(Proyecto.owner_id == current_user.id)) |
                 (Entregable.proyecto.has(Proyecto.equipo.any(User.id == current_user.id)))
             )
 
@@ -105,15 +105,15 @@ def get_dashboard_stats(
             aprendices_activos = db.query(Aprendiz).filter(Aprendiz.estado == "activo").count()
         elif current_user.rol in ["investigador", "instructor"]:
             # Aprendices en semilleros del investigador
-            mis_semilleros_ids = [str(s.id) for s in db.query(Semillero).filter(
-                (Semillero.owner_id == str(current_user.id)) |
+            mis_semilleros_ids = [s.id for s in db.query(Semillero).filter(
+                (Semillero.owner_id == current_user.id) |
                 (Semillero.investigadores.any(User.id == current_user.id))
             ).all()]
             aprendices_total = db.query(Aprendiz).filter(Aprendiz.semillero_id.in_(mis_semilleros_ids)).count() if mis_semilleros_ids else 0
             aprendices_activos = db.query(Aprendiz).filter(Aprendiz.semillero_id.in_(mis_semilleros_ids), Aprendiz.estado == "activo").count() if mis_semilleros_ids else 0
         else:
             # Aprendiz: cuenta su semillero
-            mi_vinculacion = db.query(Aprendiz).filter(Aprendiz.user_id == str(current_user.id)).first()
+            mi_vinculacion = db.query(Aprendiz).filter(Aprendiz.user_id == current_user.id).first()
             if mi_vinculacion:
                 aprendices_total = db.query(Aprendiz).filter(Aprendiz.semillero_id == mi_vinculacion.semillero_id).count()
                 aprendices_activos = db.query(Aprendiz).filter(Aprendiz.semillero_id == mi_vinculacion.semillero_id, Aprendiz.estado == "activo").count()
@@ -122,11 +122,11 @@ def get_dashboard_stats(
                 aprendices_activos = 0
 
         # Bitacoras contextual
-        query_bitacoras = db.query(from_models_bitacora := app.models.BitacoraEntry if 'app' in globals() else BitacoraEntry)
+        query_bitacoras = db.query(BitacoraEntry)
         if not is_admin:
             query_bitacoras = query_bitacoras.filter(
-                (BitacoraEntry.user_id == str(current_user.id)) |
-                (BitacoraEntry.proyecto.has(Proyecto.owner_id == str(current_user.id))) |
+                (BitacoraEntry.user_id == current_user.id) |
+                (BitacoraEntry.proyecto.has(Proyecto.owner_id == current_user.id)) |
                 (BitacoraEntry.proyecto.has(Proyecto.equipo.any(User.id == current_user.id)))
             )
 
@@ -189,7 +189,7 @@ def get_dashboard_stats(
         # 3. Actividad Reciente (Auditoría para Admin, Personal para Investigador)
         query_actividades = db.query(Actividad)
         if not is_admin:
-            query_actividades = query_actividades.filter(Actividad.user_id == str(current_user.id))
+            query_actividades = query_actividades.filter(Actividad.user_id == current_user.id)
             
         actividades = query_actividades.order_by(Actividad.created_at.desc()).limit(8).all()
         stats["historial_reciente"] = [{
@@ -206,11 +206,10 @@ def get_dashboard_stats(
         return stats
     except (OperationalError, SQLAlchemyError) as db_err:
         raise db_err
+    except HTTPException:
+        raise
     except Exception as e:
-        import traceback
-        with open("C:/Users/Miguel/Documents/Aplicaciones/_projects/sennova/backend/error_dashboard.txt", "w") as f:
-            f.write(traceback.format_exc())
-        print(f"Error en dashboard stats: {e}")
+        logger.error(f"Error en dashboard stats: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -472,7 +471,6 @@ def get_user_impact(
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
         # 1. Semilleros vinculados (Líder/Owner + Coinvestigador + Aprendiz)
-        from app.models import semillero_investigadores, proyecto_equipo, Aprendiz
         semilleros_owner = db.query(Semillero).filter(Semillero.owner_id == uid).all()
         semilleros_inv = db.query(Semillero).join(semillero_investigadores, semillero_investigadores.c.semillero_id == Semillero.id).filter(semillero_investigadores.c.user_id == uid).all()
         semilleros_apr = db.query(Semillero).join(Aprendiz, Aprendiz.semillero_id == Semillero.id).filter(Aprendiz.user_id == uid).all()
@@ -781,8 +779,6 @@ def get_audit_logs(
 ):
     """Obtener logs de auditoría del sistema (solo admin)."""
     try:
-        from app.models import AuditLog
-
         query = db.query(AuditLog).order_by(AuditLog.created_at.desc())
 
         if method:
@@ -810,8 +806,10 @@ def get_audit_logs(
         }
     except (OperationalError, SQLAlchemyError) as db_err:
         raise db_err
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error en audit logs: {e}")
+        logger.error(f"Error en audit logs: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -822,9 +820,6 @@ def get_audit_summary(
 ):
     """Obtener resumen de auditoría del sistema (solo admin)."""
     try:
-        from app.models import AuditLog
-        from sqlalchemy import func
-
         hoy = datetime.now(timezone.utc)
         hace_7_dias = hoy - timedelta(days=7)
         hace_30_dias = hoy - timedelta(days=30)
@@ -853,6 +848,8 @@ def get_audit_summary(
         }
     except (OperationalError, SQLAlchemyError) as db_err:
         raise db_err
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error en audit summary: {e}")
+        logger.error(f"Error en audit summary: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

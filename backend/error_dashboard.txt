@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "C:\Users\Miguel\Documents\Aplicaciones\_projects\sennova\backend\app\routers\stats.py", line 125, in get_dashboard_stats
-    query_bitacoras = db.query(from_models_bitacora := app.models.BitacoraEntry if 'app' in globals() else BitacoraEntry)
-                                                                                                           ^^^^^^^^^^^^^
-NameError: name 'BitacoraEntry' is not defined
