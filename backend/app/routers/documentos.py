@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, R
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import Documento, User, Proyecto
@@ -24,7 +25,8 @@ from app.services.proyectos_service import evaluar_y_auto_finalizar_proyecto
 router = APIRouter(prefix="/documentos", tags=["Documentos"])
 
 # Configuración de almacenamiento
-STORAGE_DIR = Path("storage/documentos")
+settings = get_settings()
+STORAGE_DIR = Path(settings.STORAGE_DIR) / "documentos" if hasattr(settings, "STORAGE_DIR") else Path("storage/documentos")
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -243,8 +245,15 @@ def download_documento(
             raise HTTPException(status_code=403, detail="Sin acceso")
     
     data_b64 = None
-    if doc.file_path and os.path.exists(doc.file_path):
-        with open(doc.file_path, "rb") as f:
+    target_path = None
+    if doc.file_path:
+        if os.path.exists(doc.file_path):
+            target_path = doc.file_path
+        elif os.path.exists(STORAGE_DIR / Path(doc.file_path).name):
+            target_path = STORAGE_DIR / Path(doc.file_path).name
+
+    if target_path and os.path.exists(target_path):
+        with open(target_path, "rb") as f:
             data_b64 = base64.b64encode(f.read()).decode('utf-8')
     elif doc.data_base64:
         data_b64 = doc.data_base64
@@ -275,11 +284,18 @@ def delete_documento(
     if current_user.rol != "admin" and doc.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Sin permiso para eliminar")
     
-    if doc.file_path and os.path.exists(doc.file_path):
+    target_path = None
+    if doc.file_path:
+        if os.path.exists(doc.file_path):
+            target_path = doc.file_path
+        elif os.path.exists(STORAGE_DIR / Path(doc.file_path).name):
+            target_path = STORAGE_DIR / Path(doc.file_path).name
+
+    if target_path and os.path.exists(target_path):
         try:
-            os.remove(doc.file_path)
+            os.remove(target_path)
         except Exception as e:
-            print(f"Error al eliminar archivo físico: {e}")
+            print(f"⚠️ Error al eliminar archivo físico: {e}")
             
     db.delete(doc)
     try:

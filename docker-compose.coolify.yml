@@ -89,6 +89,11 @@ services:
       # ── Admin Inicial ──
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@sena.edu.co}
       INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-123456}
+      INITIAL_ADMIN_NOMBRE: "${INITIAL_ADMIN_NOMBRE:-Administrador SENNOVA}"
+      INITIAL_ADMIN_DOCUMENTO: "${INITIAL_ADMIN_DOCUMENTO:-admin01}"
+      INITIAL_ADMIN_SEDE: "${INITIAL_ADMIN_SEDE:-CGAO}"
+      SEED_INITIAL_DATA: "${SEED_INITIAL_DATA:-false}"
+      STORAGE_DIR: ${STORAGE_DIR:-/app/storage}
       # ── CVLAC ──
       CVLAC_BASE_URL: ${CVLAC_BASE_URL:-https://scienti.minciencias.gov.co}
       # ── Redis (Caché & Real-time) ──

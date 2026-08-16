@@ -50,11 +50,16 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
     
-    # Initial Setup
+    # Initial Setup & Seeding
     INITIAL_ADMIN_EMAIL: str = os.getenv("INITIAL_ADMIN_EMAIL", "admin@sena.edu.co")
     INITIAL_ADMIN_PASSWORD: str = os.getenv("INITIAL_ADMIN_PASSWORD", "123456")
+    INITIAL_ADMIN_NOMBRE: str = os.getenv("INITIAL_ADMIN_NOMBRE", "Administrador SENNOVA")
+    INITIAL_ADMIN_DOCUMENTO: str = os.getenv("INITIAL_ADMIN_DOCUMENTO", "admin01")
+    INITIAL_ADMIN_SEDE: str = os.getenv("INITIAL_ADMIN_SEDE", "CGAO")
+    SEED_INITIAL_DATA: bool = os.getenv("SEED_INITIAL_DATA", "false").lower() == "true"
     
     # Configuración adicional
+    STORAGE_DIR: str = os.getenv("STORAGE_DIR", "storage")
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     MAX_UPLOAD_SIZE: int = int(os.getenv("MAX_UPLOAD_SIZE", "50"))  # MB
     RATE_LIMIT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))

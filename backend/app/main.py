@@ -46,12 +46,24 @@ async def lifespan(app: FastAPI):
                     db,
                     email=admin_email,
                     password=settings.INITIAL_ADMIN_PASSWORD,
-                    nombre="Administrador SENNOVA",
+                    nombre=settings.INITIAL_ADMIN_NOMBRE,
                     rol="admin",
-                    sede="CGAO",
-                    documento="admin01"
+                    sede=settings.INITIAL_ADMIN_SEDE,
+                    documento=settings.INITIAL_ADMIN_DOCUMENTO
                 )
                 print("✅ Administrador creado correctamente")
+
+            # Poblado automático si se solicita en variables de entorno
+            if settings.SEED_INITIAL_DATA:
+                from app.models import Grupo
+                if db.query(Grupo).count() == 0:
+                    print("🌱 SEED_INITIAL_DATA=true: Poblado automático de datos iniciales...")
+                    try:
+                        from scripts.seed_demo_data import seed_data
+                        seed_data()
+                        print("✅ Datos iniciales poblados correctamente")
+                    except Exception as seed_err:
+                        print(f"⚠️ Error en poblado inicial automático: {seed_err}")
         except Exception as e:
             print(f"⚠️ Error en bootstrap de usuario: {e}")
         finally:
