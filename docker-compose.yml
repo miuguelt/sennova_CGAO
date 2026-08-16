@@ -9,22 +9,46 @@ services:
     container_name: sennova-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      # JWT_SECRET: Generar con 'openssl rand -base64 32'
-      # En Coolify: configurar variable de entorno JWT_SECRET
+      # Database
+      DATABASE_URL: "${DATABASE_URL:-postgresql+psycopg://${DB_USER:-sennova}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-sennova}}"
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: "${DB_PORT:-5432}"
+      DB_USER: ${DB_USER:-sennova}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-sennova}
+      # Security
       JWT_SECRET: ${JWT_SECRET}
-      JWT_ALGORITHM: HS256
-      JWT_EXPIRATION_HOURS: 24
-      APP_NAME: SENNOVA CGAO API
-      DEBUG: "false"
-      # CORS: Solo el dominio público del frontend
-      # La comunicación interna (Nginx → Backend) usa proxy, no CORS
-      # En Coolify: https://sennova.enlinea.sbs
-      # En local: http://localhost:5173
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://sennova.enlinea.sbs}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
+      # Initial Admin
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@sena.edu.co}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-123456}
+      # App Config
+      APP_NAME: ${APP_NAME:-SENNOVA CGAO API}
+      DEBUG: "${DEBUG:-false}"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # CORS
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-https://sennova.enlinea.sbs}"
+      ADDITIONAL_CORS_ORIGINS: "${ADDITIONAL_CORS_ORIGINS:-}"
+      # Public URLs
+      FRONTEND_URL: "${FRONTEND_URL:-https://sennova.enlinea.sbs}"
+      BACKEND_URL: "${BACKEND_URL:-https://sennova.enlinea.sbs/api}"
+      # External Integrations
       CVLAC_BASE_URL: ${CVLAC_BASE_URL:-https://scienti.minciencias.gov.co}
       HOST: ${HOST:-0.0.0.0}
-      PORT: ${PORT:-8000}
+      PORT: "${PORT:-8000}"
+      # Redis (optional)
+      REDIS_HOST: ${REDIS_HOST:-}
+      REDIS_PORT: "${REDIS_PORT:-6380}"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: "${REDIS_DB:-0}"
+      # SMTP (optional)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@sena.edu.co}
+      SMTP_TLS: "${SMTP_TLS:-true}"
     expose:
       - ${PORT:-8000}
     volumes:

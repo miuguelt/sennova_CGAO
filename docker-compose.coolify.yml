@@ -70,30 +70,39 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-WARNING}
       DEBUG: "false"
       # ── Base de Datos (PostgreSQL) ──
-      DB_HOST: sennova-db
-      DB_PORT: "5432"
-      DB_USER: ${DB_USER}
+      DB_HOST: ${DB_HOST:-sennova-db}
+      DB_PORT: "${DB_PORT:-5432}"
+      DB_USER: ${DB_USER:-sennova}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME:-sennova}
-      DATABASE_URL: "postgresql+psycopg://${DB_USER}:${DB_PASSWORD}@sennova-db:5432/${DB_NAME}"
+      DATABASE_URL: "${DATABASE_URL:-postgresql+psycopg://${DB_USER:-sennova}:${DB_PASSWORD}@sennova-db:5432/${DB_NAME:-sennova}}"
       # ── Seguridad ──
       JWT_SECRET: ${JWT_SECRET}
-      JWT_ALGORITHM: HS256
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
       # ── CORS ──
-      ALLOWED_ORIGINS: "https://${DOMAIN},https://www.${DOMAIN}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-https://${DOMAIN:-localhost},https://www.${DOMAIN:-localhost}}"
+      ADDITIONAL_CORS_ORIGINS: "${ADDITIONAL_CORS_ORIGINS:-}"
+      # ── URLs Públicas ──
+      FRONTEND_URL: "${FRONTEND_URL:-https://${DOMAIN:-localhost}}"
+      BACKEND_URL: "${BACKEND_URL:-https://${DOMAIN:-localhost}/api}"
       # ── Admin Inicial ──
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@sena.edu.co}
-      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-123456}
       # ── CVLAC ──
       CVLAC_BASE_URL: ${CVLAC_BASE_URL:-https://scienti.minciencias.gov.co}
+      # ── Redis (Caché & Real-time) ──
+      REDIS_HOST: ${REDIS_HOST:-}
+      REDIS_PORT: "${REDIS_PORT:-6380}"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: "${REDIS_DB:-0}"
       # ── SMTP (Opcional) ──
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
-      SMTP_TLS: "true"
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@sena.edu.co}
+      SMTP_TLS: "${SMTP_TLS:-true}"
       # ── Observabilidad ──
       SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
@@ -128,12 +137,12 @@ services:
       "
     environment:
       APP_ENV: production
-      DB_HOST: sennova-db
-      DB_PORT: "5432"
-      DB_USER: ${DB_USER}
+      DB_HOST: ${DB_HOST:-sennova-db}
+      DB_PORT: "${DB_PORT:-5432}"
+      DB_USER: ${DB_USER:-sennova}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME:-sennova}
-      DATABASE_URL: "postgresql+psycopg://${DB_USER}:${DB_PASSWORD}@sennova-db:5432/${DB_NAME}"
+      DATABASE_URL: "${DATABASE_URL:-postgresql+psycopg://${DB_USER:-sennova}:${DB_PASSWORD}@sennova-db:5432/${DB_NAME:-sennova}}"
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
       sennova-db:
@@ -148,7 +157,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-sennova}
-      POSTGRES_USER: ${DB_USER}
+      POSTGRES_USER: ${DB_USER:-sennova}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_INITDB_ARGS: "--locale=es_CO.UTF-8 --encoding=UTF8"
     command: >
@@ -167,7 +176,7 @@ services:
     networks:
       - sennova-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME:-sennova}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sennova} -d ${DB_NAME:-sennova}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -192,7 +201,7 @@ services:
         done
       "
     environment:
-      POSTGRES_USER: ${DB_USER}
+      POSTGRES_USER: ${DB_USER:-sennova}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME:-sennova}
     volumes:
