@@ -18,7 +18,7 @@ describe('Button', () => {
 
   it('applies variant classes', () => {
     const { container } = render(<Button variant="primary">Primary</Button>);
-    expect(container.querySelector('button').className).toContain('bg-emerald-600');
+    expect(container.querySelector('button').className).toContain('bg-emerald-700');
   });
 
   it('applies size classes', () => {
@@ -64,7 +64,7 @@ describe('Badge', () => {
 
   it('applies variant classes', () => {
     const { container } = render(<Badge variant="success">Success</Badge>);
-    expect(container.querySelector('span').className).toContain('bg-emerald-100');
+    expect(container.querySelector('span').className).toContain('bg-emerald-50');
   });
 
   it('renders dot indicator', () => {

@@ -15,12 +15,14 @@ import {
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
+import EmptyState from '../ui/EmptyState';
 import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
 import Modal from '../ui/Modal';
 import Drawer from '../ui/Drawer';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import SemilleroCard, { ESTADOS } from './SemilleroCard';
 import { SemillerosAPI } from '../../api/semilleros';
 import { GruposAPI } from '../../api/grupos';
 import { UsuariosAPI } from '../../api/usuarios';
@@ -29,12 +31,6 @@ import { PlantillasAPI } from '../../api/plantillas';
 import { PDFGenerator } from '../../utils/pdfGenerator';
 import UserInsightPanel from '../users/UserInsightPanel';
 import useClickOutside from '../../hooks/useClickOutside';
-
-const ESTADOS = [
-  { value: 'activo', label: 'Activo', variant: 'success' },
-  { value: 'inactivo', label: 'Inactivo', variant: 'default' },
-  { value: 'en_convocatoria', label: 'En Convocatoria', variant: 'warning' }
-];
 
 const ROLES_SEMILLERO = [
   { value: 'Investigador Principal', label: 'Investigador Principal' },
@@ -58,122 +54,15 @@ const EMPTY_FORM = {
 };
 
 const StatCard = ({ label, value, icon: Icon, colorCls, bgCls }) => (
-  <Card className="p-5 border-0 shadow-sm ring-1 ring-slate-200/60 overflow-hidden relative group transition-all hover:shadow-md">
+  <Card className="p-5 border border-slate-200 shadow-sm overflow-hidden relative group transition-all hover:shadow-md bg-white">
     <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-10 transition-transform group-hover:scale-110 ${bgCls}`} />
     <div className="flex items-center gap-4 relative">
       <div className={`p-3 rounded-2xl ${bgCls} ${colorCls} shadow-sm`}>
         <Icon size={22} />
       </div>
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-700">{label}</p>
         <p className="text-2xl font-black text-slate-900 tabular-nums">{value}</p>
-      </div>
-    </div>
-  </Card>
-);
-
-const SemilleroCard = ({ semillero, onEdit, onDelete, onDetail, onAddAprendiz, canManage = true }) => (
-  <Card 
-    className="group hover:shadow-xl hover:border-emerald-400 transition-all duration-300 border-l-4 border-l-emerald-500 cursor-pointer bg-white flex flex-col justify-between"
-    onClick={() => onDetail(semillero)}
-  >
-    <div className="p-6">
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg uppercase tracking-wider font-mono">
-            {semillero.sigla || semillero.nombre?.substring(0, 8)}
-          </span>
-          <Badge variant={ESTADOS.find(e => e.value === semillero.estado)?.variant || 'default'} className="font-black text-[9px] uppercase">
-            {ESTADOS.find(e => e.value === semillero.estado)?.label || semillero.estado}
-          </Badge>
-        </div>
-        {canManage && (
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button 
-              onClick={(e) => { e.stopPropagation(); onEdit(semillero); }} 
-              className="p-1.5 text-slate-400 hover:text-blue-600 rounded-md hover:bg-blue-50"
-              title="Editar"
-            >
-              <Edit size={14} />
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); onDelete(semillero.id); }} 
-              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-md hover:bg-rose-50"
-              title="Eliminar"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        )}
-      </div>
-
-      <h3 className="text-base font-bold text-slate-900 group-hover:text-emerald-700 transition-colors mb-1.5 line-clamp-1">
-        {semillero.nombre}
-      </h3>
-      
-      {semillero.descripcion && (
-        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-3">
-          {semillero.descripcion}
-        </p>
-      )}
-
-      {semillero.linea_investigacion && (
-        <div className="mb-3">
-          <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md inline-block max-w-full truncate">
-            📍 {semillero.linea_investigacion}
-          </span>
-        </div>
-      )}
-
-      {semillero.lider_nombre && (
-        <p className="text-xs text-slate-600 font-medium flex items-center gap-1.5 mb-4">
-          <Users size={13} className="text-slate-400" /> Líder: <span className="font-bold text-slate-800">{semillero.lider_nombre}</span>
-        </p>
-      )}
-
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 shadow-xs">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Aprendices</p>
-          <p className="text-base font-black text-slate-900">{semillero.total_aprendices || 0}</p>
-        </div>
-        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 shadow-xs">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Dedicación</p>
-          <p className="text-base font-black text-slate-900">{semillero.horas_dedicadas || 0}h</p>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-        <div className="flex -space-x-2">
-          {Array(Math.min(3, semillero.total_aprendices || 0)).fill(0).map((_, i) => (
-            <div key={i} className="w-7 h-7 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-emerald-700">
-              A{i+1}
-            </div>
-          ))}
-          {semillero.total_aprendices > 3 && (
-            <div className="w-7 h-7 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-slate-500">
-              +{semillero.total_aprendices - 3}
-            </div>
-          )}
-        </div>
-        {canManage ? (
-          <Button 
-            variant="primary" 
-            size="sm" 
-            className="h-8 text-[10px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700" 
-            onClick={(e) => { e.stopPropagation(); onAddAprendiz(semillero); }}
-          >
-            <UserPlus size={13} className="mr-1.5" /> Vincular
-          </Button>
-        ) : (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-8 text-[10px] font-black uppercase tracking-widest text-emerald-700 border-emerald-200" 
-            onClick={(e) => { e.stopPropagation(); onDetail(semillero); }}
-          >
-            Ver Información
-          </Button>
-        )}
       </div>
     </div>
   </Card>
@@ -184,6 +73,9 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
   const [grupos, setGrupos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [estadoFilter, setEstadoFilter] = useState('');
+  const [lineaFilter, setLineaFilter] = useState('');
   
   // Modales & Stack State
   const [showForm, setShowForm] = useState(false);
@@ -208,6 +100,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
 
   // Confirm Dialog
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
+  const [removeConfirm, setRemoveConfirm] = useState(null);
 
   const loadData = async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -502,16 +395,29 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
     }
   };
 
+  const lineasDisponibles = [...new Set((semilleros || [])
+    .map(s => s.linea_investigacion)
+    .filter(Boolean)
+  )].sort();
+
   const filtered = (semilleros || []).filter(s => {
     const term = searchTerm.toLowerCase();
-    return (
+    const matchesSearch =
       (s.nombre || '').toLowerCase().includes(term) ||
       (s.sigla || '').toLowerCase().includes(term) ||
       (s.lider_nombre || '').toLowerCase().includes(term) ||
       (s.linea_investigacion || '').toLowerCase().includes(term) ||
-      (s.grupo_nombre || s.grupo?.nombre || '').toLowerCase().includes(term)
-    );
+      (s.grupo_nombre || s.grupo?.nombre || '').toLowerCase().includes(term);
+    const matchesEstado = !estadoFilter || (s.estado || 'activo') === estadoFilter;
+    const matchesLinea = !lineaFilter || (s.linea_investigacion || '') === lineaFilter;
+    return matchesSearch && matchesEstado && matchesLinea;
   });
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setEstadoFilter('');
+    setLineaFilter('');
+  };
 
   const getDisplayStats = () => {
     if (semilleroStats) return semilleroStats;
@@ -616,25 +522,75 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
       </div>
 
       {/* ── Search & Filters ── */}
-      <div className="flex flex-col sm:flex-row gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input
-            type="text"
-            placeholder="Buscar por nombre, sigla, líder o línea de investigación..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all text-sm font-medium"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <div className="flex flex-col gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, sigla, líder o línea de investigación..."
+              aria-label="Buscar semilleros"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all text-sm font-medium"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Button variant="outline" className="border-slate-200 bg-white" onClick={() => setShowAdvancedFilters(prev => !prev)} aria-expanded={showAdvancedFilters}>
+            <Filter size={18} className="mr-2" /> Filtros Avanzados
+            {estadoFilter || lineaFilter ? (
+              <span className="ml-2 min-w-[18px] h-[18px] px-1 bg-emerald-600 text-white text-[10px] font-black rounded-full flex items-center justify-center">
+                {[estadoFilter, lineaFilter].filter(Boolean).length}
+              </span>
+            ) : null}
+          </Button>
         </div>
-        <Button variant="outline" className="border-slate-200 bg-white">
-          <Filter size={18} className="mr-2" /> Filtros Avanzados
-        </Button>
+
+        {showAdvancedFilters && (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-4 p-4 bg-white rounded-xl border border-slate-200 animate-fadeIn">
+            <div className="flex-1 space-y-1.5">
+              <label htmlFor="semillero-estado-filter" className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Estado</label>
+              <select
+                id="semillero-estado-filter"
+                value={estadoFilter}
+                onChange={(e) => setEstadoFilter(e.target.value)}
+                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-medium text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+              >
+                <option value="">Todos los estados</option>
+                {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+              </select>
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <label htmlFor="semillero-linea-filter" className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Línea de Investigación</label>
+              <select
+                id="semillero-linea-filter"
+                value={lineaFilter}
+                onChange={(e) => setLineaFilter(e.target.value)}
+                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-medium text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+              >
+                <option value="">Todas las líneas</option>
+                {lineasDisponibles.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+            <Button variant="ghost" className="text-slate-500 hover:text-emerald-700" onClick={clearFilters}>
+              Limpiar filtros
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* ── Grid ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map(s => (
+        {filtered.length === 0 && !loading ? (
+          <div className="col-span-full">
+            <EmptyState
+              icon={GraduationCap}
+              title={semilleros.length === 0 ? 'Aún no hay semilleros registrados' : 'No se encontraron semilleros con estos criterios'}
+              description={semilleros.length === 0 ? 'Crea el primer semillero de investigación del centro.' : 'Ajusta los filtros o el término de búsqueda.'}
+              action={semilleros.length > 0 ? <Button variant="outline" onClick={clearFilters}>Limpiar filtros</Button> : undefined}
+            />
+          </div>
+        ) : (
+          filtered.map(s => (
           <div
             key={s.id}
             onDragOver={(e) => { 
@@ -661,7 +617,8 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
               </div>
             )}
           </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* ── Detail Drawer (Estandarizado en Pila) ── */}
@@ -707,30 +664,30 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
         {selectedSemillero && activeTab === 'info' && (
           <div className="space-y-8 animate-fadeIn">
             <section>
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Info size={14} className="text-emerald-500" /> Descripción y Línea
+              <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Info size={14} className="text-emerald-600" /> Descripción y Línea
               </h3>
-              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-slate-700 leading-relaxed text-sm font-medium shadow-inner">
+              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 text-slate-800 leading-relaxed text-sm font-medium">
                 {selectedSemillero.descripcion || 'Sin descripción técnica disponible.'}
                 <div className="mt-4 pt-4 border-t border-slate-200">
-                  <p className="text-[10px] font-black text-emerald-600 uppercase mb-1">Línea de Investigación</p>
-                  <p className="font-bold">{selectedSemillero.linea_investigacion || 'No definida'}</p>
+                  <p className="text-[10px] font-black text-emerald-800 uppercase mb-1">Línea de Investigación</p>
+                  <p className="font-bold text-slate-900">{selectedSemillero.linea_investigacion || 'No definida'}</p>
                 </div>
               </div>
             </section>
 
             <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-5 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Grupo Matriz</p>
+              <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                <p className="text-[10px] font-black text-slate-700 uppercase mb-2">Grupo Matriz</p>
                 <p className="font-black text-slate-900 text-sm">{selectedSemillero.grupo_nombre || selectedSemillero.grupo?.nombre || 'No asignado'}</p>
               </div>
-              <div className="p-5 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Aprendices</p>
+              <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                <p className="text-[10px] font-black text-slate-700 uppercase mb-2">Aprendices</p>
                 <div className="flex items-center justify-between">
-                  <p className="font-black text-emerald-600 text-xl">{aprendices.length || selectedSemillero.total_aprendices || 0}</p>
+                  <p className="font-black text-emerald-800 text-xl">{aprendices.length || selectedSemillero.total_aprendices || 0}</p>
                   <button 
                     onClick={() => { setActiveTab('aprendices'); loadSemilleroMembers(selectedSemillero.id); }} 
-                    className="text-[10px] font-black text-indigo-600 hover:underline uppercase"
+                    className="text-[10px] font-black text-indigo-700 hover:underline uppercase"
                   >
                     Ver Todos
                   </button>
@@ -739,15 +696,15 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
             </section>
 
             <section>
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <TrendingUp size={14} className="text-emerald-500" /> Dedicación Semanal
+              <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <TrendingUp size={14} className="text-emerald-600" /> Dedicación Semanal
               </h3>
-              <div className="flex items-center justify-between p-5 bg-amber-50 rounded-2xl border border-amber-100">
+              <div className="flex items-center justify-between p-5 bg-amber-50 rounded-2xl border border-amber-200">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-amber-100 text-amber-700 rounded-xl"><Clock size={20} /></div>
+                  <div className="p-3 bg-amber-100 text-amber-800 rounded-xl"><Clock size={20} /></div>
                   <div>
                     <p className="text-xl font-black text-slate-900">{selectedSemillero.horas_dedicadas || 0} Horas</p>
-                    <p className="text-[10px] font-black text-amber-700 uppercase">Tiempo de formación activa</p>
+                    <p className="text-[10px] font-black text-amber-800 uppercase">Tiempo de formación activa</p>
                   </div>
                 </div>
               </div>
@@ -758,11 +715,11 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
         {selectedSemillero && activeTab === 'stats' && (
           <div className="space-y-10 animate-fadeIn">
             <section>
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <PieChart size={14} className="text-indigo-500" /> Logros del Semillero
+              <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <PieChart size={14} className="text-indigo-600" /> Logros del Semillero
               </h3>
               {loadingStats ? (
-                <div className="h-64 flex items-center justify-center bg-slate-50 rounded-3xl"><Loader2 className="animate-spin text-indigo-500" /></div>
+                <div className="h-64 flex items-center justify-center bg-slate-50 rounded-3xl"><Loader2 className="animate-spin text-indigo-600" /></div>
               ) : (
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
@@ -775,10 +732,10 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                         dataKey="value"
                       >
                         {getDisplayStats().impacto.map((entry, index) => (
-                          <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#ffffff', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                     </RePie>
                   </ResponsiveContainer>
                 </div>
@@ -786,19 +743,19 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
             </section>
 
             <section>
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <BarChart3 size={14} className="text-emerald-500" /> Evolución de la Comunidad
+              <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <BarChart3 size={14} className="text-emerald-600" /> Evolución de la Comunidad
               </h3>
-              <div className="h-56 bg-slate-50 rounded-2xl p-6 border border-slate-100">
+              <div className="h-56 bg-slate-50 rounded-2xl p-6 border border-slate-200">
                 {loadingStats ? (
-                   <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-emerald-500" /></div>
+                   <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-emerald-600" /></div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={getDisplayStats().evolucion}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                      <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
+                      <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#334155'}} />
                       <YAxis hide />
-                      <Tooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                      <Tooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#ffffff', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
                       <Bar dataKey="aprendices" fill="#10b981" radius={[6, 6, 0, 0]} barSize={40} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -908,7 +865,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleRemoveAprendiz(a.id);
+                                setRemoveConfirm({ type: 'aprendiz', id: a.id, name: a.nombre || 'Aprendiz' });
                               }}
                               className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
                               title="Desvincular"
@@ -955,7 +912,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleRemoveInvestigador(inv.id);
+                              setRemoveConfirm({ type: 'investigador', id: inv.id, name: inv.nombre || 'Investigador' });
                             }}
                             className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors shrink-0"
                             title="Desvincular"
@@ -1056,7 +1013,7 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
                       variant="outline" 
                       size="sm" 
                       onClick={(e) => { e.stopPropagation(); handleDownloadFormato(f.type); }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity"
                     >
                       <Download size={14} className="mr-2" /> Descargar
                     </Button>
@@ -1146,6 +1103,25 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
         title="¿Eliminar Semillero?"
         description="Esta acción eliminará el semillero y desvinculará a todos sus miembros asociados. No se puede revertir."
         confirmText="Sí, Eliminar Semillero"
+        variant="danger"
+      />
+
+      {/* ── Confirm Remove Member Dialog ── */}
+      <ConfirmDialog
+        isOpen={!!removeConfirm}
+        onClose={() => setRemoveConfirm(null)}
+        onConfirm={async () => {
+          if (!removeConfirm) return;
+          if (removeConfirm.type === 'aprendiz') {
+            await handleRemoveAprendiz(removeConfirm.id);
+          } else {
+            await handleRemoveInvestigador(removeConfirm.id);
+          }
+          setRemoveConfirm(null);
+        }}
+        title={removeConfirm?.type === 'aprendiz' ? '¿Desvincular Aprendiz?' : '¿Desvincular Investigador?'}
+        description={`¿Estás seguro de que deseas desvincular a ${removeConfirm?.name} del semillero? Esta acción no afecta su cuenta de usuario.`}
+        confirmText="Desvincular"
         variant="danger"
       />
 

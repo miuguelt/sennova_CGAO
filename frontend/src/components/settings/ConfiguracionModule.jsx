@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { 
-  User, Shield, Bell, Database, Globe, 
+  User, Shield, Bell,
   Lock, Save, RefreshCw, LogOut, CheckCircle2,
-  Cpu, HardDrive, Activity, Zap, Key, 
-  Eye, EyeOff, Trash2, Smartphone, Mail,
-  ExternalLink, Download, AlertTriangle,
-  ChevronRight, Calendar, Clock, FileText
+  Cpu, Zap, Key, 
+  Trash2, Smartphone, Mail,
+  ExternalLink,
+  Calendar, Clock, FileText
 } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
+import ChangePasswordModal from './ChangePasswordModal';
+import SystemStatusCards from './SystemStatusCards';
 import { AuthAPI } from '../../api/auth';
-import { SystemAPI } from '../../api/system';
 
 const SidebarItem = ({ id, label, icon: Icon, active, onClick }) => (
   <button
@@ -37,7 +38,7 @@ const SectionHeader = ({ title, subtitle }) => (
 const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
   const [activeTab, setActiveTab] = useState('account');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   
   const [profile, setProfile] = useState({
     nombre: currentUser?.nombre || '',
@@ -52,30 +53,8 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
     programa_formacion: currentUser?.programa_formacion || ''
   });
 
-  const handleBackup = async () => {
-    onNotify?.('Generando respaldo de base de datos...', 'info');
-    try {
-      // Para descargas de archivos solemos necesitar un link directo o manejar el blob
-      // Por simplicidad en este entorno, informamos el inicio
-      const res = await SystemAPI.getBackup();
-      if (res.url) {
-        onNotify?.('Backup iniciado en servidor: ' + res.url, 'success');
-      } else {
-        onNotify?.('Copia de seguridad generada localmente', 'success');
-      }
-    } catch (err) {
-      onNotify?.('Error al generar backup: ' + err.message, 'error');
-    }
-  };
-
-  const handleClearCache = async () => {
-    onNotify?.('Optimizando infraestructura...', 'info');
-    try {
-      await SystemAPI.clearCache();
-      onNotify?.('Caché del sistema depurada correctamente', 'success');
-    } catch (err) {
-      onNotify?.('Error al limpiar caché', 'error');
-    }
+  const handleRequestBaja = () => {
+    onNotify?.('Para solicitar la baja de tu cuenta, contacta al administrador del sistema.', 'info');
   };
 
   const handleUpdateProfile = async (e) => {
@@ -262,10 +241,10 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
                         </div>
                         <div>
                           <p className="text-sm font-black text-slate-900">Autenticación por Contraseña</p>
-                          <p className="text-xs text-slate-500 mt-1 font-medium italic">Última actualización: Hace 3 meses</p>
+                          <p className="text-xs text-slate-500 mt-1 font-medium italic">Protege tu cuenta con una contraseña fuerte.</p>
                         </div>
                       </div>
-                      <Button variant="outline" className="rounded-xl border-slate-200">Cambiar Contraseña</Button>
+                      <Button variant="outline" className="rounded-xl border-slate-200" onClick={() => setShowPasswordModal(true)}>Cambiar Contraseña</Button>
                     </div>
                   </div>
 
@@ -275,20 +254,20 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
                         <Mail className="text-slate-400" size={20} />
                         <div>
                           <p className="text-sm font-bold text-slate-900">Sesiones Activas</p>
-                          <p className="text-xs text-slate-400">Ver y cerrar sesiones en otros dispositivos</p>
+                          <p className="text-xs text-slate-400">Tu sesión actual es la única activa</p>
                         </div>
                       </div>
-                      <ChevronRight className="text-slate-300" size={18} />
+                      <Badge variant="success" className="text-[9px]">SESIÓN ÚNICA</Badge>
                     </div>
                     <div className="flex items-center justify-between py-4 border-b border-slate-50">
                       <div className="flex items-center gap-4">
                         <Zap className="text-slate-400" size={20} />
                         <div>
                           <p className="text-sm font-bold text-slate-900">Logs de Inicio</p>
-                          <p className="text-xs text-slate-400">Historial de accesos recientes</p>
+                          <p className="text-xs text-slate-400">Los accesos quedan registrados en auditoría</p>
                         </div>
                       </div>
-                      <ChevronRight className="text-slate-300" size={18} />
+                      <Badge variant="outline" className="text-[9px]">AUDITORÍA</Badge>
                     </div>
                   </div>
 
@@ -302,7 +281,7 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
                         <p className="text-[10px] text-rose-500 font-bold uppercase tracking-widest mt-0.5">Esta acción es irreversible</p>
                       </div>
                     </div>
-                    <button className="text-rose-600 font-black text-xs hover:underline decoration-2 underline-offset-4">Solicitar Baja</button>
+                    <button onClick={handleRequestBaja} className="text-rose-600 font-black text-xs hover:underline decoration-2 underline-offset-4">Solicitar Baja</button>
                   </div>
                 </div>
               </div>
@@ -341,82 +320,23 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
 
             {activeTab === 'system' && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                <SectionHeader 
-                  title="Estado de Infraestructura" 
+                <SectionHeader
+                  title="Estado de Infraestructura"
                   subtitle="Monitoreo de servicios core y herramientas de mantenimiento."
                 />
-                
-                <div className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-6 bg-slate-900 rounded-[2rem] text-white">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Servidor API</p>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        <span className="text-lg font-black tracking-tight text-white">ONLINE</span>
-                      </div>
-                    </div>
-                    <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
-                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Latencia</p>
-                      <div className="flex items-center gap-2">
-                        <Zap size={18} className="text-amber-600" />
-                        <span className="text-lg font-black text-slate-900 tracking-tight">24ms</span>
-                      </div>
-                    </div>
-                    <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
-                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Almacenamiento</p>
-                      <div className="flex items-center gap-2">
-                        <HardDrive size={18} className="text-indigo-600" />
-                        <span className="text-lg font-black text-slate-900 tracking-tight">42%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-[0.2em] px-1">Herramientas de Recuperación</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <button 
-                        onClick={handleBackup}
-                        className="flex items-center gap-4 p-5 bg-white border border-slate-200 rounded-[2rem] hover:shadow-xl hover:shadow-slate-200/50 hover:border-indigo-300 transition-all text-left group"
-                      >
-                        <div className="p-3 bg-indigo-50 text-indigo-700 rounded-2xl group-hover:scale-110 transition-transform">
-                          <Download size={20} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-black text-slate-900">Exportar Dump SQL</p>
-                          <p className="text-[10px] text-slate-600 font-bold uppercase mt-0.5">Respaldo completo</p>
-                        </div>
-                      </button>
-                      <button 
-                        onClick={handleClearCache}
-                        className="flex items-center gap-4 p-5 bg-white border border-slate-200 rounded-[2rem] hover:shadow-xl hover:shadow-slate-200/50 hover:border-amber-300 transition-all text-left group"
-                      >
-                        <div className="p-3 bg-amber-50 text-amber-700 rounded-2xl group-hover:scale-110 transition-transform">
-                          <RefreshCw size={20} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-black text-slate-900">Limpiar Caché RAG</p>
-                          <p className="text-[10px] text-slate-600 font-bold uppercase mt-0.5">Optimizar memoria</p>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="p-6 bg-amber-50 rounded-[2rem] border border-amber-200 flex gap-4">
-                    <AlertTriangle className="text-amber-600 shrink-0" size={24} />
-                    <div>
-                      <p className="text-sm font-bold text-amber-900">Zona de Riesgo Administrativo</p>
-                      <p className="text-xs text-amber-800 leading-relaxed mt-1 font-medium">
-                        Cualquier modificación en esta sección puede afectar la disponibilidad de los servicios para todos los investigadores. Proceda con precaución.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <SystemStatusCards onNotify={onNotify} />
               </div>
             )}
 
           </Card>
         </div>
       </div>
+
+      <ChangePasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onNotify={onNotify}
+      />
     </div>
   );
 };

@@ -220,12 +220,12 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
         </Card>
 
         {/* Pool de Semilleros para Arrastrar */}
-        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 overflow-hidden">
+        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 overflow-hidden">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Users size={14} className="text-amber-500" /> Semilleros Disponibles para Asignar
+            <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+              <Users size={14} className="text-amber-600" /> Semilleros Disponibles para Asignar
             </p>
-            <span className="text-[9px] text-slate-400 font-bold uppercase italic">Arrastra un semillero hacia un reto</span>
+            <span className="text-[9px] text-slate-600 font-bold uppercase italic">Arrastra un semillero hacia un reto</span>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
             {semilleros.map(s => (
@@ -233,10 +233,10 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
                 key={s.id}
                 draggable
                 onDragStart={(e) => e.dataTransfer.setData('semilleroId', s.id)}
-                className="flex-shrink-0 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm cursor-grab active:cursor-grabbing hover:border-amber-400 transition-all flex items-center gap-2"
+                className="flex-shrink-0 px-4 py-2 bg-white border border-slate-300 rounded-xl shadow-sm cursor-grab active:cursor-grabbing hover:border-amber-500 transition-all flex items-center gap-2"
               >
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-xs font-bold text-slate-700">{s.nombre}</span>
+                <div className="w-2 h-2 rounded-full bg-emerald-600" />
+                <span className="text-xs font-bold text-slate-800">{s.nombre}</span>
               </div>
             ))}
           </div>
@@ -246,8 +246,8 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
       {/* ── Grid de Retos ── */}
       {loading ? (
         <div className="flex flex-col items-center justify-center p-20 space-y-4">
-          <Loader2 className="animate-spin text-amber-500" size={40} />
-          <p className="text-slate-400 font-medium animate-pulse">Sincronizando banco de retos...</p>
+          <Loader2 className="animate-spin text-amber-600" size={40} />
+          <p className="text-slate-600 font-bold animate-pulse">Sincronizando banco de retos...</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -263,7 +263,7 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
                 onDragOver={(e) => { e.preventDefault(); setDragOverId(reto.id); }}
                 onDragLeave={() => setDragOverId(null)}
                 onDrop={(e) => handleDropSemillero(e, reto)}
-                className={`group p-0 overflow-hidden border-0 ring-1 transition-all cursor-pointer bg-white flex flex-col ${dragOverId === reto.id ? 'ring-4 ring-amber-500 scale-[1.02] shadow-2xl z-10' : 'ring-slate-200 hover:ring-amber-400 hover:shadow-card-lg'}`}
+                className={`group p-0 overflow-hidden border transition-all cursor-pointer bg-white flex flex-col ${dragOverId === reto.id ? 'border-amber-500 ring-4 ring-amber-500/20 scale-[1.02] shadow-2xl z-10' : 'border-slate-200 hover:border-amber-400 hover:shadow-card-lg'}`}
               >
                 <div className={`h-1.5 w-full ${sector.bg.replace('bg-', 'bg-').replace('50', '500')}`} />
                 <div className="p-5 flex flex-col flex-1">
@@ -280,24 +280,24 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
                     {reto.titulo}
                   </h3>
                   
-                  <p className="text-sm text-slate-500 line-clamp-3 mb-6 flex-1 italic">
+                  <p className="text-sm text-slate-700 line-clamp-3 mb-6 flex-1 italic font-medium">
                     "{reto.descripcion}"
                   </p>
 
-                  <div className="space-y-3 pt-4 border-t border-slate-50">
+                  <div className="space-y-3 pt-4 border-t border-slate-100">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs text-slate-600 font-bold">
-                        <Building size={14} className="text-slate-400" />
+                      <div className="flex items-center gap-2 text-xs text-slate-700 font-bold">
+                        <Building size={14} className="text-slate-600" />
                         <span className="truncate max-w-[150px]">{reto.empresa_solicitante || 'Empresa Privada'}</span>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-400">{new Date(reto.created_at).toLocaleDateString('es-CO')}</span>
+                      <span className="text-[10px] font-bold text-slate-600">{new Date(reto.created_at).toLocaleDateString('es-CO')}</span>
                     </div>
                     <div className="flex flex-col gap-2">
                       <div className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest w-fit ${sector.bg} ${sector.color}`}>
                         {reto.sector_productivo || 'General'}
                       </div>
                       {reto.semillero_asignado_id && (
-                        <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md w-fit border border-emerald-200">
+                        <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md w-fit border border-emerald-200">
                           <Users size={10} /> {semilleros.find(s => s.id === reto.semillero_asignado_id)?.nombre || reto.semillero_nombre || 'Semillero Asignado'}
                         </div>
                       )}
@@ -361,32 +361,32 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
           >
             <div className="space-y-6">
               <section>
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                  <Info size={14} className="text-amber-500" /> Descripción del Problema
+                <h3 className="text-xs font-black text-slate-700 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                  <Info size={14} className="text-amber-600" /> Descripción del Problema
                 </h3>
-                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-slate-700 leading-relaxed text-xs font-medium">
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 text-slate-800 leading-relaxed text-xs font-medium">
                   {selectedReto.descripcion}
                 </div>
               </section>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Sector Impactado</p>
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                  <p className="text-[10px] font-black text-slate-700 uppercase mb-1">Sector Impactado</p>
                   <p className="text-xs font-bold text-slate-900 flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${sector.bg.replace('50', '500')}`} />
                     {selectedReto.sector_productivo}
                   </p>
                 </div>
-                <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Empresa / Origen</p>
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                  <p className="text-[10px] font-black text-slate-700 uppercase mb-1">Empresa / Origen</p>
                   <p className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                    <Building size={14} className="text-slate-400" />
+                    <Building size={14} className="text-slate-600" />
                     {selectedReto.empresa_solicitante || 'No especificada'}
                   </p>
                 </div>
                 {selectedReto.semillero_asignado_id && (
-                  <div className="sm:col-span-2 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 shadow-sm">
-                    <p className="text-[10px] font-bold text-emerald-800 uppercase mb-1">Semillero Vinculado a la Solución</p>
+                  <div className="sm:col-span-2 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 shadow-sm">
+                    <p className="text-[10px] font-black text-emerald-800 uppercase mb-1">Semillero Vinculado a la Solución</p>
                     <p className="text-xs font-bold text-emerald-950 flex items-center gap-2">
                       <Users size={14} className="text-emerald-600" />
                       {semilleros.find(s => s.id === selectedReto.semillero_asignado_id)?.nombre || selectedReto.semillero_nombre || 'Semillero Asignado'}

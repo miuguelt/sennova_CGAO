@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useId } from 'react';
 import { X } from 'lucide-react';
 import { useModalStack } from '../../hooks/useModalStack';
 
@@ -96,6 +96,43 @@ export const Modal = ({
   });
 
   const modalRef = useRef(null);
+  const titleId = useId();
+  const previouslyFocused = useRef(null);
+  const isTopRef = useRef(isTop);
+  isTopRef.current = isTop;
+
+  // Focus trap: atrapa el Tab dentro del modal, enfoca al abrir y restaura al cerrar
+  useEffect(() => {
+    if (!isOpen) return;
+    previouslyFocused.current = document.activeElement;
+    const node = modalRef.current;
+    const getFocusables = () => node
+      ? [...node.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+          .filter(el => !el.disabled && el.offsetParent !== null)
+      : [];
+    const closeBtn = node?.querySelector('[aria-label="Cerrar ventana modal"]');
+    (closeBtn || getFocusables()[0] || node)?.focus?.();
+
+    const onKeyDown = (e) => {
+      if (e.key !== 'Tab' || !isTopRef.current) return;
+      const els = getFocusables();
+      if (els.length === 0) return;
+      const first = els[0];
+      const last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      previouslyFocused.current?.focus?.();
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -114,7 +151,7 @@ export const Modal = ({
       style={{ zIndex }}
       role="dialog"
       aria-modal="true"
-      aria-labelledby={title ? 'modal-title' : undefined}
+      aria-labelledby={title ? titleId : undefined}
       aria-label={ariaLabel}
     >
       {/* Backdrop con desenfoque dinámico */}
@@ -146,7 +183,7 @@ export const Modal = ({
                 <div className="flex items-center gap-2 flex-wrap">
                   {title && (
                     <h2
-                      id="modal-title"
+                      id={titleId}
                       className={`text-lg sm:text-xl font-black leading-tight tracking-tight truncate ${headerStyle.text}`}
                     >
                       {title}

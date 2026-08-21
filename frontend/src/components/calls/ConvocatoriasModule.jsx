@@ -16,6 +16,7 @@ import Select from '../ui/Select';
 import Modal from '../ui/Modal';
 import Drawer from '../ui/Drawer';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import { useAsyncSave } from '../../hooks/useAsyncSave';
 import { ConvocatoriasAPI } from '../../api/convocatorias';
 import { ProyectosAPI } from '../../api/proyectos';
 
@@ -246,7 +247,7 @@ const ConvocatoriaCard = ({
             </div>
           )}
           {dl !== null && dl > 0 && (
-            <p className="text-[10px] text-right font-medium text-slate-400">
+            <p className="text-[10px] text-right font-bold text-slate-600">
               {dl} días restantes para postular
             </p>
           )}
@@ -267,7 +268,7 @@ const ConvocatoriaCard = ({
             {convocatoria.estado === 'abierta' && (
               <button
                 onClick={(e) => { e.stopPropagation(); onOpenPostularModal(convocatoria); }}
-                className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors"
                 title="Postular un proyecto a esta convocatoria"
               >
                 <Plus size={12} /> Postular
@@ -288,8 +289,8 @@ const ConvocatoriaCard = ({
                 ))
               ) : (
                 <div className="py-4 px-3 text-center bg-slate-50/70 border border-dashed border-slate-200 rounded-xl">
-                  <p className="text-[11px] text-slate-500 font-medium">Sin proyectos postulados aún.</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Arrastra un proyecto del pool aquí para postularlo.</p>
+                  <p className="text-[11px] text-slate-600 font-bold">Sin proyectos postulados aún.</p>
+                  <p className="text-[10px] text-slate-600 mt-0.5">Arrastra un proyecto del pool aquí para postularlo.</p>
                 </div>
               )}
             </div>
@@ -299,9 +300,9 @@ const ConvocatoriaCard = ({
 
       {/* Card Footer */}
       <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
-        <div className="text-[11px] text-slate-500">
-          <span className="text-slate-400 block text-[9px] uppercase font-bold">Presupuesto Postulado</span>
-          <span className="font-bold text-slate-800">{formatCurrency(presupuestoTotalConvocatoria)}</span>
+        <div className="text-[11px] text-slate-600">
+          <span className="text-slate-700 block text-[9px] uppercase font-bold">Presupuesto Postulado</span>
+          <span className="font-black text-slate-900">{formatCurrency(presupuestoTotalConvocatoria)}</span>
         </div>
         <Button 
           variant="ghost" 
@@ -396,21 +397,25 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
     }
   };
 
-  const handleSubmit = async () => {
-    try {
-      if (isEditing) {
-        await ConvocatoriasAPI.update(formData.id, formData);
-        onNotify?.('Convocatoria actualizada con éxito', 'success');
-      } else {
-        await ConvocatoriasAPI.create(formData);
-        onNotify?.('Convocatoria creada exitosamente', 'success');
-      }
-      setShowForm(false);
-      loadData();
-    } catch (err) {
-      onNotify?.(err.message || 'Error al procesar la convocatoria', 'error');
+  const doSubmit = async () => {
+    if (formData.fecha_inicio && formData.fecha_cierre && new Date(formData.fecha_cierre) < new Date(formData.fecha_inicio)) {
+      throw new Error('La fecha de cierre no puede ser anterior a la de inicio');
+    }
+    if (formData.enlace_externo && !/^https?:\/\/.+\..+/.test(formData.enlace_externo)) {
+      throw new Error('El enlace externo no es una URL válida');
+    }
+    if (isEditing) {
+      await ConvocatoriasAPI.update(formData.id, formData);
+      onNotify?.('Convocatoria actualizada con éxito', 'success');
+    } else {
+      await ConvocatoriasAPI.create(formData);
+      onNotify?.('Convocatoria creada exitosamente', 'success');
     }
   };
+
+  const { saving, save: guardarConvocatoria } = useAsyncSave(doSubmit, {
+    onSuccess: () => { setShowForm(false); loadData(); }
+  });
 
   // Vincular Proyecto a Convocatoria (Drop or Action)
   const handleDropProject = async (convocatoriaId, proyectoId) => {
@@ -553,45 +558,22 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
 
         {/* Grid de KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-slate-200">
-          <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-center gap-3">
-            <div className="p-3 bg-emerald-700 text-white rounded-xl shadow-md">
-              <CheckCircle size={20} />
+          {[
+            { bg: 'bg-emerald-50/80 border-emerald-200', iconBg: 'bg-emerald-700', Icon: CheckCircle, label: 'Convocatorias Abiertas', value: totalAbiertas },
+            { bg: 'bg-indigo-50/80 border-indigo-200', iconBg: 'bg-indigo-700', Icon: Target, label: 'Proyectos Postulados', value: totalProyectosPostulados },
+            { bg: 'bg-slate-50 border-slate-200', iconBg: 'bg-slate-800', Icon: DollarSign, label: 'Presupuesto Postulado', value: formatCurrency(presupuestoTotalAcumulado), valueCls: 'text-lg' },
+            { bg: 'bg-amber-50/80 border-amber-200', iconBg: 'bg-amber-600', Icon: Clock, label: 'Próximas a Cerrar', value: convocatoriasPorVencer },
+          ].map(k => (
+            <div key={k.label} className={`p-4 rounded-2xl ${k.bg} flex items-center gap-3`}>
+              <div className={`p-3 ${k.iconBg} text-white rounded-xl shadow-md`}>
+                <k.Icon size={20} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-700 uppercase tracking-wider">{k.label}</p>
+                <p className={`text-xl font-black text-slate-900 ${k.valueCls || ''}`}>{k.value}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Convocatorias Abiertas</p>
-              <p className="text-xl font-black text-slate-900">{totalAbiertas}</p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200 flex items-center gap-3">
-            <div className="p-3 bg-indigo-700 text-white rounded-xl shadow-md">
-              <Target size={20} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Proyectos Postulados</p>
-              <p className="text-xl font-black text-slate-900">{totalProyectosPostulados}</p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
-            <div className="p-3 bg-slate-800 text-white rounded-xl shadow-md">
-              <DollarSign size={20} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Presupuesto Postulado</p>
-              <p className="text-lg font-black text-slate-900">{formatCurrency(presupuestoTotalAcumulado)}</p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 flex items-center gap-3">
-            <div className="p-3 bg-amber-600 text-white rounded-xl shadow-md">
-              <Clock size={20} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Próximas a Cerrar</p>
-              <p className="text-xl font-black text-slate-900">{convocatoriasPorVencer}</p>
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Filtros de Búsqueda y Línea CGAO */}
@@ -814,10 +796,10 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
           <div className="space-y-8 animate-fadeIn">
             {/* Descripción */}
             <section>
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                <Info size={14} className="text-emerald-500" /> Descripción y Términos de Referencia
+              <h3 className="text-xs font-black text-slate-700 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                <Info size={14} className="text-emerald-600" /> Descripción y Términos de Referencia
               </h3>
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-slate-700 leading-relaxed text-sm">
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 text-slate-800 leading-relaxed text-sm">
                 {selectedConvocatoria.descripcion || 'Sin descripción técnica registrada para esta convocatoria.'}
               </div>
             </section>
@@ -825,7 +807,7 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
             {/* Proyectos Postulados */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                <h3 className="text-xs font-black text-slate-700 uppercase tracking-[0.2em] flex items-center gap-2">
                   <Target size={14} className="text-emerald-600" /> Proyectos Postulados / Vinculados
                 </h3>
                 <Badge variant="emerald" className="font-bold text-[10px]">
@@ -839,41 +821,41 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
                     <div key={p.id} className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-3">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                          <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md">
                             {p.codigo_sgps || 'SIN CÓDIGO SGPS'}
                           </span>
                           <h4 className="font-bold text-slate-900 text-sm mt-1">{p.nombre}</h4>
                         </div>
                         <button
                           onClick={() => handleUnlinkProject(p.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                           title="Desvincular proyecto de esta convocatoria"
                         >
                           <Unlink size={16} />
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl">
+                      <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200">
                         <div>
-                          <span className="text-[10px] font-bold text-slate-400 block uppercase">Línea Investigación</span>
-                          <span className="font-medium text-slate-800 truncate block">{p.linea_investigacion || 'Investigación Aplicada'}</span>
+                          <span className="text-[10px] font-bold text-slate-700 block uppercase">Línea Investigación</span>
+                          <span className="font-semibold text-slate-900 truncate block">{p.linea_investigacion || 'Investigación Aplicada'}</span>
                         </div>
                         <div>
-                          <span className="text-[10px] font-bold text-slate-400 block uppercase">Presupuesto</span>
-                          <span className="font-bold text-emerald-700">{formatCurrency(p.presupuesto_total)}</span>
+                          <span className="text-[10px] font-bold text-slate-700 block uppercase">Presupuesto</span>
+                          <span className="font-bold text-emerald-800">{formatCurrency(p.presupuesto_total)}</span>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between pt-1">
-                        <span className="text-xs text-slate-500 flex items-center gap-1">
-                          <User size={13} className="text-slate-400" />
+                        <span className="text-xs text-slate-700 font-medium flex items-center gap-1">
+                          <User size={13} className="text-slate-500" />
                           {p.owner?.nombre || p.responsable_nombre || 'Investigador SENNOVA'}
                         </span>
                         <Button 
                           variant="outline" 
                           size="sm" 
                           onClick={() => { setDetailOpen(false); navigateToProyecto(p.id); }}
-                          className="text-xs text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                          className="text-xs text-emerald-700 border-emerald-300 hover:bg-emerald-50 font-bold"
                         >
                           Ver Proyecto <ArrowUpRight size={13} className="ml-1" />
                         </Button>
@@ -881,9 +863,9 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
                     </div>
                   ))
                 ) : (
-                  <div className="p-6 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl space-y-2">
-                    <p className="text-slate-500 text-xs font-bold">No hay proyectos postulados a esta convocatoria.</p>
-                    <p className="text-slate-400 text-xs">Arrastra un proyecto del pool o usa el botón "Postular Proyecto" a continuación.</p>
+                  <div className="p-6 text-center bg-slate-50 border border-dashed border-slate-300 rounded-2xl space-y-2">
+                    <p className="text-slate-700 text-xs font-bold">No hay proyectos postulados a esta convocatoria.</p>
+                    <p className="text-slate-600 text-xs">Arrastra un proyecto del pool o usa el botón "Postular Proyecto" a continuación.</p>
                   </div>
                 )}
               </div>
@@ -891,12 +873,12 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
 
             {/* Cronograma de Cierre */}
             <div className="space-y-3">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Clock size={14} className="text-amber-500" /> Cronograma de Cierre
+              <h3 className="text-xs font-black text-slate-700 uppercase tracking-[0.2em] flex items-center gap-2">
+                <Clock size={14} className="text-amber-600" /> Cronograma de Cierre
               </h3>
-              <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl border border-amber-100">
+              <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl border border-amber-200">
                 <div>
-                  <p className="text-[10px] font-bold text-amber-700 uppercase">Fecha Límite de Recepción</p>
+                  <p className="text-[10px] font-bold text-amber-800 uppercase">Fecha Límite de Recepción</p>
                   <p className="font-black text-slate-900">{selectedConvocatoria.fecha_cierre || 'No definida'}</p>
                 </div>
                 {selectedConvocatoria.fecha_cierre && (
@@ -981,12 +963,13 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
         subtitle="Gestión SENNOVA CGAO"
         footer={
           <>
-            <Button variant="outline" onClick={() => setShowForm(false)} className="px-6">Cancelar</Button>
-            <Button 
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 h-11" 
-              onClick={handleSubmit} 
-              disabled={!formData.nombre}
+            <Button variant="outline" onClick={() => setShowForm(false)} disabled={saving} className="px-6">Cancelar</Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 h-11"
+              onClick={guardarConvocatoria}
+              disabled={!formData.nombre || saving}
             >
+              {saving ? <Loader2 size={18} className="animate-spin mr-2" /> : null}
               {isEditing ? 'Guardar Cambios' : 'Crear Convocatoria'}
             </Button>
           </>

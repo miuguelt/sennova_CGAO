@@ -30,6 +30,7 @@ def listar_notificaciones(
     solo_no_leidas: bool = Query(False, description="Solo notificaciones no leídas"),
     leida: Optional[bool] = Query(None, description="Filtrar por estado leída (true/false)"),
     limite: int = Query(50, ge=1, le=100),
+    skip: int = Query(0, ge=0, description="Saltar N notificaciones (paginación)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -45,14 +46,13 @@ def listar_notificaciones(
         elif solo_no_leidas:
             query = query.filter((Notificacion.leida == False) | (Notificacion.leida.is_(None)))
         
-        notificaciones = query.order_by(desc(Notificacion.created_at)).limit(limite).all()
+        notificaciones = query.order_by(desc(Notificacion.created_at)).offset(skip).limit(limite).all()
         
         return notificaciones
     except sa.exc.OperationalError as db_err:
         raise db_err
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.get("/stats", response_model=NotificacionStats)
 def estadisticas_notificaciones(

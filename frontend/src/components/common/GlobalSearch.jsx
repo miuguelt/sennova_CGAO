@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, Folder, User, Users, FileText, Command, ArrowRight, Loader2 } from 'lucide-react';
+import { Search, X, Folder, User, Users, FileText, Command, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { DashboardAPI } from '../../api/dashboard';
 import { useModalStack } from '../../hooks/useModalStack';
 
@@ -20,6 +20,7 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
   const [query,         setQuery]         = useState('');
   const [results,       setResults]       = useState([]);
   const [loading,       setLoading]       = useState(false);
+  const [error,         setError]         = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef  = useRef(null);
   const listRef   = useRef(null);
@@ -65,9 +66,16 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
   // Debounced search
   useEffect(() => {
     if (query.length < 2) { setResults([]); return; }
+    setError(null);
     const id = setTimeout(performSearch, 300);
     return () => clearTimeout(id);
   }, [query]);
+
+  // Keep the selected item visible while navigating with the keyboard
+  useEffect(() => {
+    const el = listRef.current?.querySelector(`[data-index="${selectedIndex}"]`);
+    el?.scrollIntoView?.({ block: 'nearest' });
+  }, [selectedIndex, results]);
 
   const performSearch = async () => {
     setLoading(true);
@@ -77,6 +85,8 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
       setSelectedIndex(0);
     } catch (err) {
       console.error('Error searching:', err);
+      setResults([]);
+      setError('No se pudo conectar con el servidor de búsqueda.');
     }
     setLoading(false);
   };
@@ -173,6 +183,7 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
                     key={`${result.type}-${result.id}`}
                     role="option"
                     aria-selected={isSelected}
+                    data-index={index}
                     onClick={() => handleSelect(result)}
                     className={[
                       'w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all text-left mb-1',
@@ -196,6 +207,18 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
                   </button>
                 );
               })}
+            </div>
+          ) : error ? (
+            <div className="py-14 text-center text-slate-700">
+              <AlertCircle size={40} className="mx-auto text-rose-300 mb-3" aria-hidden="true" />
+              <p className="font-bold text-sm text-slate-900">No se pudo completar la búsqueda</p>
+              <p className="text-xs text-slate-600 mt-1 font-medium">{error}</p>
+              <button
+                onClick={performSearch}
+                className="mt-5 px-5 py-2.5 bg-emerald-700 text-white text-xs font-bold rounded-xl hover:bg-emerald-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              >
+                Reintentar
+              </button>
             </div>
           ) : query.length >= 2 ? (
             <div className="py-14 text-center text-slate-700">

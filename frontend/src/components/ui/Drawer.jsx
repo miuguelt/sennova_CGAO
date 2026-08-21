@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect, useId } from 'react';
 import { X } from 'lucide-react';
 import { useModalStack } from '../../hooks/useModalStack';
 import ScrollableTabs from './ScrollableTabs';
@@ -77,6 +77,43 @@ export const Drawer = ({
   });
 
   const contentRef = useRef(null);
+  const titleId = useId();
+  const previouslyFocused = useRef(null);
+  const isTopRef = useRef(isTop);
+  isTopRef.current = isTop;
+
+  // Focus trap: atrapa el Tab dentro del panel, enfoca al abrir y restaura al cerrar
+  useEffect(() => {
+    if (!isOpen) return;
+    previouslyFocused.current = document.activeElement;
+    const node = contentRef.current;
+    const getFocusables = () => node
+      ? [...node.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+          .filter(el => !el.disabled && el.offsetParent !== null)
+      : [];
+    const closeBtn = node?.querySelector('[aria-label="Cerrar panel"]');
+    (closeBtn || getFocusables()[0] || node)?.focus?.();
+
+    const onKeyDown = (e) => {
+      if (e.key !== 'Tab' || !isTopRef.current) return;
+      const els = getFocusables();
+      if (els.length === 0) return;
+      const first = els[0];
+      const last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      previouslyFocused.current?.focus?.();
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -95,7 +132,7 @@ export const Drawer = ({
       style={{ zIndex }}
       role="dialog"
       aria-modal="true"
-      aria-labelledby={title ? 'drawer-title' : undefined}
+      aria-labelledby={title ? titleId : undefined}
       aria-label={ariaLabel}
     >
       {/* Backdrop */}
@@ -137,7 +174,7 @@ export const Drawer = ({
 
             <div className="space-y-2">
               <h2
-                id="drawer-title"
+                id={titleId}
                 className={`text-xl sm:text-2xl font-black leading-tight tracking-tight ${style.titleColor}`}
               >
                 {title}

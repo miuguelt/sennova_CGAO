@@ -93,11 +93,11 @@ const QuickActionHub = ({ isOpen, onClose, onAction }) => {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-slate-900 text-sm sm:text-base group-hover:text-emerald-800 transition-colors">{label}</p>
-                <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{desc}</p>
+                <p className="text-xs text-slate-600 font-medium mt-0.5 line-clamp-1">{desc}</p>
               </div>
               <ChevronRight
                 size={16}
-                className="text-slate-300 group-hover:text-emerald-500 flex-shrink-0 transition-all group-hover:translate-x-1"
+                className="text-slate-400 group-hover:text-emerald-700 flex-shrink-0 transition-all group-hover:translate-x-1"
                 aria-hidden="true"
               />
             </button>

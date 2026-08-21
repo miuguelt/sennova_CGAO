@@ -20,7 +20,7 @@ Fuente de esos datos, por orden de dependencia:
 | Dato | Variable | Obligatorio | Notas |
 |---|---|---|---|
 | Correo del admin | `INITIAL_ADMIN_EMAIL` | Sí (tiene default) | `admin@sena.edu.co` por defecto; es único en `users.email`. |
-| Contraseña del admin | `INITIAL_ADMIN_PASSWORD` | **Sí, sin default** | Mínimo 12 caracteres con `DEBUG=false`. Sin ella el contenedor falla al arrancar. |
+| Contraseña del admin | `INITIAL_ADMIN_PASSWORD` | **Sí, sin default** | Mínimo 7 caracteres con `DEBUG=false`. Sin ella el contenedor falla al arrancar. |
 | Nombre, sede | `INITIAL_ADMIN_NOMBRE`, `INITIAL_ADMIN_SEDE` | No | Solo presentación. |
 | Documento | `INITIAL_ADMIN_DOCUMENTO` | No | Único en `users.documento`; si ya está ocupado el arranque falla con el correo del dueño. |
 | Firma de sesiones | `JWT_SECRET` | **Sí, sin default** | Mínimo 32 caracteres; `validate_production_settings` lo bloquea en producción. |
@@ -55,7 +55,7 @@ esquema lo materializan `Base.metadata.create_all` y `scripts/fix_db_schema.py`.
 script del entrypoint y el `lifespan` de FastAPI (arranque local en Windows), de
 modo que ambos caminos producen el mismo estado.
 
-1. **No publica credenciales por defecto.** Contraseña vacía o de menos de 12
+1. **No publica credenciales por defecto.** Contraseña vacía o de menos de 7
    caracteres con `DEBUG=false` ⇒ `AdminBootstrapError` y salida distinta de
    cero. Antes, con `INITIAL_ADMIN_PASSWORD` sin definir se creaba
    `admin@sena.edu.co` con contraseña vacía y `LoginRequest` no exige longitud,

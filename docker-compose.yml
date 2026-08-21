@@ -23,7 +23,7 @@ services:
       # Administrador inicial: unico dato de negocio obligatorio en el primer
       # despliegue. Sin contrasena el arranque falla a proposito.
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@sena.edu.co}
-      INITIAL_ADMIN_PASSWORD: "${INITIAL_ADMIN_PASSWORD:?Define INITIAL_ADMIN_PASSWORD con minimo 12 caracteres}"
+      INITIAL_ADMIN_PASSWORD: "${INITIAL_ADMIN_PASSWORD:?Define INITIAL_ADMIN_PASSWORD con minimo 7 caracteres}"
       INITIAL_ADMIN_NOMBRE: "${INITIAL_ADMIN_NOMBRE:-Administrador SENNOVA}"
       INITIAL_ADMIN_DOCUMENTO: "${INITIAL_ADMIN_DOCUMENTO:-admin01}"
       INITIAL_ADMIN_SEDE: "${INITIAL_ADMIN_SEDE:-CGAO}"

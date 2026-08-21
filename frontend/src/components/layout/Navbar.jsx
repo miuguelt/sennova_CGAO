@@ -443,9 +443,9 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
                 <button 
                   onClick={onOpenSearch} 
                   className="xl:hidden p-2.5 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
-                  title="Buscar"
+                  title="Buscar" aria-label="Buscar"
                 >
-                  <Search size={20} />
+                  <Search size={20} aria-hidden="true" />
                 </button>
                 
                 {/* Botón de Mensajes con Badge */}
@@ -456,9 +456,9 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
                       ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-300'
                       : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-800'
                   }`}
-                  title="Mensajería"
+                  title="Mensajería" aria-label="Mensajería"
                 >
-                  <MessageSquare size={20} />
+                  <MessageSquare size={20} aria-hidden="true" />
                   {mensajesPendientes > 0 && (
                     <span className="absolute top-2 right-2 min-w-[16px] h-4 px-1 bg-emerald-700 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xs leading-none">
                       {mensajesPendientes > 9 ? '9+' : mensajesPendientes}
@@ -475,9 +475,9 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
                         ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-300' 
                         : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-800'
                     }`}
-                    title="Notificaciones"
+                    title="Notificaciones" aria-label="Notificaciones"
                   >
-                    <Bell size={20} />
+                    <Bell size={20} aria-hidden="true" />
                     {notificacionesPendientes > 0 && (
                       <span className="absolute top-2 right-2 min-w-[16px] h-4 px-1 bg-rose-600 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xs leading-none">
                         {notificacionesPendientes > 9 ? '9+' : notificacionesPendientes}
@@ -597,9 +597,9 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
                 <button 
                   onClick={onLogout} 
                   className="p-2.5 text-slate-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500" 
-                  title="Cerrar sesión"
+                  title="Cerrar sesión" aria-label="Cerrar sesión"
                 >
-                  <LogOut size={20} />
+                  <LogOut size={20} aria-hidden="true" />
                 </button>
               </div>
             </div>

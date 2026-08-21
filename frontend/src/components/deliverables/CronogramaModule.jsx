@@ -14,6 +14,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import TextArea from '../ui/TextArea';
 import Modal from '../ui/Modal';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 const selectValue = (eventOrValue) => eventOrValue?.target ? eventOrValue.target.value : eventOrValue;
 
@@ -47,6 +48,7 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
   const [filterProyecto, setFilterProyecto] = useState('');
   const [filterEstado, setFilterEstado] = useState('');
   const [view, setView] = useState('list'); // list, timeline
+  const [templateConfirm, setTemplateConfirm] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -74,19 +76,21 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
     setLoading(false);
   };
 
-  const handleGenerateTemplate = async () => {
+  const handleGenerateTemplate = () => {
     if (!filterProyecto) {
       onNotify?.('Selecciona un proyecto para generar su cronograma automático', 'warning');
       return;
     }
-    
     const project = proyectos.find(p => p.id === filterProyecto);
-    if (!window.confirm(`¿Generar cronograma automático para "${project?.nombre_corto || project?.nombre}" basado en su tipología (${project?.tipologia || 'Investigación'})?`)) return;
-    
+    setTemplateConfirm(project || { id: filterProyecto, nombre: '' });
+  };
+
+  const confirmGenerateTemplate = async () => {
     setLoading(true);
     try {
       await EntregablesAPI.generarDesdePlantilla(filterProyecto);
       onNotify?.('Cronograma institucional generado exitosamente', 'success');
+      setTemplateConfirm(null);
       loadData();
     } catch (err) {
       onNotify?.('Error al generar plantilla: ' + err.message, 'error');
@@ -173,40 +177,26 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
 
       {/* ── Dashboard Mini Stats ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4 border-0 ring-1 ring-slate-100 flex items-center gap-4">
-          <div className="p-3 bg-slate-100 text-slate-600 rounded-xl"><ListTodo size={20} /></div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total</p>
-            <p className="text-xl font-black text-slate-900">{entregables.length}</p>
-          </div>
-        </Card>
-        <Card className="p-4 border-0 ring-1 ring-slate-100 flex items-center gap-4">
-          <div className="p-3 bg-amber-100 text-amber-600 rounded-xl"><Clock size={20} /></div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pendientes</p>
-            <p className="text-xl font-black text-slate-900">{entregables.filter(e => e.estado === 'pendiente' || e.estado === 'en_desarrollo').length}</p>
-          </div>
-        </Card>
-        <Card className="p-4 border-0 ring-1 ring-slate-100 flex items-center gap-4">
-          <div className="p-3 bg-rose-100 text-rose-600 rounded-xl"><AlertTriangle size={20} /></div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Críticos (≤3d)</p>
-            <p className="text-xl font-black text-slate-900">{entregables.filter(e => e.dias_restantes !== null && e.dias_restantes <= 3 && e.estado !== 'aprobado').length}</p>
-          </div>
-        </Card>
-        <Card className="p-4 border-0 ring-1 ring-slate-100 flex items-center gap-4">
-          <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><CheckCircle2 size={20} /></div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aprobados</p>
-            <p className="text-xl font-black text-slate-900">{entregables.filter(e => e.estado === 'aprobado').length}</p>
-          </div>
-        </Card>
+        {[
+          { icon: ListTodo, bg: 'bg-slate-100 text-slate-800 border border-slate-200', label: 'Total', value: entregables.length },
+          { icon: Clock, bg: 'bg-amber-100 text-amber-800 border border-amber-200', label: 'Pendientes', value: entregables.filter(e => e.estado === 'pendiente' || e.estado === 'en_desarrollo').length },
+          { icon: AlertTriangle, bg: 'bg-rose-100 text-rose-800 border border-rose-200', label: 'Críticos (≤3d)', value: entregables.filter(e => e.dias_restantes !== null && e.dias_restantes <= 3 && e.estado !== 'aprobado').length },
+          { icon: CheckCircle2, bg: 'bg-emerald-100 text-emerald-800 border border-emerald-200', label: 'Aprobados', value: entregables.filter(e => e.estado === 'aprobado').length },
+        ].map(s => (
+          <Card key={s.label} className="p-4 border border-slate-200 shadow-sm flex items-center gap-4 bg-white">
+            <div className={`p-3 rounded-xl ${s.bg}`}><s.icon size={20} /></div>
+            <div>
+              <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{s.label}</p>
+              <p className="text-xl font-black text-slate-900">{s.value}</p>
+            </div>
+          </Card>
+        ))}
       </div>
 
       {/* ── Filters ── */}
-      <div className="flex flex-col lg:flex-row gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+      <div className="flex flex-col lg:flex-row gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
         <select 
-          className="flex-1 px-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl text-sm font-bold text-slate-700"
+          className="flex-1 px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800"
           value={filterProyecto}
           onChange={(e) => setFilterProyecto(e.target.value)}
         >
@@ -214,23 +204,23 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
           {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre_corto || p.nombre}</option>)}
         </select>
         <select 
-          className="w-full lg:w-48 px-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl text-sm font-bold text-slate-700"
+          className="w-full lg:w-48 px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800"
           value={filterEstado}
           onChange={(e) => setFilterEstado(e.target.value)}
         >
           <option value="">Todos los Estados</option>
           {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
         </select>
-        <div className="flex bg-white p-1 rounded-xl ring-1 ring-slate-200">
+        <div className="flex bg-white p-1 rounded-xl border border-slate-200">
           <button 
             onClick={() => setView('list')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${view === 'list' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500'}`}
+            className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${view === 'list' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-700 hover:text-slate-900'}`}
           >
             Lista
           </button>
           <button 
             onClick={() => setView('timeline')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${view === 'timeline' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500'}`}
+            className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${view === 'timeline' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-700 hover:text-slate-900'}`}
           >
             Timeline
           </button>
@@ -241,7 +231,7 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
       {loading ? (
         <div className="py-20 text-center">
           <Loader2 size={40} className="animate-spin text-emerald-600 mx-auto mb-4" />
-          <p className="text-slate-500 font-bold italic tracking-wide">Cargando hoja de ruta...</p>
+          <p className="text-slate-600 font-bold italic tracking-wide">Cargando hoja de ruta...</p>
         </div>
       ) : filtered.length > 0 ? (
         view === 'list' ? (
@@ -249,14 +239,14 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
             {filtered.map(e => {
               const est = getEstado(e.estado);
               return (
-                <Card key={e.id} className="p-0 overflow-hidden border-0 ring-1 ring-slate-200 hover:ring-indigo-300 hover:shadow-lg transition-all group">
+                <Card key={e.id} className="p-0 overflow-hidden border border-slate-200 hover:ring-2 hover:ring-indigo-300 hover:shadow-lg transition-all group bg-white">
                   <div className="flex flex-col md:flex-row md:items-center p-5 gap-6">
-                    <div className="flex-shrink-0 flex flex-col items-center justify-center w-24 h-24 bg-slate-50 rounded-2xl border border-slate-100 group-hover:bg-indigo-50 transition-colors">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{e.fase}</p>
+                    <div className="flex-shrink-0 flex flex-col items-center justify-center w-24 h-24 bg-slate-50 rounded-2xl border border-slate-200 group-hover:bg-indigo-50 transition-colors">
+                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{e.fase}</p>
                       <p className="text-2xl font-black text-slate-900 tabular-nums">
                         {new Date(e.fecha_entrega).getDate()}
                       </p>
-                      <p className="text-[10px] font-bold text-slate-500 uppercase">
+                      <p className="text-[10px] font-bold text-slate-700 uppercase">
                         {new Date(e.fecha_entrega).toLocaleString('es-CO', { month: 'short' })}
                       </p>
                     </div>
@@ -268,14 +258,14 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
                           {est.label}
                         </Badge>
                       </div>
-                      <p className="text-xs text-slate-500 line-clamp-2 mb-3">{e.descripcion || 'Sin descripción detallada.'}</p>
+                      <p className="text-xs text-slate-700 line-clamp-2 mb-3 font-medium">{e.descripcion || 'Sin descripción detallada.'}</p>
                       
                       <div className="flex flex-wrap items-center gap-4 text-[11px] font-bold">
-                        <span className="flex items-center gap-1 text-slate-400">
-                          <Folder size={14} className="text-indigo-400" /> {e.proyecto_nombre || 'Proyecto SENNOVA'}
+                        <span className="flex items-center gap-1 text-slate-700">
+                          <Folder size={14} className="text-indigo-600" /> {e.proyecto_nombre || 'Proyecto SENNOVA'}
                         </span>
-                        <span className="flex items-center gap-1 text-slate-400">
-                          <User size={14} className="text-amber-400" /> {e.responsable_nombre || 'Sin asignar'}
+                        <span className="flex items-center gap-1 text-slate-700">
+                          <User size={14} className="text-amber-600" /> {e.responsable_nombre || 'Sin asignar'}
                         </span>
                         <span className={`flex items-center gap-1 ${getDíasRestantesColor(e.dias_restantes)}`}>
                           <Clock size={14} /> 
@@ -418,6 +408,16 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
           />
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!templateConfirm}
+        onClose={() => setTemplateConfirm(null)}
+        onConfirm={confirmGenerateTemplate}
+        title="¿Generar cronograma automático?"
+        description={`Se generará el cronograma para "${templateConfirm?.nombre_corto || templateConfirm?.nombre}" según su tipología (${templateConfirm?.tipologia || 'Investigación'}). Los entregables actuales se reemplazarán.`}
+        confirmText="Generar Cronograma"
+        variant="warning"
+      />
     </div>
   );
 };

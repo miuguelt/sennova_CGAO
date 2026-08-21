@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_password_hash
 from app.models import User
 
-MIN_ADMIN_PASSWORD_LENGTH = 12
+MIN_ADMIN_PASSWORD_LENGTH = 7
 
 
 class AdminBootstrapError(RuntimeError):

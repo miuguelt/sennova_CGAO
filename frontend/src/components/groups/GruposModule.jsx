@@ -109,6 +109,8 @@ const GruposModule = ({ currentUser, onNotify }) => {
   const [memberForm, setMemberForm] = useState({ user_id: '', rol: 'Investigador' });
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [grupoSemilleros, setGrupoSemilleros] = useState([]);
+  const [semilleros, setSemilleros] = useState([]);
+  const [grupoStats, setGrupoStats] = useState(null);
   const [loadingSemilleros, setLoadingSemilleros] = useState(false);
   const [isPoolVisible,    setIsPoolVisible]    = useState(false);
   const [dragOverGroup,     setDragOverGroup]     = useState(false);
@@ -128,10 +130,15 @@ const GruposModule = ({ currentUser, onNotify }) => {
   const loadData = async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
-      const [g, u] = await Promise.all([GruposAPI.list(), UsuariosAPI.list()]);
+      const [g, u, sems] = await Promise.all([
+        GruposAPI.list(),
+        UsuariosAPI.list(),
+        SemillerosAPI.list().catch(() => [])
+      ]);
       const gList = g || [];
       setGrupos(gList);
       setUsuarios(u || []);
+      setSemilleros(sems || []);
       setSelectedGrupo(prev => {
         if (!prev) return null;
         const updated = gList.find(x => x.id === prev.id);
@@ -223,12 +230,14 @@ const GruposModule = ({ currentUser, onNotify }) => {
     setActiveTab('overview');
     setLoadingSemilleros(true);
     try {
-      const [m, sems] = await Promise.all([
+      const [m, sems, stats] = await Promise.all([
         GruposAPI.getMembers(grupo.id).catch(() => []),
-        SemillerosAPI.list().catch(() => [])
+        SemillerosAPI.list().catch(() => []),
+        GruposAPI.getStats(grupo.id).catch(() => null)
       ]);
       setIntegrantes(m || []);
       setGrupoSemilleros((sems || []).filter(s => s.grupo_id === grupo.id || s.grupo?.id === grupo.id));
+      setGrupoStats(stats || null);
     } catch (err) {
       console.error(err);
     } finally {
@@ -294,6 +303,14 @@ const GruposModule = ({ currentUser, onNotify }) => {
     (g.nombre_completo || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const semillerosAdscritos = semilleros.filter(s => s.grupo_id || s.grupo?.id).length;
+
+  const categoriaMaxima = (() => {
+    const presentes = [...new Set(grupos.map(g => g.clasificacion).filter(Boolean))];
+    if (!presentes.length) return 'S.C.';
+    return presentes.sort((a, b) => CLASIFICACIONES.findIndex(c => c.value === a) - CLASIFICACIONES.findIndex(c => c.value === b))[0];
+  })();
+
   const DRAWER_TABS = [
     { id: 'overview', label: 'Información', icon: Info },
     { id: 'stats', label: 'Estadísticas e Impacto', icon: BarChart3 },
@@ -323,12 +340,11 @@ const GruposModule = ({ currentUser, onNotify }) => {
         )}
       </div>
 
-      {/* ─── Metrics Summary ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ─── Metrics Summary ───────────────────────────────────────────── */}      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Grupos Institucionales" value={grupos.length} icon={Layers} colorCls="text-indigo-600" bgCls="bg-indigo-100" />
         <StatCard label="Investigadores Matriz" value={grupos.reduce((acc, g) => acc + (g.total_investigadores || 0), 0)} icon={Users} colorCls="text-emerald-600" bgCls="bg-emerald-100" />
-        <StatCard label="Categoría Máxima" value={grupos.find(g => g.clasificacion === 'A1') ? 'A1' : 'B'} icon={Award} colorCls="text-amber-600" bgCls="bg-amber-100" />
-        <StatCard label="Semilleros Adscritos" value={grupos.length * 3} icon={Target} colorCls="text-rose-600" bgCls="bg-rose-100" />
+        <StatCard label="Categoría Máxima" value={categoriaMaxima} icon={Award} colorCls="text-amber-600" bgCls="bg-amber-100" />
+        <StatCard label="Semilleros Adscritos" value={semillerosAdscritos} icon={Target} colorCls="text-rose-600" bgCls="bg-rose-100" />
       </div>
 
       {/* ─── Search and Filters ────────────────────────────────────────── */}
@@ -375,25 +391,10 @@ const GruposModule = ({ currentUser, onNotify }) => {
                         </button>
                         {menuOpenId === grupo.id && (
                           <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-30 animate-scaleIn">
-                            <button
-                              onClick={() => handleOpenEdit(grupo)}
-                              className="w-full px-4 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                            >
-                              <Edit2 size={14} /> Editar Datos
-                            </button>
-                            <button
-                              onClick={() => handleOpenMembers(grupo)}
-                              className="w-full px-4 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                            >
-                              <Users size={14} /> Gestionar Equipo
-                            </button>
+                            <button onClick={() => handleOpenEdit(grupo)} className="w-full px-4 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"><Edit2 size={14} /> Editar Datos</button>
+                            <button onClick={() => handleOpenMembers(grupo)} className="w-full px-4 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"><Users size={14} /> Gestionar Equipo</button>
                             <div className="my-1 border-t border-slate-100" />
-                            <button
-                              onClick={() => handleDelete(grupo.id)}
-                              className="w-full px-4 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2"
-                            >
-                              <Trash2 size={14} /> Eliminar Grupo
-                            </button>
+                            <button onClick={() => handleDelete(grupo.id)} className="w-full px-4 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2"><Trash2 size={14} /> Eliminar Grupo</button>
                           </div>
                         )}
                       </div>
@@ -410,20 +411,16 @@ const GruposModule = ({ currentUser, onNotify }) => {
 
                 <div className="space-y-2 mb-6 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
                   <div className="flex justify-between items-center text-xs font-bold">
-                    <span className="text-slate-400 font-medium">GrupLAC:</span>
-                    <span className="font-mono text-slate-700">{grupo.codigo_gruplac || 'N/A'}</span>
+                    <span className="text-slate-400 font-medium">GrupLAC:</span> <span className="font-mono text-slate-700">{grupo.codigo_gruplac || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs font-bold">
-                    <span className="text-slate-400 font-medium">Integrantes:</span>
-                    <span className="text-indigo-600 font-black">{grupo.total_investigadores || 0} asignados</span>
+                    <span className="text-slate-400 font-medium">Integrantes:</span> <span className="text-indigo-600 font-black">{grupo.total_investigadores || 0} asignados</span>
                   </div>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-bold text-indigo-600 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                  Ver Expediente Completo <ArrowUpRight size={14} />
-                </span>
+                <span className="text-xs font-bold text-indigo-600 flex items-center gap-1 group-hover:translate-x-1 transition-transform">Ver Expediente Completo <ArrowUpRight size={14} /></span>
                 {grupo.gruplac_url && (
                   <a
                     href={grupo.gruplac_url}
@@ -548,29 +545,32 @@ const GruposModule = ({ currentUser, onNotify }) => {
               <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-6 flex items-center gap-2">
                 <PieChart size={14} className="text-indigo-600" /> Distribución de Producción
               </h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RePie>
-                    <Pie 
-                      data={[
-                        { name: 'Artículos', value: 8 },
-                        { name: 'Software', value: 5 },
-                        { name: 'Prototipos', value: 12 },
-                        { name: 'Apropiación Social', value: 9 }
-                      ]} 
-                      innerRadius={60} 
-                      outerRadius={80} 
-                      paddingAngle={5} 
-                      dataKey="value"
-                    >
-                      {[0,1,2,3].map((entry, index) => (
-                        <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </RePie>
-                </ResponsiveContainer>
-              </div>
+              {grupoStats?.produccion?.some(p => p.value > 0) ? (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RePie>
+                      <Pie 
+                        data={grupoStats.produccion.filter(p => p.value > 0)} 
+                        innerRadius={60} 
+                        outerRadius={80} 
+                        paddingAngle={5} 
+                        dataKey="value"
+                      >
+                        {grupoStats.produccion.filter(p => p.value > 0).map((entry, index) => (
+                          <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </RePie>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100">
+                  <Award size={36} className="mx-auto text-slate-300 mb-2" />
+                  <p className="text-xs text-slate-500 font-bold">Sin productos Minciencias registrados para este grupo</p>
+                  <p className="text-[10px] text-slate-400 mt-1 italic">La distribución de producción se calculará al vincular productos a sus proyectos.</p>
+                </div>
+              )}
             </section>
           </div>
         )}

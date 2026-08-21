@@ -35,6 +35,7 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showItemForm, setShowItemForm] = useState(false);
+  const [templateConfirm, setTemplateConfirm] = useState(false);
   const [editingItemIdx, setEditingItemIdx] = useState(null);
   const [itemData, setItemData] = useState({ categoria: 'Talento Humano', item: '', valor: 0, descripcion: '' });
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, idx: null });
@@ -73,13 +74,16 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
     setLoading(false);
   };
 
-  const handleGenerateTemplate = async () => {
-    if (!window.confirm('¿Deseas generar la plantilla base de presupuesto? Esto sobrescribirá cualquier dato actual.')) return;
-    
+  const handleGenerateTemplate = () => {
+    setTemplateConfirm(true);
+  };
+
+  const confirmGenerateTemplate = async () => {
     setLoading(true);
     try {
       await ProyectosAPI.generarPresupuesto(selectedProjectId);
       onNotify?.('Plantilla generada exitosamente', 'success');
+      setTemplateConfirm(false);
       loadProyectoDetail();
     } catch (err) {
       onNotify?.('Error al generar plantilla: ' + err.message, 'error');
@@ -275,9 +279,9 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
                     </div>
                     <div className="text-right px-4 border-l border-slate-50">
                       <p className="text-lg font-black text-slate-900 tabular-nums">{formatMoney(item.valor)}</p>
-                      <div className="flex justify-end gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openEdit(idx)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Edit2 size={14} /></button>
-                        <button onClick={() => removeItem(idx)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"><Trash2 size={14} /></button>
+                      <div className="flex justify-end gap-2 mt-2">
+                        <button onClick={() => openEdit(idx)} aria-label={`Editar rubro ${item.item}`} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Edit2 size={14} /></button>
+                        <button onClick={() => removeItem(idx)} aria-label={`Eliminar rubro ${item.item}`} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"><Trash2 size={14} /></button>
                       </div>
                     </div>
                   </Card>
@@ -361,6 +365,17 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
         description="¿Estás seguro de eliminar este rubro del presupuesto del proyecto? Esta acción no se puede deshacer."
         confirmText="Eliminar Rubro"
         variant="danger"
+      />
+
+      {/* ── Confirm Generate Template ── */}
+      <ConfirmDialog
+        isOpen={templateConfirm}
+        onClose={() => setTemplateConfirm(false)}
+        onConfirm={confirmGenerateTemplate}
+        title="¿Generar plantilla base?"
+        description="Se generará la plantilla base de presupuesto según la tipología del proyecto. Esto sobrescribirá cualquier dato actual."
+        confirmText="Generar Plantilla"
+        variant="warning"
       />
     </div>
   );

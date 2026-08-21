@@ -69,7 +69,7 @@ En la sección **"Environment Variables"** de Coolify, agrega todas las variable
 | `ALLOWED_ORIGINS` | `https://sennova.tu.coolify.app` | Dominios permitidos CORS |
 | `VITE_API_URL` | `https://api-sennova.tu.coolify.app` | URL del backend |
 | `INITIAL_ADMIN_EMAIL` | `admin@sena.edu.co` | Email admin inicial |
-| `INITIAL_ADMIN_PASSWORD` | `AdminP4ss!` | Contraseña admin inicial |
+| `INITIAL_ADMIN_PASSWORD` | `AdminP4ssw0rd!2024` | Contraseña admin inicial (mínimo 7 caracteres) |
 
 ### 2.3 Configurar Dominios
 

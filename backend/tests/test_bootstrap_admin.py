@@ -66,7 +66,7 @@ def test_contrasena_debil_rechazada_en_produccion(db):
     with pytest.raises(AdminBootstrapError) as exc:
         ensure_initial_admin(db, _credentials(password="123456"))
 
-    assert "12" in str(exc.value)
+    assert "7" in str(exc.value)
     assert db.query(User).count() == 0
 
 

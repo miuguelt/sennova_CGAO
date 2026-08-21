@@ -15,6 +15,7 @@ import useClickOutside from '../../hooks/useClickOutside';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
+import EmptyState from '../ui/EmptyState';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import TextArea from '../ui/TextArea';
@@ -100,14 +101,14 @@ const EMPTY_FORM = {
 // ─── Components ─────────────────────────────────────────────────────────────
 
 const StatCard = ({ label, value, icon: Icon, colorCls, bgCls }) => (
-  <Card className="p-5 border-0 shadow-sm ring-1 ring-slate-200/60 overflow-hidden relative group transition-all hover:shadow-md">
+  <Card className="p-5 border border-slate-200 shadow-sm overflow-hidden relative group transition-all hover:shadow-md bg-white">
     <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-10 transition-transform group-hover:scale-110 ${bgCls}`} />
     <div className="flex items-center gap-4 relative">
       <div className={`p-3 rounded-2xl ${bgCls} ${colorCls} shadow-sm`}>
         <Icon size={22} />
       </div>
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-700">{label}</p>
         <p className="text-2xl font-black text-slate-900 tabular-nums">{value}</p>
       </div>
     </div>
@@ -147,6 +148,7 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [tipoFilter, setTipoFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [proyectoFilter, setProyectoFilter] = useState('');
+  const [templateConfirm, setTemplateConfirm] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -254,10 +256,7 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     if (!proyectoId) return;
 
     try {
-      await ProductosAPI.update(producto.id, { 
-        ...producto, 
-        proyecto_id: proyectoId 
-      });
+      await ProductosAPI.update(producto.id, { ...producto, proyecto_id: proyectoId });
       onNotify?.('Proyecto vinculado al producto correctamente', 'success');
       loadData();
     } catch (err) {
@@ -272,9 +271,7 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       setIsDetailOpen(false);
       setMenuOpenId(null);
       loadData();
-    } catch (err) { 
-      onNotify?.('Error en verificación: ' + err.message, 'error'); 
-    }
+    } catch (err) { onNotify?.('Error en verificación: ' + err.message, 'error'); }
   };
 
   const fileInputRefs = useRef({});
@@ -282,11 +279,8 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const handleChecklistToggle = async (reqIndex, currentValue) => {
     if (!selectedProducto) return;
     const reqKey = `req_${reqIndex}`;
-    const newCumplidos = { 
-      ...(selectedProducto.requisitos_cumplidos || {}), 
-      [reqKey]: !currentValue 
-    };
-    
+    const newCumplidos = { ...(selectedProducto.requisitos_cumplidos || {}), [reqKey]: !currentValue };
+
     try {
       const updated = await ProductosAPI.update(selectedProducto.id, {
         ...selectedProducto,
@@ -329,19 +323,17 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     }
   };
 
-  const handleGenerateTemplate = async () => {
-    if (!proyectoFilter) {
-      onNotify?.('Selecciona un proyecto para proyectar sus resultados automáticos', 'warning');
-      return;
-    }
-    
-    const project = proyectos.find(p => p.id === proyectoFilter);
-    if (!window.confirm(`¿Deseas generar los productos proyectados para "${project?.nombre_corto || project?.nombre}" según su tipología?`)) return;
-    
+  const handleGenerateTemplate = () => {
+    if (!proyectoFilter) return onNotify?.('Selecciona un proyecto para proyectar sus resultados automáticos', 'warning');
+    setTemplateConfirm(proyectos.find(p => p.id === proyectoFilter) || { id: proyectoFilter, nombre: '' });
+  };
+
+  const confirmGenerateTemplate = async () => {
     setLoading(true);
     try {
       await ProductosAPI.generarDesdePlantilla(proyectoFilter);
       onNotify?.('Productos proyectados generados exitosamente', 'success');
+      setTemplateConfirm(null);
       loadData();
     } catch (err) {
       onNotify?.('Error al generar plantilla: ' + err.message, 'error');
@@ -354,13 +346,12 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     setFormData(prev => ({ ...prev, [f]: val }));
   };
 
-  const filtered = productos.filter(p => {
-    const matchSearch = !searchTerm || (p.nombre || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchTipo   = !tipoFilter  || p.tipo === tipoFilter;
-    const matchStatus = !statusFilter || (statusFilter === 'verificado' ? p.is_verificado : !p.is_verificado);
-    const matchProj   = !proyectoFilter || p.proyecto_id === proyectoFilter;
-    return matchSearch && matchTipo && matchStatus && matchProj;
-  });
+  const filtered = productos.filter(p =>
+    (!searchTerm || (p.nombre || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (!tipoFilter || p.tipo === tipoFilter) &&
+    (!statusFilter || (statusFilter === 'verificado' ? p.is_verificado : !p.is_verificado)) &&
+    (!proyectoFilter || p.proyecto_id === proyectoFilter)
+  );
 
   // Action Menu Component
   const ActionMenu = ({ producto }) => {
@@ -478,9 +469,7 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
         {isPoolVisible && (
           <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 animate-fadeIn">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-black text-indigo-800 uppercase tracking-widest flex items-center gap-2">
-                <Folder size={14} /> Proyectos Activos para Vincular
-              </p>
+              <p className="text-[10px] font-black text-indigo-800 uppercase tracking-widest flex items-center gap-2"><Folder size={14} /> Proyectos Activos para Vincular</p>
               <span className="text-[9px] text-indigo-600 font-bold uppercase italic">Arrastra un proyecto hacia un producto</span>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
@@ -576,9 +565,8 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
             );
           })
         ) : (
-          <div className="col-span-full py-20 text-center">
-            <div className="p-4 bg-slate-100 rounded-full w-fit mx-auto mb-4 text-slate-300"><Award size={48} /></div>
-            <p className="text-slate-500 font-bold italic">No se encontraron productos en el catálogo.</p>
+          <div className="col-span-full">
+            <EmptyState icon={Award} title="No se encontraron productos en el catálogo" description="Ajusta los filtros o registra tu primer producto de investigación." />
           </div>
         )}
       </div>
@@ -587,8 +575,7 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       {selectedProducto && (() => {
         const tipo = getTipo(selectedProducto.tipo);
         const { Icon } = tipo;
-        const tipoInfo = getTipo(selectedProducto.tipo);
-        const requisitos = tipoInfo?.requisitos || [];
+        const requisitos = tipo?.requisitos || [];
         const cumplidos = selectedProducto.requisitos_cumplidos || {};
         const nCumplidos = Object.values(cumplidos).filter(Boolean).length;
 
@@ -691,40 +678,40 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               )}
 
               <section className="space-y-2">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <FileText size={14} className="text-indigo-500" /> Descripción Técnica
+                <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                  <FileText size={14} className="text-indigo-600" /> Descripción Técnica
                 </h3>
-                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 text-slate-700 text-xs font-medium leading-relaxed">
+                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-slate-800 text-xs font-medium leading-relaxed">
                   {selectedProducto.descripcion || 'Sin descripción técnica detallada en el repositorio.'}
                 </div>
               </section>
 
               <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
-                    <Folder size={12} className="text-emerald-500" /> Proyecto de Origen
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                    <Folder size={12} className="text-emerald-600" /> Proyecto de Origen
                   </h3>
                   <p className="text-xs font-bold text-slate-900">{selectedProducto.proyecto_nombre || 'No asociado'}</p>
                 </div>
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
-                    <User size={12} className="text-amber-500" /> Investigador Responsable
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                    <User size={12} className="text-amber-600" /> Investigador Responsable
                   </h3>
                   <p className="text-xs font-bold text-slate-900">{selectedProducto.owner_nombre || 'No asignado'}</p>
                 </div>
               </section>
 
               <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
-                    <Calendar size={12} className="text-blue-500" /> Fecha de Registro
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                    <Calendar size={12} className="text-blue-600" /> Fecha de Registro
                   </h3>
                   <p className="text-xs font-bold text-slate-900">{selectedProducto.fecha_publicacion || 'N/A'}</p>
                 </div>
                 {selectedProducto.doi && (
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
-                      <LinkIcon size={12} className="text-rose-500" /> DOI / Registro
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                    <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                      <LinkIcon size={12} className="text-rose-600" /> DOI / Registro
                     </h3>
                     <p className="text-xs font-bold text-slate-900 truncate">{selectedProducto.doi}</p>
                   </div>
@@ -1018,6 +1005,16 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
         description="¿Estás seguro de eliminar este producto de investigación del catálogo? Esta acción no se puede deshacer."
         confirmText="Eliminar Producto"
         variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={!!templateConfirm}
+        onClose={() => setTemplateConfirm(null)}
+        onConfirm={confirmGenerateTemplate}
+        title="¿Generar productos proyectados?"
+        description={`Se generarán los productos proyectados para "${templateConfirm?.nombre_corto || templateConfirm?.nombre}" según su tipología.`}
+        confirmText="Generar"
+        variant="warning"
       />
     </div>
   );

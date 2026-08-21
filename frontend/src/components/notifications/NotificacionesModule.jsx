@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Bell, CheckCircle2, AlertTriangle, Clock, Trash2, 
-  Filter, Search, ArrowRight, Info, ExternalLink,
-  ChevronRight, Calendar, Loader2, Mail, MailOpen,
+  Bell, CheckCircle2, Clock, Trash2, 
+  Search, Info, ExternalLink,
+  ChevronRight, Calendar, Loader2, Mail,
   FolderOpen, Award, MessageSquare, Book, User,
   Layers, GraduationCap, Lightbulb, FileText, CheckCheck,
   RefreshCw, Sparkles, Eye, X
@@ -12,7 +12,8 @@ import { navigateNotification, resolveNotificationTarget } from '@/utils/notific
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
-import Modal from '../ui/Modal';
+import ConfirmDialog from '../ui/ConfirmDialog';
+import NotificationDetailModal from './NotificationDetailModal';
 
 const PRIORIDAD_COLORS = {
   baja:   'text-slate-600 bg-slate-100 border-slate-200',
@@ -52,27 +53,27 @@ const NotificacionesModule = ({ currentUser, onNotify, onNavigate, onModuleActio
   const [searchTerm, setSearchTerm] = useState('');
   const [stats, setStats] = useState({ total: 0, noLeidas: 0 });
   const [selectedNotif, setSelectedNotif] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const PAGE_SIZE = 50;
 
   useEffect(() => {
     loadNotificaciones();
   }, [filter]);
 
-  const loadNotificaciones = async () => {
+  const loadNotificaciones = async (append = false) => {
     setLoading(true);
     try {
-      let data = [];
-      if (filter === 'no_leidas') {
-        data = await NotificacionesAPI.listar(true);
-      } else if (filter === 'leidas') {
-        data = await NotificacionesAPI.listar('leidas');
-      } else {
-        data = await NotificacionesAPI.listar(null);
-      }
-      setNotificaciones(Array.isArray(data) ? data : []);
-      
+      const skip = append ? notificaciones.length : 0;
+      const filterArg = filter === 'no_leidas' ? true : filter === 'leidas' ? 'leidas' : null;
+      const data = await NotificacionesAPI.listar(filterArg, PAGE_SIZE, skip);
+      const list = Array.isArray(data) ? data : [];
+      setNotificaciones(append ? prev => [...prev, ...list] : list);
+      setHasMore(list.length >= PAGE_SIZE);
+
       const statsData = await NotificacionesAPI.checkPendientes();
       setStats({
-        total: statsData.total || (Array.isArray(data) ? data.length : 0),
+        total: statsData.total || list.length,
         noLeidas: statsData.no_leidas || 0
       });
     } catch (err) {
@@ -80,6 +81,8 @@ const NotificacionesModule = ({ currentUser, onNotify, onNavigate, onModuleActio
     }
     setLoading(false);
   };
+
+  const cargarMas = () => loadNotificaciones(true);
 
   const handleMarcarLeida = async (id, leida = true) => {
     try {
@@ -97,8 +100,11 @@ const NotificacionesModule = ({ currentUser, onNotify, onNavigate, onModuleActio
     }
   };
 
-  const handleMarcarTodasLeidas = async () => {
-    if (!window.confirm('¿Marcar todas las notificaciones como leídas?')) return;
+  const handleMarcarTodasLeidas = () => {
+    setConfirmAction({ type: 'marcar_todas' });
+  };
+
+  const confirmMarcarTodasLeidas = async () => {
     try {
       await NotificacionesAPI.marcarTodasLeidas();
       setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })));
@@ -106,35 +112,51 @@ const NotificacionesModule = ({ currentUser, onNotify, onNavigate, onModuleActio
       if (selectedNotif) {
         setSelectedNotif(prev => prev ? { ...prev, leida: true } : null);
       }
+      setConfirmAction(null);
       onNotify?.('Todas las notificaciones marcadas como leídas', 'success');
     } catch (err) {
       onNotify?.('Error al actualizar notificaciones', 'error');
     }
   };
 
-  const handleEliminar = async (id, e) => {
+  const handleEliminar = (id, e) => {
     if (e) e.stopPropagation();
+    setConfirmAction({ type: 'eliminar', id });
+  };
+
+  const confirmEliminar = async () => {
     try {
-      await NotificacionesAPI.eliminar(id);
-      setNotificaciones(prev => prev.filter(n => n.id !== id));
-      if (selectedNotif?.id === id) {
+      await NotificacionesAPI.eliminar(confirmAction.id);
+      setNotificaciones(prev => prev.filter(n => n.id !== confirmAction.id));
+      if (selectedNotif?.id === confirmAction.id) {
         setSelectedNotif(null);
       }
+      setConfirmAction(null);
       onNotify?.('Notificación eliminada', 'success');
     } catch (err) {
       onNotify?.('Error al eliminar notificación', 'error');
     }
   };
 
-  const handleLimpiarLeidas = async () => {
-    if (!window.confirm('¿Eliminar notificaciones leídas de más de 30 días?')) return;
+  const handleLimpiarLeidas = () => {
+    setConfirmAction({ type: 'limpiar' });
+  };
+
+  const confirmLimpiarLeidas = async () => {
     try {
       await NotificacionesAPI.limpiarLeidas(30);
+      setConfirmAction(null);
       onNotify?.('Notificaciones leídas limpiadas', 'success');
       loadNotificaciones();
     } catch (err) {
       onNotify?.('Error al limpiar notificaciones', 'error');
     }
+  };
+
+  const CONFIRM_CFG = {
+    marcar_todas: { title: '¿Marcar todas como leídas?', description: 'Se marcarán todas las notificaciones como leídas.', confirmText: 'Marcar leídas', variant: 'info', action: confirmMarcarTodasLeidas },
+    limpiar: { title: '¿Limpiar notificaciones leídas?', description: 'Se eliminarán las notificaciones leídas con más de 30 días. Esta acción no se puede deshacer.', confirmText: 'Limpiar', variant: 'danger', action: confirmLimpiarLeidas },
+    eliminar: { title: '¿Eliminar notificación?', description: 'Esta notificación se eliminará de forma permanente.', confirmText: 'Eliminar', variant: 'danger', action: confirmEliminar },
   };
 
   const handleRowClick = (n) => {
@@ -310,10 +332,10 @@ const NotificacionesModule = ({ currentUser, onNotify, onNavigate, onModuleActio
                     </p>
 
                     <div className="flex items-center gap-4 mt-2">
-                      <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+                      <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
                         <Clock size={12} /> {new Date(n.created_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}
                       </span>
-                      <span className="text-[11px] text-emerald-700 font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                      <span className="text-[11px] text-emerald-800 font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                         <Eye size={12} /> Ver detalle
                       </span>
                     </div>
@@ -336,7 +358,7 @@ const NotificacionesModule = ({ currentUser, onNotify, onNavigate, onModuleActio
                     className={`p-2 rounded-xl transition-colors ${
                       !n.leida 
                         ? 'text-emerald-700 hover:bg-emerald-100' 
-                        : 'text-slate-400 hover:text-emerald-700 hover:bg-slate-100'
+                        : 'text-slate-500 hover:text-emerald-700 hover:bg-slate-100'
                     }`}
                     title={!n.leida ? 'Marcar como leída' : 'Marcar como no leída'}
                   >
@@ -344,7 +366,7 @@ const NotificacionesModule = ({ currentUser, onNotify, onNavigate, onModuleActio
                   </button>
                   <button 
                     onClick={(e) => handleEliminar(n.id, e)}
-                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                    className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
                     title="Eliminar notificación"
                   >
                     <Trash2 size={18} />
@@ -366,90 +388,36 @@ const NotificacionesModule = ({ currentUser, onNotify, onNavigate, onModuleActio
         )}
       </div>
 
+      {hasMore && !loading && (
+        <div className="flex justify-center pt-1">
+          <Button onClick={cargarMas} variant="outline" className="bg-white text-xs font-bold">
+            <RefreshCw size={16} className="mr-1.5" /> Cargar más notificaciones
+          </Button>
+        </div>
+      )}
+
       {/* ── Notification Detail Modal ── */}
-      {selectedNotif && (
-        <Modal
-          isOpen={!!selectedNotif}
-          onClose={() => setSelectedNotif(null)}
-          title="Detalle de Notificación"
-          maxWidth="max-w-lg"
-        >
-          <div className="space-y-5">
-            <div className="flex items-start gap-3.5 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-600/20">
-                <SelectedIcon size={24} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-black text-slate-900 text-base leading-snug">
-                  {selectedNotif.titulo}
-                </h3>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border ${PRIORIDAD_COLORS[selectedNotif.prioridad] || PRIORIDAD_COLORS.normal}`}>
-                    Prioridad {selectedNotif.prioridad}
-                  </span>
-                  {selectedNotif.entidad_tipo && (
-                    <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                      {selectedNotif.entidad_tipo}
-                    </span>
-                  )}
-                  <span className="text-xs text-slate-400 font-medium">
-                    {new Date(selectedNotif.created_at).toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' })}
-                  </span>
-                </div>
-              </div>
-            </div>
+      <NotificationDetailModal
+        notif={selectedNotif}
+        target={selectedTarget}
+        icon={SelectedIcon}
+        onClose={() => setSelectedNotif(null)}
+        onToggleLeida={() => handleMarcarLeida(selectedNotif.id, !selectedNotif.leida)}
+        onDelete={(e) => handleEliminar(selectedNotif.id, e)}
+        onAction={(e) => handleAction(selectedNotif, e)}
+      />
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-200">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Mensaje</h4>
-              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                {selectedNotif.mensaje}
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleMarcarLeida(selectedNotif.id, !selectedNotif.leida)}
-                  className="text-xs font-bold flex-1 sm:flex-initial"
-                >
-                  {selectedNotif.leida ? <Mail size={14} className="mr-1.5" /> : <CheckCircle2 size={14} className="mr-1.5 text-emerald-600" />}
-                  {selectedNotif.leida ? 'Marcar no leída' : 'Marcar leída'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => handleEliminar(selectedNotif.id, e)}
-                  className="text-xs font-bold text-rose-600 hover:bg-rose-50 hover:border-rose-200"
-                >
-                  <Trash2 size={14} className="mr-1.5" /> Eliminar
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                {selectedTarget?.label && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={(e) => handleAction(selectedNotif, e)}
-                    className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto"
-                  >
-                    {selectedTarget.label} <ArrowRight size={14} className="ml-1.5" />
-                  </Button>
-                )}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setSelectedNotif(null)}
-                  className="text-xs font-bold"
-                >
-                  Cerrar
-                </Button>
-              </div>
-            </div>
-          </div>
-        </Modal>
+      {/* ── Confirm Dialogs ── */}
+      {confirmAction && (
+        <ConfirmDialog
+          isOpen
+          onClose={() => setConfirmAction(null)}
+          onConfirm={CONFIRM_CFG[confirmAction.type].action}
+          title={CONFIRM_CFG[confirmAction.type].title}
+          description={CONFIRM_CFG[confirmAction.type].description}
+          confirmText={CONFIRM_CFG[confirmAction.type].confirmText}
+          variant={CONFIRM_CFG[confirmAction.type].variant}
+        />
       )}
     </div>
   );

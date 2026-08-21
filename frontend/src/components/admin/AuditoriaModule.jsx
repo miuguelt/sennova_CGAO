@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Shield, Activity, History, Search, Filter, 
+  Shield, Activity, Search, Filter, 
   Terminal, User, Globe, Clock, AlertTriangle,
   ChevronDown, ArrowUpRight, BarChart3, Database,
-  Eye, RefreshCw, Download, Calendar, Layers,
-  Server, Cpu, HardDrive
+  Eye, RefreshCw, Download, Calendar, Layers
 } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
+import ConfirmDialog from '../ui/ConfirmDialog';
+import InfraHealthCard from './InfraHealthCard';
 import { AuditAPI } from '../../api/audit';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -21,17 +22,24 @@ const AuditoriaModule = ({ onNotify }) => {
   const [stats, setStats] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({ limit: 50 });
+  const [cleanupConfirm, setCleanupConfirm] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
 
-  const loadData = async () => {
+  const loadData = async (append = false) => {
     setLoading(true);
     try {
+      const skip = append ? (activeTab === 'actividades' ? actividades.length : logs.length) : 0;
+      const params = { ...filters, skip };
+      const data = activeTab === 'actividades'
+        ? await AuditAPI.getActividades(params)
+        : await AuditAPI.getLogs(params);
+      const list = Array.isArray(data) ? data : [];
       if (activeTab === 'actividades') {
-        const data = await AuditAPI.getActividades(filters);
-        setActividades(data);
+        setActividades(append ? prev => [...prev, ...list] : list);
       } else {
-        const data = await AuditAPI.getLogs(filters);
-        setLogs(data);
+        setLogs(append ? prev => [...prev, ...list] : list);
       }
+      setHasMore(list.length >= (filters.limit || 50));
       const s = await AuditAPI.getStats();
       setStats(s);
     } catch (err) {
@@ -40,6 +48,8 @@ const AuditoriaModule = ({ onNotify }) => {
       setLoading(false);
     }
   };
+
+  const cargarMas = () => loadData(true);
 
   useEffect(() => {
     loadData();
@@ -62,22 +72,21 @@ const AuditoriaModule = ({ onNotify }) => {
   };
 
   const handleExport = () => {
-    try {
-      const tipoExport = activeTab === 'actividades' ? 'actividades' : 'logs';
-      const url = AuditAPI.exportLogsUrl(tipoExport);
-      window.open(url, '_blank');
-      onNotify?.('Exportación iniciada', 'success');
-    } catch (err) {
-      onNotify?.('Error al exportar logs', 'error');
-    }
+    const url = AuditAPI.exportLogsUrl(activeTab === 'actividades' ? 'actividades' : 'logs');
+    window.open(url, '_blank');
+    onNotify?.('Exportación iniciada', 'success');
   };
 
-  const handleCleanup = async () => {
-    if (!window.confirm('¿Está seguro de que desea depurar los logs antiguos? Esta acción no se puede deshacer.')) return;
+  const handleCleanup = () => {
+    setCleanupConfirm(true);
+  };
+
+  const confirmCleanup = async () => {
     try {
       setLoading(true);
       const res = await AuditAPI.cleanup(30);
       onNotify?.(`Limpieza exitosa. Se eliminaron ${res.deleted_logs} logs y ${res.deleted_activities} actividades antiguas.`, 'success');
+      setCleanupConfirm(false);
       loadData();
     } catch (err) {
       onNotify?.('Error al depurar logs antiguos', 'error');
@@ -85,6 +94,12 @@ const AuditoriaModule = ({ onNotify }) => {
       setLoading(false);
     }
   };
+
+  const dataSource = activeTab === 'actividades' ? actividades : logs;
+  const filteredData = dataSource.filter(item =>
+    (item.user_nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.descripcion || item.endpoint || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6 animate-fadeIn pb-20 px-4 md:px-0">
@@ -110,43 +125,34 @@ const AuditoriaModule = ({ onNotify }) => {
           
           <div className="flex w-full lg:w-auto gap-3">
             <Button variant="outline" onClick={handleCleanup} className="flex-1 lg:flex-none justify-center border-rose-500 bg-rose-950/60 text-rose-200 hover:bg-rose-900 hover:text-white font-bold">
-              <AlertTriangle size={18} className="mr-2" />
-              <span>Depurar &gt;30d</span>
+              <AlertTriangle size={18} className="mr-2" /> Depurar &gt;30d
             </Button>
-            <Button variant="outline" onClick={loadData} className="flex-1 lg:flex-none justify-center bg-slate-800 border-slate-700 text-white hover:bg-slate-700 font-bold">
+            <Button variant="outline" onClick={loadData} aria-label="Refrescar" className="flex-1 lg:flex-none justify-center bg-slate-800 border-slate-700 text-white hover:bg-slate-700 font-bold">
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-              <span className="ml-2 lg:hidden">Refrescar</span>
             </Button>
             <Button variant="sena" onClick={handleExport} className="flex-1 lg:flex-none justify-center px-4 md:px-8">
-              <Download size={18} className="mr-2" /> 
-              <span className="hidden sm:inline">Exportar {activeTab === 'actividades' ? 'Actividades' : 'Logs'}</span>
-              <span className="sm:hidden">Exportar</span>
+              <Download size={18} className="mr-2" /> Exportar {activeTab === 'actividades' ? 'Actividades' : 'Logs'}
             </Button>
           </div>
         </div>
 
-
         {/* Mini Stats Bar */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-8 pt-8 border-t border-slate-800">
-          <div className="space-y-1">
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-300">Eventos Totales</p>
-            <p className="text-xl md:text-2xl font-black text-white">{stats?.total_logs || 0}</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-300">Actividades</p>
-            <p className="text-xl md:text-2xl font-black text-white">{stats?.total_actividades || 0}</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-300">Tasa de Error</p>
-            <p className={`text-xl md:text-2xl font-black ${stats?.tasa_error > 5 ? 'text-rose-300' : 'text-emerald-300'}`}>
-              {stats?.tasa_error?.toFixed(2)}%
-            </p>
-          </div>
+          {[
+            { label: 'Eventos Totales', value: stats?.total_logs || 0 },
+            { label: 'Actividades', value: stats?.total_actividades || 0 },
+            { label: 'Tasa de Error', value: `${stats?.tasa_error !== undefined ? stats.tasa_error.toFixed(2) : '0.0'}%`, valueCls: stats?.tasa_error > 5 ? 'text-rose-300' : 'text-emerald-300' },
+          ].map(s => (
+            <div key={s.label} className="space-y-1">
+              <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-300">{s.label}</p>
+              <p className={`text-xl md:text-2xl font-black text-white ${s.valueCls || ''}`}>{s.value}</p>
+            </div>
+          ))}
           <div className="space-y-1 col-span-1">
             <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-300">Sistema</p>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <p className="text-sm md:text-sm font-black text-emerald-300 uppercase tracking-tighter">Operativo</p>
+              <p className="text-sm font-black text-emerald-300 uppercase tracking-tighter">Operativo</p>
             </div>
           </div>
         </div>
@@ -216,12 +222,7 @@ const AuditoriaModule = ({ onNotify }) => {
                           </tr>
                         ))
                       ) : (
-                        (activeTab === 'actividades' ? actividades : logs)
-                        .filter(item => 
-                          (item.user_nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (item.descripcion || item.endpoint || '').toLowerCase().includes(searchTerm.toLowerCase())
-                        )
-                        .map((item, idx) => (
+                        filteredData.map((item, idx) => (
                           <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
@@ -282,12 +283,7 @@ const AuditoriaModule = ({ onNotify }) => {
               {loading ? (
                 [1,2,3].map(i => <div key={i} className="h-32 bg-slate-100 rounded-3xl animate-pulse" />)
               ) : (
-                (activeTab === 'actividades' ? actividades : logs)
-                .filter(item => 
-                  (item.user_nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  (item.descripcion || item.endpoint || '').toLowerCase().includes(searchTerm.toLowerCase())
-                )
-                .map((item, idx) => (
+                filteredData.map((item, idx) => (
                   <Card key={item.id} className="p-5 border-0 shadow-md bg-white space-y-4">
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-3">
@@ -331,13 +327,15 @@ const AuditoriaModule = ({ onNotify }) => {
               )}
             </div>
             
-            {!loading && (activeTab === 'actividades' ? actividades : logs).length === 0 && (
+            {!loading && dataSource.length === 0 && (
               <div className="py-20 text-center bg-white rounded-[2rem] border border-dashed border-slate-300">
                 <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-200">
                   <Database size={32} className="text-slate-400" />
                 </div>
                 <h3 className="text-slate-900 font-black">No se encontraron registros</h3>
-                <p className="text-slate-600 text-sm font-semibold">Intenta con otros términos de búsqueda.</p>
+                <p className="text-slate-600 text-sm font-semibold">
+                  {searchTerm ? 'Ajusta los términos de búsqueda.' : 'No hay registros para la vista seleccionada.'}
+                </p>
               </div>
             )}
           </div>
@@ -368,52 +366,27 @@ const AuditoriaModule = ({ onNotify }) => {
             </div>
           </Card>
 
-          <Card className="p-6 border border-slate-200 shadow-sm bg-white space-y-6">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-700 flex items-center gap-2">
-              <History size={14} className="text-indigo-600" /> Salud de la Infraestructura
-            </h3>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3 md:gap-4">
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="flex items-center gap-3">
-                  <Server size={18} className="text-slate-500" />
-                  <span className="text-xs font-bold text-slate-800">Latencia BD</span>
-                </div>
-                <span className="text-xs font-black text-emerald-700">
-                  {stats?.db_latency_ms !== undefined ? `${stats.db_latency_ms} ms` : '12.0 ms'}
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="flex items-center gap-3">
-                  <Cpu size={18} className="text-slate-500" />
-                  <span className="text-xs font-bold text-slate-800">Estado DB</span>
-                </div>
-                <span className={`text-xs font-black uppercase ${stats?.system_status === 'operativo' || !stats?.system_status ? 'text-emerald-700' : 'text-amber-800'}`}>
-                  {stats?.system_status || 'Operativo'}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="flex items-center gap-3">
-                  <HardDrive size={18} className="text-slate-500" />
-                  <span className="text-xs font-bold text-slate-800">Uso de Disco</span>
-                </div>
-                <span className="text-xs font-black text-indigo-700">
-                  {stats?.disk_usage_pct !== undefined ? `${stats.disk_usage_pct}%` : 'N/A'}
-                </span>
-              </div>
-            </div>
-
-            <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-200 flex gap-3">
-              <AlertTriangle className="text-indigo-700 shrink-0" size={18} />
-              <p className="text-[10px] text-indigo-950 font-bold leading-relaxed">
-                Todos los sistemas reportan estados nominales. No se requieren acciones preventivas inmediatas.
-              </p>
-            </div>
-          </Card>
+          <InfraHealthCard stats={stats} />
         </div>
       </div>
+
+      {hasMore && !loading && (
+        <div className="flex justify-center">
+          <Button onClick={cargarMas} variant="outline" className="bg-white text-xs font-bold">
+            <RefreshCw size={16} className="mr-1.5" /> Cargar más registros
+          </Button>
+        </div>
+      )}
+
+      <ConfirmDialog
+        isOpen={cleanupConfirm}
+        onClose={() => setCleanupConfirm(false)}
+        onConfirm={confirmCleanup}
+        title="¿Depurar Logs Antiguos?"
+        description="Esta acción eliminará permanentemente los logs de auditoría y actividades con más de 30 días. No se puede deshacer."
+        confirmText="Sí, Depurar"
+        variant="danger"
+      />
     </div>
   );
 };

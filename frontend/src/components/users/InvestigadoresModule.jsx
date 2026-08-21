@@ -179,6 +179,7 @@ const InvestigadoresModule = ({ onNotify }) => {
   };
 
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
+  const [toggleConfirm, setToggleConfirm] = useState(null);
 
   const handleDelete = (id) => {
     setDeleteConfirm({ isOpen: true, id });
@@ -310,7 +311,7 @@ const InvestigadoresModule = ({ onNotify }) => {
             user={user}
             onEdit={handleOpenEdit}
             onDelete={handleDelete}
-            onToggleActive={handleToggleActive}
+            onToggleActive={(user) => setToggleConfirm(user)}
             onViewActivity={(u) => { setSelectedUser(u); setShowActivityModal(true); }}
           />
         ))}
@@ -344,11 +345,7 @@ const InvestigadoresModule = ({ onNotify }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Select 
               label="Rol en Plataforma" 
-              options={[
-                { value: 'investigador', label: 'Investigador SENNOVA' },
-                { value: 'instructor',   label: 'Instructor Investigador' },
-                { value: 'admin',        label: 'Administrador' }
-              ]} 
+              options={[['investigador', 'Investigador SENNOVA'], ['instructor', 'Instructor Investigador'], ['admin', 'Administrador']].map(([value, label]) => ({ value, label }))} 
               value={formData.rol} 
               onChange={e => setFormData({...formData, rol: e.target.value})} 
             />
@@ -369,14 +366,7 @@ const InvestigadoresModule = ({ onNotify }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Select 
               label="Nivel Académico" 
-              options={[
-                { value: 'Técnico', label: 'Técnico' },
-                { value: 'Tecnólogo', label: 'Tecnólogo' },
-                { value: 'Profesional', label: 'Profesional' },
-                { value: 'Especialización', label: 'Especialización' },
-                { value: 'Maestría', label: 'Maestría' },
-                { value: 'Doctorado', label: 'Doctorado' }
-              ]} 
+              options={['Técnico', 'Tecnólogo', 'Profesional', 'Especialización', 'Maestría', 'Doctorado'].map(v => ({ value: v, label: v }))} 
               value={formData.nivel_academico} 
               onChange={e => setFormData({...formData, nivel_academico: e.target.value})} 
             />
@@ -400,21 +390,17 @@ const InvestigadoresModule = ({ onNotify }) => {
       >
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-rose-50 p-5 rounded-3xl border border-rose-100">
-              <p className="text-3xl font-black text-rose-700">{users.filter(u => u.rol === 'admin').length}</p>
-              <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mt-1">Administradores</p>
-              <p className="text-[9px] text-rose-500 mt-2 italic font-medium">Control total y gobernanza.</p>
-            </div>
-            <div className="bg-emerald-50 p-5 rounded-3xl border border-emerald-100">
-              <p className="text-3xl font-black text-emerald-700">{users.filter(u => u.rol === 'investigador').length}</p>
-              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">Investigadores</p>
-              <p className="text-[9px] text-emerald-500 mt-2 italic font-medium">Liderazgo de proyectos I+D+i.</p>
-            </div>
-            <div className="bg-sky-50 p-5 rounded-3xl border border-sky-100">
-              <p className="text-3xl font-black text-sky-700">{users.filter(u => u.rol === 'instructor').length}</p>
-              <p className="text-[10px] font-black text-sky-600 uppercase tracking-widest mt-1">Instructores</p>
-              <p className="text-[9px] text-sky-500 mt-2 italic font-medium">Coordinación de semilleros.</p>
-            </div>
+            {[
+              { cls: 'bg-rose-50 border-rose-100', vCls: 'text-rose-700', lCls: 'text-rose-600', tCls: 'text-rose-500', rol: 'admin', label: 'Administradores', desc: 'Control total y gobernanza.' },
+              { cls: 'bg-emerald-50 border-emerald-100', vCls: 'text-emerald-700', lCls: 'text-emerald-600', tCls: 'text-emerald-500', rol: 'investigador', label: 'Investigadores', desc: 'Liderazgo de proyectos I+D+i.' },
+              { cls: 'bg-sky-50 border-sky-100', vCls: 'text-sky-700', lCls: 'text-sky-600', tCls: 'text-sky-500', rol: 'instructor', label: 'Instructores', desc: 'Coordinación de semilleros.' },
+            ].map(r => (
+              <div key={r.rol} className={`${r.cls} p-5 rounded-3xl border`}>
+                <p className={`text-3xl font-black ${r.vCls}`}>{users.filter(u => u.rol === r.rol).length}</p>
+                <p className={`text-[10px] font-black ${r.lCls} uppercase tracking-widest mt-1`}>{r.label}</p>
+                <p className={`text-[9px] ${r.tCls} mt-2 italic font-medium`}>{r.desc}</p>
+              </div>
+            ))}
           </div>
 
           <div className="space-y-3">
@@ -452,6 +438,20 @@ const InvestigadoresModule = ({ onNotify }) => {
         description="¿Estás seguro de eliminar permanentemente a este usuario? Esta acción es irreversible."
         confirmText="Eliminar Usuario"
         variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={!!toggleConfirm}
+        onClose={() => setToggleConfirm(null)}
+        onConfirm={async () => {
+          if (!toggleConfirm) return;
+          await handleToggleActive(toggleConfirm);
+          setToggleConfirm(null);
+        }}
+        title={toggleConfirm?.is_active ? '¿Desactivar Cuenta?' : '¿Activar Cuenta?'}
+        description={toggleConfirm?.is_active ? `¿Desactivar la cuenta de ${toggleConfirm.nombre}? No podrá iniciar sesión hasta ser reactivada.` : `¿Activar la cuenta de ${toggleConfirm.nombre}? Podrá iniciar sesión nuevamente.`}
+        confirmText={toggleConfirm?.is_active ? 'Desactivar' : 'Activar'}
+        variant={toggleConfirm?.is_active ? 'danger' : 'success'}
       />
 
       <UserInsightPanel

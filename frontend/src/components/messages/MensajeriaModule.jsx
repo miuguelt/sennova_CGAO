@@ -488,14 +488,18 @@ export default function MensajeriaModule({
     }
   };
 
+  // Debounce de la búsqueda de destinatarios (una petición por pausa, no por tecla)
+  useEffect(() => {
+    if (!showNewChatModal) return;
+    if (destinatarioSearch === '' && destinatarioRol === '') return;
+    const id = setTimeout(() => handleSearchDestinatarios(destinatarioSearch, destinatarioRol), 300);
+    return () => clearTimeout(id);
+  }, [destinatarioSearch, destinatarioRol, showNewChatModal]);
+
   const handleSelectDestinatario = (userObj) => {
     setSelectedUser(userObj);
     setShowNewChatModal(false);
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-      }
-    }, 150);
+    setTimeout(() => textareaRef.current?.focus(), 150);
   };
 
   // Filtrado de conversaciones
@@ -670,7 +674,7 @@ export default function MensajeriaModule({
                         <h4 className="text-xs font-black text-slate-900 truncate">
                           {partner.nombre}
                         </h4>
-                        <span className="text-[10px] text-slate-400 font-medium flex-shrink-0">
+                        <span className="text-[10px] text-slate-600 font-bold flex-shrink-0">
                           {formatFecha(conv.ultimo_mensaje?.created_at)}
                         </span>
                       </div>
@@ -681,15 +685,15 @@ export default function MensajeriaModule({
                         </Badge>
                       </div>
 
-                      <p className={`text-xs truncate flex items-center gap-1 ${conv.no_leidos > 0 ? 'font-black text-slate-900' : 'text-slate-500'}`}>
+                      <p className={`text-xs truncate flex items-center gap-1 ${conv.no_leidos > 0 ? 'font-black text-slate-900' : 'text-slate-700 font-medium'}`}>
                         {isMine && (
-                          <span className="inline-flex items-center text-slate-400 font-normal mr-0.5">
+                          <span className="inline-flex items-center text-slate-600 font-bold mr-0.5">
                             {conv.ultimo_mensaje?.leido ? (
                               <CheckCheck size={13} className="text-emerald-600 mr-1" title="Leído" />
                             ) : conv.ultimo_mensaje?.entregado ? (
-                              <CheckCheck size={13} className="text-slate-400 mr-1" title="Entregado" />
+                              <CheckCheck size={13} className="text-slate-500 mr-1" title="Entregado" />
                             ) : (
-                              <Check size={13} className="text-slate-400 mr-1" title="Enviado" />
+                              <Check size={13} className="text-slate-500 mr-1" title="Enviado" />
                             )}
                             Tú:
                           </span>
@@ -721,7 +725,7 @@ export default function MensajeriaModule({
                   {/* Botón Volver en Móvil */}
                   <button
                     onClick={() => setSelectedUser(null)}
-                    className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                    className="lg:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                   >
                     <ArrowLeft size={20} />
                   </button>
@@ -739,9 +743,9 @@ export default function MensajeriaModule({
                         {(ROLE_CONFIG[selectedUser.rol] || ROLE_CONFIG.investigador).label}
                       </Badge>
                     </div>
-                    <p className="text-[11px] text-slate-400 truncate flex items-center gap-2">
+                    <p className="text-[11px] text-slate-600 font-medium truncate flex items-center gap-2">
                       {partnerTyping ? (
-                        <span className="text-emerald-600 font-bold animate-pulse">
+                        <span className="text-emerald-700 font-bold animate-pulse">
                           escribiendo...
                         </span>
                       ) : (
@@ -912,10 +916,7 @@ export default function MensajeriaModule({
                 type="text"
                 placeholder="Buscar por nombre, email o programa..."
                 value={destinatarioSearch}
-                onChange={(e) => {
-                  setDestinatarioSearch(e.target.value);
-                  handleSearchDestinatarios(e.target.value, destinatarioRol);
-                }}
+                onChange={(e) => setDestinatarioSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
             </div>
@@ -931,10 +932,7 @@ export default function MensajeriaModule({
                 <button
                   type="button"
                   key={tab.id}
-                  onClick={() => {
-                    setDestinatarioRol(tab.id);
-                    handleSearchDestinatarios(destinatarioSearch, tab.id);
-                  }}
+                  onClick={() => setDestinatarioRol(tab.id)}
                   className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
                     destinatarioRol === tab.id
                       ? 'bg-emerald-600 text-white shadow-sm'

@@ -109,31 +109,10 @@ const AprendizCard = ({
         </button>
         {showMenu && (
           <div ref={menuRef} className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 animate-scaleIn origin-top-right z-50">
-            <button 
-              onClick={(e) => { e.stopPropagation(); onEdit(user); setShowMenu(false); }} 
-              className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3"
-            >
-              <Edit size={16} className="text-slate-400" /> Editar Ficha y Datos
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); onOpenQuickLink(user); setShowMenu(false); }} 
-              className="w-full text-left px-4 py-2.5 text-xs font-bold text-indigo-700 hover:bg-indigo-50 flex items-center gap-3 border-t border-slate-50"
-            >
-              <GraduationCap size={16} className="text-indigo-500" /> {isLinked ? 'Cambiar Semillero' : 'Vincular a Semillero'}
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); onToggleActive(user); setShowMenu(false); }} 
-              className={`w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-3 border-t border-slate-50 ${user.is_active ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
-            >
-              {user.is_active ? <UserX size={16} /> : <UserCheck size={16} />}
-              {user.is_active ? 'Desactivar Aprendiz' : 'Activar Aprendiz'}
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); onDelete(user.id); setShowMenu(false); }} 
-              className="w-full text-left px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-3 border-t border-slate-50"
-            >
-              <Trash2 size={16} /> Eliminar Aprendiz
-            </button>
+            <button onClick={(e) => { e.stopPropagation(); onEdit(user); setShowMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3"><Edit size={16} className="text-slate-400" /> Editar Ficha y Datos</button>
+            <button onClick={(e) => { e.stopPropagation(); onOpenQuickLink(user); setShowMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs font-bold text-indigo-700 hover:bg-indigo-50 flex items-center gap-3 border-t border-slate-50"><GraduationCap size={16} className="text-indigo-500" /> {isLinked ? 'Cambiar Semillero' : 'Vincular a Semillero'}</button>
+            <button onClick={(e) => { e.stopPropagation(); onToggleActive(user); setShowMenu(false); }} className={`w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-3 border-t border-slate-50 ${user.is_active ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'}`}>{user.is_active ? <UserX size={16} /> : <UserCheck size={16} />}{user.is_active ? 'Desactivar Aprendiz' : 'Activar Aprendiz'}</button>
+            <button onClick={(e) => { e.stopPropagation(); onDelete(user.id); setShowMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-3 border-t border-slate-50"><Trash2 size={16} /> Eliminar Aprendiz</button>
           </div>
         )}
       </div>
@@ -320,6 +299,7 @@ const AprendicesModule = ({ onNotify, currentUser }) => {
   });
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
+  const [toggleConfirm, setToggleConfirm] = useState(null);
 
   const loadData = async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -953,7 +933,7 @@ const AprendicesModule = ({ onNotify, currentUser }) => {
               semilleros={semilleros}
               onEdit={handleOpenEdit}
               onDelete={handleDelete}
-              onToggleActive={handleToggleActive}
+              onToggleActive={(user) => setToggleConfirm(user)}
               onViewActivity={(u) => { setSelectedUser(u); setShowInsight(true); }}
               onLinkSemillero={handleLinkSemillero}
               onOpenQuickLink={handleOpenQuickLink}
@@ -1199,6 +1179,20 @@ const AprendicesModule = ({ onNotify, currentUser }) => {
         description="Esta acción eliminará el usuario y sus vinculaciones de semillero de manera permanente. Esta acción no se puede deshacer."
         confirmText="Eliminar Aprendiz"
         variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={!!toggleConfirm}
+        onClose={() => setToggleConfirm(null)}
+        onConfirm={async () => {
+          if (!toggleConfirm) return;
+          await handleToggleActive(toggleConfirm);
+          setToggleConfirm(null);
+        }}
+        title={toggleConfirm?.is_active ? '¿Desactivar Aprendiz?' : '¿Activar Aprendiz?'}
+        description={toggleConfirm?.is_active ? `¿Desactivar la cuenta de ${toggleConfirm.nombre}? No podrá acceder al sistema hasta ser reactivado.` : `¿Activar la cuenta de ${toggleConfirm.nombre}? Podrá acceder al sistema nuevamente.`}
+        confirmText={toggleConfirm?.is_active ? 'Desactivar' : 'Activar'}
+        variant={toggleConfirm?.is_active ? 'danger' : 'success'}
       />
 
       <UserInsightPanel

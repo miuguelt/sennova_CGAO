@@ -11,7 +11,7 @@ export const NotificacionesAPI = {
   /**
    * Lista las notificaciones del usuario
    */
-  async listar(filter = false, limite = 50) {
+  async listar(filter = false, limite = 50, skip = 0) {
     const params = new URLSearchParams();
     if (filter === true || filter === 'no_leidas') {
       params.append('solo_no_leidas', 'true');
@@ -22,6 +22,7 @@ export const NotificacionesAPI = {
       if (filter.leida !== undefined) params.append('leida', String(filter.leida));
     }
     params.append('limite', limite);
+    if (skip > 0) params.append('skip', skip);
     return fetchAPI(`${API_BASE}/?${params}`);
   },
 

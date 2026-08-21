@@ -142,13 +142,13 @@ const StatCard = ({ label, value, icon: Icon, color = 'indigo', subtext, onClick
       }`}
     >
       <div className="flex items-center justify-between gap-3 mb-2">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+        <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{label}</span>
         <div className={`p-2 rounded-xl ${c.iconBg} ${c.text}`}>
           <Icon size={16} />
         </div>
       </div>
       <p className="text-2xl sm:text-3xl font-black text-slate-900 tabular-nums">{value}</p>
-      {subtext && <p className="text-[11px] text-slate-500 font-medium mt-1">{subtext}</p>}
+      {subtext && <p className="text-[11px] text-slate-600 font-medium mt-1">{subtext}</p>}
     </div>
   );
 };
@@ -161,8 +161,8 @@ const InfoRow = ({ label, value, icon: Icon }) => (
       </div>
     )}
     <div className="flex-1 min-w-0">
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{label}</p>
-      <p className="text-sm font-bold text-slate-800 break-words">{value || <span className="text-slate-300 italic font-normal">No configurado</span>}</p>
+      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-0.5">{label}</p>
+      <p className="text-sm font-bold text-slate-800 break-words">{value || <span className="text-slate-400 italic font-normal">No configurado</span>}</p>
     </div>
   </div>
 );
@@ -194,7 +194,7 @@ const ProjectTimeline = ({ entregables = [] }) => {
                     </span>
                     <h5 className="font-extrabold text-slate-800 text-xs sm:text-sm mt-0.5">{fase}</h5>
                   </div>
-                  <span className="text-[10px] font-black text-slate-400 font-mono bg-slate-50 px-2 py-1 rounded-lg">
+                  <span className="text-[10px] font-black text-slate-700 font-mono bg-slate-100 px-2 py-1 rounded-lg">
                     {itemsDeFase.length} Entregables
                   </span>
                 </div>
@@ -204,17 +204,17 @@ const ProjectTimeline = ({ entregables = [] }) => {
                     {itemsDeFase.map((e, eIdx) => (
                       <div 
                         key={e.id || eIdx} 
-                        className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col justify-between"
+                        className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col justify-between"
                       >
                         <div className="flex items-center gap-2 mb-1.5">
-                          <CheckCircle2 size={13} className={e.estado === 'aprobado' ? 'text-emerald-500' : 'text-slate-300'} />
-                          <span className="text-xs font-bold text-slate-700 truncate">{e.nombre}</span>
+                          <CheckCircle2 size={13} className={e.estado === 'aprobado' ? 'text-emerald-500' : 'text-slate-400'} />
+                          <span className="text-xs font-bold text-slate-800 truncate">{e.nombre}</span>
                         </div>
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                        <div className="flex items-center justify-between text-[10px] text-slate-600 font-semibold">
                           <span>{e.fecha_limite ? new Date(e.fecha_limite).toLocaleDateString('es-CO') : 'Sin fecha'}</span>
                           <span className={`px-1.5 py-0.5 rounded font-black uppercase text-[8px] ${
-                            e.estado === 'aprobado' ? 'bg-emerald-100 text-emerald-700' :
-                            e.estado === 'en_revision' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'
+                            e.estado === 'aprobado' ? 'bg-emerald-100 text-emerald-800' :
+                            e.estado === 'en_revision' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-800'
                           }`}>
                             {e.estado || 'Pendiente'}
                           </span>
@@ -223,7 +223,7 @@ const ProjectTimeline = ({ entregables = [] }) => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400 italic py-1">Sin entregables específicos para esta fase aún.</p>
+                  <p className="text-xs text-slate-600 italic py-1 font-medium">Sin entregables específicos para esta fase aún.</p>
                 )}
               </div>
             </div>
@@ -300,6 +300,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate }) => {
   const [showDeleteSemilleroConfirm, setShowDeleteSemilleroConfirm] = useState({ isOpen: false, id: null, nombre: '' });
   const [showVincularAprendizModal, setShowVincularAprendizModal] = useState(false);
   const [selectedAprendizIdToLink, setSelectedAprendizIdToLink] = useState('');
+  const [showRemoveAprendizConfirm, setShowRemoveAprendizConfirm] = useState({ isOpen: false, id: null, name: '' });
 
   // ── Modales de Líneas de Investigación (CRUD) ──
   const [selectedLineaDetail, setSelectedLineaDetail] = useState(null);
@@ -1035,21 +1036,9 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate }) => {
               >
                 <FileSpreadsheet size={14} /> Consolidado Excel
               </button>
-              <button
-                onClick={() => window.print()}
-                className="p-2 bg-white/15 hover:bg-white/25 backdrop-blur-md rounded-xl border border-white/20 text-white transition-all shadow-xs"
-                title="Imprimir Ficha Resumen"
-              >
-                <Printer size={16} />
-              </button>
+              <button onClick={() => window.print()} className="p-2 bg-white/15 hover:bg-white/25 backdrop-blur-md rounded-xl border border-white/20 text-white transition-all shadow-xs" title="Imprimir Ficha Resumen"><Printer size={16} /></button>
               {currentUser?.rol === 'admin' && (
-                <Button
-                  onClick={handleEditGrupo}
-                  className="bg-white hover:bg-emerald-50 text-emerald-900 border-0 font-bold text-xs shadow-md"
-                  variant="outline"
-                >
-                  <Edit2 size={14} className="mr-1.5" /> Editar Perfil
-                </Button>
+                <Button onClick={handleEditGrupo} className="bg-white hover:bg-emerald-50 text-emerald-900 border-0 font-bold text-xs shadow-md" variant="outline"><Edit2 size={14} className="mr-1.5" /> Editar Perfil</Button>
               )}
             </div>
           </div>
@@ -1424,25 +1413,25 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate }) => {
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-white/10 text-center sm:text-left">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Presupuesto Asignado</p>
+                    <p className="text-[10px] font-bold text-slate-300 uppercase">Presupuesto Asignado</p>
                     <p className="text-sm sm:text-base font-black text-white mt-0.5">
                       ${(stats?.presupuesto_total || proyectosGrupo.reduce((a, p) => a + (Number(p.presupuesto_total) || 0), 0)).toLocaleString('es-CO')}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Presupuesto Ejecutado</p>
+                    <p className="text-[10px] font-bold text-slate-300 uppercase">Presupuesto Ejecutado</p>
                     <p className="text-sm sm:text-base font-black text-emerald-400 mt-0.5">
                       ${(stats?.presupuesto_ejecutado || 0).toLocaleString('es-CO')}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">En Ejecución</p>
+                    <p className="text-[10px] font-bold text-slate-300 uppercase">En Ejecución</p>
                     <p className="text-sm sm:text-base font-black text-indigo-300 mt-0.5">
                       {proyectosGrupo.filter(p => (p.estado || '').toLowerCase().includes('ejecuc') || p.estado === 'Activo').length} activos
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Productos I+D</p>
+                    <p className="text-[10px] font-bold text-slate-300 uppercase">Productos I+D</p>
                     <p className="text-sm sm:text-base font-black text-amber-300 mt-0.5">
                       {stats?.total_productos || productosGrupo.length} categorizados
                     </p>
@@ -2423,7 +2412,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate }) => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleRemoveAprendizFromSemillero(apr.id);
+                                setShowRemoveAprendizConfirm({ isOpen: true, id: apr.id, name: apr.nombre || 'Aprendiz' });
                               }}
                               className="text-slate-300 hover:text-rose-600 p-1.5 transition-colors rounded-md hover:bg-rose-50"
                               title="Desvincular del semillero"
@@ -3442,6 +3431,16 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate }) => {
         title="¿Eliminar Semillero de Investigación?"
         description={`¿Estás seguro de eliminar el semillero "${showDeleteSemilleroConfirm.nombre}"?`}
         confirmText="Eliminar Semillero"
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={showRemoveAprendizConfirm.isOpen}
+        onClose={() => setShowRemoveAprendizConfirm({ isOpen: false, id: null, name: '' })}
+        onConfirm={async () => { if (!showRemoveAprendizConfirm.id) return; await handleRemoveAprendizFromSemillero(showRemoveAprendizConfirm.id); setShowRemoveAprendizConfirm({ isOpen: false, id: null, name: '' }); }}
+        title="¿Desvincular Aprendiz del Semillero?"
+        description={`¿Estás seguro de desvincular a "${showRemoveAprendizConfirm.name}" del semillero? Esta acción no elimina su cuenta.`}
+        confirmText="Desvincular"
         variant="danger"
       />
 

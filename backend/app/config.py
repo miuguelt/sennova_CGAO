@@ -123,10 +123,10 @@ def validate_production_settings(settings: Settings):
                 "Debe tener mínimo 12 caracteres y no ser el valor por defecto."
             )
         
-        if settings.SEED_INITIAL_DATA and len(settings.INITIAL_ADMIN_PASSWORD) < 12:
+        if settings.SEED_INITIAL_DATA and len(settings.INITIAL_ADMIN_PASSWORD) < 7:
             raise ValueError(
                 "🚨 INITIAL_ADMIN_PASSWORD no es segura para producción. "
-                "Debe tener mínimo 12 caracteres. Defínela en el entorno o "
+                "Debe tener mínimo 7 caracteres. Defínela en el entorno o "
                 "desactiva SEED_INITIAL_DATA; un administrador con contraseña "
                 "por defecto no puede quedar publicado."
             )

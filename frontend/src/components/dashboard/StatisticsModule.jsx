@@ -156,13 +156,13 @@ const StatisticsModule = ({ onNotify }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         {/* Distribución por Estado */}
-        <Card className="p-8 border-0 shadow-sm ring-1 ring-slate-100">
+        <Card className="p-8 border border-slate-200 shadow-sm bg-white">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="font-black text-slate-900 text-lg">Estado de la Cartera</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Distribución operativa de proyectos</p>
+              <p className="text-[10px] text-slate-700 font-bold uppercase tracking-widest mt-1">Distribución operativa de proyectos</p>
             </div>
-            <div className="p-2 bg-slate-50 rounded-xl"><Activity size={18} className="text-slate-400" /></div>
+            <div className="p-2 bg-slate-100 rounded-xl"><Activity size={18} className="text-slate-700" /></div>
           </div>
           
           <div className="flex flex-col md:flex-row items-center gap-8">
@@ -183,7 +183,7 @@ const StatisticsModule = ({ onNotify }) => {
                     ))}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '10px' }}
+                    contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#0f172a', color: '#ffffff', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '10px' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -193,7 +193,7 @@ const StatisticsModule = ({ onNotify }) => {
                 <div key={item.name} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                    <span className="text-xs font-bold text-slate-600">{item.name}</span>
+                    <span className="text-xs font-bold text-slate-700">{item.name}</span>
                   </div>
                   <span className="text-sm font-black text-slate-900 tabular-nums">{item.value}</span>
                 </div>
@@ -203,31 +203,31 @@ const StatisticsModule = ({ onNotify }) => {
         </Card>
 
         {/* Inversión por Tipología */}
-        <Card className="p-8 border-0 shadow-sm ring-1 ring-slate-100">
+        <Card className="p-8 border border-slate-200 shadow-sm bg-white">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="font-black text-slate-900 text-lg">Inversión por Tipología</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Recursos asignados según categoría</p>
+              <p className="text-[10px] text-slate-700 font-bold uppercase tracking-widest mt-1">Recursos asignados según categoría</p>
             </div>
-            <div className="p-2 bg-slate-50 rounded-xl"><Target size={18} className="text-slate-400" /></div>
+            <div className="p-2 bg-slate-100 rounded-xl"><Target size={18} className="text-slate-700" /></div>
           </div>
           
           <div className="h-[280px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={presupuestoChartData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                 <XAxis type="number" hide />
                 <YAxis 
                   dataKey="name" 
                   type="category" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{fontSize: 10, fontWeight: 'bold', fill: '#64748b'}}
+                  tick={{fontSize: 10, fontWeight: 'bold', fill: '#334155'}}
                   width={100}
                 />
                 <Tooltip 
                   cursor={{fill: 'transparent'}}
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '10px' }}
+                  contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#0f172a', color: '#ffffff', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '10px' }}
                   formatter={(value) => `$${value.toLocaleString('es-CO')}`}
                 />
                 <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={32}>
@@ -243,39 +243,39 @@ const StatisticsModule = ({ onNotify }) => {
       </div>
 
       {/* ── Table: Top Performance ── */}
-      <Card className="p-0 border-0 shadow-sm ring-1 ring-slate-100 overflow-hidden">
-        <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+      <Card className="p-0 border border-slate-200 shadow-sm overflow-hidden bg-white">
+        <div className="p-8 border-b border-slate-100 flex items-center justify-between">
           <div>
             <h3 className="font-black text-slate-900 text-lg">Proyectos de Mayor Impacto</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Basado en productos y presupuesto</p>
+            <p className="text-[10px] text-slate-700 font-bold uppercase tracking-widest mt-1">Basado en productos y presupuesto</p>
           </div>
-          <Button variant="outline" size="sm" className="text-[10px] font-black uppercase">Ver Auditoría Completa</Button>
+          <Button variant="outline" size="sm" className="text-[10px] font-black uppercase border-slate-300 text-slate-800">Ver Auditoría Completa</Button>
         </div>
         
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-100">
-                <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Proyecto</th>
-                <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Líder</th>
-                <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Productos</th>
-                <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Inversión</th>
-                <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Eficiencia</th>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-8 py-4 text-[10px] font-black text-slate-700 uppercase tracking-widest">Proyecto</th>
+                <th className="px-8 py-4 text-[10px] font-black text-slate-700 uppercase tracking-widest">Líder</th>
+                <th className="px-8 py-4 text-[10px] font-black text-slate-700 uppercase tracking-widest">Productos</th>
+                <th className="px-8 py-4 text-[10px] font-black text-slate-700 uppercase tracking-widest text-right">Inversión</th>
+                <th className="px-8 py-4 text-[10px] font-black text-slate-700 uppercase tracking-widest text-center">Eficiencia</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-slate-100">
               {projectsData.sort((a,b) => (b.presupuesto_total || 0) - (a.presupuesto_total || 0)).slice(0, 5).map(p => (
                 <tr key={p.id} className="hover:bg-slate-50/80 transition-colors group">
                   <td className="px-8 py-5">
-                    <p className="text-sm font-black text-slate-900 group-hover:text-emerald-600 transition-colors">{p.nombre_corto || p.nombre}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{p.codigo_sgps || 'SIN CÓDIGO'}</p>
+                    <p className="text-sm font-black text-slate-900 group-hover:text-emerald-700 transition-colors">{p.nombre_corto || p.nombre}</p>
+                    <p className="text-[10px] text-slate-600 font-bold uppercase mt-1">{p.codigo_sgps || 'SIN CÓDIGO'}</p>
                   </td>
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 uppercase">
+                      <div className="w-6 h-6 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-700 uppercase">
                         {(p.lider || 'I').charAt(0)}
                       </div>
-                      <span className="text-xs font-bold text-slate-600">{p.lider || 'Investigador Principal'}</span>
+                      <span className="text-xs font-bold text-slate-700">{p.lider || 'Investigador Principal'}</span>
                     </div>
                   </td>
                   <td className="px-8 py-5">

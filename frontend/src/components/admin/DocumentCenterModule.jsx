@@ -13,6 +13,7 @@ import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import Modal from '../ui/Modal';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import { DocumentosAPI } from '../../api/documentos';
 import { ProyectosAPI } from '../../api/proyectos';
 import { PlantillasAPI } from '../../api/plantillas';
@@ -42,6 +43,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
 
   // Modales
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [deleteDocConfirm, setDeleteDocConfirm] = useState(null);
   const [isSmartGenModalOpen, setIsSmartGenModalOpen] = useState(false);
   const [previewFormat, setPreviewFormat] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
@@ -169,12 +171,14 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
     }
   };
 
-  // Manejador de eliminación
-  const handleDeleteDoc = async (doc) => {
-    if (!window.confirm(`¿Seguro que deseas eliminar permanentemente el archivo "${doc.nombre_archivo}"?`)) return;
+  const handleDeleteDoc = (doc) => setDeleteDocConfirm(doc);
+
+  const confirmDeleteDoc = async () => {
+    if (!deleteDocConfirm) return;
     try {
-      await DocumentosAPI.delete(doc.id);
+      await DocumentosAPI.delete(deleteDocConfirm.id);
       onNotify?.('Documento eliminado de la bóveda', 'success');
+      setDeleteDocConfirm(null);
       loadData();
     } catch (err) {
       onNotify?.('Error al eliminar documento: ' + (err.message || 'Permiso denegado'), 'error');
@@ -661,28 +665,10 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
                         {new Date(doc.created_at).toLocaleDateString('es-CO', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
                       <div className="flex items-center gap-1">
-                        <button 
-                          onClick={() => setPreviewDoc(doc)}
-                          className="p-1.5 text-slate-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-all"
-                          title="Previsualizar / Detalles"
-                        >
-                          <Eye size={15} />
-                        </button>
-                        <button 
-                          onClick={() => handleDownloadDoc(doc)}
-                          className="p-1.5 text-slate-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition-all"
-                          title="Descargar"
-                        >
-                          <Download size={15} />
-                        </button>
+                        <button onClick={() => setPreviewDoc(doc)} className="p-1.5 text-slate-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-all" title="Previsualizar / Detalles"><Eye size={15} /></button>
+                        <button onClick={() => handleDownloadDoc(doc)} className="p-1.5 text-slate-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition-all" title="Descargar"><Download size={15} /></button>
                         {(currentUser?.rol === 'admin' || doc.owner_id === currentUser?.id) && (
-                          <button 
-                            onClick={() => handleDeleteDoc(doc)}
-                            className="p-1.5 text-slate-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
-                            title="Eliminar de la bóveda"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                          <button onClick={() => handleDeleteDoc(doc)} className="p-1.5 text-slate-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all" title="Eliminar de la bóveda"><Trash2 size={15} /></button>
                         )}
                       </div>
                     </div>
@@ -1301,6 +1287,17 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
           </div>
         </div>
       </Modal>
+
+      {/* ── Confirm Delete Document ── */}
+      <ConfirmDialog
+        isOpen={!!deleteDocConfirm}
+        onClose={() => setDeleteDocConfirm(null)}
+        onConfirm={confirmDeleteDoc}
+        title="¿Eliminar Documento?"
+        description={`¿Seguro que deseas eliminar permanentemente el archivo "${deleteDocConfirm?.nombre_archivo}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        variant="danger"
+      />
 
     </div>
   );

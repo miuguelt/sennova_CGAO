@@ -12,6 +12,7 @@ import Card from '../ui/Card';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Badge from '../ui/Badge';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 const ESTADO_VARIANT = { 'Actualizado': 'success', 'Desactualizado': 'warning', 'Sin CVLAC': 'danger' };
 
@@ -27,6 +28,7 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
   const [changingPass, setChangingPass] = useState(false);
   const [passData,     setPassData]     = useState({ old: '', new: '', confirm: '' });
   const [passError,    setPassError]    = useState(null);
+  const [cvDeleteConfirm, setCvDeleteConfirm] = useState(false);
 
   useEffect(() => {
     setUser(currentUser);
@@ -120,12 +122,14 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
     setUploadingCV(false);
   };
 
-  const handleCVDelete = async () => {
-    if (!window.confirm('¿Eliminar el CVLAC subido?')) return;
+  const handleCVDelete = () => setCvDeleteConfirm(true);
+
+  const confirmCVDelete = async () => {
     try {
       await DocumentosAPI.delete(cvDocument.id);
       setCvDocument(null);
       setUser({ ...user, estado_cv_lac: 'sin CVLAC' });
+      setCvDeleteConfirm(false);
       notify('CVLAC eliminado');
     } catch (err) {
       notify('Error al eliminar CV: ' + err.message, 'error');
@@ -135,12 +139,10 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     setPassError(null);
-    
     if (passData.new !== passData.confirm) {
       setPassError('Las contraseñas nuevas no coinciden');
       return;
     }
-    
     if (passData.new.length < 6) {
       setPassError('La nueva contraseña debe tener al menos 6 caracteres');
       return;
@@ -191,10 +193,7 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
           role="alert"
           aria-live="polite"
         >
-          {message.type === 'error'
-            ? <AlertCircle size={18} className="flex-shrink-0" aria-hidden="true" />
-            : <CheckCircle  size={18} className="flex-shrink-0" aria-hidden="true" />
-          }
+          {message.type === 'error' ? <AlertCircle size={18} className="flex-shrink-0" aria-hidden="true" /> : <CheckCircle size={18} className="flex-shrink-0" aria-hidden="true" />}
           {message.text}
         </div>
       )}
@@ -329,11 +328,7 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
                 {editing && (
                   <Select
                     label=""
-                    options={[
-                      { value: 'Actualizado', label: 'Actualizado' },
-                      { value: 'Desactualizado', label: 'Desactualizado' },
-                      { value: 'Sin CVLAC', label: 'Sin CVLAC' }
-                    ]}
+                    options={['Actualizado', 'Desactualizado', 'Sin CVLAC'].map(v => ({ value: v, label: v }))}
                     value={user.estado_cv_lac || 'Sin CVLAC'}
                     onChange={(e) => setUser({ ...user, estado_cv_lac: e.target.value })}
                     className="mt-2"
@@ -378,10 +373,7 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
                   <div className="p-3 bg-slate-50 rounded-xl border border-dashed border-slate-300">
                     <p className="text-sm text-slate-500 mb-3">No hay CVLAC subido</p>
                     <label className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-emerald-500 focus-within:ring-offset-2">
-                      {uploadingCV
-                        ? <><Loader2 size={15} className="animate-spin" /> Subiendo...</>
-                        : <><Upload size={15} aria-hidden="true" /> Subir CV PDF</>
-                      }
+                      {uploadingCV ? <><Loader2 size={15} className="animate-spin" /> Subiendo...</> : <><Upload size={15} aria-hidden="true" /> Subir CV PDF</>}
                       <input
                         type="file"
                         accept=".pdf"
@@ -435,28 +427,10 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
           <Card className="p-5 border-slate-200">
             <h3 className="text-sm font-semibold text-slate-900 mb-4">Seguridad y Acceso</h3>
             <form onSubmit={handlePasswordChange} className="space-y-4">
-              <Input 
-                label="Contraseña Actual" 
-                type="password" 
-                value={passData.old} 
-                onChange={(e) => setPassData({ ...passData, old: e.target.value })}
-                required
-              />
+              <Input label="Contraseña Actual" type="password" value={passData.old} onChange={(e) => setPassData({ ...passData, old: e.target.value })} required />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input 
-                  label="Nueva Contraseña" 
-                  type="password" 
-                  value={passData.new} 
-                  onChange={(e) => setPassData({ ...passData, new: e.target.value })}
-                  required
-                />
-                <Input 
-                  label="Confirmar Nueva" 
-                  type="password" 
-                  value={passData.confirm} 
-                  onChange={(e) => setPassData({ ...passData, confirm: e.target.value })}
-                  required
-                />
+                <Input label="Nueva Contraseña" type="password" value={passData.new} onChange={(e) => setPassData({ ...passData, new: e.target.value })} required />
+                <Input label="Confirmar Nueva" type="password" value={passData.confirm} onChange={(e) => setPassData({ ...passData, confirm: e.target.value })} required />
               </div>
               
               {passError && (
@@ -477,6 +451,16 @@ const PerfilModule = ({ currentUser, onUpdateUser, onNotify }) => {
           </Card>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={cvDeleteConfirm}
+        onClose={() => setCvDeleteConfirm(false)}
+        onConfirm={confirmCVDelete}
+        title="¿Eliminar CVLAC?"
+        description="¿Estás seguro de que deseas eliminar el CVLAC subido? Esta acción no se puede deshacer."
+        confirmText="Eliminar CVLAC"
+        variant="danger"
+      />
     </div>
   );
 };
