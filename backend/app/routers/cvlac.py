@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
@@ -8,6 +8,7 @@ from app.models import User, Producto
 from app.utils import log_actividad
 
 router = APIRouter(prefix="/cvlac", tags=["CVLaC Integration"])
+
 
 @router.post("/import")
 def import_cvlac(
@@ -24,7 +25,7 @@ def import_cvlac(
     current_user.cv_lac_url = url
     current_user.estado_cv_lac = "En revisión"
 
-    nombre_producto = f"Perfil CVLaC - {current_user.nombre_completo or current_user.email}"
+    nombre_producto = f"Perfil CVLaC - {current_user.nombre or current_user.email}"
     existente = db.query(Producto).filter(
         Producto.nombre == nombre_producto, 
         Producto.owner_id == str(current_user.id)
@@ -36,7 +37,7 @@ def import_cvlac(
             tipo="software",
             nombre=nombre_producto,
             descripcion=f"Perfil y productos vinculados a Scienti CVLaC: {url}",
-            fecha_publicacion=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            fecha_publicacion=datetime.now(timezone.utc).date(),
             url=url,
             owner_id=str(current_user.id),
             is_verificado=False
@@ -91,13 +92,88 @@ def subir_cvlac_pdf(
         import logging
         logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
         try:
-            if 'session' in globals() or 'session' in locals():
-                db.session.rollback()
-            else:
-                db.rollback()
+            db.rollback()
         except Exception:
             pass
     return {"message": "CVLaC recibido correctamente y en proceso de revisión"}
+
+
+@router.post("/importar-productos")
+def importar_productos_cvlac(
+    user_id: str = Query(...),
+    payload: dict = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Importa una lista de productos extraídos de CVLaC para el usuario especificado.
+    """
+    if current_user.rol != "admin" and str(current_user.id) != str(user_id):
+        raise HTTPException(status_code=403, detail="No autorizado para importar productos a este usuario")
+
+    target_user = db.query(User).filter(User.id == str(user_id)).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    productos_lista = payload.get("productos", []) if isinstance(payload, dict) else []
+    importados = 0
+
+    for prod_data in productos_lista:
+        nombre = prod_data.get("nombre") or prod_data.get("titulo")
+        if not nombre:
+            continue
+        tipo = prod_data.get("tipo", "otro")
+        categoria = prod_data.get("categoria", "D")
+        descripcion = prod_data.get("descripcion", "")
+        fecha = prod_data.get("fecha_publicacion") or prod_data.get("año") or None
+        doi = prod_data.get("doi")
+        url_prod = prod_data.get("url")
+
+        existente = db.query(Producto).filter(
+            Producto.nombre == nombre,
+            Producto.owner_id == str(user_id)
+        ).first()
+
+        parsed_date = None
+        if fecha:
+            try:
+                parsed_date = datetime.strptime(str(fecha)[:10], "%Y-%m-%d").date()
+            except Exception:
+                parsed_date = datetime.now(timezone.utc).date()
+
+        if not existente:
+            nuevo_prod = Producto(
+                tipo=tipo,
+                categoria=categoria,
+                nombre=nombre,
+                descripcion=descripcion,
+                fecha_publicacion=parsed_date,
+                doi=doi,
+                url=url_prod,
+                owner_id=str(user_id),
+                is_verificado=False
+            )
+            db.add(nuevo_prod)
+            importados += 1
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error guardando productos: {e}")
+
+    log_actividad(
+        db, current_user.id, "importar_productos_cvlac",
+        f"Importó {importados} productos desde CVLaC para {target_user.email}",
+        entidad_tipo="user", entidad_id=str(user_id)
+    )
+
+    return {
+        "success": True,
+        "importados": importados,
+        "total_recibidos": len(productos_lista),
+        "message": f"Se importaron {importados} productos correctamente."
+    }
 
 
 @router.get("/usuarios/sin-cvlac")
@@ -128,10 +204,10 @@ def get_user_cvlac_status(
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return {
-        "user_id": user.id,
+        "user_id": str(user.id),
         "estado": user.estado_cv_lac,
         "cv_lac_url": user.cv_lac_url,
-        "ultima_actualizacion": user.updated_at
+        "ultima_actualizacion": user.updated_at.isoformat() if user.updated_at else None
     }
 
 

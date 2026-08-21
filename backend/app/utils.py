@@ -1,6 +1,19 @@
+import uuid
 from sqlalchemy.orm import Session
 from app.models import Actividad
-from typing import Optional
+from typing import Optional, Any
+
+
+def is_valid_uuid(val: Any) -> bool:
+    """Verifica si un valor es un UUID válido."""
+    if not val:
+        return False
+    try:
+        uuid.UUID(str(val))
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
+
 
 def log_actividad(
     db: Session,
@@ -30,3 +43,4 @@ def log_actividad(
     except Exception as e:
         print(f"Error al registrar actividad: {e}")
         db.rollback()
+

@@ -9,6 +9,11 @@ export const GruposAPI = {
     return fetchAPI(`/grupos?${query}`);
   },
 
+  getAll: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return fetchAPI(`/grupos?${query}`.replace(/\?$/, ''));
+  },
+
   get: (id) => fetchAPI(`/grupos/${id}`),
 
   create: (data) => fetchAPI('/grupos', {
@@ -24,12 +29,14 @@ export const GruposAPI = {
   delete: (id) => fetchAPI(`/grupos/${id}`, { method: 'DELETE' }),
 
   getMembers: async (id) => {
-    const grupo = await fetchAPI(`/grupos/${id}`);
-    return grupo.integrantes || [];
+    const res = await fetchAPI(`/grupos/${id}/integrantes`);
+    if (Array.isArray(res)) return res;
+    return res.integrantes || [];
   },
 
-  addMember: (grupoId, data) => fetchAPI(`/grupos/${grupoId}/integrantes?user_id=${data.user_id}&rol_en_grupo=${data.rol || 'Miembro'}`, {
+  addMember: (grupoId, data) => fetchAPI(`/grupos/${grupoId}/integrantes`, {
     method: 'POST',
+    body: JSON.stringify(data),
   }),
 
   removeMember: (grupoId, userId) => fetchAPI(`/grupos/${grupoId}/integrantes/${userId}`, {
@@ -37,4 +44,19 @@ export const GruposAPI = {
   }),
 
   getStats: (id) => fetchAPI(`/grupos/${id}/stats`),
+
+  getProyectos: (id) => fetchAPI(`/grupos/${id}/proyectos`),
+
+  uploadPlanOperativo: (grupoId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return fetchAPI(`/grupos/${grupoId}/plan-operativo`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  downloadPlanOperativoUrl: (grupoId) => `/api/grupos/${grupoId}/plan-operativo`,
+
+  getConsolidadoReporteUrl: (formato = 'excel') => `/api/reportes/grupos-consolidado?formato=${formato}`,
 };

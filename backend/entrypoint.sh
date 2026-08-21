@@ -1,27 +1,37 @@
 #!/bin/sh
-
-# SENNOVA CGAO - Container Entrypoint
-echo "🔧 Verificando integridad de la base de datos..."
+# SENNOVA CGAO — Entrypoint del contenedor de backend.
+#
+# Deja la instalación lista antes de atender tráfico: espera la base de datos,
+# crea/repara el esquema y crea el administrador inicial. Si el administrador no
+# se puede crear de forma segura, el contenedor falla aquí en vez de publicar una
+# instalación abierta.
+set -e
 
 if echo "$DATABASE_URL" | grep -q "sqlite"; then
   echo "✅ SQLite detectada (no se requiere espera de PostgreSQL)"
 else
-  # Esperar a que la base de datos esté lista
   echo "⏳ Esperando a que la base de datos esté lista..."
-  DB_HOST=$(echo $DATABASE_URL | sed -e 's/.*@//' -e 's/:.*//' -e 's/\/.*//')
-  DB_PORT=$(echo $DATABASE_URL | sed -e 's/.*://' -e 's/\/.*//')
+  # Preferir DB_HOST/DB_PORT explícitas; recurrir al parseo de DATABASE_URL solo
+  # cuando el despliegue únicamente define la URL completa.
+  WAIT_HOST="${DB_HOST:-$(echo "$DATABASE_URL" | sed -e 's/.*@//' -e 's/:.*//' -e 's/\/.*//')}"
+  WAIT_PORT="${DB_PORT:-$(echo "$DATABASE_URL" | sed -e 's/.*://' -e 's/\/.*//')}"
 
-  while ! pg_isready -h $DB_HOST -p ${DB_PORT:-5432} > /dev/null 2>&1; do
-    echo "... esperando a PostgreSQL en $DB_HOST:${DB_PORT:-5432} ..."
+  while ! pg_isready -h "$WAIT_HOST" -p "${WAIT_PORT:-5432}" > /dev/null 2>&1; do
+    echo "... esperando a PostgreSQL en $WAIT_HOST:${WAIT_PORT:-5432} ..."
     sleep 2
   done
 
   echo "✅ Base de datos detectada"
 fi
 
-# Ejecutar script de reparación de esquema
-python scripts/fix_db_schema.py
+# Esquema + administrador inicial. Idempotente: en redespliegues no duplica nada
+# ni reescribe credenciales existentes.
+python scripts/bootstrap_initial_data.py
 
-# Iniciar la aplicación
 echo "🚀 Iniciando servidor FastAPI..."
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+if [ "$#" -gt 0 ]; then
+  # Respeta el `command:` de docker compose (por ejemplo --workers).
+  exec "$@"
+fi
+
+exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}"

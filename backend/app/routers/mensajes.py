@@ -1,178 +1,180 @@
 """
-Router de Mensajería
+Router de Mensajería y Streaming Asíncrono en Tiempo Real
 Comunicación interna entre usuarios del sistema (Admin, Investigadores, Aprendices)
+Soporte completo para confirmaciones de entrega (✓✓ gris) y lectura (✓✓ verde) con SSE.
+
+Los handlers son delgados a propósito: el driver de SQLAlchemy es bloqueante, así
+que toda consulta se ejecuta en el threadpool (``run_in_threadpool``) y el event
+loop queda libre para empujar eventos SSE mientras la base de datos responde.
 """
 
+import json
+import asyncio
+import logging
 from typing import List, Optional
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_, func
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import User, Mensaje, Notificacion
+from app.models import User
 from app.schemas import (
     MensajeCreate,
     MensajeResponse,
     MensajeUserSimple,
     ConversacionSummary,
-    MensajeStats
+    MensajeStats,
+    MensajeTyping
 )
+from app.services import mensajes_service
+from app.services.realtime_broadcaster import broadcaster
+
+logger = logging.getLogger("sennova.mensajes")
 
 router = APIRouter(prefix="/mensajes", tags=["Mensajería"])
 
-
-def _serialize_user(user: Optional[User]) -> Optional[dict]:
-    if not user:
-        return None
-    return {
-        "id": str(user.id),
-        "nombre": user.nombre,
-        "email": user.email,
-        "rol": user.rol,
-        "rol_sennova": user.rol_sennova,
-        "sede": user.sede,
-        "programa_formacion": user.programa_formacion,
-        "ficha": user.ficha,
-    }
+# Sin tráfico el canal queda mudo; el comentario de keepalive evita que proxies
+# y balanceadores cierren la conexión por inactividad.
+KEEPALIVE_SECONDS = 20.0
 
 
-def _serialize_mensaje(msg: Mensaje) -> dict:
-    return {
-        "id": str(msg.id),
-        "remitente_id": str(msg.remitente_id),
-        "destinatario_id": str(msg.destinatario_id) if msg.destinatario_id else None,
-        "asunto": msg.asunto,
-        "contenido": msg.contenido,
-        "leido": bool(msg.leido),
-        "fecha_lectura": msg.fecha_lectura,
-        "es_anuncio": bool(msg.es_anuncio),
-        "created_at": msg.created_at,
-        "updated_at": msg.updated_at,
-        "remitente": _serialize_user(msg.remitente),
-        "destinatario": _serialize_user(msg.destinatario) if msg.destinatario else None
-    }
+@router.get("/stream")
+async def stream_mensajes(
+    request: Request,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Canal Server-Sent Events (SSE) para comunicación asíncrona en tiempo real.
+    Transmite mensajes entrantes, confirmaciones de entrega y lectura al instante.
+    """
+    uid = str(current_user.id)
+    queue = await broadcaster.connect(uid)
+
+    # Al conectarse, marcar como entregados los mensajes acumulados y avisar a
+    # cada remitente. La sesión de base de datos se abre y cierra dentro del
+    # threadpool: el streaming no puede retener una conexión del pool.
+    try:
+        remitentes, timestamp = await run_in_threadpool(
+            mensajes_service.registrar_entregas_al_conectar, uid
+        )
+        for rem_id in remitentes:
+            await broadcaster.broadcast_to_user(
+                rem_id,
+                "mensajes_entregados",
+                {"destinatario_id": uid, "timestamp": timestamp}
+            )
+    except Exception as e:
+        logger.error(f"Error marcando entregas iniciales para {uid}: {e}")
+
+    async def event_generator():
+        try:
+            init_data = json.dumps({
+                "type": "connected",
+                "user_id": uid,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+            yield f"event: connected\ndata: {init_data}\n\n"
+
+            while True:
+                if await request.is_disconnected():
+                    break
+
+                try:
+                    event_payload = await asyncio.wait_for(queue.get(), timeout=KEEPALIVE_SECONDS)
+                    event_type = event_payload.get("event", "message")
+                    data_json = json.dumps(event_payload.get("data", {}), default=str)
+                    yield f"event: {event_type}\ndata: {data_json}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            # La desconexión debe completarse aunque el cliente haya cortado y la
+            # tarea esté siendo cancelada; de lo contrario la cola queda huérfana.
+            try:
+                await asyncio.shield(broadcaster.disconnect(uid, queue))
+            except Exception:
+                pass
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 @router.get("/unread-count")
-def get_unread_count(
+async def get_unread_count(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Retorna el número de mensajes no leídos para el usuario actual (ligero para badges)."""
-    uid = str(current_user.id)
-    count = db.query(func.count(Mensaje.id)).filter(
-        Mensaje.destinatario_id == uid,
-        Mensaje.leido == False
-    ).scalar() or 0
+    count = await run_in_threadpool(
+        mensajes_service.contar_no_leidos, db, str(current_user.id)
+    )
     return {"no_leidos": count}
 
 
 @router.get("/stats", response_model=MensajeStats)
-def get_stats(
+async def get_stats(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Estadísticas globales de mensajería para el usuario actual."""
-    uid = str(current_user.id)
-    total_recibidos = db.query(func.count(Mensaje.id)).filter(Mensaje.destinatario_id == uid).scalar() or 0
-    no_leidos = db.query(func.count(Mensaje.id)).filter(Mensaje.destinatario_id == uid, Mensaje.leido == False).scalar() or 0
-    total_enviados = db.query(func.count(Mensaje.id)).filter(Mensaje.remitente_id == uid).scalar() or 0
-    
-    return {
-        "total_recibidos": total_recibidos,
-        "no_leidos": no_leidos,
-        "total_enviados": total_enviados
-    }
+    return await run_in_threadpool(
+        mensajes_service.obtener_stats, db, str(current_user.id)
+    )
 
 
 @router.get("/destinatarios", response_model=List[MensajeUserSimple])
-def list_destinatarios(
+async def list_destinatarios(
     search: Optional[str] = None,
     rol: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Directorio de contactos con quienes el usuario puede iniciar una conversación."""
-    uid = str(current_user.id)
-    query = db.query(User).filter(User.id != uid, User.is_active == True)
-    
-    if rol:
-        query = query.filter(User.rol == rol)
-        
-    if search:
-        s_term = f"%{search}%"
-        query = query.filter(
-            or_(
-                User.nombre.ilike(s_term),
-                User.email.ilike(s_term),
-                User.rol_sennova.ilike(s_term),
-                User.programa_formacion.ilike(s_term)
-            )
-        )
-        
-    users = query.order_by(User.nombre.asc()).limit(100).all()
-    return [_serialize_user(u) for u in users]
+    return await run_in_threadpool(
+        mensajes_service.listar_destinatarios, db, str(current_user.id), search, rol
+    )
+
+
+@router.get("/contacto/{otro_usuario_id}", response_model=MensajeUserSimple)
+async def get_contacto(
+    otro_usuario_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtiene el perfil simple de un interlocutor para iniciar o ver su chat."""
+    contacto = await run_in_threadpool(
+        mensajes_service.obtener_contacto, db, otro_usuario_id
+    )
+    if not contacto:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return contacto
+
 
 
 @router.get("/conversaciones", response_model=List[ConversacionSummary])
-def list_conversaciones(
+async def list_conversaciones(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Lista el resumen de todas las conversaciones activas del usuario."""
-    uid = str(current_user.id)
-    
-    # Obtener todos los mensajes donde el usuario es remitente o destinatario
-    mensajes_usuario = db.query(Mensaje).filter(
-        or_(Mensaje.remitente_id == uid, Mensaje.destinatario_id == uid)
-    ).order_by(Mensaje.created_at.desc()).all()
-    
-    # Agrupar por el otro interlocutor
-    partners = {}
-    for msg in mensajes_usuario:
-        if str(msg.remitente_id) == uid:
-            other_id = str(msg.destinatario_id) if msg.destinatario_id else None
-        else:
-            other_id = str(msg.remitente_id)
-            
-        if not other_id:
-            continue
-            
-        if other_id not in partners:
-            partners[other_id] = {
-                "ultimo_mensaje": msg,
-                "total": 0,
-                "no_leidos": 0
-            }
-        partners[other_id]["total"] += 1
-        if str(msg.destinatario_id) == uid and not msg.leido:
-            partners[other_id]["no_leidos"] += 1
-
-    summaries = []
-    if partners:
-        other_users = db.query(User).filter(User.id.in_(list(partners.keys()))).all()
-        user_map = {str(u.id): u for u in other_users}
-        
-        for other_id, data in partners.items():
-            user_obj = user_map.get(other_id)
-            if not user_obj:
-                continue
-            summaries.append({
-                "otro_usuario": _serialize_user(user_obj),
-                "ultimo_mensaje": _serialize_mensaje(data["ultimo_mensaje"]),
-                "no_leidos": data["no_leidos"],
-                "total_mensajes": data["total"]
-            })
-            
-    # Ordenar por fecha del último mensaje descendente
-    summaries.sort(key=lambda s: s["ultimo_mensaje"]["created_at"], reverse=True)
-    return summaries
+    return await run_in_threadpool(
+        mensajes_service.listar_conversaciones, db, str(current_user.id)
+    )
 
 
 @router.get("/conversacion/{otro_usuario_id}", response_model=List[MensajeResponse])
-def get_conversacion(
+async def get_conversacion(
     otro_usuario_id: str,
     skip: int = 0,
     limit: int = 100,
@@ -181,113 +183,159 @@ def get_conversacion(
 ):
     """Obtiene el historial de mensajes de la conversación con un usuario específico."""
     uid = str(current_user.id)
-    
-    # Verificar existencia del interlocutor
-    other_user = db.query(User).filter(User.id == otro_usuario_id).first()
-    if not other_user:
-        raise HTTPException(status_code=404, detail="Usuario destinatario no encontrado")
-        
-    mensajes = db.query(Mensaje).filter(
-        or_(
-            and_(Mensaje.remitente_id == uid, Mensaje.destinatario_id == otro_usuario_id),
-            and_(Mensaje.remitente_id == otro_usuario_id, Mensaje.destinatario_id == uid)
+    try:
+        mensajes, entrega_timestamp = await run_in_threadpool(
+            mensajes_service.obtener_conversacion, db, uid, otro_usuario_id, skip, limit
         )
-    ).order_by(Mensaje.created_at.asc()).offset(skip).limit(limit).all()
-    
-    return [_serialize_mensaje(m) for m in mensajes]
+    except LookupError as err:
+        raise HTTPException(status_code=404, detail=str(err))
+
+    if entrega_timestamp:
+        await broadcaster.broadcast_to_user(
+            otro_usuario_id,
+            "mensajes_entregados",
+            {"destinatario_id": uid, "timestamp": entrega_timestamp}
+        )
+
+    return mensajes
 
 
 @router.post("/conversacion/{otro_usuario_id}/marcar-leidos")
-def marcar_conversacion_leida(
+async def marcar_conversacion_leida(
     otro_usuario_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Marca todos los mensajes recibidos de un interlocutor específico como leídos."""
+    """Marca todos los mensajes recibidos de un interlocutor específico como leídos (doble check verde)."""
     uid = str(current_user.id)
-    now = datetime.now(timezone.utc)
-    
-    mensajes_no_leidos = db.query(Mensaje).filter(
-        Mensaje.remitente_id == otro_usuario_id,
-        Mensaje.destinatario_id == uid,
-        Mensaje.leido == False
-    ).all()
-    
-    count = 0
-    for m in mensajes_no_leidos:
-        m.leido = True
-        m.fecha_lectura = now
-        count += 1
-        
-    db.commit()
+    count, timestamp = await run_in_threadpool(
+        mensajes_service.marcar_leidos, db, uid, otro_usuario_id
+    )
+
+    # Notificar en tiempo real al remitente para que sus checks cambien a verde inmediatamente
+    if count > 0:
+        await broadcaster.broadcast_to_user(
+            otro_usuario_id,
+            "mensajes_leidos",
+            {
+                "lector_id": uid,
+                "remitente_id": otro_usuario_id,
+                "count": count,
+                "timestamp": timestamp
+            }
+        )
+
     return {"success": True, "marcados": count}
 
 
+@router.post("/conversacion/{otro_usuario_id}/marcar-entregados")
+async def marcar_conversacion_entregada(
+    otro_usuario_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Marca todos los mensajes recibidos de un interlocutor como entregados (doble check gris)."""
+    uid = str(current_user.id)
+    count, timestamp = await run_in_threadpool(
+        mensajes_service.marcar_entregados, db, uid, otro_usuario_id
+    )
+
+    if count > 0:
+        await broadcaster.broadcast_to_user(
+            otro_usuario_id,
+            "mensajes_entregados",
+            {
+                "destinatario_id": uid,
+                "remitente_id": otro_usuario_id,
+                "count": count,
+                "timestamp": timestamp
+            }
+        )
+
+    return {"success": True, "entregados": count}
+
+
+@router.post("/typing")
+async def notificar_typing(
+    payload: MensajeTyping,
+    current_user: User = Depends(get_current_user)
+):
+    """Transmite en tiempo real el estado 'escribiendo...' al destinatario.
+
+    Señal efímera: no toca la base de datos ni deja rastro de auditoría.
+    """
+    uid = str(current_user.id)
+    if payload.destinatario_id and payload.destinatario_id != uid:
+        await broadcaster.broadcast_to_user(
+            payload.destinatario_id,
+            "typing_status",
+            {
+                "remitente_id": uid,
+                "is_typing": payload.is_typing,
+                "nombre": current_user.nombre
+            }
+        )
+    return {"success": True}
+
+
 @router.post("", response_model=MensajeResponse, status_code=status.HTTP_201_CREATED)
-def enviar_mensaje(
+async def enviar_mensaje(
     payload: MensajeCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Envía un nuevo mensaje directo o anuncio del sistema."""
-    if not payload.contenido or not payload.contenido.strip():
-        raise HTTPException(status_code=400, detail="El contenido del mensaje no puede estar vacío")
-        
-    destinatario = None
-    if payload.destinatario_id:
-        if str(payload.destinatario_id) == str(current_user.id):
-            raise HTTPException(status_code=400, detail="No puedes enviarte un mensaje a ti mismo")
-            
-        destinatario = db.query(User).filter(User.id == payload.destinatario_id).first()
-        if not destinatario:
-            raise HTTPException(status_code=404, detail="Destinatario no encontrado")
-    elif not payload.es_anuncio or current_user.rol != 'admin':
-        raise HTTPException(status_code=400, detail="Debes especificar un destinatario")
+    """Envía un nuevo mensaje directo con entrega y difusión asíncrona en tiempo real."""
+    destinatario_id_str = str(payload.destinatario_id) if payload.destinatario_id else None
+    # Estado de conexión evaluado en el event loop: es donde vive el registro SSE.
+    destinatario_online = broadcaster.is_user_online(destinatario_id_str) if destinatario_id_str else False
 
-    nuevo_mensaje = Mensaje(
-        remitente_id=current_user.id,
-        destinatario_id=destinatario.id if destinatario else None,
-        asunto=payload.asunto.strip() if payload.asunto else None,
-        contenido=payload.contenido.strip(),
-        leido=False,
-        es_anuncio=payload.es_anuncio if current_user.rol == 'admin' else False
-    )
-    
-    db.add(nuevo_mensaje)
-    
-    # Generar notificación in-app para el destinatario
-    if destinatario:
-        notif = Notificacion(
-            user_id=destinatario.id,
-            tipo="sistema",
-            titulo=f"Mensaje de {current_user.nombre}",
-            mensaje=payload.contenido.strip()[:120],
-            entidad_tipo="mensaje",
-            entidad_id=nuevo_mensaje.id,
-            prioridad="normal"
+    try:
+        serialized = await run_in_threadpool(
+            mensajes_service.crear_mensaje, db, current_user, payload, destinatario_online
         )
-        db.add(notif)
-        
-    db.commit()
-    db.refresh(nuevo_mensaje)
-    
-    return _serialize_mensaje(nuevo_mensaje)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+    except LookupError as err:
+        raise HTTPException(status_code=404, detail=str(err))
+    except PermissionError as err:
+        # Adjunto ajeno o ya enviado en otro mensaje
+        raise HTTPException(status_code=403, detail=str(err))
+
+    # Difusión en tiempo real al destinatario
+    if destinatario_id_str:
+        await broadcaster.broadcast_to_user(
+            destinatario_id_str,
+            "mensaje_nuevo",
+            serialized
+        )
+
+    return serialized
 
 
 @router.delete("/{mensaje_id}")
-def eliminar_mensaje(
+async def eliminar_mensaje(
     mensaje_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Elimina un mensaje (solo por el remitente o un administrador)."""
-    msg = db.query(Mensaje).filter(Mensaje.id == mensaje_id).first()
-    if not msg:
-        raise HTTPException(status_code=404, detail="Mensaje no encontrado")
-        
-    if str(msg.remitente_id) != str(current_user.id) and current_user.rol != "admin":
-        raise HTTPException(status_code=403, detail="No tienes permisos para eliminar este mensaje")
-        
-    db.delete(msg)
-    db.commit()
+    try:
+        rem_id, dest_id = await run_in_threadpool(
+            mensajes_service.eliminar_mensaje,
+            db,
+            mensaje_id,
+            str(current_user.id),
+            current_user.rol
+        )
+    except LookupError as err:
+        raise HTTPException(status_code=404, detail=str(err))
+    except PermissionError as err:
+        raise HTTPException(status_code=403, detail=str(err))
+
+    # Notificar eliminación a ambos interlocutores
+    eliminar_event = {"mensaje_id": mensaje_id, "remitente_id": rem_id, "destinatario_id": dest_id}
+    if dest_id:
+        await broadcaster.broadcast_to_user(dest_id, "mensaje_eliminado", eliminar_event)
+    await broadcaster.broadcast_to_user(rem_id, "mensaje_eliminado", eliminar_event)
+
     return {"success": True, "message": "Mensaje eliminado correctamente"}

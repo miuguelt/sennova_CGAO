@@ -13,6 +13,7 @@ from app.schemas_retos import RetoCreate, RetoUpdate, RetoResponse
 router = APIRouter(prefix="/retos", tags=["Banco de Retos"])
 
 @router.get("", response_model=List[RetoResponse])
+@router.get("/", response_model=List[RetoResponse])
 def listar_retos(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -40,13 +41,8 @@ def obtener_reto(
 ):
     """Obtiene un reto específico."""
     try:
-        try:
-            uid = uuid.UUID(reto_id)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="ID de reto inválido")
-            
         from sqlalchemy.orm import joinedload
-        reto = db.query(Reto).options(joinedload(Reto.semillero_asignado)).filter(Reto.id == uid).first()
+        reto = db.query(Reto).options(joinedload(Reto.semillero_asignado)).filter(Reto.id == str(reto_id)).first()
         if not reto:
             raise HTTPException(status_code=404, detail="Reto no encontrado")
         if reto.semillero_asignado:
@@ -60,6 +56,7 @@ def obtener_reto(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("", response_model=RetoResponse, status_code=201)
+@router.post("/", response_model=RetoResponse, status_code=201)
 def crear_reto(
     reto: RetoCreate, 
     current_user: User = Depends(get_current_user), 
@@ -93,13 +90,13 @@ def actualizar_reto(
 ):
     """Actualiza un reto existente."""
     try:
-        reto_db = db.query(Reto).filter(Reto.id == uuid.UUID(reto_id)).first()
+        reto_db = db.query(Reto).filter(Reto.id == str(reto_id)).first()
         if not reto_db:
             raise HTTPException(status_code=404, detail="Reto no encontrado")
         
         if current_user.rol == "aprendiz":
             raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar retos")
-        if current_user.rol != "admin" and reto_db.owner_id != current_user.id:
+        if current_user.rol != "admin" and str(reto_db.owner_id) != str(current_user.id):
             raise HTTPException(status_code=403, detail="No autorizado")
 
         update_data = reto_update.model_dump(exclude_unset=True)
@@ -130,13 +127,13 @@ def eliminar_reto(
     db: Session = Depends(get_db)
 ):
     try:
-        reto_db = db.query(Reto).filter(Reto.id == uuid.UUID(reto_id)).first()
+        reto_db = db.query(Reto).filter(Reto.id == str(reto_id)).first()
         if not reto_db:
             raise HTTPException(status_code=404, detail="Reto no encontrado")
             
         if current_user.rol == "aprendiz":
             raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar retos")
-        if current_user.rol != "admin" and reto_db.owner_id != current_user.id:
+        if current_user.rol != "admin" and str(reto_db.owner_id) != str(current_user.id):
             raise HTTPException(status_code=403, detail="No autorizado")
             
         db.delete(reto_db)

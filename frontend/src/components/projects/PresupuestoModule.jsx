@@ -12,6 +12,8 @@ import Badge from '../ui/Badge';
 import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
+import Modal from '../ui/Modal';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 const CATEGORIAS = [
   { value: 'Talento Humano', icon: Briefcase, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -35,6 +37,7 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
   const [showItemForm, setShowItemForm] = useState(false);
   const [editingItemIdx, setEditingItemIdx] = useState(null);
   const [itemData, setItemData] = useState({ categoria: 'Talento Humano', item: '', valor: 0, descripcion: '' });
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, idx: null });
 
   useEffect(() => {
     loadProyectos();
@@ -119,9 +122,15 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
   };
 
   const removeItem = (idx) => {
-    if (!window.confirm('¿Eliminar este rubro del presupuesto?')) return;
+    setDeleteConfirm({ isOpen: true, idx });
+  };
+
+  const confirmRemoveAction = () => {
+    const idx = deleteConfirm.idx;
+    if (idx === null || idx === undefined) return;
     const newItems = items.filter((_, i) => i !== idx);
     saveBudget(newItems);
+    setDeleteConfirm({ isOpen: false, idx: null });
   };
 
   const openEdit = (idx) => {
@@ -165,10 +174,10 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
       </div>
 
       {/* ── Project Selector ── */}
-      <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex flex-col md:flex-row items-center gap-4">
-        <label className="text-xs font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Proyecto:</label>
+      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col md:flex-row items-center gap-4">
+        <label className="text-xs font-black text-slate-700 uppercase tracking-widest whitespace-nowrap">Proyecto:</label>
         <select 
-          className="flex-1 w-full px-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+          className="flex-1 w-full px-4 py-2.5 bg-white border-0 ring-1 ring-slate-300 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
           value={selectedProjectId}
           onChange={(e) => setSelectedProjectId(e.target.value)}
         >
@@ -176,10 +185,10 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
         </select>
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Estimado</p>
-            <p className="text-lg font-black text-emerald-600 tabular-nums">{formatMoney(totalPresupuesto)}</p>
+            <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Total Estimado</p>
+            <p className="text-lg font-black text-emerald-800 tabular-nums">{formatMoney(totalPresupuesto)}</p>
           </div>
-          <div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl">
+          <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
             <TrendingUp size={20} />
           </div>
         </div>
@@ -190,9 +199,9 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
         
         {/* Breakdown Sidebar */}
         <div className="space-y-6">
-          <Card className="p-6 border-0 shadow-sm ring-1 ring-slate-100">
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-              <PieChart size={14} className="text-emerald-500" /> Distribución por Rubro
+          <Card className="p-6 border border-slate-200 shadow-sm bg-white">
+            <h3 className="text-xs font-black text-slate-700 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <PieChart size={14} className="text-emerald-600" /> Distribución por Rubro
             </h3>
             <div className="space-y-4">
               {CATEGORIAS.map(cat => {
@@ -209,9 +218,9 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
                         <div className={`p-1.5 rounded-lg ${cat.bg} ${cat.color}`}>
                           <cat.icon size={12} />
                         </div>
-                        <span className="text-xs font-bold text-slate-700">{cat.value}</span>
+                        <span className="text-xs font-bold text-slate-800">{cat.value}</span>
                       </div>
-                      <span className="text-[11px] font-black text-slate-400 tabular-nums">{formatMoney(catTotal)}</span>
+                      <span className="text-[11px] font-black text-slate-700 tabular-nums">{formatMoney(catTotal)}</span>
                     </div>
                     <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                       <div 
@@ -223,7 +232,7 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
                 );
               })}
               {items.length === 0 && (
-                <p className="text-xs text-slate-400 italic text-center py-4">Sin datos de distribución</p>
+                <p className="text-xs text-slate-600 italic text-center py-4 font-medium">Sin datos de distribución</p>
               )}
             </div>
           </Card>
@@ -235,7 +244,7 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
               <span className="text-2xl font-black tabular-nums">0%</span>
               <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 font-black">PLANEACIÓN</Badge>
             </div>
-            <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
+            <p className="text-[11px] text-slate-300 font-medium leading-relaxed">
               El presupuesto se encuentra en fase de formulación técnica. No se registran gastos ejecutados.
             </p>
           </Card>
@@ -292,63 +301,67 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
         </div>
       </div>
 
-      {/* ── Item Form Modal ── */}
-      {showItemForm && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="fixed inset-0" onClick={() => setShowItemForm(false)} aria-hidden="true" />
-          <Card className="w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn overflow-hidden border-0 bg-white relative z-10 rounded-3xl">
-            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-6 text-white relative shrink-0">
-              <button onClick={() => setShowItemForm(false)} className="absolute top-4 right-4 p-2 hover:bg-white/20 text-slate-200 hover:text-white rounded-full transition-colors"><X size={20} /></button>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><DollarSign size={24} /></div>
-                <div>
-                  <h2 className="text-xl font-black">{editingItemIdx !== null ? 'Editar Rubro' : 'Nuevo Rubro'}</h2>
-                  <p className="text-emerald-100 text-xs font-medium uppercase tracking-widest mt-1">Configuración financiera</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6 sm:p-8 bg-white space-y-5 flex-1 overflow-y-auto custom-scrollbar">
-              <Select 
-                label="Categoría de Gasto" 
-                options={CATEGORIAS.map(c => ({ value: c.value, label: c.value }))}
-                value={itemData.categoria}
-                onChange={(val) => setItemData({...itemData, categoria: val?.target ? val.target.value : val})}
-              />
-              <Input 
-                label="Nombre del Rubro / Ítem" 
-                placeholder="Ej: Reactivos químicos, PC Workstation..." 
-                value={itemData.item} 
-                onChange={(e) => setItemData({...itemData, item: e.target.value})} 
-                required 
-              />
-              <Input 
-                label="Valor Estimado (COP)" 
-                type="number"
-                placeholder="0" 
-                value={itemData.valor} 
-                onChange={(e) => setItemData({...itemData, valor: e.target.value})} 
-                required 
-              />
-              <TextArea 
-                label="Justificación Técnica" 
-                placeholder="Describa la necesidad de este rubro para el proyecto..." 
-                value={itemData.descripcion} 
-                onChange={(e) => setItemData({...itemData, descripcion: e.target.value})} 
-                rows={3} 
-              />
-            </div>
-
-            <div className="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
-              <Button variant="outline" onClick={() => setShowItemForm(false)}>Cancelar</Button>
-              <Button variant="sena" onClick={editingItemIdx !== null ? handleEditItem : handleAddItem} disabled={isSaving}>
-                {isSaving ? <Loader2 className="animate-spin mr-2" size={18} /> : <Save className="mr-2" size={18} />}
-                {editingItemIdx !== null ? 'Actualizar' : 'Agregar al Presupuesto'}
-              </Button>
-            </div>
-          </Card>
+      {/* ── Item Form Modal (Estandarizado en Pila) ── */}
+      <Modal
+        isOpen={showItemForm}
+        onClose={() => setShowItemForm(false)}
+        size="lg"
+        variant="emerald"
+        icon={DollarSign}
+        title={editingItemIdx !== null ? 'Editar Rubro' : 'Nuevo Rubro'}
+        subtitle="Configuración y justificación presupuestal"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowItemForm(false)} className="w-full sm:w-auto justify-center">Cancelar</Button>
+            <Button variant="sena" onClick={editingItemIdx !== null ? handleEditItem : handleAddItem} disabled={isSaving || !itemData.item || !itemData.valor} className="w-full sm:w-auto justify-center">
+              {isSaving ? <Loader2 className="animate-spin mr-2" size={18} /> : <Save className="mr-2" size={18} />}
+              {editingItemIdx !== null ? 'Actualizar Rubro' : 'Agregar al Presupuesto'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <Select 
+            label="Categoría de Gasto" 
+            options={CATEGORIAS.map(c => ({ value: c.value, label: c.value }))}
+            value={itemData.categoria}
+            onChange={(val) => setItemData({...itemData, categoria: val?.target ? val.target.value : val})}
+          />
+          <Input 
+            label="Nombre del Rubro / Ítem" 
+            placeholder="Ej: Reactivos químicos, PC Workstation..." 
+            value={itemData.item} 
+            onChange={(e) => setItemData({...itemData, item: e.target.value})} 
+            required 
+          />
+          <Input 
+            label="Valor Estimado (COP)" 
+            type="number"
+            placeholder="0" 
+            value={itemData.valor} 
+            onChange={(e) => setItemData({...itemData, valor: e.target.value})} 
+            required 
+          />
+          <TextArea 
+            label="Justificación Técnica" 
+            placeholder="Describa la necesidad de este rubro para el proyecto..." 
+            value={itemData.descripcion} 
+            onChange={(e) => setItemData({...itemData, descripcion: e.target.value})} 
+            rows={3} 
+          />
         </div>
-      )}
+      </Modal>
+
+      {/* ── Confirm Delete Dialog ── */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, idx: null })}
+        onConfirm={confirmRemoveAction}
+        title="¿Eliminar Rubro?"
+        description="¿Estás seguro de eliminar este rubro del presupuesto del proyecto? Esta acción no se puede deshacer."
+        confirmText="Eliminar Rubro"
+        variant="danger"
+      />
     </div>
   );
 };

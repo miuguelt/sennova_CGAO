@@ -2,7 +2,7 @@ from datetime import datetime, date
 from typing import Optional, List
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 # ==========================================
@@ -10,8 +10,7 @@ from pydantic import BaseModel, EmailStr, Field
 # ==========================================
 
 class BaseSchema(BaseModel):
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -73,8 +72,7 @@ class UserResponse(UserBase):
     regional: Optional[str] = None
     created_at: Optional[datetime] = None  # Leniente para evitar fallos con datos nulos
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -142,8 +140,7 @@ class IntegranteInfo(BaseModel):
     rol_en_grupo: Optional[str] = None
     fecha_vinculacion: Optional[date] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GrupoResponse(GrupoBase):
@@ -154,8 +151,7 @@ class GrupoResponse(GrupoBase):
     total_integrantes: int = 0
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -203,8 +199,7 @@ class AprendizResponse(BaseModel):
     fecha_ingreso: date
     fecha_egreso: Optional[date] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SemilleroBase(BaseModel):
@@ -231,6 +226,7 @@ class SemilleroUpdate(BaseModel):
     plan_accion: Optional[str] = None
     horas_dedicadas: Optional[int] = None
     estado: Optional[str] = None
+    grupo_id: Optional[UUID] = None
 
 
 class SemilleroInvestigadorCreate(BaseModel):
@@ -249,8 +245,7 @@ class SemilleroResponse(SemilleroBase):
     total_investigadores: int = 0
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -289,8 +284,7 @@ class ConvocatoriaResponse(ConvocatoriaBase):
     total_proyectos: int = 0
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -321,6 +315,7 @@ class ProyectoBase(BaseModel):
     linea_programatica: Optional[str] = None
     reto_origen_id: Optional[UUID] = None
     semillero_id: Optional[UUID] = None
+    grupo_id: Optional[UUID] = None
     # Campos temporales
     año: Optional[int] = None              # Año de inicio
     año_fin: Optional[int] = None          # Año de finalización
@@ -351,6 +346,7 @@ class ProyectoUpdate(BaseModel):
     linea_programatica: Optional[str] = None
     reto_origen_id: Optional[UUID] = None
     semillero_id: Optional[UUID] = None
+    grupo_id: Optional[UUID] = None
     año: Optional[int] = None
     año_fin: Optional[int] = None
     continua_siguiente_año: Optional[bool] = None
@@ -360,8 +356,13 @@ class EquipoMiembroInfo(BaseModel):
     id: UUID
     nombre: str
     email: str
-    rol_en_proyecto: Optional[str]
-    horas_dedicadas: Optional[int]
+    rol_en_proyecto: Optional[str] = None
+    horas_dedicadas: Optional[int] = None
+    rol: Optional[str] = None
+    rol_sennova: Optional[str] = None
+    sede: Optional[str] = None
+    ficha: Optional[str] = None
+    programa_formacion: Optional[str] = None
 
 
 class ProyectoResponse(ProyectoBase):
@@ -371,14 +372,18 @@ class ProyectoResponse(ProyectoBase):
     convocatoria_id: Optional[UUID] = None
     convocatoria: Optional[ConvocatoriaResponse] = None
     semillero: Optional['SemilleroBase'] = None
+    grupo_nombre: Optional[str] = None
+    semillero_nombre: Optional[str] = None
+    avance_porcentaje: int = 0
+    total_entregables: int = 0
+    entregables_aprobados: int = 0
     equipo: List[EquipoMiembroInfo] = []
     total_equipo: int = 0
     total_productos: int = 0
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -430,8 +435,7 @@ class ProductoResponse(ProductoBase):
     owner_nombre: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -455,8 +459,7 @@ class DocumentoResponse(DocumentoBase):
     owner_id: UUID
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -525,8 +528,7 @@ class EntregableResponse(EntregableBase):
     producto_nombre: Optional[str] = None
     dias_restantes: Optional[int] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EntregableListResponse(BaseModel):
@@ -537,8 +539,7 @@ class EntregableListResponse(BaseModel):
     fecha_entrega: date
     dias_restantes: Optional[int] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -568,8 +569,7 @@ class NotificacionResponse(NotificacionBase):
     email_enviado: bool
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class NotificacionListResponse(BaseModel):
@@ -583,8 +583,7 @@ class NotificacionListResponse(BaseModel):
     prioridad: str
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class NotificacionMarcarLeida(BaseModel):
@@ -622,8 +621,7 @@ class ActividadResponse(ActividadBase):
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AuditLogResponse(BaseModel):
@@ -637,8 +635,7 @@ class AuditLogResponse(BaseModel):
     user_agent: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -681,8 +678,7 @@ class BitacoraResponse(BitacoraBase):
     signature_metadata: Optional[dict] = None
     created_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -699,8 +695,7 @@ class MensajeUserSimple(BaseModel):
     programa_formacion: Optional[str] = None
     ficha: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MensajeBase(BaseModel):
@@ -711,6 +706,19 @@ class MensajeBase(BaseModel):
 
 class MensajeCreate(MensajeBase):
     destinatario_id: Optional[str] = None
+    # Adjuntos ya subidos por el remitente que se asocian al enviar el mensaje
+    adjunto_ids: List[str] = []
+
+
+class MensajeAdjuntoResponse(BaseModel):
+    id: str
+    nombre_archivo: str
+    content_type: str
+    categoria: str          # imagen | video | audio | documento
+    tamano_bytes: int
+    previsualizable: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MensajeResponse(BaseModel):
@@ -721,14 +729,21 @@ class MensajeResponse(BaseModel):
     contenido: str
     leido: bool = False
     fecha_lectura: Optional[datetime] = None
+    entregado: bool = False
+    fecha_entrega: Optional[datetime] = None
     es_anuncio: bool = False
     created_at: datetime
     updated_at: Optional[datetime] = None
     remitente: Optional[MensajeUserSimple] = None
     destinatario: Optional[MensajeUserSimple] = None
+    adjuntos: List[MensajeAdjuntoResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MensajeTyping(BaseModel):
+    destinatario_id: str
+    is_typing: bool = True
 
 
 class ConversacionSummary(BaseModel):

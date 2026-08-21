@@ -9,28 +9,169 @@
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    color: #0f172a;
+    background-color: #f8fafc;
   }
   :root { color-scheme: light; }
+
+  /* Accessible base defaults */
+  th {
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.05em;
+  }
+
+  label {
+    color: #1e293b;
+    font-weight: 700;
+  }
+
+  ::placeholder {
+    color: #64748b !important;
+    opacity: 1 !important;
+  }
+
+  input, select, textarea {
+    color: #0f172a !important;
+  }
+
+  /* Global contrast safeguard for muted text on light backgrounds */
+  .text-slate-400 {
+    color: #475569;
+  }
+
+  .text-slate-500 {
+    color: #334155;
+  }
+
+  .text-gray-400 {
+    color: #475569;
+  }
+
+  .text-gray-500 {
+    color: #334155;
+  }
+
+  /* Text on dark backgrounds / cards / gradients */
+  .bg-slate-900 .text-slate-400,
+  .bg-slate-950 .text-slate-400,
+  .bg-slate-800 .text-slate-400,
+  .bg-emerald-950 .text-slate-400,
+  .bg-emerald-900 .text-slate-400,
+  .bg-indigo-950 .text-slate-400,
+  .bg-indigo-900 .text-slate-400,
+  [class*="bg-slate-900"] .text-slate-400,
+  [class*="bg-slate-950"] .text-slate-400,
+  [class*="bg-slate-800"] .text-slate-400,
+  [class*="bg-indigo-900"] .text-slate-400,
+  [class*="bg-emerald-900"] .text-slate-400,
+  [class*="from-slate-900"] .text-slate-400,
+  [class*="from-indigo-900"] .text-slate-400,
+  [class*="from-emerald-900"] .text-slate-400,
+  [class*="from-emerald-800"] .text-slate-400 {
+    color: #cbd5e1 !important;
+  }
+
+  .bg-slate-900 .text-slate-500,
+  .bg-slate-950 .text-slate-500,
+  .bg-slate-800 .text-slate-500,
+  .bg-emerald-950 .text-slate-500,
+  .bg-emerald-900 .text-slate-500,
+  .bg-indigo-950 .text-slate-500,
+  .bg-indigo-900 .text-slate-500,
+  [class*="bg-slate-900"] .text-slate-500,
+  [class*="bg-slate-950"] .text-slate-500,
+  [class*="bg-slate-800"] .text-slate-500,
+  [class*="bg-indigo-900"] .text-slate-500,
+  [class*="bg-emerald-900"] .text-slate-500,
+  [class*="from-slate-900"] .text-slate-500,
+  [class*="from-indigo-900"] .text-slate-500,
+  [class*="from-emerald-900"] .text-slate-500,
+  [class*="from-emerald-800"] .text-slate-500 {
+    color: #e2e8f0 !important;
+  }
+
+  .bg-slate-900 .text-slate-600,
+  .bg-slate-950 .text-slate-600,
+  .bg-slate-800 .text-slate-600,
+  .bg-emerald-950 .text-slate-600,
+  .bg-emerald-900 .text-slate-600,
+  .bg-indigo-950 .text-slate-600,
+  .bg-indigo-900 .text-slate-600,
+  [class*="bg-slate-900"] .text-slate-600,
+  [class*="bg-slate-950"] .text-slate-600,
+  [class*="bg-slate-800"] .text-slate-600,
+  [class*="bg-indigo-900"] .text-slate-600,
+  [class*="bg-emerald-900"] .text-slate-600,
+  [class*="from-slate-900"] .text-slate-600,
+  [class*="from-indigo-900"] .text-slate-600,
+  [class*="from-emerald-900"] .text-slate-600,
+  [class*="from-emerald-800"] .text-slate-600 {
+    color: #f1f5f9 !important;
+  }
 }
 
 @layer utilities {
-  /* Scrollbar */
-  .scrollbar-thin::-webkit-scrollbar        { width: 4px; height: 4px; }
-  .scrollbar-thin::-webkit-scrollbar-track  { background: #f1f5f9; }
-  .scrollbar-thin::-webkit-scrollbar-thumb  { background: #cbd5e1; border-radius: 2px; }
+  /* Scrollbars */
+  .scrollbar-thin::-webkit-scrollbar        { width: 5px; height: 5px; }
+  .scrollbar-thin::-webkit-scrollbar-track  { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb  { background: #cbd5e1; border-radius: 9999px; }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-  /* Animation utilities — referenced across modules as className strings */
-  .animate-fadeIn       { animation: fadeIn       0.18s ease-out; }
-  .animate-slideUp      { animation: slideUp      0.20s ease-out; }
-  .animate-scaleIn      { animation: scaleIn      0.15s ease-out; }
-  .animate-slideInRight { animation: slideInRight 0.20s ease-out; }
+  .custom-scrollbar::-webkit-scrollbar        { width: 6px; height: 6px; }
+  .custom-scrollbar::-webkit-scrollbar-track  { background: #f8fafc; }
+  .custom-scrollbar::-webkit-scrollbar-thumb  { background: #cbd5e1; border-radius: 9999px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar,
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar,
+  .scrollbar-none {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  /* Safe padding for mobile devices */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
+
+  /* Animation utilities — referenced across modules */
+  .animate-fadeIn       { animation: fadeIn       0.20s cubic-bezier(0.16, 1, 0.3, 1); }
+  .animate-slideUp      { animation: slideUp      0.24s cubic-bezier(0.16, 1, 0.3, 1); }
+  .animate-scaleIn      { animation: scaleIn      0.20s cubic-bezier(0.16, 1, 0.3, 1); }
+  .animate-slideInRight { animation: slideInRight 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
+  .animate-slideInLeft  { animation: slideInLeft  0.28s cubic-bezier(0.16, 1, 0.3, 1); }
 }
 
-@keyframes fadeIn       { from { opacity: 0; }                              to { opacity: 1; } }
-@keyframes slideUp      { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes scaleIn      { from { opacity: 0; transform: scale(0.97); }     to { opacity: 1; transform: scale(1); } }
-@keyframes slideInRight { from { opacity: 0; transform: translateX(20px); }to { opacity: 1; transform: translateX(0); } }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(32px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-32px); }
+  to { opacity: 1; transform: translateX(0); }
+}
 
 /* Module transitions */
 .module-enter { animation: slideUp 0.2s ease-out; }

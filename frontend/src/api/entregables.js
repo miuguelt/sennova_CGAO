@@ -87,5 +87,13 @@ export const EntregablesAPI = {
     return fetchAPI(`${API_BASE}/proyecto/${proyectoId}/generate-template`, {
       method: 'POST'
     });
-  }
+  },
+
+  // Alias universales en inglés para consistencia en componentes
+  list: (proyectoId) => EntregablesAPI.listarPorProyecto(proyectoId),
+  get: (id) => EntregablesAPI.obtener(id),
+  create: (data) => EntregablesAPI.crear(data),
+  update: (id, data) => EntregablesAPI.actualizar(id, data),
+  delete: (id) => EntregablesAPI.eliminar(id),
+  changeStatus: (id, status, obs) => EntregablesAPI.cambiarEstado(id, status, obs),
 };

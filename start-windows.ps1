@@ -12,8 +12,16 @@ param(
     [switch]$Status,
     [switch]$Daemon,
     [switch]$FrontendOnly,
-    [switch]$BackendOnly
+    [switch]$BackendOnly,
+    # Por defecto los servicios escuchan solo en 127.0.0.1. Antes se ataban a
+    # 0.0.0.0, así que la API quedaba alcanzable desde toda la red local y el
+    # CORS de desarrollo devolvía su propio origen a cualquier 192.168.x.x con
+    # allow-credentials. Usa este parámetro cuando de verdad quieras probar
+    # desde otro equipo o desde el celular.
+    [switch]$ExposeLan
 )
+
+$BindHost = if ($ExposeLan) { "0.0.0.0" } else { "127.0.0.1" }
 
 $ProjectRoot = "$PSScriptRoot"
 $BackendDir = "$ProjectRoot\backend"
@@ -50,7 +58,14 @@ function Import-ProjectEnvironment {
 Import-ProjectEnvironment -Path (Join-Path $ProjectRoot ".env")
 # Inyectar credenciales desde WCM (sobrescribe .env si existe)
 $wcmInjector = Join-Path $PSScriptRoot "..\..\_infrastructure\devbraind\scripts\Import-ProjectCredentials.ps1"
-if (Test-Path $wcmInjector) { . $wcmInjector; Import-ProjectCredentials -Project sennova }
+if (Test-Path $wcmInjector) {
+    try {
+        if ($PSVersionTable.PSVersion.Major -ge 7) {
+            . $wcmInjector
+            Import-ProjectCredentials -Project sennova
+        }
+    } catch {}
+}
 $env:PYTHONUNBUFFERED = "1"
 
 if (-not (Test-Path -LiteralPath $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
@@ -136,16 +151,36 @@ function Assert-BackendConfiguration {
     }
 }
 
+function Get-ListeningPid {
+    param([int]$Port)
+    # Get-NetTCPConnection pertenece a Windows PowerShell 5 y no existe en pwsh 7,
+    # donde corre este script: la versión anterior fallaba siempre y el error
+    # quedaba oculto tras -ErrorAction SilentlyContinue, así que la parada decía
+    # haber liberado el puerto sin haber tocado nada.
+    $pattern = ":$Port\s"
+    netstat -ano | Select-String -Pattern 'LISTENING' | Select-String -Pattern $pattern | ForEach-Object {
+        $fields = ($_.Line.Trim() -split '\s+')
+        $local = $fields[1]
+        # Evita que el puerto 80 case con 8000, 8092, etc.
+        if ($local -match ":$Port$") { [int]$fields[-1] }
+    } | Sort-Object -Unique
+}
+
 function Stop-ProcessesOnPort {
     param([int]$Port)
-    $conns = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
-    foreach ($conn in $conns) {
-        $processPid = $conn.OwningProcess
-        if ($processPid -gt 4) {
-            Write-Log "    [PORT-RESET] Matando PID $processPid en puerto $Port..." "Yellow"
-            taskkill /F /T /PID $processPid 2>$null | Out-Null
-            Stop-Process -Id $processPid -Force -ErrorAction SilentlyContinue
-        }
+    foreach ($processPid in (Get-ListeningPid -Port $Port)) {
+        if ($processPid -le 4) { continue }
+        $proc = Get-Process -Id $processPid -ErrorAction SilentlyContinue
+        if (-not $proc) { continue }
+        Write-Log "    [PORT-RESET] Deteniendo PID $processPid ($($proc.ProcessName)) en puerto $Port..." "Yellow"
+        # Sin taskkill /F /T: el árbol incluye procesos ajenos al proyecto y la
+        # política del workspace lo prohíbe. Se detiene solo el PID dueño.
+        Stop-Process -Id $processPid -Force -ErrorAction SilentlyContinue
+    }
+
+    Start-Sleep -Milliseconds 400
+    if (Get-ListeningPid -Port $Port) {
+        Write-Log "    [PORT-RESET] El puerto $Port sigue ocupado tras el intento de parada." "Red"
     }
 }
 
@@ -181,10 +216,10 @@ function Stop-Sennova {
 
 function Show-Status {
     Write-Log "=== SENNOVA STATUS ===" "Cyan"
-    $backend = Test-NetConnection -ComputerName 127.0.0.1 -Port 8000 -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
-    $frontend = Test-NetConnection -ComputerName 127.0.0.1 -Port 3006 -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
-    Write-Log "Backend  (8000): $(if($backend.TcpTestSucceeded){'ONLINE'}else{'OFFLINE'})" $(if($backend.TcpTestSucceeded){'Green'}else{'Red'})
-    Write-Log "Frontend (3006): $(if($frontend.TcpTestSucceeded){'ONLINE'}else{'OFFLINE'})" $(if($frontend.TcpTestSucceeded){'Green'}else{'Red'})
+    $beOnline = Test-TcpEndpoint -HostName 127.0.0.1 -Port 8000
+    $feOnline = Test-TcpEndpoint -HostName 127.0.0.1 -Port 3006
+    Write-Log "Backend  (8000): $(if($beOnline){'ONLINE'}else{'OFFLINE'})" $(if($beOnline){'Green'}else{'Red'})
+    Write-Log "Frontend (3006): $(if($feOnline){'ONLINE'}else{'OFFLINE'})" $(if($feOnline){'Green'}else{'Red'})
 }
 
 if ($Stop) { Stop-Sennova; return }
@@ -215,36 +250,31 @@ if ($Daemon) {
             $env:ALLOWED_ORIGINS = "http://localhost:3006,http://localhost:5173,http://localhost:8050,http://127.0.0.1:3006,http://127.0.0.1:8050"
         }
         $env:DEBUG = "true"
+        $env:HOST = $BindHost
         $env:VITE_API_URL = "http://localhost:8000"
 
         $beLog = Join-Path $LogDir "backend.log"
         $beErrLog = Join-Path $LogDir "backend_error.log"
-        $beBat = Join-Path $LogDir "run_backend.bat"
-        @"
-@echo off
-cd /d "$BackendDir"
-"$PythonExe" run_server.py > "$beLog" 2> "$beErrLog" < NUL
-"@ | Out-File -FilePath $beBat -Encoding ascii
+        Remove-Item -LiteralPath $beLog -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $beErrLog -Force -ErrorAction SilentlyContinue
 
-        $p = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$beBat`"" -WorkingDirectory $BackendDir -WindowStyle Hidden -PassThru
+        $p = Start-Process -FilePath $PythonExe -ArgumentList "run_server.py" -WorkingDirectory $BackendDir `
+            -RedirectStandardOutput $beLog -RedirectStandardError $beErrLog -WindowStyle Hidden -PassThru
         $pids += $p.Id
     }
 
     if (-not $BackendOnly) {
-        $feBat = Join-Path $LogDir "run_frontend.bat"
+        $env:VITE_API_URL = "http://localhost:8000"
         $feLog = Join-Path $LogDir "frontend.log"
         $feErrLog = Join-Path $LogDir "frontend_error.log"
+        Remove-Item -LiteralPath $feLog -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $feErrLog -Force -ErrorAction SilentlyContinue
 
-        @"
-@echo off
-set VITE_API_URL=http://localhost:8000
-cd /d "$FrontendDir"
-".\node_modules\.bin\vite.cmd" --port 3006 --host 0.0.0.0 > "$feLog" 2> "$feErrLog" < NUL
-"@ | Out-File -FilePath $feBat -Encoding ascii
-
-        $p = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$feBat`"" -WorkingDirectory $FrontendDir -WindowStyle Hidden -PassThru
+        $p = Start-Process -FilePath "cmd.exe" -ArgumentList "/c call .\node_modules\.bin\vite.cmd --port 3006 --host $BindHost" `
+            -WorkingDirectory $FrontendDir -RedirectStandardOutput $feLog -RedirectStandardError $feErrLog -WindowStyle Hidden -PassThru
         $pids += $p.Id
     }
+
 
     # Guardar PIDs
     $pids | Out-File -FilePath $pidFile -Encoding UTF8
@@ -277,14 +307,14 @@ if (-not $FrontendOnly) {
     if (-not $env:ALLOWED_ORIGINS) {
         $env:ALLOWED_ORIGINS = "http://localhost:3006,http://localhost:5173,http://localhost:8050,http://127.0.0.1:3006,http://127.0.0.1:8050"
     }
-    $env:DEBUG = "true"
+    $env:HOST = $BindHost
+    $procs += Start-TransparentProcess -FilePath $PythonExe -Arguments "run_server.py" -WorkingDir $BackendDir -LogPath (Join-Path $LogDir "backend.log") -Label "Backend" -Color "Cyan"
 
-    $procs += Start-TransparentProcess -FilePath $PythonExe -Arguments "-c `"import asyncio; asyncio.set_event_loop(asyncio.new_event_loop()); import uvicorn; uvicorn.run('app.main:app', host='0.0.0.0', port=8000, reload=True)`"" -WorkingDir $BackendDir -LogPath (Join-Path $LogDir "backend.log") -Label "Backend" -Color "Cyan"
 }
 
 if (-not $BackendOnly) {
     $env:VITE_API_URL = "http://localhost:8000"
-    $procs += Start-TransparentProcess -FilePath "cmd.exe" -Arguments "/c .\node_modules\.bin\vite.cmd --port 3006 --host 0.0.0.0" -WorkingDir $FrontendDir -LogPath (Join-Path $LogDir "frontend.log") -Label "Frontend" -Color "Green"
+    $procs += Start-TransparentProcess -FilePath "cmd.exe" -Arguments "/c .\node_modules\.bin\vite.cmd --port 3006 --host $BindHost" -WorkingDir $FrontendDir -LogPath (Join-Path $LogDir "frontend.log") -Label "Frontend" -Color "Green"
 }
 
 try { $host.UI.RawUI.WindowTitle = "SENNOVA CGAO — Monitoring (Q=stop)" } catch {}

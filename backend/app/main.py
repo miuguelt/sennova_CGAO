@@ -12,6 +12,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
+from app.bootstrap import (
+    AdminBootstrapError,
+    credentials_from_settings,
+    ensure_initial_admin,
+)
 from app.config import get_settings
 from app.database import engine, Base, SessionLocal
 from app.models import User
@@ -19,7 +24,8 @@ from app.routers import (
     auth, proyectos, grupos, semilleros, convocatorias, 
     productos, documentos, usuarios, stats, reportes, 
     entregables, notificaciones, cvlac, retos, bitacora, 
-    maintenance, audit, plantillas, aprendices, mensajes
+    maintenance, audit, plantillas, aprendices, mensajes,
+    mensajes_adjuntos
 )
 from app.middlewares.audit import AuditMiddleware
 
@@ -33,37 +39,78 @@ async def lifespan(app: FastAPI):
     try:
         Base.metadata.create_all(bind=engine)
         print("✅ Base de datos verificada/creada")
+
+        # Verificación segura de columnas adicionales en tablas existentes
+        try:
+            from sqlalchemy import inspect, text
+            inspector = inspect(engine)
+            tables = inspector.get_table_names()
+            with engine.connect() as conn:
+                if "mensajes" in tables:
+                    cols = [c["name"] for c in inspector.get_columns("mensajes")]
+                    if "entregado" not in cols:
+                        conn.execute(text("ALTER TABLE mensajes ADD COLUMN entregado BOOLEAN DEFAULT FALSE"))
+                        conn.commit()
+                    if "fecha_entrega" not in cols:
+                        conn.execute(text("ALTER TABLE mensajes ADD COLUMN fecha_entrega TIMESTAMP"))
+                        conn.commit()
+                if "proyectos" in tables:
+                    cols_p = [c["name"] for c in inspector.get_columns("proyectos")]
+                    if "grupo_id" not in cols_p:
+                        conn.execute(text("ALTER TABLE proyectos ADD COLUMN grupo_id VARCHAR(36)"))
+                        conn.commit()
+                    # Backfill grupo_id a partir de semilleros o grupo principal
+                    if "semilleros" in tables and "grupos" in tables:
+                        conn.execute(text("""
+                            UPDATE proyectos 
+                            SET grupo_id = (SELECT semilleros.grupo_id FROM semilleros WHERE semilleros.id = proyectos.semillero_id)
+                            WHERE proyectos.grupo_id IS NULL AND proyectos.semillero_id IS NOT NULL
+                        """))
+                        conn.execute(text("""
+                            UPDATE proyectos
+                            SET grupo_id = (SELECT id FROM grupos LIMIT 1)
+                            WHERE proyectos.grupo_id IS NULL AND (SELECT COUNT(*) FROM grupos) > 0
+                        """))
+                        conn.commit()
+        except Exception as col_err:
+            pass
         
-        # Bootstrap: Crear admin inicial si no existe
+        # Bootstrap: administrador inicial (mismo módulo que usa el entrypoint
+        # del contenedor, para que arrancar con Docker o en local produzca el
+        # mismo estado y las mismas validaciones).
         db = SessionLocal()
         try:
-            from app.auth import AuthService
-            admin_email = settings.INITIAL_ADMIN_EMAIL
-            admin_user = db.query(User).filter(User.email == admin_email).first()
-            if not admin_user:
-                print(f"👤 Creando usuario administrador inicial: {admin_email}")
-                AuthService.register_user(
-                    db,
-                    email=admin_email,
-                    password=settings.INITIAL_ADMIN_PASSWORD,
-                    nombre=settings.INITIAL_ADMIN_NOMBRE,
-                    rol="admin",
-                    sede=settings.INITIAL_ADMIN_SEDE,
-                    documento=settings.INITIAL_ADMIN_DOCUMENTO
-                )
-                print("✅ Administrador creado correctamente")
+            result = ensure_initial_admin(
+                db,
+                credentials_from_settings(settings),
+                enforce_strong_password=not settings.DEBUG,
+            )
+            print(f"👤 {result.detail}")
 
-            # Poblado automático si se solicita en variables de entorno
+            # Poblado de datos de demostración. Borra grupos, semilleros,
+            # proyectos, productos, retos, convocatorias, aprendices, bitácora y
+            # todos los usuarios que no sean el admin, así que solo puede correr
+            # en desarrollo.
             if settings.SEED_INITIAL_DATA:
-                from app.models import Grupo
-                if db.query(Grupo).count() == 0:
-                    print("🌱 SEED_INITIAL_DATA=true: Poblado automático de datos iniciales...")
-                    try:
-                        from scripts.seed_demo_data import seed_data
-                        seed_data()
-                        print("✅ Datos iniciales poblados correctamente")
-                    except Exception as seed_err:
-                        print(f"⚠️ Error en poblado inicial automático: {seed_err}")
+                if not settings.DEBUG:
+                    print(
+                        "⛔ SEED_INITIAL_DATA=true ignorado: el poblado de demostración "
+                        "borra datos existentes y solo se permite con DEBUG=true."
+                    )
+                else:
+                    from app.models import Grupo
+                    if db.query(Grupo).count() == 0:
+                        print("🌱 SEED_INITIAL_DATA=true: poblando datos de demostración...")
+                        try:
+                            from scripts.seed_demo_data import seed_data
+                            seed_data()
+                            print("✅ Datos de demostración poblados correctamente")
+                        except Exception as seed_err:
+                            print(f"⚠️ Error en poblado de demostración: {seed_err}")
+        except AdminBootstrapError as admin_err:
+            # Sin administrador utilizable la instalación no sirve, pero tampoco
+            # se crea uno abierto: se informa y la API arranca sin él.
+            print(f"❌ No se creó el administrador inicial: {admin_err}")
         except Exception as e:
             print(f"⚠️ Error en bootstrap de usuario: {e}")
         finally:
@@ -85,8 +132,12 @@ app = FastAPI(
     description="API para la gestión de proyectos de investigación del CGAO Vélez - SENNOVA",
     version="2.0.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc"
+    # El esquema completo de la API, incluidas las rutas administrativas, solo se
+    # publica en desarrollo. En producción no hay motivo para regalar la
+    # superficie de ataque a quien alcance el puerto.
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url="/openapi.json" if settings.DEBUG else None,
 )
 
 
@@ -117,18 +168,6 @@ app.add_middleware(
 # Registro de Auditoría Estricta
 app.add_middleware(AuditMiddleware)
 
-
-# Middleware de diagnóstico y CORS forzado
-@app.middleware("http")
-async def cors_diagnostic_middleware(request: Request, call_next):
-    origin = request.headers.get("origin")
-    if origin:
-        # Evitar inundar la consola con llamadas de polling periódicas e irrelevantes
-        noisy_paths = ["/notificaciones/check/pendientes", "/health", "/stats/dashboard", "/stats/analytics/evolucion"]
-        if not any(path in request.url.path for path in noisy_paths):
-            print(f"🔍 [CORS DEBUG] Request from Origin: {origin} | Path: {request.url.path}")
-    response = await call_next(request)
-    return response
     
 # ==========================================
 # GESTIÓN DE EXCEPCIONES (CON SOPORTE CORS)
@@ -229,6 +268,8 @@ app.include_router(maintenance.router)
 app.include_router(audit.router)
 app.include_router(plantillas.router)
 app.include_router(aprendices.router)
+# Los adjuntos van primero: /mensajes/adjuntos/... no debe caer en /mensajes/{mensaje_id}
+app.include_router(mensajes_adjuntos.router)
 app.include_router(mensajes.router)
 
 

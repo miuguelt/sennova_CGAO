@@ -8,6 +8,7 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from app.auth import get_current_user, get_current_admin
 from app.database import get_db
+from app.utils import is_valid_uuid
 
 from app.models import (
     User, Proyecto, Grupo, Semillero, 
@@ -466,7 +467,15 @@ def get_user_impact(
         if current_user.rol == "aprendiz" and str(current_user.id) != str(user_id):
             raise HTTPException(status_code=403, detail="No tienes permiso para ver este perfil")
         uid = str(user_id)
+        if not is_valid_uuid(uid):
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
         user_db = db.query(User).filter(User.id == uid).first()
+        if not user_db:
+            apr_record = db.query(Aprendiz).filter(Aprendiz.id == uid).first()
+            if apr_record and apr_record.user_id:
+                uid = str(apr_record.user_id)
+                user_db = db.query(User).filter(User.id == uid).first()
+
         if not user_db:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
@@ -589,14 +598,17 @@ def get_semillero_stats(
 ):
     """Estadísticas detalladas de impacto para un semillero específico basadas en datos reales."""
     try:
-        s = db.query(Semillero).filter(Semillero.id == str(semillero_id)).first()
+        sid = str(semillero_id)
+        if not is_valid_uuid(sid):
+            raise HTTPException(status_code=404, detail="Semillero no encontrado")
+        s = db.query(Semillero).filter(Semillero.id == sid).first()
         if not s:
             raise HTTPException(status_code=404, detail="Semillero no encontrado")
         
-        # Aprendices vinculados
-        aprendices_ids = [str(a.id) for a in s.aprendices]
+        # Aprendices vinculados (usar user_id si está asociado al usuario para productos)
+        aprendices_user_ids = [str(a.user_id) for a in s.aprendices if a.user_id]
         investigadores_ids = [str(i.id) for i in s.investigadores]
-        todos_miembros_ids = list(set(aprendices_ids + investigadores_ids + [str(s.owner_id)]))
+        todos_miembros_ids = list(set(aprendices_user_ids + investigadores_ids + [str(s.owner_id)]))
         
         # Impacto basado en productos reales de los miembros
         productos_semillero = db.query(Producto).filter(Producto.owner_id.in_(todos_miembros_ids)).all()

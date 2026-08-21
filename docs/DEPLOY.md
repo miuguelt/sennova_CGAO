@@ -205,11 +205,13 @@ Después del deploy, verifica que todo funciona:
    - Debe retornar: `{"status": "ok"}`
 
 2. **API Docs**: `https://tu-api.com/docs`
-   - Swagger UI debe cargar
+   - Solo se publica con `DEBUG=true`. En producción responde 404 a propósito.
 
-3. **Login**: Intenta iniciar sesión con:
-   - Email: `admin@sena.edu.co`
-   - Password: `123456`
+3. **Login**: Intenta iniciar sesión con el administrador inicial:
+   - Email: el valor de `INITIAL_ADMIN_EMAIL`
+   - Password: el valor de `INITIAL_ADMIN_PASSWORD` que definiste en el entorno
+   - No hay contraseña por defecto: si no defines `INITIAL_ADMIN_PASSWORD`, el
+     contenedor falla en el arranque en vez de publicar un admin abierto.
 
 4. **pgAdmin**: `https://tu-pgadmin.com`
    - Debe mostrar login de pgAdmin4

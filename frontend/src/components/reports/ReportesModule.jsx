@@ -59,6 +59,15 @@ const CATALOG = [
     bg: 'bg-indigo-100',
     impact: 'Formación'
   },
+  { 
+    id: 'talento',
+    title: 'Talento Humano CTeI',      
+    desc: 'Directorio consolidado de investigadores, instructores, nivel académico y estado.',        
+    icon: Users, 
+    color: 'text-purple-600', 
+    bg: 'bg-purple-100',
+    impact: 'Talento Humano'
+  },
 ];
 
 const COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
@@ -72,24 +81,24 @@ const StatCard = ({ title, value, label, icon: Icon, colorCls, bgCls }) => (
       <div className={`p-3 rounded-2xl ${bgCls} ${colorCls} shadow-sm group-hover:scale-110 transition-transform`}>
         <Icon size={22} />
       </div>
-      <Badge variant="default" className="font-black text-[10px] uppercase tracking-widest bg-white/80 border-slate-100">{label}</Badge>
+      <Badge variant="default" className="font-black text-[10px] uppercase tracking-widest bg-white/80 border-slate-200">{label}</Badge>
     </div>
     <div className="relative z-10">
       <h3 className="text-3xl font-black text-slate-900 leading-none mb-2 tabular-nums">{value}</h3>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</p>
+      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{title}</p>
     </div>
   </Card>
 );
 
 const MetricCard = ({ label, value, trend, icon: Icon, colorCls }) => (
-  <Card className="p-6 border-0 shadow-sm ring-1 ring-slate-100 overflow-hidden relative group">
+  <Card className="p-6 border border-slate-200 shadow-sm overflow-hidden relative group bg-white">
     <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-5 group-hover:scale-110 transition-transform ${colorCls.replace('text', 'bg')}`} />
     <div className="flex items-center justify-between relative z-10">
       <div>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+        <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">{label}</p>
         <h3 className="text-3xl font-black text-slate-900 tracking-tighter tabular-nums">{value}</h3>
         {trend && (
-          <div className={`flex items-center mt-2 text-[10px] font-bold ${trend > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+          <div className={`flex items-center mt-2 text-[10px] font-bold ${trend > 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
             {trend > 0 ? <ArrowUpRight size={10} className="mr-1" /> : <ArrowDownRight size={10} className="mr-1" />}
             <span>{Math.abs(trend)}% vs mes anterior</span>
           </div>
@@ -143,6 +152,7 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
         case 'grupos':     result = await ReportesAPI.descargarConsolidadoGrupos(formato); break;
         case 'productos':  result = await ReportesAPI.descargarConsolidadoProductos(params.año || null, params.verificados || false, formato); break;
         case 'semilleros': result = await ReportesAPI.descargarConsolidadoSemilleros(formato); break;
+        case 'talento':    result = await ReportesAPI.descargarConsolidadoTalento(formato); break;
         default: throw new Error('Tipología de reporte no identificada.');
       }
       onNotify?.(`Generación exitosa: El reporte "${result.filename}" está listo.`, 'success');
@@ -204,21 +214,21 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
         </div>
         
         <div className="flex items-center gap-3">
-           <div className="flex bg-slate-100 p-1 rounded-2xl">
+           <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
             <button 
               onClick={() => setActiveTab('analytics')}
-              className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'analytics' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
+              className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'analytics' ? 'bg-white text-emerald-800 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-900 font-bold'}`}
             >
               <PieIcon size={14} className="inline mr-2" /> Analítica
             </button>
             <button 
               onClick={() => setActiveTab('catalog')}
-              className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'catalog' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+              className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'catalog' ? 'bg-white text-indigo-800 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-900 font-bold'}`}
             >
               <FileSpreadsheet size={14} className="inline mr-2" /> Consolidados
             </button>
           </div>
-          <Button variant="outline" onClick={handlePrint} className="bg-white border-slate-200" title="Imprimir Reporte">
+          <Button variant="outline" onClick={handlePrint} className="bg-white border-slate-300 text-slate-800" title="Imprimir Reporte">
             <Printer size={16} />
           </Button>
           <Button variant="sena" onClick={handleSign} title="Firma Electrónica" disabled={isSigned}>
@@ -264,7 +274,7 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-             <Card className="p-8 border-0 shadow-sm ring-1 ring-slate-100">
+             <Card className="p-8 border border-slate-200 shadow-sm bg-white">
               <h3 className="font-black text-slate-900 text-lg mb-8">Estado de la Cartera</h3>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -278,13 +288,13 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
               </div>
             </Card>
 
-            <Card className="p-8 border-0 shadow-sm ring-1 ring-slate-100">
+            <Card className="p-8 border border-slate-200 shadow-sm bg-white">
               <h3 className="font-black text-slate-900 text-lg mb-8">Inversión por Tipología</h3>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <ReBarChart data={presupuestoChartData} layout="vertical">
                     <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={100} tick={{fontSize: 10, fontWeight: 'bold'}} />
+                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: '#334155'}} />
                     <Tooltip cursor={{fill: 'transparent'}} formatter={(v) => `$${v.toLocaleString('es-CO')}`} />
                     <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={40}>
                       {presupuestoChartData.map((e, i) => <Cell key={i} fill={COLORS[(i+2)%COLORS.length]} />)}
@@ -296,26 +306,26 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
           </div>
 
           {/* Top Projects Table */}
-          <Card className="p-0 border-0 shadow-sm ring-1 ring-slate-100 overflow-hidden">
-            <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+          <Card className="p-0 border border-slate-200 shadow-sm overflow-hidden bg-white">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between">
               <h3 className="font-black text-slate-900 text-lg">Proyectos de Mayor Impacto</h3>
               <Badge variant="emerald" className="font-black text-[10px]">TOP 5 SIGP</Badge>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="bg-slate-50/50">
+                <thead className="bg-slate-50/80 border-b border-slate-200">
                   <tr>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Proyecto</th>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Productos</th>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Inversión</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-700 uppercase tracking-widest">Proyecto</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-700 uppercase tracking-widest">Productos</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-700 uppercase tracking-widest text-right">Inversión</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-slate-100">
                   {projectsData.sort((a,b) => (b.presupuesto_total || 0) - (a.presupuesto_total || 0)).slice(0, 5).map(p => (
                     <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-8 py-5">
                         <p className="text-sm font-black text-slate-900">{p.nombre_corto || p.nombre}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{p.codigo_sgps}</p>
+                        <p className="text-[10px] text-slate-600 font-bold uppercase mt-1">{p.codigo_sgps}</p>
                       </td>
                       <td className="px-8 py-5">
                         <Badge variant="indigo" className="font-black">{p.total_productos || 0}</Badge>
@@ -378,17 +388,17 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
                 <div className="space-y-6">
                   <div className="space-y-3">
                     <div className="flex justify-between items-end">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Verificación de Activos</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Verificación de Activos</span>
                       <span className="text-lg font-black tabular-nums text-emerald-400">{stats?.productos_verificacion?.tasa_verificacion || 0}%</span>
                     </div>
-                    <div className="h-2 bg-white/5 rounded-full overflow-hidden p-0.5 ring-1 ring-white/10">
+                    <div className="h-2 bg-white/10 rounded-full overflow-hidden p-0.5 ring-1 ring-white/10">
                       <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${stats?.productos_verificacion?.tasa_verificacion || 0}%` }} />
                     </div>
                   </div>
                 </div>
                 <div className="pt-8 border-t border-white/10 flex items-start gap-4">
                   <Info size={16} className="text-emerald-400 shrink-0" />
-                  <p className="text-[10px] text-slate-400 leading-relaxed italic font-medium">
+                  <p className="text-[10px] text-slate-300 leading-relaxed italic font-medium">
                     Los consolidados SIGP son compatibles con los formatos de auditoría institucional del SENA.
                   </p>
                 </div>

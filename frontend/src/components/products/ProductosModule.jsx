@@ -18,6 +18,9 @@ import Badge from '../ui/Badge';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import TextArea from '../ui/TextArea';
+import Modal from '../ui/Modal';
+import Drawer from '../ui/Drawer';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 
 // ─── Tipología Minciencias ──────────────────────────────────────────────────
@@ -131,7 +134,7 @@ const ProductCardSkeleton = () => (
 
 // ─── Main Module ────────────────────────────────────────────────────────────
 
-const ProductosModule = ({ currentUser, onNotify }) => {
+const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled }) => {
   const [productos, setProductos] = useState([]);
   const [proyectos, setProyectos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -152,8 +155,32 @@ const ProductosModule = ({ currentUser, onNotify }) => {
   const [importResults, setImportResults] = useState(null);
   const [isPoolVisible, setIsPoolVisible] = useState(false);
   const [dragOverId, setDragOverId] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
 
   useEffect(() => { loadData(); }, []);
+
+  useEffect(() => {
+    if (initialAction?.form === 'create') {
+      handleOpenCreate();
+      onActionHandled?.();
+    } else if (initialAction?.form === 'view' && initialAction?.data?.id) {
+      const targetId = String(initialAction.data.id);
+      const found = productos.find(p => String(p.id) === targetId);
+      if (found) {
+        setSelectedProducto(found);
+        setIsDetailOpen(true);
+        onActionHandled?.();
+      } else {
+        ProductosAPI.get(targetId).then(p => {
+          if (p) {
+            setSelectedProducto(p);
+            setIsDetailOpen(true);
+            onActionHandled?.();
+          }
+        }).catch(() => {});
+      }
+    }
+  }, [initialAction, productos, onActionHandled]);
 
   const loadData = async () => {
     setLoading(true);
@@ -200,17 +227,23 @@ const ProductosModule = ({ currentUser, onNotify }) => {
     }
   };
 
-  const handleDelete = async (id, e) => {
+  const handleDelete = (id, e) => {
     if (e) e.stopPropagation();
-    if (!window.confirm('¿Eliminar este producto de investigación? Esta acción es crítica.')) return;
+    setDeleteConfirm({ isOpen: true, id });
+  };
+
+  const confirmDeleteAction = async () => {
+    const id = deleteConfirm.id;
+    if (!id) return;
     try {
       await ProductosAPI.delete(id);
       onNotify?.('Producto eliminado del catálogo', 'success');
       setIsDetailOpen(false);
       setMenuOpenId(null);
+      setDeleteConfirm({ isOpen: false, id: null });
       loadData();
     } catch (err) { 
-      onNotify?.('Error al eliminar', 'error'); 
+      onNotify?.('Error al eliminar: ' + (err.message || ''), 'error'); 
     }
   };
 
@@ -550,469 +583,442 @@ const ProductosModule = ({ currentUser, onNotify }) => {
         )}
       </div>
 
-      {/* ── Detail slide-over ── */}
-      {isDetailOpen && selectedProducto && (() => {
+      {/* ── Detail Drawer (Estandarizado en Pila) ── */}
+      {selectedProducto && (() => {
         const tipo = getTipo(selectedProducto.tipo);
         const { Icon } = tipo;
+        const tipoInfo = getTipo(selectedProducto.tipo);
+        const requisitos = tipoInfo?.requisitos || [];
+        const cumplidos = selectedProducto.requisitos_cumplidos || {};
+        const nCumplidos = Object.values(cumplidos).filter(Boolean).length;
+
         return (
-          <div className="fixed inset-0 z-[100] overflow-hidden">
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-fadeIn" onClick={() => setIsDetailOpen(false)} />
-            <div className="absolute inset-y-0 right-0 flex max-w-full pl-0 sm:pl-10">
-              <div className="w-screen max-w-lg h-full bg-white shadow-2xl flex flex-col animate-slideInRight">
-
-                {/* Header */}
-                <div className={`px-8 py-8 border-b border-slate-100 ${tipo.bg} relative overflow-hidden`}>
-                  <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-white/30 rounded-full blur-3xl" />
-                  <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="p-3 bg-white rounded-2xl shadow-lg ring-1 ring-slate-100">
-                        <Icon size={32} className={tipo.color} />
-                      </div>
-                      <button onClick={() => setIsDetailOpen(false)} className="p-2 hover:bg-white/40 rounded-full transition-colors text-slate-500"><X size={24} /></button>
-                    </div>
-                    <h2 className="text-2xl font-black text-slate-900 leading-tight mb-2">{selectedProducto.nombre}</h2>
-                    <div className="flex gap-3">
-                      <Badge variant="default" className="bg-white/50 text-slate-700 border-white/60 uppercase tracking-widest text-[10px]">{tipo.label}</Badge>
-                      <Badge variant={selectedProducto.is_verificado ? 'success' : 'warning'} dot>
-                        {selectedProducto.is_verificado ? 'VERIFICADO' : 'PENDIENTE'}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Body */}
-                <div className="flex-1 overflow-y-auto px-8 py-8 space-y-8 scrollbar-thin">
-                  
-                  {/* Requisitos Minciencias */}
-                  {(() => {
-                    const tipoInfo = getTipo(selectedProducto.tipo);
-                    const requisitos = tipoInfo?.requisitos || [];
-                    if (!requisitos.length) return null;
-                    const cumplidos = selectedProducto.requisitos_cumplidos || {};
-                    const nCumplidos = Object.values(cumplidos).filter(Boolean).length;
-                    return (
-                      <section>
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                          <CheckCircle2 size={14} className="text-emerald-500" /> Trazabilidad de Requisitos Minciencias
-                        </h3>
-                        <div className="mb-2 flex items-center gap-2">
-                          <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${Math.round((nCumplidos / requisitos.length) * 100)}%` }} />
-                          </div>
-                          <span className="text-[10px] font-black text-slate-500">{nCumplidos}/{requisitos.length}</span>
-                        </div>
-                        <div className="space-y-1.5 mt-4">
-                          {requisitos.map((req, i) => {
-                            const checked = cumplidos[`req_${i}`] || false;
-                            return (
-                              <div key={i} className={`flex items-start justify-between gap-2.5 p-3 rounded-xl text-xs transition-colors ${
-                                checked ? 'bg-emerald-50 border border-emerald-200' : 'bg-white border border-slate-200 hover:border-emerald-300'
-                              }`}>
-                                <label className="flex items-start gap-3 cursor-pointer flex-1">
-                                  <input 
-                                    type="checkbox" 
-                                    className="mt-0.5 w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                                    checked={checked}
-                                    onChange={() => handleChecklistToggle(i, checked)}
-                                  />
-                                  <span className={`font-medium leading-relaxed ${checked ? 'text-emerald-900 line-through opacity-70' : 'text-slate-700'}`}>
-                                    {req}
-                                  </span>
-                                </label>
-                                <div className="flex-shrink-0">
-                                  <input 
-                                    type="file" 
-                                    className="hidden" 
-                                    ref={el => fileInputRefs.current[i] = el}
-                                    onChange={(e) => handleFileUpload(i, e)}
-                                    accept=".pdf,.doc,.docx,.zip,.rar"
-                                  />
-                                  <button 
-                                    onClick={() => fileInputRefs.current[i]?.click()}
-                                    className={`p-1.5 rounded-lg transition-colors flex items-center gap-1.5 border ${
-                                      checked 
-                                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200' 
-                                        : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700'
-                                    }`}
-                                    title="Adjuntar Evidencia"
-                                  >
-                                    <UploadCloud size={14} />
-                                    <span className="text-[10px] font-bold">Evidencia</span>
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </section>
-                    );
-                  })()}
-
-                  <section>
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <FileText size={14} className="text-indigo-500" /> Descripción Técnica
-                    </h3>
-                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-slate-700 text-sm font-medium leading-relaxed">
-                      {selectedProducto.descripcion || 'Sin descripción técnica detallada en el repositorio.'}
-                    </div>
-                  </section>
-
-                  <section className="grid grid-cols-2 gap-6">
-                    <div>
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                        <Folder size={14} className="text-emerald-500" /> Origen (Proyecto)
-                      </h3>
-                      <p className="text-sm font-black text-slate-900">{selectedProducto.proyecto_nombre}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                        <User size={14} className="text-amber-500" /> Investigador Responsable
-                      </h3>
-                      <p className="text-sm font-black text-slate-900">{selectedProducto.owner_nombre}</p>
-                    </div>
-                  </section>
-
-                  <section className="grid grid-cols-2 gap-6">
-                    <div>
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                        <Calendar size={14} className="text-blue-500" /> Fecha de Registro
-                      </h3>
-                      <p className="text-sm font-black text-slate-900">{selectedProducto.fecha_publicacion || 'N/A'}</p>
-                    </div>
-                    {selectedProducto.doi && (
-                      <div>
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                          <LinkIcon size={14} className="text-rose-500" /> DOI / Registro
-                        </h3>
-                        <p className="text-sm font-black text-slate-900 truncate">{selectedProducto.doi}</p>
-                      </div>
-                    )}
-                  </section>
-
-                  {selectedProducto.url && (
-                    <a
-                      href={selectedProducto.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-between p-5 bg-slate-900 text-white rounded-2xl hover:bg-indigo-700 transition-all group shadow-xl shadow-slate-200"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-white/10 rounded-xl"><Globe size={20} /></div>
-                        <div className="text-left">
-                          <p className="text-sm font-black">Acceder al Producto</p>
-                          <p className="text-[10px] text-white/60 font-medium tracking-wide">REPOSITORIO EXTERNO / PORTAL</p>
-                        </div>
-                      </div>
-                      <ArrowUpRight size={24} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                    </a>
-                  )}
-                </div>
-
-                {/* Footer */}
-                <div className="px-8 py-6 border-t border-slate-100 bg-slate-50/50 flex gap-4">
-                  <Button className="flex-1" variant="outline" onClick={() => setIsDetailOpen(false)}>Cerrar</Button>
-                  {(currentUser?.rol === 'admin' || currentUser?.id === selectedProducto.owner_id) && (
-                    <div className="flex gap-2">
-                      <Button variant="sena" onClick={() => handleOpenEdit(selectedProducto)}>
-                        <Edit2 size={16} />
-                      </Button>
-                      {currentUser?.rol === 'admin' && (
-                        <Button 
-                          variant={selectedProducto.is_verificado ? 'outline' : 'primary'}
-                          onClick={() => handleToggleVerificar(selectedProducto.id, selectedProducto.is_verificado)}
-                          className={selectedProducto.is_verificado ? 'text-rose-600 hover:bg-rose-50 border-rose-200' : ''}
-                        >
-                          {selectedProducto.is_verificado ? <X size={18} /> : <CheckCircle2 size={18} />}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
+          <Drawer
+            isOpen={isDetailOpen && !!selectedProducto}
+            onClose={() => setIsDetailOpen(false)}
+            size="lg"
+            variant="indigo"
+            title={selectedProducto.nombre}
+            badge={
+              <div className="flex items-center gap-2">
+                <Badge variant="default" className="bg-white/80 text-slate-700 uppercase tracking-widest text-[10px]">{tipo.label}</Badge>
+                <Badge variant={selectedProducto.is_verificado ? 'success' : 'warning'} dot>
+                  {selectedProducto.is_verificado ? 'VERIFICADO' : 'PENDIENTE'}
+                </Badge>
               </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ── Stepper Form Modal ── */}
-      {showForm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="fixed inset-0" onClick={() => setShowForm(false)} aria-hidden="true" />
-          <Card className="w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn overflow-hidden border-0 bg-white relative z-10">
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-6 text-white relative shrink-0">
-              <button 
-                onClick={() => setShowForm(false)}
-                className="absolute top-4 right-4 p-2 hover:bg-white/20 text-slate-200 hover:text-white rounded-full transition-colors"
-              >
-                <X size={20} />
-              </button>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-                  {isEditing ? <Edit2 size={24} /> : <Zap size={24} />}
-                </div>
-                <div>
-                  <h2 className="text-xl font-black">{isEditing ? 'Actualizar Producto' : 'Reportar Innovación'}</h2>
-                  <p className="text-indigo-100 text-xs font-medium opacity-80 uppercase tracking-widest mt-1">
-                    Paso {formStep} de 2 • {formStep === 1 ? 'Identidad' : 'Evidencia & Descripción'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Stepper Progress */}
-            <div className="flex h-1 bg-slate-100 shrink-0">
-              <div className={`h-full bg-indigo-500 transition-all duration-500 ${formStep === 1 ? 'w-1/2' : 'w-full'}`} />
-            </div>
-
-            {/* Form Content */}
-            <div className="p-6 sm:p-8 bg-white flex-1 overflow-y-auto custom-scrollbar">
-              {formStep === 1 && (
-                <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
-                  <Input label="Nombre del Producto / Innovación" value={formData.nombre} onChange={patch('nombre')} required placeholder="Ej: Prototipo de sensor IoT..." />
-                  
-                  {/* Selector de Categoría Minciencias */}
-                  <div>
-                    <p className="text-xs font-black text-slate-600 uppercase tracking-widest mb-3">Categoría Minciencias</p>
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      {CATEGORIAS_MINCIENCIAS.map(cat => (
-                        <button
-                          key={cat.cat}
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, categoria: cat.cat, tipo: cat.tipos[0].value, requisitos_cumplidos: {} }))}
-                          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left transition-all text-xs font-bold ${
-                            formData.categoria === cat.cat
-                              ? `${cat.border} ${cat.bg} ${cat.color} shadow-sm`
-                              : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'
-                          }`}
-                        >
-                          <div className={`w-2 h-2 rounded-full ${cat.dot} flex-shrink-0`} />
-                          <span className="leading-tight">{cat.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                    {/* Sub-tipos de la categoría seleccionada */}
-                    {formData.categoria && (
-                      <div className="space-y-1.5">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tipo específico</p>
-                        {CATEGORIAS_MINCIENCIAS.find(c => c.cat === formData.categoria)?.tipos.map(t => (
-                          <button
-                            key={t.value}
-                            type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, tipo: t.value, requisitos_cumplidos: {} }))}
-                            className={`w-full text-left p-3 rounded-xl border transition-all text-xs flex items-center justify-between ${
-                              formData.tipo === t.value
-                                ? 'bg-indigo-50 border-indigo-200 text-indigo-900 font-bold'
-                                : 'bg-slate-50/50 border-slate-100 text-slate-600 hover:bg-slate-100/50'
-                            }`}
-                          >
-                            <span>{t.label}</span>
-                            <Badge variant="outline" className="text-[9px] uppercase">{t.sub}</Badge>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <Select
-                    label="Proyecto Vinculado"
-                    value={formData.proyecto_id}
-                    onChange={patch('proyecto_id')}
-                    options={[
-                      { value: '', label: 'Seleccionar proyecto...' },
-                      ...proyectos.map(p => ({ value: p.id, label: `[${p.codigo_sgps || 'SGPS'}] ${p.nombre}` }))
-                    ]}
-                    required
-                  />
-
-                  <Select
-                    label="Estado de Verificación"
-                    value={formData.is_verificado ? 'verificado' : 'pendiente'}
-                    onChange={(val) => setFormData(prev => ({ ...prev, is_verificado: val === 'verificado' }))}
-                    options={[
-                      { value: 'pendiente', label: 'Pendiente de Verificación' },
-                      { value: 'verificado', label: 'Verificado por SENNOVA' }
-                    ]}
-                  />
-                </div>
-              )}
-
-              {formStep === 2 && (
-                <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
-                  {/* Checklist de requisitos de Minciencias */}
-                  {(() => {
-                    const catObj = CATEGORIAS_MINCIENCIAS.find(c => c.cat === formData.categoria);
-                    const tipoInfo = catObj?.tipos.find(t => t.value === formData.tipo);
-                    if (!tipoInfo?.requisitos) return null;
-                    return (
-                      <div>
-                        <p className="text-xs font-black text-slate-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                          <CheckCircle2 size={14} className="text-emerald-500" /> Requisitos Minciencias para {formData.tipo}
-                        </p>
-                        <div className="space-y-2">
-                          {tipoInfo.requisitos.map((req, i) => {
-                            const key = `req_${i}`;
-                            const checked = formData.requisitos_cumplidos?.[key] || false;
-                            return (
-                              <label key={i} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                                checked ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-100 hover:border-slate-200'
-                              }`}>
-                                <input
-                                  type="checkbox"
-                                  className="mt-0.5 w-4 h-4 accent-emerald-600 rounded flex-shrink-0"
-                                  checked={checked}
-                                  onChange={e => setFormData(prev => ({
-                                    ...prev,
-                                    requisitos_cumplidos: { ...prev.requisitos_cumplidos, [key]: e.target.checked }
-                                  }))}
-                                />
-                                <span className={`text-xs font-medium leading-relaxed ${
-                                  checked ? 'text-emerald-800 line-through opacity-70' : 'text-slate-700'
-                                }`}>{req}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                        <div className="mt-3 flex items-center gap-2">
-                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                              style={{
-                                width: `${Math.round((Object.values(formData.requisitos_cumplidos || {}).filter(Boolean).length / tipoInfo.requisitos.length) * 100)}%`
-                              }}
-                            />
-                          </div>
-                          <span className="text-[10px] font-black text-slate-500">
-                            {Object.values(formData.requisitos_cumplidos || {}).filter(Boolean).length}/{tipoInfo.requisitos.length} requisitos
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  <Input label="URL de Repositorio o Publicación" value={formData.url} onChange={patch('url')} placeholder="https://github.com/..." />
-                  <Input label="DOI / Código de Registro" value={formData.doi} onChange={patch('doi')} placeholder="Ej: 10.1000/xyz123" />
-                  <TextArea label="Resumen Técnico y Resultados" value={formData.descripcion} onChange={patch('descripcion')} rows={4} placeholder="Describa el impacto, metodología y resultados clave..." />
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 sm:px-8 py-4 bg-slate-50/80 border-t border-slate-100 flex justify-between items-center shrink-0">
-              <Button 
-                variant="outline" 
-                onClick={() => formStep === 1 ? setShowForm(false) : setFormStep(s => s - 1)}
-              >
-                {formStep === 1 ? 'Cancelar' : 'Anterior'}
-              </Button>
-              <div className="flex gap-3">
-                {formStep < 2 ? (
+            }
+            footer={
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                <Button className="flex-1 justify-center order-2 sm:order-1" variant="secondary" onClick={() => setIsDetailOpen(false)}>Cerrar</Button>
+                {(currentUser?.rol === 'admin' || currentUser?.id === selectedProducto.owner_id) && (
                   <Button 
-                    variant="primary" 
-                    onClick={() => setFormStep(s => s + 1)}
-                    disabled={!formData.nombre || !formData.proyecto_id}
+                    className="flex-1 justify-center order-1 sm:order-2" 
+                    variant="sena" 
+                    onClick={() => handleOpenEdit(selectedProducto)}
                   >
-                    Siguiente <ChevronRight size={16} className="ml-2" />
+                    <Edit2 size={16} className="mr-1.5" /> Editar Producto
                   </Button>
-                ) : (
-                  <Button variant="sena" onClick={handleSubmit}>
-                    {isEditing ? 'Guardar Cambios' : 'Registrar Producto'}
+                )}
+                {currentUser?.rol === 'admin' && (
+                  <Button 
+                    variant={selectedProducto.is_verificado ? 'outline' : 'primary'}
+                    onClick={() => handleToggleVerificar(selectedProducto.id, selectedProducto.is_verificado)}
+                    className={selectedProducto.is_verificado ? 'text-rose-600 hover:bg-rose-50 border-rose-200 justify-center' : 'justify-center'}
+                  >
+                    {selectedProducto.is_verificado ? <><X size={16} className="mr-1" /> Desverificar</> : <><CheckCircle2 size={16} className="mr-1" /> Verificar</>}
                   </Button>
                 )}
               </div>
-            </div>
-          </Card>
-        </div>
-      )}
-      {/* ── CVLAC Import Modal ── */}
-      {showImportModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="fixed inset-0" onClick={() => { setShowImportModal(false); setImportResults(null); }} aria-hidden="true" />
-          <Card className="w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn border-0 overflow-hidden bg-white relative z-10">
-            <div className="bg-slate-900 px-6 py-6 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <Globe size={24} className="text-indigo-400" />
-                <h2 className="text-xl font-bold">Importar desde CVLAC</h2>
-              </div>
-              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => { setShowImportModal(false); setImportResults(null); }}>
-                <X size={24} />
-              </Button>
-            </div>
-            
-            <div className="p-6 sm:p-8 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-              {!importResults ? (
-                <>
-                  <p className="text-sm text-slate-500 font-medium">
-                    Ingrese la URL de su CVLAC (Scienti) para sincronizar automáticamente sus productos de investigación.
-                  </p>
-                  <Input 
-                    label="URL de CVLAC" 
-                    placeholder={CVLAC_URL_PLACEHOLDER} 
-                    value={cvlacUrl}
-                    onChange={(e) => setCvlacUrl(e.target.value)}
-                  />
-                  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 flex gap-3">
-                    <Zap className="text-indigo-600 shrink-0" size={20} />
-                    <p className="text-[11px] text-indigo-700 font-bold leading-relaxed">
-                      Nuestro motor IA analizará su currículo y mapeará automáticamente artículos, software y prototipos al catálogo de SENNOVA.
-                    </p>
+            }
+          >
+            <div className="space-y-6">
+              {/* Requisitos Minciencias */}
+              {requisitos.length > 0 && (
+                <section className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <CheckCircle2 size={16} className="text-emerald-500" /> Trazabilidad Requisitos Minciencias
+                    </h3>
+                    <span className="text-xs font-black text-emerald-700 bg-emerald-100/60 px-2.5 py-0.5 rounded-full">{nCumplidos}/{requisitos.length}</span>
                   </div>
-                </>
-              ) : (
-                <div className="text-center py-4 space-y-4">
-                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-600">
-                    <CheckCircle2 size={32} />
+                  <div className="h-2 bg-slate-200/70 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${Math.round((nCumplidos / requisitos.length) * 100)}%` }} />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-black text-slate-900">Sincronización Exitosa</h3>
-                    <p className="text-sm text-slate-500 font-medium mt-1">Se han procesado los datos de su CVLAC.</p>
+                  <div className="space-y-2 mt-2">
+                    {requisitos.map((req, i) => {
+                      const checked = cumplidos[`req_${i}`] || false;
+                      return (
+                        <div key={i} className={`flex items-start justify-between gap-2.5 p-3 rounded-xl text-xs transition-colors ${
+                          checked ? 'bg-emerald-50/80 border border-emerald-200' : 'bg-white border border-slate-200 hover:border-emerald-300'
+                        }`}>
+                          <label className="flex items-start gap-3 cursor-pointer flex-1">
+                            <input 
+                              type="checkbox" 
+                              className="mt-0.5 w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                              checked={checked}
+                              onChange={() => handleChecklistToggle(i, checked)}
+                            />
+                            <span className={`font-medium leading-relaxed ${checked ? 'text-emerald-900 line-through opacity-70' : 'text-slate-700'}`}>
+                              {req}
+                            </span>
+                          </label>
+                          <div className="flex-shrink-0">
+                            <input 
+                              type="file" 
+                              className="hidden" 
+                              ref={el => fileInputRefs.current[i] = el}
+                              onChange={(e) => handleFileUpload(i, e)}
+                              accept=".pdf,.doc,.docx,.zip,.rar"
+                            />
+                            <button 
+                              onClick={() => fileInputRefs.current[i]?.click()}
+                              className={`p-1.5 rounded-lg transition-colors flex items-center gap-1.5 border ${
+                                checked 
+                                  ? 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200' 
+                                  : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700'
+                              }`}
+                              title="Adjuntar Evidencia"
+                            >
+                              <UploadCloud size={14} />
+                              <span className="text-[10px] font-bold">Evidencia</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="grid grid-cols-2 gap-4 mt-6">
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      <p className="text-2xl font-black text-indigo-600">{importResults.importados || importResults.count || 0}</p>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Productos Nuevos</p>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      <p className="text-2xl font-black text-slate-400">{importResults.errores || 0}</p>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Duplicados/Error</p>
-                    </div>
-                  </div>
+                </section>
+              )}
+
+              <section className="space-y-2">
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <FileText size={14} className="text-indigo-500" /> Descripción Técnica
+                </h3>
+                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 text-slate-700 text-xs font-medium leading-relaxed">
+                  {selectedProducto.descripcion || 'Sin descripción técnica detallada en el repositorio.'}
                 </div>
+              </section>
+
+              <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                    <Folder size={12} className="text-emerald-500" /> Proyecto de Origen
+                  </h3>
+                  <p className="text-xs font-bold text-slate-900">{selectedProducto.proyecto_nombre || 'No asociado'}</p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                    <User size={12} className="text-amber-500" /> Investigador Responsable
+                  </h3>
+                  <p className="text-xs font-bold text-slate-900">{selectedProducto.owner_nombre || 'No asignado'}</p>
+                </div>
+              </section>
+
+              <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                    <Calendar size={12} className="text-blue-500" /> Fecha de Registro
+                  </h3>
+                  <p className="text-xs font-bold text-slate-900">{selectedProducto.fecha_publicacion || 'N/A'}</p>
+                </div>
+                {selectedProducto.doi && (
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                      <LinkIcon size={12} className="text-rose-500" /> DOI / Registro
+                    </h3>
+                    <p className="text-xs font-bold text-slate-900 truncate">{selectedProducto.doi}</p>
+                  </div>
+                )}
+              </section>
+
+              {selectedProducto.url && (
+                <a
+                  href={selectedProducto.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-between p-4 bg-slate-900 text-white rounded-2xl hover:bg-indigo-700 transition-all group shadow-md"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/10 rounded-xl"><Globe size={18} /></div>
+                    <div className="text-left">
+                      <p className="text-xs font-black">Acceder al Producto</p>
+                      <p className="text-[9px] text-white/60 font-medium tracking-wide">REPOSITORIO EXTERNO / PORTAL</p>
+                    </div>
+                  </div>
+                  <ArrowUpRight size={20} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </a>
               )}
             </div>
+          </Drawer>
+        );
+      })()}
 
-            <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-              <Button variant="outline" onClick={() => { setShowImportModal(false); setImportResults(null); }}>
-                {importResults ? 'Cerrar' : 'Cancelar'}
-              </Button>
-              {!importResults && (
+      {/* ── Stepper Form Modal (Estandarizado en Pila) ── */}
+      <Modal
+        isOpen={showForm}
+        onClose={() => { setShowForm(false); setIsEditing(false); }}
+        size="xl"
+        variant="indigo"
+        icon={isEditing ? Edit2 : Zap}
+        title={isEditing ? 'Actualizar Producto' : 'Reportar Innovación'}
+        subtitle={`Paso ${formStep} de 2 • ${formStep === 1 ? 'Identidad Minciencias' : 'Evidencia & Descripción'}`}
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button 
+              variant="secondary" 
+              onClick={() => formStep === 1 ? setShowForm(false) : setFormStep(s => s - 1)}
+            >
+              {formStep === 1 ? 'Cancelar' : 'Anterior'}
+            </Button>
+            <div className="flex gap-2">
+              {formStep < 2 ? (
                 <Button 
                   variant="primary" 
-                  disabled={isImporting || !cvlacUrl}
-                  onClick={async () => {
-                    setIsImporting(true);
-                    try {
-                      const res = await ProductosAPI.importCVLaC(cvlacUrl);
-                      setImportResults({
-                        importados: res.importados,
-                        errores: res.errores
-                      });
-                      onNotify?.(res.message, 'success');
-                      loadData();
-                    } catch (err) {
-                      onNotify?.('Error en importación: ' + err.message, 'error');
-                    }
-                    setIsImporting(false);
-                  }}
+                  onClick={() => setFormStep(s => s + 1)}
+                  disabled={!formData.nombre || !formData.proyecto_id}
                 >
-                  {isImporting ? <Loader2 className="animate-spin mr-2" size={18} /> : <ArrowUpRight className="mr-2" size={18} />}
-                  {isImporting ? 'Procesando CVLAC...' : 'Iniciar Sincronización'}
+                  Siguiente <ChevronRight size={16} className="ml-1.5" />
+                </Button>
+              ) : (
+                <Button variant="sena" onClick={handleSubmit}>
+                  {isEditing ? 'Guardar Cambios' : 'Registrar Producto'}
                 </Button>
               )}
             </div>
-          </Card>
+          </div>
+        }
+      >
+        {/* Stepper Progress Bar */}
+        <div className="w-full bg-slate-100 rounded-full h-1.5 mb-6 overflow-hidden">
+          <div className={`h-full bg-indigo-500 rounded-full transition-all duration-500 ${formStep === 1 ? 'w-1/2' : 'w-full'}`} />
         </div>
-      )}
+
+        <div className="space-y-6">
+          {formStep === 1 && (
+            <div className="space-y-5 animate-fadeIn">
+              <Input label="Nombre del Producto / Innovación" value={formData.nombre} onChange={patch('nombre')} required placeholder="Ej: Prototipo de sensor IoT..." />
+              
+              {/* Selector de Categoría Minciencias */}
+              <div>
+                <p className="text-xs font-black text-slate-600 uppercase tracking-widest mb-3">Categoría Minciencias</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                  {CATEGORIAS_MINCIENCIAS.map(cat => (
+                    <button
+                      key={cat.cat}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, categoria: cat.cat, tipo: cat.tipos[0].value, requisitos_cumplidos: {} }))}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left transition-all text-xs font-bold ${
+                        formData.categoria === cat.cat
+                          ? `${cat.border} ${cat.bg} ${cat.color} shadow-sm`
+                          : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'
+                      }`}
+                    >
+                      <div className={`w-2 h-2 rounded-full ${cat.dot} flex-shrink-0`} />
+                      <span className="leading-tight">{cat.label}</span>
+                    </button>
+                  ))}
+                </div>
+                {/* Sub-tipos de la categoría seleccionada */}
+                {formData.categoria && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tipo específico</p>
+                    {CATEGORIAS_MINCIENCIAS.find(c => c.cat === formData.categoria)?.tipos.map(t => (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, tipo: t.value, requisitos_cumplidos: {} }))}
+                        className={`w-full text-left p-3 rounded-xl border transition-all text-xs flex items-center justify-between ${
+                          formData.tipo === t.value
+                            ? 'bg-indigo-50 border-indigo-200 text-indigo-900 font-bold'
+                            : 'bg-slate-50/50 border-slate-100 text-slate-600 hover:bg-slate-100/50'
+                        }`}
+                      >
+                        <span>{t.label}</span>
+                        <Badge variant="outline" className="text-[9px] uppercase">{t.sub}</Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Select
+                label="Proyecto Vinculado"
+                value={formData.proyecto_id}
+                onChange={patch('proyecto_id')}
+                options={[
+                  { value: '', label: 'Seleccionar proyecto...' },
+                  ...proyectos.map(p => ({ value: p.id, label: `[${p.codigo_sgps || 'SGPS'}] ${p.nombre}` }))
+                ]}
+                required
+              />
+
+              <Select
+                label="Estado de Verificación"
+                value={formData.is_verificado ? 'verificado' : 'pendiente'}
+                onChange={(val) => setFormData(prev => ({ ...prev, is_verificado: val === 'verificado' }))}
+                options={[
+                  { value: 'pendiente', label: 'Pendiente de Verificación' },
+                  { value: 'verificado', label: 'Verificado por SENNOVA' }
+                ]}
+              />
+            </div>
+          )}
+
+          {formStep === 2 && (
+            <div className="space-y-5 animate-fadeIn">
+              {/* Checklist de requisitos de Minciencias */}
+              {(() => {
+                const catObj = CATEGORIAS_MINCIENCIAS.find(c => c.cat === formData.categoria);
+                const tipoInfo = catObj?.tipos.find(t => t.value === formData.tipo);
+                if (!tipoInfo?.requisitos) return null;
+                return (
+                  <div>
+                    <p className="text-xs font-black text-slate-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <CheckCircle2 size={14} className="text-emerald-500" /> Requisitos Minciencias para {formData.tipo}
+                    </p>
+                    <div className="space-y-2">
+                      {tipoInfo.requisitos.map((req, i) => {
+                        const key = `req_${i}`;
+                        const checked = formData.requisitos_cumplidos?.[key] || false;
+                        return (
+                          <label key={i} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                            checked ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-100 hover:border-slate-200'
+                          }`}>
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 w-4 h-4 accent-emerald-600 rounded flex-shrink-0"
+                              checked={checked}
+                              onChange={e => setFormData(prev => ({
+                                ...prev,
+                                requisitos_cumplidos: { ...prev.requisitos_cumplidos, [key]: e.target.checked }
+                              }))}
+                            />
+                            <span className={`text-xs font-medium leading-relaxed ${
+                              checked ? 'text-emerald-800 line-through opacity-70' : 'text-slate-700'
+                            }`}>{req}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                          style={{
+                            width: `${Math.round((Object.values(formData.requisitos_cumplidos || {}).filter(Boolean).length / tipoInfo.requisitos.length) * 100)}%`
+                          }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-black text-slate-500">
+                        {Object.values(formData.requisitos_cumplidos || {}).filter(Boolean).length}/{tipoInfo.requisitos.length} requisitos
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <Input label="URL de Repositorio o Publicación" value={formData.url} onChange={patch('url')} placeholder="https://github.com/..." />
+              <Input label="DOI / Código de Registro" value={formData.doi} onChange={patch('doi')} placeholder="Ej: 10.1000/xyz123" />
+              <TextArea label="Resumen Técnico y Resultados" value={formData.descripcion} onChange={patch('descripcion')} rows={4} placeholder="Describa el impacto, metodología y resultados clave..." />
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* ── CVLAC Import Modal (Estandarizado en Pila) ── */}
+      <Modal
+        isOpen={showImportModal}
+        onClose={() => { setShowImportModal(false); setImportResults(null); }}
+        size="md"
+        variant="indigo"
+        icon={Globe}
+        title="Importar desde CVLaC"
+        subtitle="Sincronización Scienti Minciencias"
+        footer={
+          <div className="flex justify-end gap-3 w-full">
+            <Button variant="secondary" onClick={() => { setShowImportModal(false); setImportResults(null); }}>
+              {importResults ? 'Cerrar' : 'Cancelar'}
+            </Button>
+            {!importResults && (
+              <Button 
+                variant="sena" 
+                disabled={isImporting || !cvlacUrl}
+                onClick={async () => {
+                  setIsImporting(true);
+                  try {
+                    const res = await ProductosAPI.importCVLaC(cvlacUrl);
+                    setImportResults({
+                      importados: res.importados,
+                      errores: res.errores
+                    });
+                    onNotify?.(res.message, 'success');
+                    loadData();
+                  } catch (err) {
+                    onNotify?.('Error en importación: ' + err.message, 'error');
+                  }
+                  setIsImporting(false);
+                }}
+              >
+                {isImporting ? <Loader2 className="animate-spin mr-2" size={18} /> : <ArrowUpRight className="mr-2" size={18} />}
+                {isImporting ? 'Procesando CVLAC...' : 'Iniciar Sincronización'}
+              </Button>
+            )}
+          </div>
+        }
+      >
+        <div className="space-y-5">
+          {!importResults ? (
+            <>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                Ingrese la URL de su CVLAC (Scienti) para sincronizar automáticamente sus productos de investigación.
+              </p>
+              <Input 
+                label="URL de CVLAC" 
+                placeholder={CVLAC_URL_PLACEHOLDER} 
+                value={cvlacUrl}
+                onChange={(e) => setCvlacUrl(e.target.value)}
+              />
+              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 flex gap-3">
+                <Zap className="text-indigo-600 shrink-0" size={20} />
+                <p className="text-[11px] text-indigo-700 font-bold leading-relaxed">
+                  Nuestro motor IA analizará su currículo y mapeará automáticamente artículos, software y prototipos al catálogo de SENNOVA.
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-4 space-y-4">
+              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-600">
+                <CheckCircle2 size={32} />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">Sincronización Exitosa</h3>
+                <p className="text-xs text-slate-500 font-medium mt-1">Se han procesado los datos de su CVLAC.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-2xl font-black text-indigo-600">{importResults.importados || importResults.count || 0}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Productos Nuevos</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-2xl font-black text-slate-400">{importResults.errores || 0}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Duplicados/Error</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* ── Confirm Delete Dialog ── */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, id: null })}
+        onConfirm={confirmDeleteAction}
+        title="¿Eliminar Producto?"
+        description="¿Estás seguro de eliminar este producto de investigación del catálogo? Esta acción no se puede deshacer."
+        confirmText="Eliminar Producto"
+        variant="danger"
+      />
     </div>
   );
 };

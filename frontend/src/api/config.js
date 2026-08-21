@@ -2,6 +2,8 @@
  * Configuración de la API SENNOVA
  */
 
+import { emitDataRefresh } from '../utils/dataRefresh';
+
 // URL del backend - Usa variable de entorno Vite o fallback a localhost
 export const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -82,13 +84,22 @@ const getErrorMessage = (error, fallback) => {
 // Fetch con manejo de errores
 export async function fetchAPI(endpoint, options = {}) {
   const url = buildApiUrl(endpoint);
+  const method = String(options.method || 'GET').toUpperCase();
+  const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
   
+  const headers = {
+    ...getHeaders(),
+    ...options.headers,
+  };
+
+  // Si el cuerpo es FormData, eliminar Content-Type para que el navegador configure el boundary multipart
+  if (options.body && typeof FormData !== 'undefined' && options.body instanceof FormData) {
+    delete headers['Content-Type'];
+  }
+
   const config = {
     ...options,
-    headers: {
-      ...getHeaders(),
-      ...options.headers,
-    },
+    headers,
   };
 
   try {
@@ -119,9 +130,15 @@ export async function fetchAPI(endpoint, options = {}) {
       throw new Error(getErrorMessage(error, 'Error en la petición'));
     }
     
-    if (response.status === 204) return null;
-    
-    return await response.json();
+    if (response.status === 204) {
+      if (isMutation) emitDataRefresh({ endpoint, method });
+      return null;
+    }
+
+    const data = await response.json();
+    if (isMutation) emitDataRefresh({ endpoint, method });
+
+    return data;
   } catch (error) {
     if (error.message === 'Failed to fetch') {
       throw new Error('No se puede conectar al servidor. Verifica que el backend esté corriendo.');

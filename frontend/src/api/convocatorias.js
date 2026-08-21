@@ -24,6 +24,8 @@ export const ConvocatoriasAPI = {
   delete: (id) => fetchAPI(`/convocatorias/${id}`, { method: 'DELETE' }),
 
   activas: () => fetchAPI('/convocatorias/activas/now'),
+  getActivas: () => fetchAPI('/convocatorias/activas/now'),
 
   stats: () => fetchAPI('/convocatorias/stats/resumen'),
+  getStats: () => fetchAPI('/convocatorias/stats/resumen'),
 };

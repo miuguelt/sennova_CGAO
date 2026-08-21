@@ -27,7 +27,7 @@ class UserRepository(BaseRepository[User]):
     # Sobrescribimos create porque los usuarios necesitan hashing de password
     def create(self, user_data: UserCreate) -> User:
         try:
-            user_dict = user_data.dict()
+            user_dict = user_data.model_dump() if hasattr(user_data, 'model_dump') else user_data.dict()
             password = user_dict.pop("password")
             user = User(
                 **user_dict,

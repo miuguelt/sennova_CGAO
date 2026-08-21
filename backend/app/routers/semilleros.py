@@ -9,7 +9,7 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models import Semillero, Grupo, User, Aprendiz
 from app.schemas import SemilleroCreate, SemilleroUpdate, AprendizCreate, AprendizUpdate
-from app.utils import log_actividad
+from app.utils import log_actividad, is_valid_uuid
 
 router = APIRouter(prefix="/semilleros", tags=["Semilleros de Investigación"])
 
@@ -70,13 +70,27 @@ def _make_semillero_dict(semillero: Semillero, db: Session, investigators_map: d
     if semillero.aprendices:
         aprendices_list = [_make_aprendiz_dict(a) for a in semillero.aprendices]
 
+    sigla = semillero.sigla
+    if not sigla and semillero.nombre:
+        # Si no tiene sigla explícita, usar el nombre o primera palabra sin truncar arbitrariamente
+        sigla = semillero.nombre if len(semillero.nombre) <= 12 else semillero.nombre.split()[0]
+
+    lider_nombre = semillero.lider_nombre
+    if not lider_nombre and semillero.owner:
+        lider_nombre = semillero.owner.nombre
+
     return {
         "id": str(semillero.id),
         "nombre": semillero.nombre,
+        "sigla": sigla,
+        "codigo": sigla,
+        "descripcion": semillero.descripcion,
+        "lider_nombre": lider_nombre,
         "linea_investigacion": semillero.linea_investigacion,
         "plan_accion": semillero.plan_accion,
-        "horas_dedicadas": semillero.horas_dedicadas,
-        "estado": semillero.estado,
+        "horas_dedicadas": semillero.horas_dedicadas or 0,
+        "estado": semillero.estado or "activo",
+        "formatos_paths": semillero.formatos_paths or [],
         "grupo_id": str(semillero.grupo_id),
         "grupo_nombre": semillero.grupo.nombre if semillero.grupo else None,
         "grupo": grupo_data,
@@ -85,7 +99,7 @@ def _make_semillero_dict(semillero: Semillero, db: Session, investigators_map: d
         "aprendices": aprendices_list,
         "total_aprendices": len(semillero.aprendices) if semillero.aprendices else 0,
         "total_investigadores": len(investigadores),
-        "created_at": semillero.created_at
+        "created_at": semillero.created_at.isoformat() if hasattr(semillero.created_at, 'isoformat') and semillero.created_at else str(semillero.created_at)
     }
 
 
@@ -146,7 +160,10 @@ def get_semillero(
     db: Session = Depends(get_db)
 ):
     """Obtener detalle de un semillero."""
-    semillero = db.query(Semillero).filter(Semillero.id == str(semillero_id)).first()
+    sid = str(semillero_id)
+    if not is_valid_uuid(sid):
+        raise HTTPException(status_code=404, detail="Semillero no encontrado")
+    semillero = db.query(Semillero).filter(Semillero.id == sid).first()
     if not semillero:
         raise HTTPException(status_code=404, detail="Semillero no encontrado")
     
@@ -170,6 +187,9 @@ def create_semillero(
     
     semillero = Semillero(
         nombre=semillero_data.nombre,
+        sigla=semillero_data.sigla,
+        descripcion=semillero_data.descripcion,
+        lider_nombre=semillero_data.lider_nombre,
         linea_investigacion=semillero_data.linea_investigacion,
         plan_accion=semillero_data.plan_accion,
         horas_dedicadas=semillero_data.horas_dedicadas,
@@ -221,9 +241,15 @@ def update_semillero(
     if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso para editar")
     
-    update_data = semillero_update.dict(exclude_unset=True)
+    update_data = semillero_update.model_dump(exclude_unset=True) if hasattr(semillero_update, 'model_dump') else semillero_update.dict(exclude_unset=True)
     for field, value in update_data.items():
-        setattr(semillero, field, value)
+        if field == "grupo_id" and value is not None:
+            grupo = db.query(Grupo).filter(Grupo.id == str(value)).first()
+            if not grupo:
+                raise HTTPException(status_code=404, detail="Grupo no encontrado")
+            semillero.grupo_id = str(value)
+        else:
+            setattr(semillero, field, value)
     
     try:
         db.commit()
@@ -440,7 +466,7 @@ def update_aprendiz(
     if current_user.rol != "admin" and str(aprendiz.semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
     
-    update_data = aprendiz_data.dict(exclude_unset=True)
+    update_data = aprendiz_data.model_dump(exclude_unset=True) if hasattr(aprendiz_data, 'model_dump') else aprendiz_data.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(aprendiz, field, value)
     
@@ -500,12 +526,20 @@ def delete_aprendiz(
 @router.post("/{semillero_id}/investigadores")
 def add_investigador_semillero(
     semillero_id: str,
-    user_id: str,
-    rol_en_semillero: str = "Coinvestigador",
+    payload: Optional[dict] = None,
+    user_id: Optional[str] = None,
+    rol_en_semillero: Optional[str] = "Coinvestigador",
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Agregar investigador al semillero."""
+    """Agregar investigador al semillero (soporta JSON body o query params)."""
+    if payload and isinstance(payload, dict):
+        user_id = payload.get("user_id") or user_id
+        rol_en_semillero = payload.get("rol_en_semillero") or payload.get("rol") or rol_en_semillero or "Coinvestigador"
+
+    if not user_id:
+        raise HTTPException(status_code=422, detail="El campo user_id es requerido")
+
     semillero = db.query(Semillero).filter(Semillero.id == str(semillero_id)).first()
     if not semillero:
         raise HTTPException(status_code=404, detail="Semillero no encontrado")
@@ -516,7 +550,7 @@ def add_investigador_semillero(
     if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
     
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == str(user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     if user.rol == "aprendiz":

@@ -88,7 +88,7 @@ def update_me(
     db: Session = Depends(get_db)
 ):
     """Actualizar perfil del usuario actual."""
-    update_data = user_update.dict(exclude_unset=True)
+    update_data = user_update.model_dump(exclude_unset=True) if hasattr(user_update, 'model_dump') else user_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(current_user, field, value)
     
@@ -185,7 +185,7 @@ def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     
-    update_data = user_update.dict(exclude_unset=True)
+    update_data = user_update.model_dump(exclude_unset=True) if hasattr(user_update, 'model_dump') else user_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(user, field, value)
     

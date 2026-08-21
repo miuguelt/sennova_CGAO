@@ -36,6 +36,10 @@ export const SemillerosAPI = {
     body: JSON.stringify(data),
   }),
 
+  createAprendizFull: (semilleroId, data) => fetchAPI(`/semilleros/${semilleroId}/aprendices/full`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
 
   updateAprendiz: (semilleroId, aprendizId, data) => fetchAPI(`/semilleros/${semilleroId}/aprendices/${aprendizId}`, {
     method: 'PUT',
@@ -48,9 +52,9 @@ export const SemillerosAPI = {
 
   // Investigadores
   addInvestigador: (semilleroId, data) => {
-    const query = new URLSearchParams(data).toString();
-    return fetchAPI(`/semilleros/${semilleroId}/investigadores?${query}`, {
-      method: 'POST'
+    return fetchAPI(`/semilleros/${semilleroId}/investigadores`, {
+      method: 'POST',
+      body: JSON.stringify(data)
     });
   },
 

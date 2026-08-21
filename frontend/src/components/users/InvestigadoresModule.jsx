@@ -11,6 +11,8 @@ import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import Modal from '../ui/Modal';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import { UsuariosAPI } from '../../api/usuarios';
 import UserInsightPanel from './UserInsightPanel';
 import useClickOutside from '../../hooks/useClickOutside';
@@ -128,8 +130,8 @@ const InvestigadoresModule = ({ onNotify }) => {
   });
   const [saving, setSaving] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (showLoading = false) => {
+    if (showLoading) setLoading(true);
     try {
       const [usersData, statsData] = await Promise.all([
         UsuariosAPI.list(),
@@ -140,11 +142,11 @@ const InvestigadoresModule = ({ onNotify }) => {
     } catch (err) {
       onNotify?.('Error al cargar datos de investigadores', 'error');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(true); }, []);
 
   const handleOpenCreate = () => {
     setFormData({ nombre: '', email: '', rol: 'investigador', password: '', regional: 'CGAO', sede: '', nivel_academico: '', cv_lac_url: '' });
@@ -176,11 +178,18 @@ const InvestigadoresModule = ({ onNotify }) => {
     setSaving(false);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar permanentemente a este usuario? Esta acción es irreversible.')) return;
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
+
+  const handleDelete = (id) => {
+    setDeleteConfirm({ isOpen: true, id });
+  };
+
+  const confirmDeleteAction = async () => {
+    if (!deleteConfirm.id) return;
     try {
-      await UsuariosAPI.delete(id);
+      await UsuariosAPI.delete(deleteConfirm.id);
       onNotify?.('Usuario eliminado', 'success');
+      setDeleteConfirm({ isOpen: false, id: null });
       loadData();
     } catch {
       onNotify?.('Error al eliminar', 'error');
@@ -205,7 +214,7 @@ const InvestigadoresModule = ({ onNotify }) => {
     return matchesSearch && matchesRol && matchesActive;
   });
 
-  if (loading) {
+  if (loading && users.length === 0) {
     return (
       <div className="space-y-8 animate-pulse">
         <div className="h-40 bg-slate-100 rounded-3xl w-full"></div>
@@ -307,150 +316,143 @@ const InvestigadoresModule = ({ onNotify }) => {
         ))}
       </div>
 
-      {/* ── Form Modal ── */}
-      {showForm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="fixed inset-0" onClick={() => setShowForm(false)} aria-hidden="true" />
-          <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col animate-scaleIn shadow-2xl border-0 overflow-hidden bg-white relative z-10">
-            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 sm:px-8 py-6 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-                  {isEditing ? <Edit size={24} /> : <UserPlus size={24} />}
-                </div>
-                <div>
-                  <h2 className="text-xl font-black">{isEditing ? 'Actualizar Investigador' : 'Nuevo Registro de Investigador'}</h2>
-                  <p className="text-emerald-100 text-[10px] font-black uppercase tracking-widest mt-1 opacity-80">Sincronización de Talento CGAO</p>
-                </div>
-              </div>
-              <button onClick={() => setShowForm(false)} className="p-2 hover:bg-white/20 text-emerald-100 hover:text-white rounded-full transition-colors"><X size={24} /></button>
-            </div>
-            
-            <div className="p-6 sm:p-8 bg-white space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <Input label="Nombre Completo" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} required />
-                <Input label="Correo Institucional" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <Select 
-                  label="Rol en Plataforma" 
-                  options={[
-                    { value: 'investigador', label: 'Investigador SENNOVA' },
-                    { value: 'instructor',   label: 'Instructor Investigador' },
-                    { value: 'admin',        label: 'Administrador' }
-                  ]} 
-                  value={formData.rol} 
-                  onChange={e => setFormData({...formData, rol: e.target.value})} 
-                />
-                <Input 
-                  label={isEditing ? "Contraseña (dejar vacío para mantener)" : "Contraseña Temporal"} 
-                  type="password" 
-                  value={formData.password} 
-                  onChange={e => setFormData({...formData, password: e.target.value})} 
-                  required={!isEditing} 
-                />
-              </div>
+      {/* ── Form Modal (Estandarizado en Pila) ── */}
+      <Modal
+        isOpen={showForm}
+        onClose={() => setShowForm(false)}
+        size="lg"
+        variant="emerald"
+        icon={isEditing ? Edit : UserPlus}
+        title={isEditing ? 'Actualizar Investigador' : 'Nuevo Registro de Investigador'}
+        subtitle="Sincronización de Talento CGAO"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
+            <Button variant="sena" className="bg-emerald-600 hover:bg-emerald-700 px-8" onClick={handleSaveUser} disabled={saving}>
+              {saving ? <Loader2 size={18} className="animate-spin mr-2" /> : <Save size={18} className="mr-2" />}
+              {isEditing ? 'Guardar Cambios' : 'Registrar Investigador'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <Input label="Nombre Completo" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} required />
+            <Input label="Correo Institucional" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <Select 
+              label="Rol en Plataforma" 
+              options={[
+                { value: 'investigador', label: 'Investigador SENNOVA' },
+                { value: 'instructor',   label: 'Instructor Investigador' },
+                { value: 'admin',        label: 'Administrador' }
+              ]} 
+              value={formData.rol} 
+              onChange={e => setFormData({...formData, rol: e.target.value})} 
+            />
+            <Input 
+              label={isEditing ? "Contraseña (dejar vacío para mantener)" : "Contraseña Temporal"} 
+              type="password" 
+              value={formData.password} 
+              onChange={e => setFormData({...formData, password: e.target.value})} 
+              required={!isEditing} 
+            />
+          </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <Input label="Regional" value={formData.regional} onChange={e => setFormData({...formData, regional: e.target.value})} />
-                <Input label="Sede / Centro" placeholder="CGAO Vélez" value={formData.sede} onChange={e => setFormData({...formData, sede: e.target.value})} />
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <Input label="Regional" value={formData.regional} onChange={e => setFormData({...formData, regional: e.target.value})} />
+            <Input label="Sede / Centro" placeholder="CGAO Vélez" value={formData.sede} onChange={e => setFormData({...formData, sede: e.target.value})} />
+          </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <Select 
-                  label="Nivel Académico" 
-                  options={[
-                    { value: 'Técnico', label: 'Técnico' },
-                    { value: 'Tecnólogo', label: 'Tecnólogo' },
-                    { value: 'Profesional', label: 'Profesional' },
-                    { value: 'Especialización', label: 'Especialización' },
-                    { value: 'Maestría', label: 'Maestría' },
-                    { value: 'Doctorado', label: 'Doctorado' }
-                  ]} 
-                  value={formData.nivel_academico} 
-                  onChange={e => setFormData({...formData, nivel_academico: e.target.value})} 
-                />
-                <Input label="URL Perfil CVLAC" placeholder="https://scienti.minciencias.gov.co/..." value={formData.cv_lac_url} onChange={e => setFormData({...formData, cv_lac_url: e.target.value})} />
-              </div>
-            </div>
-
-            <div className="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
-              <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
-              <Button variant="sena" className="bg-emerald-600 hover:bg-emerald-700 px-8" onClick={handleSaveUser} disabled={saving}>
-                {saving ? <Loader2 size={18} className="animate-spin mr-2" /> : <Save size={18} className="mr-2" />}
-                {isEditing ? 'Guardar Cambios' : 'Registrar Investigador'}
-              </Button>
-            </div>
-          </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <Select 
+              label="Nivel Académico" 
+              options={[
+                { value: 'Técnico', label: 'Técnico' },
+                { value: 'Tecnólogo', label: 'Tecnólogo' },
+                { value: 'Profesional', label: 'Profesional' },
+                { value: 'Especialización', label: 'Especialización' },
+                { value: 'Maestría', label: 'Maestría' },
+                { value: 'Doctorado', label: 'Doctorado' }
+              ]} 
+              value={formData.nivel_academico} 
+              onChange={e => setFormData({...formData, nivel_academico: e.target.value})} 
+            />
+            <Input label="URL Perfil CVLAC" placeholder="https://scienti.minciencias.gov.co/..." value={formData.cv_lac_url} onChange={e => setFormData({...formData, cv_lac_url: e.target.value})} />
+          </div>
         </div>
-      )}
+      </Modal>
 
-      {/* ── Audit Modal ── */}
-      {showAuditModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="fixed inset-0" onClick={() => setShowAuditModal(false)} aria-hidden="true" />
-          <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col animate-scaleIn shadow-2xl border-0 overflow-hidden bg-white relative z-10">
-            <div className="bg-slate-900 px-6 sm:px-8 py-6 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md"><ShieldAlert size={24} className="text-amber-500" /></div>
-                <div>
-                  <h2 className="text-xl font-black">Auditoría de Control y Roles</h2>
-                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">Supervisión de Acceso al Ecosistema</p>
-                </div>
-              </div>
-              <button onClick={() => setShowAuditModal(false)} className="p-2 hover:bg-white/10 text-slate-400 hover:text-white rounded-full transition-colors"><X size={24} /></button>
+      {/* ── Audit Modal (Estandarizado en Pila) ── */}
+      <Modal
+        isOpen={showAuditModal}
+        onClose={() => setShowAuditModal(false)}
+        size="lg"
+        variant="default"
+        icon={ShieldAlert}
+        title="Auditoría de Control y Roles"
+        subtitle="Supervisión de Acceso al Ecosistema"
+        footer={
+          <Button variant="primary" onClick={() => setShowAuditModal(false)}>Cerrar Supervisión</Button>
+        }
+      >
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-rose-50 p-5 rounded-3xl border border-rose-100">
+              <p className="text-3xl font-black text-rose-700">{users.filter(u => u.rol === 'admin').length}</p>
+              <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mt-1">Administradores</p>
+              <p className="text-[9px] text-rose-500 mt-2 italic font-medium">Control total y gobernanza.</p>
             </div>
-            
-            <div className="p-6 sm:p-8 bg-white space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-rose-50 p-5 rounded-3xl border border-rose-100">
-                  <p className="text-3xl font-black text-rose-700">{users.filter(u => u.rol === 'admin').length}</p>
-                  <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mt-1">Administradores</p>
-                  <p className="text-[9px] text-rose-500 mt-2 italic font-medium">Control total y gobernanza.</p>
-                </div>
-                <div className="bg-emerald-50 p-5 rounded-3xl border border-emerald-100">
-                  <p className="text-3xl font-black text-emerald-700">{users.filter(u => u.rol === 'investigador').length}</p>
-                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">Investigadores</p>
-                  <p className="text-[9px] text-emerald-500 mt-2 italic font-medium">Liderazgo de proyectos I+D+i.</p>
-                </div>
-                <div className="bg-sky-50 p-5 rounded-3xl border border-sky-100">
-                  <p className="text-3xl font-black text-sky-700">{users.filter(u => u.rol === 'instructor').length}</p>
-                  <p className="text-[10px] font-black text-sky-600 uppercase tracking-widest mt-1">Instructores</p>
-                  <p className="text-[9px] text-sky-500 mt-2 italic font-medium">Coordinación de semilleros.</p>
-                </div>
-              </div>
+            <div className="bg-emerald-50 p-5 rounded-3xl border border-emerald-100">
+              <p className="text-3xl font-black text-emerald-700">{users.filter(u => u.rol === 'investigador').length}</p>
+              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">Investigadores</p>
+              <p className="text-[9px] text-emerald-500 mt-2 italic font-medium">Liderazgo de proyectos I+D+i.</p>
+            </div>
+            <div className="bg-sky-50 p-5 rounded-3xl border border-sky-100">
+              <p className="text-3xl font-black text-sky-700">{users.filter(u => u.rol === 'instructor').length}</p>
+              <p className="text-[10px] font-black text-sky-600 uppercase tracking-widest mt-1">Instructores</p>
+              <p className="text-[9px] text-sky-500 mt-2 italic font-medium">Coordinación de semilleros.</p>
+            </div>
+          </div>
 
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-2">
-                  <Key size={14} className="text-indigo-500" /> Privilegios y Seguridad
-                </h4>
-                <div className="space-y-2">
-                  {users.map(u => (
-                    <div key={u.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${u.rol === 'admin' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                          {u.nombre.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-xs font-black text-slate-900">{u.nombre}</p>
-                          <p className="text-[10px] font-medium text-slate-500">{u.email}</p>
-                        </div>
-                      </div>
-                      <Badge variant={u.rol === 'admin' ? 'danger' : 'success'} className="text-[8px] font-black">
-                        {u.rol.toUpperCase()}
-                      </Badge>
+          <div className="space-y-3">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-2">
+              <Key size={14} className="text-indigo-500" /> Privilegios y Seguridad
+            </h4>
+            <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+              {users.map(u => (
+                <div key={u.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${u.rol === 'admin' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      {u.nombre.charAt(0)}
                     </div>
-                  ))}
+                    <div>
+                      <p className="text-xs font-black text-slate-900">{u.nombre}</p>
+                      <p className="text-[10px] font-medium text-slate-500">{u.email}</p>
+                    </div>
+                  </div>
+                  <Badge variant={u.rol === 'admin' ? 'danger' : 'success'} className="text-[8px] font-black">
+                    {u.rol.toUpperCase()}
+                  </Badge>
                 </div>
-              </div>
+              ))}
             </div>
-
-            <div className="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
-              <Button variant="primary" onClick={() => setShowAuditModal(false)}>Cerrar Supervisión</Button>
-            </div>
-          </Card>
+          </div>
         </div>
-      )}
+      </Modal>
+
+      {/* ── Confirm Delete Dialog ── */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, id: null })}
+        onConfirm={confirmDeleteAction}
+        title="¿Eliminar Usuario?"
+        description="¿Estás seguro de eliminar permanentemente a este usuario? Esta acción es irreversible."
+        confirmText="Eliminar Usuario"
+        variant="danger"
+      />
 
       <UserInsightPanel
         user={selectedUser}

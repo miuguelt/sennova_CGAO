@@ -20,7 +20,8 @@ class BaseRepository(Generic[T]):
 
     def create(self, obj_in: Any) -> T:
         try:
-            db_obj = self.model(**obj_in.dict())
+            data = obj_in.model_dump() if hasattr(obj_in, 'model_dump') else obj_in.dict()
+            db_obj = self.model(**data)
             self.db.add(db_obj)
             self.db.commit()
             self.db.refresh(db_obj)
@@ -31,7 +32,7 @@ class BaseRepository(Generic[T]):
 
     def update(self, db_obj: T, obj_in: Any) -> T:
         try:
-            obj_data = obj_in.dict(exclude_unset=True)
+            obj_data = obj_in.model_dump(exclude_unset=True) if hasattr(obj_in, 'model_dump') else obj_in.dict(exclude_unset=True)
             for field in obj_data:
                 setattr(db_obj, field, obj_data[field])
             self.db.commit()

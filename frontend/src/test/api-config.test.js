@@ -64,6 +64,45 @@ describe('API Config', () => {
       expect(result).toBeNull();
     });
 
+    it('emits a refresh event only after a successful mutation', async () => {
+      const listener = vi.fn();
+      window.addEventListener('sennova:data-refresh', listener);
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ id: 12 }),
+      });
+
+      await fetchAPI('/proyectos/12', { method: 'PUT', body: '{}' });
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener.mock.calls[0][0].detail).toMatchObject({
+        endpoint: '/proyectos/12',
+        method: 'PUT',
+        force: true,
+      });
+      window.removeEventListener('sennova:data-refresh', listener);
+    });
+
+    it('no emite refresco global para el canal propio de mensajería', async () => {
+      const listener = vi.fn();
+      window.addEventListener('sennova:data-refresh', listener);
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ success: true }),
+      });
+
+      // El refresco global remonta la vista activa y cerraría el chat abierto;
+      // la mensajería ya se sincroniza por SSE y por sus propias recargas.
+      await fetchAPI('/mensajes/conversacion/user-1/marcar-leidos', { method: 'POST' });
+      await fetchAPI('/mensajes/typing', { method: 'POST', body: '{}' });
+      await fetchAPI('/mensajes', { method: 'POST', body: '{}' });
+
+      expect(listener).not.toHaveBeenCalled();
+      window.removeEventListener('sennova:data-refresh', listener);
+    });
+
     it('throws on 401 and clears token', async () => {
       localStorage.setItem('token', 'bad-token');
       global.fetch = vi.fn().mockResolvedValue({

@@ -26,6 +26,7 @@ export const AuthAPI = {
   },
 
   getMe: () => fetchAPI('/auth/me'),
+  me: () => fetchAPI('/auth/me'),
 
   updateMe: (data) => fetchAPI('/auth/me', {
     method: 'PUT',
@@ -36,6 +37,8 @@ export const AuthAPI = {
     method: 'POST',
     body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
   }),
+
+  listarUsuarios: () => fetchAPI('/usuarios/'),
 
   getToken: () => localStorage.getItem('token'),
   

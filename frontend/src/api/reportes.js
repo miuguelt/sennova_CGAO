@@ -11,6 +11,7 @@ const API_BASE = '/reportes';
  * Descarga un archivo desde el servidor
  */
 function downloadBlob(blob, filename) {
+  if (typeof window === 'undefined' || !window.URL) return;
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -25,15 +26,13 @@ function downloadBlob(blob, filename) {
  * Obtiene el token de autenticación del localStorage
  */
 function getAuthHeaders() {
-  const token = localStorage.getItem('token');
-  return {
-    'Authorization': `Bearer ${token}`
-  };
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
 
 export const ReportesAPI = {
   /**
-   * Genera reporte consolidado de proyectos en Excel
+   * Genera reporte consolidado de proyectos en Excel / CSV
    */
   async descargarConsolidadoProyectos(año = null, formato = 'excel') {
     const params = new URLSearchParams();
@@ -56,8 +55,13 @@ export const ReportesAPI = {
     return { success: true, filename };
   },
 
+  async consolidadoProyectos(options = {}) {
+    const params = new URLSearchParams(options).toString();
+    return fetchAPI(`${API_BASE}/proyectos-consolidado?${params}`);
+  },
+
   /**
-   * Genera reporte consolidado de grupos en Excel
+   * Genera reporte consolidado de grupos en Excel / CSV
    */
   async descargarConsolidadoGrupos(formato = 'excel') {
     const params = new URLSearchParams();
@@ -79,8 +83,13 @@ export const ReportesAPI = {
     return { success: true, filename };
   },
 
+  async consolidadoGrupos(options = {}) {
+    const params = new URLSearchParams(options).toString();
+    return fetchAPI(`${API_BASE}/grupos-consolidado?${params}`);
+  },
+
   /**
-   * Genera reporte consolidado de productos en Excel
+   * Genera reporte consolidado de productos en Excel / CSV
    */
   async descargarConsolidadoProductos(año = null, verificadosOnly = false, formato = 'excel') {
     const params = new URLSearchParams();
@@ -104,8 +113,13 @@ export const ReportesAPI = {
     return { success: true, filename };
   },
 
+  async consolidadoProductos(options = {}) {
+    const params = new URLSearchParams(options).toString();
+    return fetchAPI(`${API_BASE}/productos-consolidado?${params}`);
+  },
+
   /**
-   * Genera reporte consolidado de semilleros en Excel
+   * Genera reporte consolidado de semilleros en Excel / CSV
    */
   async descargarConsolidadoSemilleros(formato = 'excel') {
     const params = new URLSearchParams();
@@ -127,10 +141,21 @@ export const ReportesAPI = {
     return { success: true, filename };
   },
 
+  async consolidadoSemilleros(options = {}) {
+    const params = new URLSearchParams(options).toString();
+    return fetchAPI(`${API_BASE}/semilleros-consolidado?${params}`);
+  },
+
   /**
    * Obtiene estadísticas resumidas para el dashboard de reportes
    */
   async getEstadisticasResumen() {
+    try {
+      const res = await fetchAPI(`${API_BASE}/estadisticas-resumen`);
+      if (res !== undefined) return res;
+    } catch {
+      // Fallback to direct fetch
+    }
     const response = await fetch(`${API_URL}${API_BASE}/estadisticas-resumen`, {
       headers: getAuthHeaders()
     });
@@ -143,7 +168,7 @@ export const ReportesAPI = {
   },
 
   /**
-   * Genera reporte de talento humano (investigadores) en Excel
+   * Genera reporte de talento humano (investigadores) en Excel / CSV
    */
   async descargarConsolidadoTalento(formato = 'excel') {
     const params = new URLSearchParams();

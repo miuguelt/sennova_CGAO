@@ -21,9 +21,9 @@ const Input = ({
   return (
     <div className={className || ''}>
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-slate-700 mb-1.5">
+        <label htmlFor={id} className="block text-sm font-bold text-slate-800 mb-1.5">
           {label}
-          {required && <span className="text-rose-500 ml-1" aria-hidden="true">*</span>}
+          {required && <span className="text-rose-600 font-black ml-1" aria-hidden="true">*</span>}
         </label>
       )}
       <div className="relative">
@@ -31,32 +31,33 @@ const Input = ({
           id={id}
           type={type}
           value={value ?? ''}
-          onChange={onChange}
+          onChange={onChange || (() => {})}
+          readOnly={rest.readOnly ?? (value !== undefined && !onChange)}
           placeholder={placeholder}
           disabled={disabled}
           required={required}
           aria-invalid={!!error}
           aria-describedby={error ? errorId : undefined}
           className={[
-            'w-full px-3 py-2 border rounded-lg text-sm transition-colors',
-            'placeholder:text-slate-400',
+            'w-full px-3.5 py-2.5 border rounded-xl text-sm font-medium text-slate-900 transition-colors',
+            'placeholder:text-slate-500',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:border-transparent',
-            'disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed',
+            'disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed',
             error
-              ? 'border-rose-400 focus-visible:ring-rose-500 bg-rose-50/30'
-              : 'border-slate-300 focus-visible:ring-emerald-500 bg-white',
+              ? 'border-rose-500 focus-visible:ring-rose-600 bg-rose-50/40 text-slate-950'
+              : 'border-slate-300 focus-visible:ring-emerald-600 bg-white',
             endAdornment ? 'pr-10' : '',
           ].join(' ')}
           {...rest}
         />
         {endAdornment && (
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none [&>*]:pointer-events-auto">
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none [&>*]:pointer-events-auto text-slate-600">
             {endAdornment}
           </div>
         )}
       </div>
       {error && (
-        <p id={errorId} className="mt-1.5 text-xs text-rose-600" role="alert">
+        <p id={errorId} className="mt-1.5 text-xs font-bold text-rose-700" role="alert">
           {error}
         </p>
       )}

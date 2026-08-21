@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { BitacoraAPI } from '../../api/bitacora';
 import { ProyectosAPI } from '../../api/proyectos';
+import { PlantillasAPI } from '../../api/plantillas';
+import { PDFGenerator } from '../../utils/pdfGenerator';
 import UserInsightPanel from '../users/UserInsightPanel';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
@@ -15,6 +17,8 @@ import Badge from '../ui/Badge';
 import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
+import Modal from '../ui/Modal';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 const CATEGORIAS = [
   { value: 'técnica',     label: 'Observación Técnica', color: 'text-blue-600',    bg: 'bg-blue-50' },
@@ -37,6 +41,7 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
   const [isEditing, setIsEditing] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showInsight, setShowInsight] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
 
   useEffect(() => {
     loadProyectos();
@@ -110,14 +115,20 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar esta entrada de forma permanente?')) return;
+  const handleDelete = (id) => {
+    setDeleteConfirm({ isOpen: true, id });
+  };
+
+  const confirmDeleteAction = async () => {
+    const id = deleteConfirm.id;
+    if (!id) return;
     try {
       await BitacoraAPI.delete(id);
-      onNotify?.('Entrada eliminada', 'success');
+      onNotify?.('Entrada eliminada de la bitácora', 'success');
+      setDeleteConfirm({ isOpen: false, id: null });
       loadEntries();
     } catch (err) {
-      onNotify?.('Error al eliminar', 'error');
+      onNotify?.('Error al eliminar: ' + (err.message || ''), 'error');
     }
   };
 
@@ -158,8 +169,6 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
             onClick={async () => {
               try {
                 setLoading(true);
-                const { PlantillasAPI } = await import('../../api/plantillas');
-                const { PDFGenerator } = await import('../../utils/pdfGenerator');
                 const data = await PlantillasAPI.getBitacoraOficial(selectedProjectId);
                 PDFGenerator.generateBitacoraReport(data);
                 onNotify?.('Reporte de bitácora generado', 'success');
@@ -179,26 +188,26 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
       </div>
 
       {/* ── Project Selector ── */}
-      <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex flex-col md:flex-row items-center gap-4">
-        <label className="text-xs font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Proyecto Seleccionado:</label>
+      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col md:flex-row items-center gap-4">
+        <label className="text-xs font-black text-slate-700 uppercase tracking-widest whitespace-nowrap">Proyecto Seleccionado:</label>
         <select 
-          className="flex-1 w-full px-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+          className="flex-1 w-full px-4 py-2.5 bg-white border-0 ring-1 ring-slate-300 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
           value={selectedProjectId}
           onChange={(e) => setSelectedProjectId(e.target.value)}
         >
           {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre_corto || p.nombre}</option>)}
         </select>
-        <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-100">{(entries || []).length} Entradas</Badge>
+        <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 font-black">{(entries || []).length} Entradas</Badge>
       </div>
 
       {/* ── Entries List ── */}
       <div className="grid grid-cols-1 gap-6 relative">
-        <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-slate-100 hidden md:block" />
+        <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-slate-200 hidden md:block" />
         
         {loading ? (
           <div className="py-20 text-center">
             <Loader2 size={40} className="animate-spin text-indigo-600 mx-auto mb-4" />
-            <p className="text-slate-500 font-bold italic">Consultando archivos de bitácora...</p>
+            <p className="text-slate-600 font-bold italic">Consultando archivos de bitácora...</p>
           </div>
         ) : (entries || []).length > 0 ? (
           (entries || []).map(entry => {
@@ -208,7 +217,7 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
                 {/* Timeline Dot */}
                 <div className="absolute left-[26px] top-6 w-3 h-3 rounded-full bg-white border-4 border-indigo-500 shadow-sm hidden md:block z-10" />
                 
-                <Card className="p-0 overflow-hidden border-0 ring-1 ring-slate-100 hover:ring-indigo-300 hover:shadow-xl transition-all group bg-white">
+                <Card className="p-0 overflow-hidden border border-slate-200 hover:ring-2 hover:ring-indigo-300 hover:shadow-xl transition-all group bg-white">
                   <div className="p-5 md:p-8">
                     <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
                       <div>
@@ -216,7 +225,7 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
                           <Badge className={`${cat.bg} ${cat.color} text-[9px] font-black uppercase tracking-widest border-0`}>
                             {cat.label}
                           </Badge>
-                          <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                          <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
                             <Calendar size={12} /> {new Date(entry.fecha || entry.created_at).toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                           </span>
                         </div>
@@ -269,34 +278,34 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
 
                     {/* Status de Firma Dual */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                      <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${entry.is_firmado_investigador ? 'bg-emerald-50/30 border-emerald-100' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                      <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${entry.is_firmado_investigador ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200 opacity-70'}`}>
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-xl ${entry.is_firmado_investigador ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-200 text-slate-400'}`}>
+                          <div className={`p-2 rounded-xl ${entry.is_firmado_investigador ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' : 'bg-slate-200 text-slate-600'}`}>
                             <ShieldCheck size={16} />
                           </div>
                           <div>
-                            <p className={`text-[10px] font-black uppercase tracking-tighter ${entry.is_firmado_investigador ? 'text-emerald-700' : 'text-slate-500'}`}>Tutor / Investigador / Instructor</p>
-                            <p className="text-[9px] font-medium text-slate-400">
+                            <p className={`text-[10px] font-black uppercase tracking-tighter ${entry.is_firmado_investigador ? 'text-emerald-800' : 'text-slate-700'}`}>Tutor / Investigador / Instructor</p>
+                            <p className="text-[9px] font-semibold text-slate-600">
                               {entry.is_firmado_investigador ? `Firmado: ${new Date(entry.fecha_firma_investigador).toLocaleDateString('es-CO')}` : 'Pendiente de firma'}
                             </p>
                           </div>
                         </div>
-                        {entry.is_firmado_investigador && <CheckCircle2 size={14} className="text-emerald-500" />}
+                        {entry.is_firmado_investigador && <CheckCircle2 size={14} className="text-emerald-600" />}
                       </div>
 
-                      <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${entry.is_firmado_aprendiz ? 'bg-indigo-50/30 border-indigo-100' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                      <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${entry.is_firmado_aprendiz ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-200 opacity-70'}`}>
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-xl ${entry.is_firmado_aprendiz ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-200' : 'bg-slate-200 text-slate-400'}`}>
+                          <div className={`p-2 rounded-xl ${entry.is_firmado_aprendiz ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'bg-slate-200 text-slate-600'}`}>
                             <User size={16} />
                           </div>
                           <div>
-                            <p className={`text-[10px] font-black uppercase tracking-tighter ${entry.is_firmado_aprendiz ? 'text-indigo-700' : 'text-slate-500'}`}>Talento / Aprendiz</p>
-                            <p className="text-[9px] font-medium text-slate-400">
+                            <p className={`text-[10px] font-black uppercase tracking-tighter ${entry.is_firmado_aprendiz ? 'text-indigo-800' : 'text-slate-700'}`}>Talento / Aprendiz</p>
+                            <p className="text-[9px] font-semibold text-slate-600">
                               {entry.is_firmado_aprendiz ? `Firmado: ${new Date(entry.fecha_firma_aprendiz).toLocaleDateString('es-CO')}` : 'Pendiente de firma'}
                             </p>
                           </div>
                         </div>
-                        {entry.is_firmado_aprendiz && <CheckCircle2 size={14} className="text-indigo-500" />}
+                        {entry.is_firmado_aprendiz && <CheckCircle2 size={14} className="text-indigo-600" />}
                       </div>
                     </div>
 
@@ -368,110 +377,113 @@ const BitacoraModule = ({ currentUser, onNotify, initialAction, onActionHandled 
         )}
       </div>
 
-      {/* ── Form Modal ── */}
-      {showForm && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="fixed inset-0" onClick={() => setShowForm(false)} aria-hidden="true" />
-          <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn overflow-hidden border-0 bg-white relative z-10 rounded-3xl">
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-6 text-white relative shrink-0">
-              <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 p-2 hover:bg-white/20 text-slate-300 hover:text-white rounded-full transition-colors"><X size={20} /></button>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Book size={24} /></div>
-                <div>
-                  <h2 className="text-xl font-black">{isEditing ? 'Editar Entrada' : 'Nueva Entrada de Bitácora'}</h2>
-                  <p className="text-indigo-100 text-xs font-medium uppercase tracking-widest mt-1">Registrando conocimiento técnico</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6 sm:p-8 bg-white space-y-5 flex-1 overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input 
-                  label="Título de la entrada" 
-                  placeholder="Ej: Prueba de laboratorio #1..." 
-                  value={formData.titulo} 
-                  onChange={(e) => setFormData({...formData, titulo: e.target.value})} 
-                  required 
-                />
-                <Select 
-                  label="Categoría" 
-                  options={CATEGORIAS}
-                  value={formData.categoria}
-                  onChange={(val) => setFormData({...formData, categoria: selectValue(val)})}
-                />
-              </div>
-              <TextArea 
-                label="Contenido técnico / Observaciones" 
-                placeholder="Escribe aquí los detalles de la actividad, hallazgos o problemas encontrados..." 
-                value={formData.contenido} 
-                onChange={(e) => setFormData({...formData, contenido: e.target.value})} 
-                rows={6} 
-                required
-              />
+      {/* ── Form Modal (Estandarizado en Pila) ── */}
+      <Modal
+        isOpen={showForm}
+        onClose={() => { setShowForm(false); setIsEditing(false); }}
+        size="xl"
+        variant="indigo"
+        icon={Book}
+        title={isEditing ? 'Editar Entrada' : 'Nueva Entrada de Bitácora'}
+        subtitle="Registrando conocimiento técnico institucional"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setShowForm(false); setIsEditing(false); }} className="w-full sm:w-auto justify-center">Cancelar</Button>
+            <Button variant="sena" onClick={handleSubmit} disabled={!formData.titulo || !formData.contenido} className="w-full sm:w-auto justify-center">
+              {isEditing ? 'Actualizar Registro' : 'Guardar en Bitácora'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input 
+              label="Título de la entrada" 
+              placeholder="Ej: Prueba de laboratorio #1..." 
+              value={formData.titulo} 
+              onChange={(e) => setFormData({...formData, titulo: e.target.value})} 
+              required 
+            />
+            <Select 
+              label="Categoría" 
+              options={CATEGORIAS}
+              value={formData.categoria}
+              onChange={(val) => setFormData({...formData, categoria: selectValue(val)})}
+            />
+          </div>
+          <TextArea 
+            label="Contenido técnico / Observaciones" 
+            placeholder="Escribe aquí los detalles de la actividad, hallazgos o problemas encontrados..." 
+            value={formData.contenido} 
+            onChange={(e) => setFormData({...formData, contenido: e.target.value})} 
+            rows={5} 
+            required
+          />
 
-              {/* Multimedia Upload Support */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Paperclip size={14} className="text-indigo-500" /> Evidencias Multimedia (URLs)
-                </h3>
-                  <Input 
-                    type="file"
-                    className="flex-1"
-                    onChange={async (e) => {
-                      const file = e.target.files[0];
-                      if (!file || !formData.id && !isEditing) {
-                        if (!isEditing) onNotify?.('Guarda la entrada primero para subir adjuntos', 'info');
-                        return;
-                      }
-                      
-                      try {
-                        const fd = new FormData();
-                        fd.append('file', file);
-                        const updatedEntry = await BitacoraAPI.uploadAdjunto(formData.id, fd);
-                        setFormData(updatedEntry);
-                        onNotify?.('Archivo subido con éxito', 'success');
-                        loadEntries();
-                      } catch (err) {
-                        onNotify?.('Error al subir: ' + err.message, 'error');
-                      }
-                    }}
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1 italic">* Los adjuntos se vinculan automáticamente al seleccionar el archivo (solo en edición).</p>
-                </div>
+          {/* Multimedia Upload Support */}
+          <div className="space-y-3 pt-2">
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <Paperclip size={14} className="text-indigo-500" /> Evidencias y Adjuntos
+            </h3>
+            <Input 
+              type="file"
+              onChange={async (e) => {
+                const file = e.target.files[0];
+                if (!file || (!formData.id && !isEditing)) {
+                  if (!isEditing) onNotify?.('Guarda la entrada primero para subir adjuntos', 'info');
+                  return;
+                }
                 
-                {formData.adjuntos?.length > 0 && (
-                  <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    {formData.adjuntos.map((adj, idx) => {
-                      const isImage = adj.tipo?.startsWith('image/');
-                      return (
-                        <div key={idx} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-200 bg-white">
-                          {isImage ? (
-                            <img src={adj.url} alt={adj.nombre} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center p-2">
-                              <FileText size={24} className="text-slate-300 mb-1" />
-                              <p className="text-[8px] font-bold text-slate-500 truncate w-full text-center">{adj.nombre}</p>
-                            </div>
-                          )}
-                          <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <a href={adj.url} target="_blank" rel="noreferrer" className="p-1.5 bg-white rounded-lg text-slate-900"><ExternalLink size={14} /></a>
-                          </div>
-                        </div>
-                      );
-                    })}
+                try {
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  const updatedEntry = await BitacoraAPI.uploadAdjunto(formData.id, fd);
+                  setFormData(updatedEntry);
+                  onNotify?.('Archivo subido con éxito', 'success');
+                  loadEntries();
+                } catch (err) {
+                  onNotify?.('Error al subir: ' + err.message, 'error');
+                }
+              }}
+            />
+            <p className="text-[10px] text-slate-400 italic">* Los adjuntos se vinculan automáticamente al seleccionar el archivo (solo en edición).</p>
+          </div>
+          
+          {formData.adjuntos?.length > 0 && (
+            <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              {formData.adjuntos.map((adj, idx) => {
+                const isImage = adj.tipo?.startsWith('image/');
+                return (
+                  <div key={idx} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-200 bg-white">
+                    {isImage ? (
+                      <img src={adj.url} alt={adj.nombre} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center p-2">
+                        <FileText size={24} className="text-slate-300 mb-1" />
+                        <p className="text-[8px] font-bold text-slate-500 truncate w-full text-center">{adj.nombre}</p>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <a href={adj.url} target="_blank" rel="noreferrer" className="p-1.5 bg-white rounded-lg text-slate-900"><ExternalLink size={14} /></a>
+                    </div>
                   </div>
-                )}
-              </div>
-
-            <div className="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
-              <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
-              <Button variant="primary" onClick={handleSubmit}>
-                {isEditing ? 'Actualizar Registro' : 'Guardar en Bitácora'}
-              </Button>
+                );
+              })}
             </div>
-          </Card>
+          )}
         </div>
-      )}
+      </Modal>
+
+      {/* ── Confirm Delete Dialog ── */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, id: null })}
+        onConfirm={confirmDeleteAction}
+        title="¿Eliminar Entrada de Bitácora?"
+        description="¿Estás seguro de eliminar esta entrada técnica? Esta acción no se puede deshacer."
+        confirmText="Eliminar Entrada"
+        variant="danger"
+      />
       <UserInsightPanel
         user={selectedUser}
         isOpen={showInsight}

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import React from 'react';
 import MensajeriaModule from '../components/messages/MensajeriaModule';
 import { MensajesAPI } from '../api/mensajes';
@@ -9,10 +9,14 @@ vi.mock('../api/mensajes', () => ({
     getConversaciones: vi.fn(),
     getConversacion: vi.fn(),
     marcarLeidos: vi.fn(),
+    marcarEntregados: vi.fn(),
+    notificarTyping: vi.fn(),
+    connectStream: vi.fn(() => ({ close: vi.fn() })),
     enviar: vi.fn(),
     getStats: vi.fn(),
     getUnreadCount: vi.fn(),
     getDestinatarios: vi.fn(),
+    getContacto: vi.fn(),
     eliminar: vi.fn(),
   },
 }));
@@ -64,6 +68,7 @@ describe('MensajeriaModule Component', () => {
     ]);
     MensajesAPI.marcarLeidos.mockResolvedValue({ success: true, marcados: 1 });
     MensajesAPI.getDestinatarios.mockResolvedValue([mockPartner]);
+    MensajesAPI.getContacto.mockResolvedValue(mockPartner);
     MensajesAPI.enviar.mockResolvedValue({
       id: 'msg-102',
       remitente_id: 'user-current-1',
@@ -72,6 +77,10 @@ describe('MensajeriaModule Component', () => {
       created_at: new Date().toISOString(),
       leido: false,
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it('renders module title and unread badge', async () => {
@@ -130,6 +139,7 @@ describe('MensajeriaModule Component', () => {
       expect(MensajesAPI.enviar).toHaveBeenCalledWith({
         destinatario_id: 'user-partner-2',
         contenido: 'Va excelente, ya subimos el entregable.',
+        adjunto_ids: [],
       });
       expect(screen.getByText('Va excelente, ya subimos el entregable.')).toBeInTheDocument();
     });
@@ -147,4 +157,56 @@ describe('MensajeriaModule Component', () => {
       expect(screen.getAllByText('Ana Investigadora').length).toBeGreaterThan(0);
     });
   });
+
+  it('automatically opens chat with sender when initialAction is provided', async () => {
+    const onActionHandled = vi.fn();
+    render(
+      <MensajeriaModule
+        currentUser={mockCurrentUser}
+        initialAction={{
+          form: 'chat',
+          data: { id: 'user-partner-2', usuario_id: 'user-partner-2' }
+        }}
+        onActionHandled={onActionHandled}
+      />
+    );
+
+    await waitFor(() => {
+      expect(MensajesAPI.getConversacion).toHaveBeenCalledWith('user-partner-2');
+      expect(screen.getByPlaceholderText(/Escribe un mensaje para Ana Investigadora/i)).toBeInTheDocument();
+      expect(onActionHandled).toHaveBeenCalled();
+    });
+  });
+
+  it('fetches contact via getContacto and opens chat when user is not in existing conversations', async () => {
+    const mockNewContact = {
+      id: 'user-new-3',
+      nombre: 'Pedro Docente',
+      email: 'pedro@sena.edu.co',
+      rol: 'instructor'
+    };
+    MensajesAPI.getContacto.mockResolvedValue(mockNewContact);
+    MensajesAPI.getConversacion.mockResolvedValue([]);
+
+    const onActionHandled = vi.fn();
+    render(
+      <MensajeriaModule
+        currentUser={mockCurrentUser}
+        initialAction={{
+          form: 'chat',
+          data: { id: 'user-new-3' }
+        }}
+        onActionHandled={onActionHandled}
+      />
+    );
+
+    await waitFor(() => {
+      expect(MensajesAPI.getContacto).toHaveBeenCalledWith('user-new-3');
+      expect(MensajesAPI.getConversacion).toHaveBeenCalledWith('user-new-3');
+      expect(screen.getAllByText('Pedro Docente').length).toBeGreaterThan(0);
+      expect(screen.getByPlaceholderText(/Escribe un mensaje para Pedro Docente/i)).toBeInTheDocument();
+      expect(onActionHandled).toHaveBeenCalled();
+    });
+  });
 });
+

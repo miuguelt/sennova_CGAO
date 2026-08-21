@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '../../lib/utils';
 
 const VARIANTS = {
   default:  'bg-white rounded-xl border border-slate-200 shadow-sm',
@@ -8,9 +9,10 @@ const VARIANTS = {
 };
 
 const Card = ({ children, className = '', variant = 'default', ...props }) => (
-  <div className={`${VARIANTS[variant] ?? VARIANTS.default} ${className || ''}`} {...props}>
+  <div className={cn(VARIANTS[variant] ?? VARIANTS.default, className)} {...props}>
     {children}
   </div>
 );
 
 export default Card;
+

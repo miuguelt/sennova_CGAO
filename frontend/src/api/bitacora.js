@@ -2,7 +2,7 @@ import { fetchAPI } from './config';
 
 export const BitacoraAPI = {
     listarPorProyecto: (proyectoId) => fetchAPI(`/bitacora/proyecto/${proyectoId}`),
-    crear: (data) => fetchAPI('/bitacora/', {
+    crear: (data) => fetchAPI('/bitacora', {
         method: 'POST',
         body: JSON.stringify(data)
     }),
@@ -19,10 +19,13 @@ export const BitacoraAPI = {
     }),
     uploadAdjunto: (id, formData) => fetchAPI(`/bitacora/${id}/adjuntos`, {
         method: 'POST',
-        body: formData,
-        headers: {
-            // fetchAPI manejará el Content-Type si es FormData
-            'Accept': 'application/json'
-        }
-    })
+        body: formData
+    }),
+
+    // Universal Aliases
+    list: (proyectoId) => BitacoraAPI.listarPorProyecto(proyectoId),
+    create: (data) => BitacoraAPI.crear(data),
+    actualizar: (id, data) => BitacoraAPI.update(id, data),
+    eliminar: (id) => BitacoraAPI.delete(id),
+    firmar: (id, data) => BitacoraAPI.sign(id, data)
 };

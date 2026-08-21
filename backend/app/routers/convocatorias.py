@@ -144,7 +144,7 @@ def update_convocatoria(
     if not convocatoria:
         raise HTTPException(status_code=404, detail="Convocatoria no encontrada")
     
-    update_data = convocatoria_update.dict(exclude_unset=True)
+    update_data = convocatoria_update.model_dump(exclude_unset=True) if hasattr(convocatoria_update, 'model_dump') else convocatoria_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(convocatoria, field, value)
     

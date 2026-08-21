@@ -22,8 +22,8 @@ const SidebarItem = ({ id, label, icon: Icon, active, onClick }) => (
         : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
     }`}
   >
-    <Icon size={18} strokeWidth={active ? 2.5 : 2} />
-    {label}
+    <Icon size={18} strokeWidth={active ? 2.5 : 2} className="shrink-0" />
+    <span className="truncate">{label}</span>
   </button>
 );
 
@@ -160,17 +160,17 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre Completo</label>
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">Nombre Completo</label>
                       <input 
-                        className="w-full px-5 py-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all shadow-inner"
+                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all"
                         value={profile.nombre}
                         onChange={(e) => setProfile({...profile, nombre: e.target.value})}
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nivel Académico</label>
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">Nivel Académico</label>
                       <select 
-                        className="w-full px-5 py-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all shadow-inner appearance-none"
+                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all appearance-none"
                         value={profile.nivel_academico}
                         onChange={(e) => setProfile({...profile, nivel_academico: e.target.value})}
                       >
@@ -184,17 +184,17 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Documento de Identidad</label>
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">Documento de Identidad</label>
                       <input 
-                        className="w-full px-5 py-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all shadow-inner"
+                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all"
                         value={profile.documento || ''}
                         onChange={(e) => setProfile({...profile, documento: e.target.value})}
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Celular / WhatsApp</label>
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">Celular / WhatsApp</label>
                       <input 
-                        className="w-full px-5 py-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all shadow-inner"
+                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all"
                         value={profile.celular || ''}
                         onChange={(e) => setProfile({...profile, celular: e.target.value})}
                       />
@@ -202,17 +202,17 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
                     {currentUser?.rol === 'aprendiz' && (
                       <>
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ficha de Caracterización</label>
+                          <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">Ficha de Caracterización</label>
                           <input 
-                            className="w-full px-5 py-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all shadow-inner"
+                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all"
                             value={profile.ficha || ''}
                             onChange={(e) => setProfile({...profile, ficha: e.target.value})}
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Programa de Formación</label>
+                          <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">Programa de Formación</label>
                           <input 
-                            className="w-full px-5 py-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all shadow-inner"
+                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all"
                             value={profile.programa_formacion || ''}
                             onChange={(e) => setProfile({...profile, programa_formacion: e.target.value})}
                           />
@@ -220,15 +220,15 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
                       </>
                     )}
                     <div className="space-y-2 md:col-span-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">URL CVLAC (Scienti)</label>
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">URL CVLAC (Scienti)</label>
                       <div className="relative">
                         <input 
-                          className="w-full px-5 py-3.5 bg-slate-50 border-0 rounded-2xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all shadow-inner"
+                          className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white outline-none transition-all"
                           placeholder="https://scienti.minciencias.gov.co/..."
                           value={profile.cv_lac_url}
                           onChange={(e) => setProfile({...profile, cv_lac_url: e.target.value})}
                         />
-                        <a href={profile.cv_lac_url} target="_blank" rel="noreferrer" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-emerald-500 transition-colors">
+                        <a href={profile.cv_lac_url} target="_blank" rel="noreferrer" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-600 transition-colors">
                           <ExternalLink size={16} />
                         </a>
                       </div>
@@ -327,11 +327,11 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
                         <div className={`p-2 rounded-xl bg-white shadow-sm group-hover:scale-110 transition-transform ${n.color}`}>
                           <n.icon size={20} />
                         </div>
-                        <input type="checkbox" defaultChecked className="w-5 h-5 rounded-lg text-indigo-600 focus:ring-indigo-500/20 border-slate-200" />
+                        <input type="checkbox" defaultChecked className="w-5 h-5 rounded-lg text-indigo-600 focus:ring-indigo-500/20 border-slate-300" />
                       </div>
                       <div>
-                        <p className="text-sm font-black text-slate-800">{n.label}</p>
-                        <p className="text-[11px] text-slate-400 font-medium leading-relaxed mt-1">{n.desc}</p>
+                        <p className="text-sm font-black text-slate-900">{n.label}</p>
+                        <p className="text-[11px] text-slate-600 font-semibold leading-relaxed mt-1">{n.desc}</p>
                       </div>
                     </label>
                   ))}
@@ -349,63 +349,63 @@ const ConfiguracionModule = ({ currentUser, onUpdateUser, onNotify }) => {
                 <div className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="p-6 bg-slate-900 rounded-[2rem] text-white">
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Servidor API</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Servidor API</p>
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-lg font-black tracking-tight">ONLINE</span>
+                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-lg font-black tracking-tight text-white">ONLINE</span>
                       </div>
                     </div>
-                    <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Latencia</p>
+                    <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
+                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Latencia</p>
                       <div className="flex items-center gap-2">
-                        <Zap size={18} className="text-amber-500" />
-                        <span className="text-lg font-black text-slate-700 tracking-tight">24ms</span>
+                        <Zap size={18} className="text-amber-600" />
+                        <span className="text-lg font-black text-slate-900 tracking-tight">24ms</span>
                       </div>
                     </div>
-                    <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Almacenamiento</p>
+                    <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
+                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1">Almacenamiento</p>
                       <div className="flex items-center gap-2">
-                        <HardDrive size={18} className="text-indigo-500" />
-                        <span className="text-lg font-black text-slate-700 tracking-tight">42%</span>
+                        <HardDrive size={18} className="text-indigo-600" />
+                        <span className="text-lg font-black text-slate-900 tracking-tight">42%</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">Herramientas de Recuperación</h4>
+                    <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-[0.2em] px-1">Herramientas de Recuperación</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <button 
                         onClick={handleBackup}
-                        className="flex items-center gap-4 p-5 bg-white border border-slate-100 rounded-[2rem] hover:shadow-xl hover:shadow-slate-200/50 hover:border-indigo-200 transition-all text-left group"
+                        className="flex items-center gap-4 p-5 bg-white border border-slate-200 rounded-[2rem] hover:shadow-xl hover:shadow-slate-200/50 hover:border-indigo-300 transition-all text-left group"
                       >
-                        <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:scale-110 transition-transform">
+                        <div className="p-3 bg-indigo-50 text-indigo-700 rounded-2xl group-hover:scale-110 transition-transform">
                           <Download size={20} />
                         </div>
                         <div>
-                          <p className="text-sm font-black text-slate-800">Exportar Dump SQL</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Respaldo completo</p>
+                          <p className="text-sm font-black text-slate-900">Exportar Dump SQL</p>
+                          <p className="text-[10px] text-slate-600 font-bold uppercase mt-0.5">Respaldo completo</p>
                         </div>
                       </button>
                       <button 
                         onClick={handleClearCache}
-                        className="flex items-center gap-4 p-5 bg-white border border-slate-100 rounded-[2rem] hover:shadow-xl hover:shadow-slate-200/50 hover:border-amber-200 transition-all text-left group"
+                        className="flex items-center gap-4 p-5 bg-white border border-slate-200 rounded-[2rem] hover:shadow-xl hover:shadow-slate-200/50 hover:border-amber-300 transition-all text-left group"
                       >
-                        <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl group-hover:scale-110 transition-transform">
+                        <div className="p-3 bg-amber-50 text-amber-700 rounded-2xl group-hover:scale-110 transition-transform">
                           <RefreshCw size={20} />
                         </div>
                         <div>
-                          <p className="text-sm font-black text-slate-800">Limpiar Caché RAG</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Optimizar memoria</p>
+                          <p className="text-sm font-black text-slate-900">Limpiar Caché RAG</p>
+                          <p className="text-[10px] text-slate-600 font-bold uppercase mt-0.5">Optimizar memoria</p>
                         </div>
                       </button>
                     </div>
                   </div>
 
-                  <div className="p-6 bg-amber-50 rounded-[2rem] border border-amber-100 flex gap-4">
-                    <AlertTriangle className="text-amber-500 shrink-0" size={24} />
+                  <div className="p-6 bg-amber-50 rounded-[2rem] border border-amber-200 flex gap-4">
+                    <AlertTriangle className="text-amber-600 shrink-0" size={24} />
                     <div>
-                      <p className="text-sm font-bold text-amber-800">Zona de Riesgo Administrativo</p>
-                      <p className="text-xs text-amber-600 leading-relaxed mt-1">
+                      <p className="text-sm font-bold text-amber-900">Zona de Riesgo Administrativo</p>
+                      <p className="text-xs text-amber-800 leading-relaxed mt-1 font-medium">
                         Cualquier modificación en esta sección puede afectar la disponibilidad de los servicios para todos los investigadores. Proceda con precaución.
                       </p>
                     </div>

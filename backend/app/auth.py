@@ -63,12 +63,17 @@ def decode_token(token: str) -> dict:
         )
 
 
-async def get_current_user(
+def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
     token: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ) -> User:
-    """Obtiene el usuario actual desde el token JWT (soporta Header o Query param)."""
+    """Obtiene el usuario actual desde el token JWT (soporta Header o Query param).
+
+    Declarada síncrona a propósito: consulta la base de datos con el driver
+    bloqueante de SQLAlchemy, así que FastAPI la ejecuta en el threadpool en
+    lugar de detener el event loop en cada petición autenticada.
+    """
     token_str = None
     if credentials:
         token_str = credentials.credentials

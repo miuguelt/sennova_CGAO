@@ -203,3 +203,96 @@ def test_messaging_flow_between_all_roles():
     assert "total_recibidos" in stats
     assert "no_leidos" in stats
     assert "total_enviados" in stats
+
+    # 12. Test marking delivered status
+    current_test_user = admin
+    new_msg = client.post("/mensajes", json={
+        "destinatario_id": str(investigador.id),
+        "contenido": "Mensaje para probar entrega"
+    }).json()
+    assert new_msg["entregado"] is False or new_msg["entregado"] is True
+
+    # Investigador marks delivered
+    current_test_user = investigador
+    deliv_resp = client.post(f"/mensajes/conversacion/{admin.id}/marcar-entregados")
+    assert deliv_resp.status_code == 200
+    assert deliv_resp.json()["success"] is True
+
+    # 13. Test typing status endpoint
+    typing_resp = client.post("/mensajes/typing", json={
+        "destinatario_id": str(admin.id),
+        "is_typing": True
+    })
+    assert typing_resp.status_code == 200
+    assert typing_resp.json()["success"] is True
+
+    # 14. Test delete message
+    current_test_user = admin
+    del_msg_resp = client.delete(f"/mensajes/{new_msg['id']}")
+    assert del_msg_resp.status_code == 200
+    assert del_msg_resp.json()["success"] is True
+
+
+def test_broadcaster_service():
+    import asyncio
+    from app.services.realtime_broadcaster import MessageBroadcaster
+
+    async def _test():
+        b = MessageBroadcaster()
+        uid = "test-user-uuid"
+        q = await b.connect(uid)
+        assert b.is_user_online(uid) is True
+
+        await b.broadcast_to_user(uid, "test_event", {"hello": "world"})
+        item = await asyncio.wait_for(q.get(), timeout=1.0)
+        assert item["event"] == "test_event"
+        assert item["data"]["hello"] == "world"
+
+        await b.disconnect(uid, q)
+        assert b.is_user_online(uid) is False
+
+    asyncio.run(_test())
+
+
+def test_notification_and_contacto_for_messages():
+    global current_test_user
+    from app.models import Notificacion
+
+    db = TestingSessionLocal()
+    admin = db.query(User).filter(User.email == "admin_mensajes@sena.edu.co").first()
+    investigador = db.query(User).filter(User.email == "investigador_mensajes@sena.edu.co").first()
+    db.close()
+
+    # 1. Admin sends message to Investigador
+    current_test_user = admin
+    payload = {
+        "destinatario_id": str(investigador.id),
+        "asunto": "Notificación de Chat",
+        "contenido": "Mensaje para verificar redirección al chat"
+    }
+    resp = client.post("/mensajes", json=payload)
+    assert resp.status_code == 201
+
+    # 2. Check notification in DB for Investigador has entidad_id == admin.id
+    db = TestingSessionLocal()
+    notif = db.query(Notificacion).filter(
+        Notificacion.user_id == str(investigador.id),
+        Notificacion.entidad_tipo == "mensaje"
+    ).order_by(Notificacion.created_at.desc()).first()
+    assert notif is not None
+    assert notif.tipo == "mensaje"
+    assert str(notif.entidad_id) == str(admin.id)
+    assert "Admin Mensajes" in notif.titulo
+    db.close()
+
+    # 3. Test GET /mensajes/contacto/{otro_usuario_id}
+    current_test_user = investigador
+    contacto_resp = client.get(f"/mensajes/contacto/{admin.id}")
+    assert contacto_resp.status_code == 200
+    contacto = contacto_resp.json()
+    assert contacto["id"] == str(admin.id)
+    assert contacto["nombre"] == admin.nombre
+    assert contacto["email"] == admin.email
+    assert contacto["rol"] == admin.rol
+
+

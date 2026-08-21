@@ -24,21 +24,21 @@ import UserInsightPanel from '../users/UserInsightPanel';
 
 const StatCard = ({ title, value, icon: Icon, color, trend, subtitle, onClick }) => (
   <Card 
-    className={`p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-slate-200/60 bg-white ${onClick ? 'cursor-pointer' : ''}`}
+    className={`p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300 border border-slate-200 shadow-sm bg-white ${onClick ? 'cursor-pointer' : ''}`}
     onClick={onClick}
   >
     <div className={`absolute top-0 right-0 w-32 h-32 -translate-y-1/2 translate-x-1/2 rounded-full opacity-[0.04] group-hover:scale-150 transition-transform duration-700 ${color}`} />
     <div className="flex items-start justify-between relative z-10">
       <div>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</p>
+        <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{title}</p>
         <h3 className="text-3xl font-black text-slate-900 mt-1 tracking-tighter tabular-nums">{value}</h3>
         {trend ? (
-          <div className="flex items-center mt-2 text-[10px] font-bold text-emerald-600 bg-emerald-50 w-fit px-2 py-0.5 rounded-full">
+          <div className="flex items-center mt-2 text-[10px] font-black text-emerald-800 bg-emerald-100 w-fit px-2 py-0.5 rounded-full border border-emerald-200">
             <TrendingUp size={10} className="mr-1" />
             <span>{trend} este mes</span>
           </div>
         ) : (
-          <p className="text-[10px] text-slate-400 font-medium mt-2">{subtitle || 'Actualizado en tiempo real'}</p>
+          <p className="text-[10px] text-slate-600 font-bold mt-2">{subtitle || 'Actualizado en tiempo real'}</p>
         )}
       </div>
       <div className={`p-3 rounded-2xl shadow-md ${color} text-white transform group-hover:rotate-6 transition-transform`}>
@@ -212,16 +212,16 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
         <div className="lg:col-span-8 space-y-8">
           
           {/* Tareas y Entregables Próximos */}
-          <Card className="p-8 border-0 shadow-sm overflow-hidden bg-white">
+          <Card className="p-8 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="font-black text-slate-900 text-lg">Mis Compromisos & Entregables</h3>
-                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Actividades asignadas en tu semillero y proyecto</p>
+                <p className="text-xs text-slate-600 font-bold uppercase tracking-widest mt-1">Actividades asignadas en tu semillero y proyecto</p>
               </div>
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="text-xs"
+                className="text-xs border-slate-300 text-slate-800"
                 onClick={() => onModuleAction?.({ module: 'cronograma' })}
               >
                 Ver Cronograma <ChevronRight size={14} className="ml-1" />
@@ -231,36 +231,36 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             <div className="space-y-4">
               {stats.tareas_criticas?.proximas?.length > 0 ? (
                 stats.tareas_criticas.proximas.map(task => (
-                  <div key={task.id} className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-md transition-all group">
-                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-emerald-600 shadow-sm border border-slate-100 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                  <div key={task.id} className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-200/80 hover:bg-white hover:shadow-md transition-all group">
+                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-emerald-700 shadow-sm border border-slate-200 group-hover:bg-emerald-700 group-hover:text-white transition-all">
                       <Calendar size={20} />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-black text-slate-900">{task.titulo}</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{task.proyecto}</p>
+                      <p className="text-[10px] text-slate-600 font-bold uppercase tracking-tighter">{task.proyecto}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-black text-emerald-600">{new Date(task.fecha).toLocaleDateString('es-CO')}</p>
+                      <p className="text-xs font-black text-emerald-800">{new Date(task.fecha).toLocaleDateString('es-CO')}</p>
                       <Badge variant="emerald" className="mt-1 text-[8px]">EN CURSO</Badge>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-10 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                  <CheckCircle2 size={36} className="text-emerald-500 mx-auto mb-2 opacity-60" />
-                  <p className="text-slate-600 font-bold text-sm">¡Estás al día con tus entregables!</p>
-                  <p className="text-slate-400 text-xs mt-0.5">No tienes tareas vencidas ni pendientes urgentes.</p>
+                <div className="text-center py-10 bg-slate-50/50 rounded-2xl border border-dashed border-slate-300">
+                  <CheckCircle2 size={36} className="text-emerald-600 mx-auto mb-2 opacity-80" />
+                  <p className="text-slate-800 font-bold text-sm">¡Estás al día con tus entregables!</p>
+                  <p className="text-slate-600 text-xs mt-0.5 font-medium">No tienes tareas vencidas ni pendientes urgentes.</p>
                 </div>
               )}
             </div>
           </Card>
 
           {/* Estado de Bitácoras de Campo */}
-          <Card className="p-8 border-0 shadow-sm overflow-hidden bg-white">
+          <Card className="p-8 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="font-black text-slate-900 text-lg">Diario Técnico & Bitácoras</h3>
-                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Registro de avances técnicos y evidencias prácticas</p>
+                <p className="text-xs text-slate-600 font-bold uppercase tracking-widest mt-1">Registro de avances técnicos y evidencias prácticas</p>
               </div>
               <Button 
                 variant="sena" 
@@ -273,27 +273,27 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-                <p className="text-[10px] font-black text-slate-400 uppercase">Total Entradas</p>
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center">
+                <p className="text-[10px] font-black text-slate-600 uppercase">Total Entradas</p>
                 <p className="text-2xl font-black text-slate-900 mt-1">{stats.bitacoras?.total || 0}</p>
               </div>
-              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-center">
-                <p className="text-[10px] font-black text-emerald-700 uppercase">Firmadas por Tutor</p>
-                <p className="text-2xl font-black text-emerald-700 mt-1">{stats.bitacoras?.firmadas_tutor || 0}</p>
+              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-center">
+                <p className="text-[10px] font-black text-emerald-800 uppercase">Firmadas por Tutor</p>
+                <p className="text-2xl font-black text-emerald-800 mt-1">{stats.bitacoras?.firmadas_tutor || 0}</p>
               </div>
-              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 text-center">
-                <p className="text-[10px] font-black text-indigo-700 uppercase">Firmadas por Ti</p>
-                <p className="text-2xl font-black text-indigo-700 mt-1">{stats.bitacoras?.firmadas_aprendiz || 0}</p>
+              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-200 text-center">
+                <p className="text-[10px] font-black text-indigo-800 uppercase">Firmadas por Ti</p>
+                <p className="text-2xl font-black text-indigo-800 mt-1">{stats.bitacoras?.firmadas_aprendiz || 0}</p>
               </div>
             </div>
 
-            <div className="p-4 bg-indigo-50/70 rounded-2xl border border-indigo-100 flex items-start gap-4">
-              <div className="p-2 bg-indigo-100 text-indigo-700 rounded-xl mt-0.5">
+            <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-200 flex items-start gap-4">
+              <div className="p-2 bg-indigo-100 text-indigo-800 rounded-xl mt-0.5 font-bold">
                 <BookOpen size={18} />
               </div>
-              <div className="flex-1 text-xs text-indigo-900 leading-relaxed">
+              <div className="flex-1 text-xs text-indigo-950 leading-relaxed font-medium">
                 <p className="font-bold mb-0.5">Firma Digital SENNOVA</p>
-                <p className="text-indigo-700/90">
+                <p className="text-indigo-900">
                   Recuerda firmar tus entradas de bitácora tras registrarlas. El tutor e investigador asignado validará técnicamente tus evidencias para tu informe de etapa productiva.
                 </p>
               </div>
@@ -313,27 +313,27 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                   <GraduationCap size={24} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black tracking-tight">Ficha Académica</h3>
+                  <h3 className="text-lg font-black tracking-tight text-white">Ficha Académica</h3>
                   <p className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Aprendiz Investigador</p>
                 </div>
               </div>
 
               <div className="space-y-4 text-xs font-medium">
                 <div className="flex justify-between items-center pb-3 border-b border-white/10">
-                  <span className="text-slate-400 uppercase text-[10px] font-bold">Documento</span>
-                  <span className="font-mono text-white">{currentUser?.documento || '1098123001'}</span>
+                  <span className="text-slate-300 uppercase text-[10px] font-bold">Documento</span>
+                  <span className="font-mono text-white font-bold">{currentUser?.documento || '1098123001'}</span>
                 </div>
                 <div className="flex justify-between items-center pb-3 border-b border-white/10">
-                  <span className="text-slate-400 uppercase text-[10px] font-bold">Ficha SENA</span>
+                  <span className="text-slate-300 uppercase text-[10px] font-bold">Ficha SENA</span>
                   <Badge variant="emerald" className="font-mono font-black">{currentUser?.ficha || '2670123'}</Badge>
                 </div>
                 <div className="flex justify-between items-center pb-3 border-b border-white/10">
-                  <span className="text-slate-400 uppercase text-[10px] font-bold">Centro / Sede</span>
+                  <span className="text-slate-300 uppercase text-[10px] font-bold">Centro / Sede</span>
                   <span className="text-white font-bold">{currentUser?.sede || 'CGAO Vélez'}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400 uppercase text-[10px] font-bold">Estado</span>
-                  <span className="text-emerald-400 font-bold flex items-center gap-1">
+                  <span className="text-slate-300 uppercase text-[10px] font-bold">Estado</span>
+                  <span className="text-emerald-300 font-bold flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Activo en Semillero
                   </span>
                 </div>
@@ -342,7 +342,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
               <div className="pt-2">
                 <Button 
                   variant="outline" 
-                  className="w-full justify-center bg-white/5 hover:bg-white/10 border-white/15 text-white text-xs font-bold"
+                  className="w-full justify-center bg-slate-800/90 hover:bg-slate-700 border-slate-700 text-white text-xs font-bold shadow-sm"
                   onClick={() => onModuleAction?.({ module: 'perfil' })}
                 >
                   <User size={14} className="mr-2 text-emerald-400" /> Ver Perfil Completo
@@ -352,19 +352,19 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
           </Card>
 
           {/* Banco de Retos de Innovación */}
-          <Card className="p-8 border-0 shadow-sm overflow-hidden bg-white">
+          <Card className="p-8 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
-                <Lightbulb size={16} className="text-amber-500" /> Retos Abiertos CGAO
+                <Lightbulb size={16} className="text-amber-600" /> Retos Abiertos CGAO
               </h3>
               <Badge variant="warning" className="text-[9px]">INNOVACIÓN</Badge>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed mb-6 font-medium">
+            <p className="text-xs text-slate-600 leading-relaxed mb-6 font-medium">
               Explora las problemáticas regionales del sector agropecuario, turístico y tecnológico para desarrollar soluciones con tu semillero.
             </p>
             <Button 
               variant="outline" 
-              className="w-full justify-between text-xs font-bold border-amber-200 text-amber-800 hover:bg-amber-50"
+              className="w-full justify-between text-xs font-bold border-amber-300 text-amber-900 hover:bg-amber-50"
               onClick={() => onModuleAction?.({ module: 'retos' })}
             >
               <span>Explorar Banco de Retos</span>
@@ -373,30 +373,30 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
           </Card>
 
           {/* Formatos y Repositorio */}
-          <Card className="p-8 border-0 shadow-sm overflow-hidden bg-white">
+          <Card className="p-8 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
             <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
-              <FileSpreadsheet size={16} className="text-indigo-500" /> Formatos de Etapa Productiva
+              <FileSpreadsheet size={16} className="text-indigo-600" /> Formatos de Etapa Productiva
             </h3>
             <div className="space-y-3">
               <button 
                 onClick={() => onModuleAction?.({ module: 'repositorio' })}
-                className="w-full p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-100 rounded-xl text-left transition-all flex items-center justify-between group"
+                className="w-full p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 rounded-xl text-left transition-all flex items-center justify-between group"
               >
                 <div>
-                  <p className="text-xs font-bold text-slate-800 group-hover:text-indigo-600">Guía de Bitácoras SENA</p>
-                  <p className="text-[9px] text-slate-400">Instrucciones y criterios de evaluación</p>
+                  <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Guía de Bitácoras SENA</p>
+                  <p className="text-[10px] text-slate-600 font-medium">Instrucciones y criterios de evaluación</p>
                 </div>
-                <ChevronRight size={14} className="text-slate-400 group-hover:text-indigo-600" />
+                <ChevronRight size={14} className="text-slate-500 group-hover:text-indigo-700" />
               </button>
               <button 
                 onClick={() => onModuleAction?.({ module: 'repositorio' })}
-                className="w-full p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-100 rounded-xl text-left transition-all flex items-center justify-between group"
+                className="w-full p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 rounded-xl text-left transition-all flex items-center justify-between group"
               >
                 <div>
-                  <p className="text-xs font-bold text-slate-800 group-hover:text-indigo-600">Plantillas de Certificación</p>
-                  <p className="text-[9px] text-slate-400">Descarga de formatos oficiales CGAO</p>
+                  <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Plantillas de Certificación</p>
+                  <p className="text-[10px] text-slate-600 font-medium">Descarga de formatos oficiales CGAO</p>
                 </div>
-                <ChevronRight size={14} className="text-slate-400 group-hover:text-indigo-600" />
+                <ChevronRight size={14} className="text-slate-500 group-hover:text-indigo-700" />
               </button>
             </div>
           </Card>
@@ -407,24 +407,25 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
   // 2. DASHBOARD DEL ADMINISTRADOR (Líder SENNOVA CGAO)
   // ═══════════════════════════════════════════════════════════════════════════
   const AdminDashboard = () => (
     <div className="space-y-8 animate-fadeIn">
       {/* Header Institucional de Administración */}
-      <div className="bg-white/40 backdrop-blur-md p-8 rounded-[2.5rem] border border-white shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative overflow-hidden">
+      <div className="bg-white/60 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl">
+            <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl font-bold">
               <Shield size={18} />
             </div>
-            <span className="text-[10px] font-black text-emerald-700 uppercase tracking-[0.3em]">Dirección y Coordinación SENNOVA CGAO</span>
+            <span className="text-[10px] font-black text-emerald-800 uppercase tracking-[0.3em]">Dirección y Coordinación SENNOVA CGAO</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">
             Panel Institucional • {currentUser?.nombre || 'Administrador'}
           </h1>
-          <p className="text-slate-500 mt-3 font-medium max-w-xl leading-relaxed text-sm">
+          <p className="text-slate-600 mt-3 font-medium max-w-xl leading-relaxed text-sm">
             Supervisión global de convocatorias, productos Minciencias, proyectos en ejecución y talento científico del Centro de Gestión Agroempresarial y del Oriente.
           </p>
         </div>
@@ -433,9 +434,9 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
           <Button 
             variant="outline"
             onClick={onOpenSearch}
-            className="px-5 bg-white/80 hover:bg-white"
+            className="px-5 bg-white hover:bg-slate-50 border-slate-300 text-slate-800"
           >
-            <Search size={16} className="text-slate-400 mr-2" />
+            <Search size={16} className="text-slate-500 mr-2" />
             <span>Buscar</span>
             <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 bg-slate-200 text-[10px] rounded-md ml-3 text-slate-700 font-mono">Ctrl K</kbd>
           </Button>
@@ -501,20 +502,20 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
         <div className="lg:col-span-8 space-y-8">
           
           {/* Gráfico de Evolución Global */}
-          <Card className="p-8 border-0 shadow-sm overflow-hidden bg-white">
+          <Card className="p-8 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="font-black text-slate-900 text-lg">Evolución de Producción Científica CGAO</h3>
-                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Histórico de proyectos y productos generados en el centro</p>
+                <p className="text-xs text-slate-600 font-bold uppercase tracking-widest mt-1">Histórico de proyectos y productos generados en el centro</p>
               </div>
               <div className="flex gap-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-[10px] font-bold text-slate-600">Proyectos</span>
+                  <div className="w-3 h-3 rounded-full bg-emerald-600" />
+                  <span className="text-[10px] font-black text-slate-700 uppercase">Proyectos</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                  <span className="text-[10px] font-bold text-slate-600">Productos</span>
+                  <div className="w-3 h-3 rounded-full bg-indigo-600" />
+                  <span className="text-[10px] font-black text-slate-700 uppercase">Productos</span>
                 </div>
               </div>
             </div>
@@ -532,12 +533,12 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="mes_nombre" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="mes_nombre" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#475569'}} />
                   <YAxis hide />
-                  <ReTooltip contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}} />
-                  <Area type="monotone" dataKey="proyectos_nuevos" stroke="#10b981" strokeWidth={3.5} fillOpacity={1} fill="url(#adminColorPrj)" name="Proyectos" />
-                  <Area type="monotone" dataKey="productos_nuevos" stroke="#6366f1" strokeWidth={3.5} fillOpacity={1} fill="url(#adminColorProd)" name="Productos" />
+                  <ReTooltip contentStyle={{borderRadius: '16px', border: 'none', backgroundColor: '#0f172a', color: '#ffffff', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.2)'}} />
+                  <Area type="monotone" dataKey="proyectos_nuevos" stroke="#059669" strokeWidth={3.5} fillOpacity={1} fill="url(#adminColorPrj)" name="Proyectos" />
+                  <Area type="monotone" dataKey="productos_nuevos" stroke="#4f46e5" strokeWidth={3.5} fillOpacity={1} fill="url(#adminColorProd)" name="Productos" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -545,52 +546,52 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
 
           {/* Vencimientos y Entregables del Centro */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="p-0 border-0 shadow-sm overflow-hidden bg-white">
-              <div className="p-6 bg-rose-50/60 border-b border-rose-100 flex items-center justify-between">
+            <Card className="p-0 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
+              <div className="p-6 bg-rose-50/80 border-b border-rose-200 flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Entregables Vencidos Centro</h3>
-                  <p className="text-[10px] text-rose-600 font-medium">Requieren intervención institucional</p>
+                  <h3 className="font-black text-slate-900 text-xs uppercase tracking-wider">Entregables Vencidos Centro</h3>
+                  <p className="text-[10px] text-rose-800 font-bold mt-0.5">Requieren intervención institucional</p>
                 </div>
                 <Badge variant="danger">{stats?.tareas_criticas?.vencidas?.length || 0}</Badge>
               </div>
-              <div className="divide-y divide-slate-50">
+              <div className="divide-y divide-slate-100">
                 {stats?.tareas_criticas?.vencidas?.length > 0 ? (
                   stats.tareas_criticas.vencidas.map(task => (
                     <div key={task.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => onModuleAction?.({ module: 'cronograma' })}>
                       <div>
                         <p className="text-xs font-black text-slate-900">{task.titulo}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">{task.proyecto}</p>
+                        <p className="text-[10px] text-slate-600 font-bold uppercase">{task.proyecto}</p>
                       </div>
-                      <span className="text-[10px] font-black text-rose-600">{new Date(task.fecha).toLocaleDateString('es-CO')}</span>
+                      <span className="text-[10px] font-black text-rose-700">{new Date(task.fecha).toLocaleDateString('es-CO')}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="p-6 text-center text-xs text-slate-400 italic">No hay entregables vencidos reportados en el centro.</p>
+                  <p className="p-6 text-center text-xs text-slate-600 font-semibold italic">No hay entregables vencidos reportados en el centro.</p>
                 )}
               </div>
             </Card>
 
-            <Card className="p-0 border-0 shadow-sm overflow-hidden bg-white">
-              <div className="p-6 bg-emerald-50/60 border-b border-emerald-100 flex items-center justify-between">
+            <Card className="p-0 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
+              <div className="p-6 bg-emerald-50/80 border-b border-emerald-200 flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Próximos Entregables CGAO</h3>
-                  <p className="text-[10px] text-emerald-600 font-medium">Vencimientos en los próximos 30 días</p>
+                  <h3 className="font-black text-slate-900 text-xs uppercase tracking-wider">Próximos Entregables CGAO</h3>
+                  <p className="text-[10px] text-emerald-900 font-bold mt-0.5">Vencimientos en los próximos 30 días</p>
                 </div>
                 <Badge variant="emerald">{stats?.tareas_criticas?.proximas?.length || 0}</Badge>
               </div>
-              <div className="divide-y divide-slate-50">
+              <div className="divide-y divide-slate-100">
                 {stats?.tareas_criticas?.proximas?.length > 0 ? (
                   stats.tareas_criticas.proximas.slice(0, 5).map(task => (
                     <div key={task.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => onModuleAction?.({ module: 'cronograma' })}>
                       <div>
                         <p className="text-xs font-black text-slate-900">{task.titulo}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">{task.proyecto}</p>
+                        <p className="text-[10px] text-slate-600 font-bold uppercase">{task.proyecto}</p>
                       </div>
-                      <span className="text-[10px] font-black text-emerald-600">{new Date(task.fecha).toLocaleDateString('es-CO')}</span>
+                      <span className="text-[10px] font-black text-emerald-800">{new Date(task.fecha).toLocaleDateString('es-CO')}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="p-6 text-center text-xs text-slate-400 italic">Sin compromisos programados para este periodo.</p>
+                  <p className="p-6 text-center text-xs text-slate-600 font-semibold italic">Sin compromisos programados para este periodo.</p>
                 )}
               </div>
             </Card>
@@ -609,7 +610,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                   <Shield size={22} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black tracking-tight">Acciones Institucionales</h3>
+                  <h3 className="text-lg font-black tracking-tight text-white">Acciones Institucionales</h3>
                   <p className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Control Maestro</p>
                 </div>
               </div>
@@ -617,61 +618,61 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
               <div className="space-y-3">
                 <Button 
                   variant="outline" 
-                  className="w-full justify-start bg-white/5 hover:bg-white/10 border-white/15 text-white text-xs font-bold"
+                  className="w-full justify-start bg-slate-800/90 hover:bg-slate-700 text-white border-slate-700 text-xs font-bold shadow-sm"
                   onClick={() => onModuleAction?.({ module: 'cvlac-admin' })}
                 >
                   <FileText size={16} className="mr-3 text-emerald-400" /> Control y Monitoreo CvLAC
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="w-full justify-start bg-white/5 hover:bg-white/10 border-white/15 text-white text-xs font-bold"
+                  className="w-full justify-start bg-slate-800/90 hover:bg-slate-700 text-white border-slate-700 text-xs font-bold shadow-sm"
                   onClick={() => onModuleAction?.({ module: 'auditoria' })}
                 >
                   <Activity size={16} className="mr-3 text-indigo-400" /> Registro de Auditoría en Vivo
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="w-full justify-start bg-white/5 hover:bg-white/10 border-white/15 text-white text-xs font-bold"
+                  className="w-full justify-start bg-slate-800/90 hover:bg-slate-700 text-white border-slate-700 text-xs font-bold shadow-sm"
                   onClick={() => onModuleAction?.({ module: 'reportes' })}
                 >
                   <FileSpreadsheet size={16} className="mr-3 text-amber-400" /> Consolidado SIGP & GTH-F-074
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="w-full justify-start bg-white/5 hover:bg-white/10 border-white/15 text-white text-xs font-bold"
+                  className="w-full justify-start bg-slate-800/90 hover:bg-slate-700 text-white border-slate-700 text-xs font-bold shadow-sm"
                   onClick={() => onModuleAction?.({ module: 'configuracion' })}
                 >
-                  <Settings size={16} className="mr-3 text-slate-300" /> Configuración del Sistema
+                  <Settings size={16} className="mr-3 text-slate-200" /> Configuración del Sistema
                 </Button>
               </div>
             </div>
           </Card>
 
           {/* Registro de Auditoría en Vivo */}
-          <Card className="p-0 border-0 shadow-sm overflow-hidden bg-white">
+          <Card className="p-0 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-slate-900 text-sm">Actividad Reciente del Sistema</h3>
-                <p className="text-[10px] text-slate-400 uppercase font-bold mt-0.5">Auditoría en tiempo real</p>
+                <p className="text-[10px] text-slate-600 uppercase font-bold mt-0.5">Auditoría en tiempo real</p>
               </div>
-              <Activity size={18} className="text-emerald-500" />
+              <Activity size={18} className="text-emerald-600" />
             </div>
-            <div className="divide-y divide-slate-50">
+            <div className="divide-y divide-slate-100">
               {stats.historial_reciente?.slice(0, 6).map(item => (
                 <div key={item.id} className="p-4 flex gap-3 hover:bg-slate-50 transition-colors">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                  <div className="w-2 h-2 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-slate-800 leading-snug">
                       <span className="font-black text-slate-900">{item.usuario}</span>: {item.descripcion}
                     </p>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">
+                    <p className="text-[10px] text-slate-600 font-bold uppercase mt-1">
                       {new Date(item.fecha).toLocaleString('es-CO')}
                     </p>
                   </div>
                 </div>
               ))}
               {(!stats.historial_reciente || stats.historial_reciente.length === 0) && (
-                <p className="p-6 text-center text-xs text-slate-400 italic">No hay registros de actividad recientes.</p>
+                <p className="p-6 text-center text-xs text-slate-600 font-semibold italic">No hay registros de actividad recientes.</p>
               )}
             </div>
           </Card>
@@ -687,20 +688,20 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
   const ResearcherDashboard = () => (
     <div className="space-y-8 animate-fadeIn">
       {/* Header del Investigador */}
-      <div className="bg-white/40 backdrop-blur-md p-8 rounded-[2.5rem] border border-white shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative overflow-hidden">
+      <div className="bg-white/60 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl">
-              <Sparkles size={18} fill="currentColor" className="opacity-50" />
+            <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl font-bold">
+              <Sparkles size={18} fill="currentColor" className="opacity-70" />
             </div>
-            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.3em]">Portafolio Científico I+D+i</span>
+            <span className="text-[10px] font-black text-emerald-800 uppercase tracking-[0.3em]">Portafolio Científico I+D+i</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">
             Hola, {(currentUser?.nombre || '').split(' ')[0]} 👋
           </h1>
-          <p className="text-slate-500 mt-3 font-medium max-w-md leading-relaxed text-sm">
-            Tienes <span className="text-indigo-600 font-bold">{stats?.tareas_criticas?.proximas?.length || 0} entregables</span> programados para esta etapa. Sigue impulsando la ciencia en el CGAO.
+          <p className="text-slate-600 mt-3 font-medium max-w-md leading-relaxed text-sm">
+            Tienes <span className="text-indigo-700 font-bold">{stats?.tareas_criticas?.proximas?.length || 0} entregables</span> programados para esta etapa. Sigue impulsando la ciencia en el CGAO.
           </p>
         </div>
         
@@ -708,9 +709,9 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
           <Button 
             variant="outline"
             onClick={onOpenSearch}
-            className="px-5 bg-white/80 hover:bg-white"
+            className="px-5 bg-white hover:bg-slate-50 border-slate-300 text-slate-800"
           >
-            <Search size={16} className="text-slate-400 mr-2" />
+            <Search size={16} className="text-slate-500 mr-2" />
             <span>Búsqueda</span>
             <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 bg-slate-200 text-[10px] rounded-md ml-3 text-slate-700 font-mono">Ctrl K</kbd>
           </Button>
@@ -734,7 +735,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
 
       {/* AI Recommendations */}
       {userImpact && (
-        <Card className="p-0 border-0 bg-gradient-to-r from-indigo-900 to-slate-900 text-white overflow-hidden shadow-2xl relative group">
+        <Card className="p-0 border-0 bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-900 text-white overflow-hidden shadow-2xl relative group">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-1000" />
           <div className="flex flex-col lg:flex-row items-stretch">
             <div className="p-8 lg:w-2/3 space-y-6 relative z-10">
@@ -742,47 +743,47 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
                   <Sparkles size={20} fill="currentColor" />
                 </div>
-                <h3 className="text-xl font-black tracking-tight">Recomendaciones Estratégicas AI</h3>
+                <h3 className="text-xl font-black tracking-tight text-white">Recomendaciones Estratégicas AI</h3>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(userImpact.cumplimiento < 90 || stats.tareas_criticas?.vencidas?.length > 0) && (
-                  <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex gap-4 items-start hover:bg-white/10 transition-colors">
-                    <div className="p-2 bg-rose-500/20 text-rose-400 rounded-lg"><AlertCircle size={18} /></div>
+                  <div className="p-4 bg-white/10 border border-white/15 rounded-2xl flex gap-4 items-start hover:bg-white/15 transition-colors">
+                    <div className="p-2 bg-rose-500/20 text-rose-300 rounded-lg"><AlertCircle size={18} /></div>
                     <div>
-                      <p className="text-sm font-bold">Optimizar Cumplimiento</p>
-                      <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                      <p className="text-sm font-bold text-white">Optimizar Cumplimiento</p>
+                      <p className="text-[10px] text-slate-300 mt-1 leading-relaxed">
                         Tienes {stats.tareas_criticas?.vencidas?.length || 0} tareas pendientes. Resolverlas hoy incrementará tu índice de impacto.
                       </p>
                     </div>
                   </div>
                 )}
                 
-                <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex gap-4 items-start hover:bg-white/10 transition-colors">
-                  <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg"><Target size={18} /></div>
+                <div className="p-4 bg-white/10 border border-white/15 rounded-2xl flex gap-4 items-start hover:bg-white/15 transition-colors">
+                  <div className="p-2 bg-emerald-500/20 text-emerald-300 rounded-lg"><Target size={18} /></div>
                   <div>
-                    <p className="text-sm font-bold">Convocatorias SENNOVA</p>
-                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                    <p className="text-sm font-bold text-white">Convocatorias SENNOVA</p>
+                    <p className="text-[10px] text-slate-300 mt-1 leading-relaxed">
                       Consulta las convocatorias abiertas para postular proyectos de innovación con tus semilleros.
                     </p>
                   </div>
                 </div>
 
-                <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex gap-4 items-start hover:bg-white/10 transition-colors">
-                  <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-lg"><Users size={18} /></div>
+                <div className="p-4 bg-white/10 border border-white/15 rounded-2xl flex gap-4 items-start hover:bg-white/15 transition-colors">
+                  <div className="p-2 bg-indigo-500/20 text-indigo-300 rounded-lg"><Users size={18} /></div>
                   <div>
-                    <p className="text-sm font-bold">Tutoría de Aprendices</p>
-                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                    <p className="text-sm font-bold text-white">Tutoría de Aprendices</p>
+                    <p className="text-[10px] text-slate-300 mt-1 leading-relaxed">
                       Revisa y valida digitalmente las bitácoras de campo pendientes de tus semilleristas.
                     </p>
                   </div>
                 </div>
 
-                <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex gap-4 items-start hover:bg-white/10 transition-colors">
-                  <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg"><BookOpen size={18} /></div>
+                <div className="p-4 bg-white/10 border border-white/15 rounded-2xl flex gap-4 items-start hover:bg-white/15 transition-colors">
+                  <div className="p-2 bg-amber-500/20 text-amber-300 rounded-lg"><BookOpen size={18} /></div>
                   <div>
-                    <p className="text-sm font-bold">Productos Minciencias</p>
-                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                    <p className="text-sm font-bold text-white">Productos Minciencias</p>
+                    <p className="text-[10px] text-slate-300 mt-1 leading-relaxed">
                       Registra los artículos, ponencias y software resultantes de tus proyectos aprobados.
                     </p>
                   </div>
@@ -790,13 +791,13 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
               </div>
             </div>
             
-            <div className="p-8 lg:w-1/3 bg-white/5 border-l border-white/5 flex flex-col justify-center items-center text-center space-y-4">
+            <div className="p-8 lg:w-1/3 bg-white/5 border-l border-white/10 flex flex-col justify-center items-center text-center space-y-4">
               <div className="relative">
                 <svg className="w-24 h-24 transform -rotate-90">
-                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-white/10" />
-                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={251.2} strokeDashoffset={251.2 - (251.2 * (userImpact.cumplimiento || 100)) / 100} className="text-emerald-500" strokeLinecap="round" />
+                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-white/15" />
+                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={251.2} strokeDashoffset={251.2 - (251.2 * (userImpact.cumplimiento || 100)) / 100} className="text-emerald-400" strokeLinecap="round" />
                 </svg>
-                <div className="absolute inset-0 flex items-center justify-center text-xl font-black">{userImpact.cumplimiento || 100}%</div>
+                <div className="absolute inset-0 flex items-center justify-center text-xl font-black text-white">{userImpact.cumplimiento || 100}%</div>
               </div>
               <div>
                 <p className="text-sm font-bold text-white">Nivel de Desempeño</p>
@@ -805,7 +806,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20 w-full text-xs font-bold" 
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20 w-full text-xs font-bold shadow-sm" 
                 onClick={() => onModuleAction?.({ module: 'proyectos' })}
               >
                 Ver Mis Proyectos
@@ -837,7 +838,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
           title="Cumplimiento Técnico" 
           value={`${userImpact?.cumplimiento || 100}%`} 
           icon={Target} 
-          color="bg-amber-500" 
+          color="bg-amber-600" 
           subtitle="Metas logradas en cronograma" 
           onClick={() => onModuleAction?.({ module: 'cronograma' })}
         />
@@ -845,7 +846,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
           title="Aprendices Tutelados" 
           value={stats.aprendices?.total || userImpact?.aprendices_count || 0} 
           icon={GraduationCap} 
-          color="bg-rose-500" 
+          color="bg-rose-600" 
           subtitle="En mis semilleros" 
           onClick={() => onModuleAction?.({ module: 'aprendices' })}
         />
@@ -855,20 +856,20 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-8">
           
-          <Card className="p-8 border-0 shadow-sm overflow-hidden bg-white">
+          <Card className="p-8 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="font-black text-slate-900 text-lg">Evolución de Producción Científica</h3>
-                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Tendencia en los últimos 12 meses</p>
+                <p className="text-xs text-slate-600 font-bold uppercase tracking-widest mt-1">Tendencia en los últimos 12 meses</p>
               </div>
               <div className="flex gap-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-[10px] font-bold text-slate-600">Proyectos</span>
+                  <div className="w-3 h-3 rounded-full bg-emerald-600" />
+                  <span className="text-[10px] font-black text-slate-700 uppercase">Proyectos</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                  <span className="text-[10px] font-bold text-slate-600">Productos</span>
+                  <div className="w-3 h-3 rounded-full bg-indigo-600" />
+                  <span className="text-[10px] font-black text-slate-700 uppercase">Productos</span>
                 </div>
               </div>
             </div>
@@ -878,59 +879,59 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 <AreaChart data={evolution}>
                   <defs>
                     <linearGradient id="colorPrj" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="colorProd" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15}/>
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="mes_nombre" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="mes_nombre" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#475569'}} />
                   <YAxis hide />
-                  <ReTooltip contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}} />
-                  <Area type="monotone" dataKey="proyectos_nuevos" stroke="#10b981" strokeWidth={3.5} fillOpacity={1} fill="url(#colorPrj)" name="Proyectos" />
-                  <Area type="monotone" dataKey="productos_nuevos" stroke="#6366f1" strokeWidth={3.5} fillOpacity={1} fill="url(#colorProd)" name="Productos" />
+                  <ReTooltip contentStyle={{borderRadius: '16px', border: 'none', backgroundColor: '#0f172a', color: '#ffffff', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.2)'}} />
+                  <Area type="monotone" dataKey="proyectos_nuevos" stroke="#059669" strokeWidth={3.5} fillOpacity={1} fill="url(#colorPrj)" name="Proyectos" />
+                  <Area type="monotone" dataKey="productos_nuevos" stroke="#4f46e5" strokeWidth={3.5} fillOpacity={1} fill="url(#colorProd)" name="Productos" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="p-0 border-0 shadow-sm overflow-hidden bg-white">
-              <div className="p-6 bg-rose-50/50 border-b border-rose-100 flex items-center justify-between">
-                <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Tareas Vencidas</h3>
+            <Card className="p-0 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
+              <div className="p-6 bg-rose-50/80 border-b border-rose-200 flex items-center justify-between">
+                <h3 className="font-black text-slate-900 text-xs uppercase tracking-wider">Tareas Vencidas</h3>
                 <Badge variant="danger">{stats?.tareas_criticas?.vencidas?.length || 0}</Badge>
               </div>
-              <div className="divide-y divide-slate-50">
+              <div className="divide-y divide-slate-100">
                 {stats?.tareas_criticas?.vencidas?.map(task => (
                   <div key={task.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => onModuleAction?.({ module: 'cronograma' })}>
                     <div>
                       <p className="text-xs font-black text-slate-900">{task.titulo}</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase">{task.proyecto}</p>
+                      <p className="text-[10px] text-slate-600 font-bold uppercase">{task.proyecto}</p>
                     </div>
-                    <span className="text-[10px] font-black text-rose-600">{new Date(task.fecha).toLocaleDateString('es-CO')}</span>
+                    <span className="text-[10px] font-black text-rose-700">{new Date(task.fecha).toLocaleDateString('es-CO')}</span>
                   </div>
                 ))}
-                {(!stats.tareas_criticas?.vencidas || stats.tareas_criticas.vencidas.length === 0) && (
-                  <p className="p-6 text-center text-xs text-slate-400 italic">No tienes tareas vencidas pendientes.</p>
+                {(!stats?.tareas_criticas?.vencidas || stats.tareas_criticas.vencidas.length === 0) && (
+                  <p className="p-6 text-center text-xs text-slate-600 font-semibold italic">No tienes tareas vencidas pendientes.</p>
                 )}
               </div>
             </Card>
 
-            <Card className="p-0 border-0 shadow-sm overflow-hidden bg-white">
-              <div className="p-6 bg-indigo-50/50 border-b border-indigo-100 flex items-center justify-between">
-                <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Actividad de Mis Proyectos</h3>
-                <Activity size={16} className="text-indigo-400" />
+            <Card className="p-0 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
+              <div className="p-6 bg-indigo-50/80 border-b border-indigo-200 flex items-center justify-between">
+                <h3 className="font-black text-slate-900 text-xs uppercase tracking-wider">Actividad de Mis Proyectos</h3>
+                <Activity size={16} className="text-indigo-600" />
               </div>
-              <div className="divide-y divide-slate-50">
+              <div className="divide-y divide-slate-100">
                 {stats.historial_reciente?.slice(0, 4).map(item => (
                   <div key={item.id} className="p-4 flex gap-3 hover:bg-slate-50 transition-colors">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 mt-1.5 shrink-0" />
                     <div>
-                      <p className="text-[11px] font-bold text-slate-800 leading-snug"><span className="text-indigo-600">{item.usuario}</span> {item.descripcion}</p>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">{new Date(item.fecha).toLocaleTimeString('es-CO')}</p>
+                      <p className="text-[11px] font-bold text-slate-800 leading-snug"><span className="text-indigo-700 font-black">{item.usuario}</span> {item.descripcion}</p>
+                      <p className="text-[10px] text-slate-600 font-bold uppercase mt-0.5">{new Date(item.fecha).toLocaleTimeString('es-CO')}</p>
                     </div>
                   </div>
                 ))}
@@ -948,55 +949,55 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             <div className="space-y-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Impacto 360</p>
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Impacto 360</p>
                   <p className="text-4xl font-black text-emerald-400 tracking-tighter">
                     {userImpact ? (userImpact.proyectos_count * 100) + (userImpact.productos_count * 50) + (userImpact.cumplimiento * 2) : '---'}
                   </p>
                 </div>
-                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Nivel {userImpact?.productos_count > 5 ? 'Senior' : 'Junior'}</Badge>
+                <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">Nivel {userImpact?.productos_count > 5 ? 'Senior' : 'Junior'}</Badge>
               </div>
               <div className="space-y-2">
-                <div className="flex justify-between text-[10px] font-bold uppercase text-slate-400">
+                <div className="flex justify-between text-[10px] font-bold uppercase text-slate-300">
                   <span>Cumplimiento Global</span>
                   <span>{userImpact?.cumplimiento || 100}%</span>
                 </div>
-                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full" style={{width: `${userImpact?.cumplimiento || 100}%`}} />
+                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-400 rounded-full" style={{width: `${userImpact?.cumplimiento || 100}%`}} />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5">
+                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/10">
                   <p className="text-lg font-black text-white">{userImpact?.proyectos_count || 0}</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase">Proyectos</p>
+                  <p className="text-[9px] font-bold text-slate-300 uppercase">Proyectos</p>
                 </div>
-                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5">
+                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/10">
                   <p className="text-lg font-black text-white">{userImpact?.productos_count || 0}</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase">Productos</p>
+                  <p className="text-[9px] font-bold text-slate-300 uppercase">Productos</p>
                 </div>
-                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/5">
+                <div className="text-center p-3 bg-white/5 rounded-2xl border border-white/10">
                   <p className="text-lg font-black text-white">{userImpact?.semilleros_count || 0}</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase">Semilleros</p>
+                  <p className="text-[9px] font-bold text-slate-300 uppercase">Semilleros</p>
                 </div>
               </div>
               <Button variant="ghost" className="w-full text-white hover:bg-white/10 text-[10px] font-black uppercase tracking-widest">Ver Perfil Completo <ArrowUpRight size={14} className="ml-2" /></Button>
             </div>
           </Card>
 
-          <Card className="p-8 border-0 shadow-sm bg-white overflow-hidden">
+          <Card className="p-8 border border-slate-200/80 shadow-sm bg-white overflow-hidden">
             <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider mb-6">Próximos Vencimientos</h3>
             <div className="space-y-6">
               {stats.tareas_criticas?.proximas?.slice(0, 4).map(task => (
                 <div key={task.id} className="flex gap-4 relative">
-                  <div className="w-px h-full bg-slate-100 absolute left-2 top-8" />
-                  <div className="w-4 h-4 rounded-full bg-indigo-500 shrink-0 z-10" />
+                  <div className="w-px h-full bg-slate-200 absolute left-2 top-8" />
+                  <div className="w-4 h-4 rounded-full bg-indigo-600 shrink-0 z-10" />
                   <div>
                     <p className="text-xs font-black text-slate-900 leading-tight">{task.titulo}</p>
-                    <p className="text-[10px] text-indigo-600 font-bold mt-1 uppercase">{new Date(task.fecha).toLocaleDateString('es-CO')}</p>
+                    <p className="text-[10px] text-indigo-700 font-bold mt-1 uppercase">{new Date(task.fecha).toLocaleDateString('es-CO')}</p>
                   </div>
                 </div>
               ))}
               {(!stats.tareas_criticas?.proximas || stats.tareas_criticas.proximas.length === 0) && (
-                <p className="text-center text-xs text-slate-400 italic">No hay vencimientos próximos.</p>
+                <p className="text-center text-xs text-slate-600 font-semibold italic">No hay vencimientos próximos.</p>
               )}
             </div>
           </Card>

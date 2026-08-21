@@ -28,6 +28,14 @@ export const ProyectosAPI = {
     body: JSON.stringify({ user_id: userId, rol_en_proyecto: rol, horas_dedicadas: horas }),
   }),
 
+  asignarEquipo: (proyectoId, data) => {
+    const payload = typeof data === 'object' ? data : { user_id: data };
+    return fetchAPI(`/proyectos/${proyectoId}/equipo`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   removeEquipo: (proyectoId, userId) => fetchAPI(`/proyectos/${proyectoId}/equipo/${userId}`, {
     method: 'DELETE',
   }),

@@ -11,9 +11,16 @@ export const NotificacionesAPI = {
   /**
    * Lista las notificaciones del usuario
    */
-  async listar(soloNoLeidas = false, limite = 50) {
+  async listar(filter = false, limite = 50) {
     const params = new URLSearchParams();
-    if (soloNoLeidas) params.append('solo_no_leidas', 'true');
+    if (filter === true || filter === 'no_leidas') {
+      params.append('solo_no_leidas', 'true');
+    } else if (filter === 'leidas' || (typeof filter === 'object' && filter?.leida === true)) {
+      params.append('leida', 'true');
+    } else if (typeof filter === 'object' && filter !== null) {
+      if (filter.solo_no_leidas) params.append('solo_no_leidas', 'true');
+      if (filter.leida !== undefined) params.append('leida', String(filter.leida));
+    }
     params.append('limite', limite);
     return fetchAPI(`${API_BASE}/?${params}`);
   },
@@ -90,5 +97,41 @@ export const NotificacionesAPI = {
    */
   async getCVLACPendientes() {
     return fetchAPI(`${API_BASE}/cvlac/pendientes`);
-  }
+  },
+
+  /**
+   * Envía un mensaje o notificación directa a un usuario
+   */
+  async enviarMensaje(data) {
+    return fetchAPI(`${API_BASE}/enviar-mensaje`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  /**
+   * Crea una notificación de sistema (admin)
+   */
+  async crearSistema(userId, titulo, mensaje, prioridad = 'normal', entidadTipo = null, entidadId = null) {
+    const params = new URLSearchParams({
+      user_id: userId,
+      titulo,
+      mensaje,
+      prioridad
+    });
+    if (entidadTipo) params.append('entidad_tipo', entidadTipo);
+    if (entidadId) params.append('entidad_id', entidadId);
+    return fetchAPI(`${API_BASE}/crear-sistema?${params}`, {
+      method: 'POST'
+    });
+  },
+
+  // Alias universales en inglés
+  list: (soloNoLeidas = false, limite = 50) => NotificacionesAPI.listar(soloNoLeidas, limite),
+  get: (id) => NotificacionesAPI.obtener(id),
+  delete: (id) => NotificacionesAPI.eliminar(id),
+  markAsRead: (id, leida = true) => NotificacionesAPI.marcarLeida(id, leida),
+  markAllAsRead: () => NotificacionesAPI.marcarTodasLeidas(),
+  cleanRead: (dias = 30) => NotificacionesAPI.limpiarLeidas(dias),
+  sendMessage: (data) => NotificacionesAPI.enviarMensaje(data)
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, Folder, User, Users, FileText, Command, ArrowRight, Loader2 } from 'lucide-react';
 import { DashboardAPI } from '../../api/dashboard';
+import { useModalStack } from '../../hooks/useModalStack';
 
 const TYPE_ICONS = {
   proyecto:     <Folder   size={18} className="text-blue-500" />,
@@ -23,24 +24,28 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
   const inputRef  = useRef(null);
   const listRef   = useRef(null);
 
+  const { zIndex, isTop } = useModalStack({
+    isOpen,
+    onClose,
+    closeOnEsc: true,
+    customId: 'global-search-dialog'
+  });
+
   // Open/close side-effects
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 80);
-      document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = '';
       setQuery('');
       setResults([]);
       setSelectedIndex(0);
     }
   }, [isOpen]);
 
-  // Keyboard navigation
+  // Keyboard navigation for search list
   useEffect(() => {
     if (!isOpen) return;
     const onKeydown = (e) => {
-      if (e.key === 'Escape') { onClose(); return; }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setSelectedIndex(i => (i + 1) % Math.max(results.length, 1));
@@ -85,33 +90,36 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center pt-0 sm:pt-[15vh] px-0 sm:px-4"
+      className="fixed inset-0 flex items-start justify-center pt-0 sm:pt-[12vh] px-0 sm:px-4"
+      style={{ zIndex }}
       role="dialog"
       aria-modal="true"
       aria-label="Búsqueda global"
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/60 sm:backdrop-blur-sm animate-fadeIn"
+        className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-200 animate-fadeIn ${
+          isTop ? 'opacity-100' : 'opacity-80'
+        }`}
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Panel */}
-      <div className="w-full h-full sm:h-auto sm:max-w-2xl bg-white sm:rounded-2xl shadow-2xl overflow-hidden animate-scaleIn border-0 sm:border sm:border-slate-200 relative z-10 flex flex-col">
+      <div className="w-full h-full sm:h-auto sm:max-w-2xl bg-white sm:rounded-3xl shadow-2xl overflow-hidden animate-scaleIn border-0 sm:border sm:border-slate-200/80 relative z-10 flex flex-col max-h-screen sm:max-h-[85vh]">
 
         {/* Search input */}
-        <div className="relative flex items-center border-b border-slate-100 flex-shrink-0">
+        <div className="relative flex items-center border-b border-slate-200 flex-shrink-0">
           <button
             onClick={onClose}
-            className="sm:hidden ml-4 p-2 text-slate-400 hover:text-slate-600 focus-visible:outline-none"
+            className="sm:hidden ml-4 p-2 text-slate-600 hover:text-slate-900 focus-visible:outline-none"
             aria-label="Cerrar búsqueda"
           >
             <X size={20} />
           </button>
           
           <Search
-            className="absolute left-14 sm:left-5 text-slate-400 pointer-events-none"
+            className="absolute left-14 sm:left-6 text-slate-500 pointer-events-none"
             size={20}
             aria-hidden="true"
           />
@@ -122,24 +130,24 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
             aria-autocomplete="list"
             aria-expanded={results.length > 0}
             aria-controls="search-results"
-            placeholder="Buscar proyectos, investigadores..."
-            className="w-full pl-24 sm:pl-12 pr-14 py-5 sm:py-4 text-base text-slate-900 placeholder:text-slate-400 focus-visible:outline-none bg-transparent"
+            placeholder="Buscar proyectos, investigadores, grupos..."
+            className="w-full pl-24 sm:pl-14 pr-14 py-5 sm:py-4 text-base text-slate-900 font-medium placeholder:text-slate-500 focus-visible:outline-none bg-transparent"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           <div className="absolute right-4 flex items-center gap-2">
             {loading ? (
-              <Loader2 size={18} className="animate-spin text-emerald-600" aria-label="Buscando..." />
+              <Loader2 size={18} className="animate-spin text-emerald-700" aria-label="Buscando..." />
             ) : query ? (
               <button
                 onClick={() => setQuery('')}
                 aria-label="Limpiar búsqueda"
-                className="p-1 text-slate-400 hover:text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
+                className="p-1 text-slate-600 hover:text-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
               >
                 <X size={16} />
               </button>
             ) : (
-              <kbd className="hidden sm:flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-500 rounded text-xs font-semibold border border-slate-200" aria-hidden="true">
+              <kbd className="hidden sm:flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-800 rounded text-xs font-bold border border-slate-300" aria-hidden="true">
                 ESC
               </kbd>
             )}
@@ -151,11 +159,11 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
           id="search-results"
           role="listbox"
           aria-label="Resultados de búsqueda"
-          className="flex-grow sm:max-h-[55vh] overflow-y-auto scrollbar-thin pb-safe"
+          className="flex-grow sm:max-h-[55vh] overflow-y-auto custom-scrollbar pb-safe"
         >
           {results.length > 0 ? (
-            <div className="p-2" ref={listRef}>
-              <p className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            <div className="p-3" ref={listRef}>
+              <p className="px-4 py-2 text-[10px] font-black text-slate-700 uppercase tracking-widest">
                 {results.length} resultado{results.length !== 1 ? 's' : ''}
               </p>
               {results.map((result, index) => {
@@ -167,22 +175,22 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
                     aria-selected={isSelected}
                     onClick={() => handleSelect(result)}
                     className={[
-                      'w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-colors text-left',
-                      isSelected ? 'bg-emerald-50' : 'hover:bg-slate-50',
+                      'w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all text-left mb-1',
+                      isSelected ? 'bg-emerald-50 shadow-sm border border-emerald-300' : 'hover:bg-slate-50 border border-transparent',
                     ].join(' ')}
                   >
-                    <div className={`p-2 rounded-lg flex-shrink-0 ${isSelected ? 'bg-white shadow-sm' : 'bg-slate-100'}`}>
-                      {TYPE_ICONS[result.type] ?? <Search size={18} className="text-slate-400" />}
+                    <div className={`p-2.5 rounded-xl flex-shrink-0 ${isSelected ? 'bg-white shadow-sm border border-emerald-200' : 'bg-slate-100'}`}>
+                      {TYPE_ICONS[result.type] ?? <Search size={18} className="text-slate-600" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`font-semibold text-sm truncate ${isSelected ? 'text-emerald-900' : 'text-slate-900'}`}>
+                      <p className={`font-black text-sm truncate ${isSelected ? 'text-emerald-950' : 'text-slate-900'}`}>
                         {result.title}
                       </p>
-                      <p className="text-xs text-slate-500 truncate">{result.subtitle}</p>
+                      <p className="text-xs text-slate-600 font-medium truncate">{result.subtitle}</p>
                     </div>
                     <ArrowRight
-                      size={15}
-                      className={`flex-shrink-0 transition-transform ${isSelected ? 'text-emerald-500 translate-x-0.5' : 'text-slate-300'}`}
+                      size={16}
+                      className={`flex-shrink-0 transition-transform ${isSelected ? 'text-emerald-800 translate-x-1' : 'text-slate-400'}`}
                       aria-hidden="true"
                     />
                   </button>
@@ -190,38 +198,38 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
               })}
             </div>
           ) : query.length >= 2 ? (
-            <div className="py-14 text-center text-slate-500">
-              <Search size={40} className="mx-auto text-slate-200 mb-3" aria-hidden="true" />
-              <p className="font-semibold text-sm">Sin resultados para "{query}"</p>
-              <p className="text-xs text-slate-500 mt-1">Prueba con términos diferentes</p>
+            <div className="py-14 text-center text-slate-700">
+              <Search size={40} className="mx-auto text-slate-300 mb-3" aria-hidden="true" />
+              <p className="font-bold text-sm text-slate-900">Sin resultados para "{query}"</p>
+              <p className="text-xs text-slate-600 mt-1 font-medium">Prueba con otros términos de búsqueda</p>
             </div>
           ) : (
-            <div className="py-12 px-6 text-center text-slate-400">
+            <div className="py-12 px-6 text-center text-slate-600">
               <div className="flex justify-center gap-8 mb-6">
                 {HINT_ITEMS.map(({ type, label, iconCls, Icon }) => (
                   <div key={type} className="flex flex-col items-center gap-2">
-                    <div className={`p-3 rounded-full ${iconCls}`}>
+                    <div className={`p-3.5 rounded-2xl ${iconCls}`}>
                       <Icon size={22} aria-hidden="true" />
                     </div>
-                    <span className="text-xs font-semibold text-slate-500">{label}</span>
+                    <span className="text-xs font-bold text-slate-800">{label}</span>
                   </div>
                 ))}
               </div>
-              <p className="text-sm text-slate-400">Escribe al menos 2 caracteres para buscar</p>
+              <p className="text-xs font-bold text-slate-600">Escribe al menos 2 caracteres para buscar en todo el ecosistema</p>
             </div>
           )}
         </div>
 
         {/* Footer hint bar */}
-        <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-5 text-xs text-slate-500 font-medium">
-            <span className="flex items-center gap-1.5">
-              <Command size={11} aria-hidden="true" /> K — buscar
+        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-5 text-xs text-slate-700 font-semibold">
+            <span className="flex items-center gap-1.5 font-black text-slate-900">
+              <Command size={12} aria-hidden="true" /> K — buscar
             </span>
             <span>↑↓ — navegar</span>
             <span>↵ — abrir</span>
           </div>
-          <span className="text-xs text-emerald-700 font-semibold">SENNOVA CGAO</span>
+          <span className="text-xs text-emerald-800 font-black tracking-wider uppercase">SENNOVA CGAO</span>
         </div>
       </div>
     </div>

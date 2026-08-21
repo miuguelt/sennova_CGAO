@@ -37,6 +37,26 @@ describe('MensajesAPI', () => {
     );
   });
 
+  it('marcarEntregados llama a POST /mensajes/conversacion/:id/marcar-entregados', async () => {
+    const { MensajesAPI } = await import('../api/mensajes');
+    mockFetchAPI.mockResolvedValue({ success: true, entregados: 2 });
+    await MensajesAPI.marcarEntregados('user-123');
+    expect(mockFetchAPI).toHaveBeenCalledWith(
+      '/mensajes/conversacion/user-123/marcar-entregados',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  it('notificarTyping llama a POST /mensajes/typing con payload JSON', async () => {
+    const { MensajesAPI } = await import('../api/mensajes');
+    mockFetchAPI.mockResolvedValue({ success: true });
+    await MensajesAPI.notificarTyping('user-123', true);
+    expect(mockFetchAPI).toHaveBeenCalledWith('/mensajes/typing', {
+      method: 'POST',
+      body: JSON.stringify({ destinatario_id: 'user-123', is_typing: true }),
+    });
+  });
+
   it('enviar llama a POST /mensajes con body JSON', async () => {
     const { MensajesAPI } = await import('../api/mensajes');
     mockFetchAPI.mockResolvedValue({ id: 'msg-1', contenido: 'Hola' });
@@ -49,7 +69,8 @@ describe('MensajesAPI', () => {
     await MensajesAPI.enviar(payload);
     expect(mockFetchAPI).toHaveBeenCalledWith('/mensajes', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      // El envío siempre declara sus adjuntos, aunque la lista venga vacía
+      body: JSON.stringify({ ...payload, adjunto_ids: [] }),
     });
   });
 

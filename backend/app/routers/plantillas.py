@@ -103,7 +103,7 @@ def generar_datos_certificado(
     try:
         semillero = db.query(Semillero).filter(Semillero.id == str(semillero_id)).first()
         aprendiz = db.query(Aprendiz).filter(
-            Aprendiz.id == str(aprendiz_id),
+            (Aprendiz.id == str(aprendiz_id)) | (Aprendiz.user_id == str(aprendiz_id)),
             Aprendiz.semillero_id == str(semillero_id)
         ).first()
         
@@ -111,29 +111,34 @@ def generar_datos_certificado(
             raise HTTPException(status_code=404, detail="Semillero o Aprendiz no encontrado")
         
         info = aprendiz.info_consolidada
+        fecha_ing_str = aprendiz.fecha_ingreso.strftime('%Y-%m-%d') if aprendiz.fecha_ingreso else date.today().strftime('%Y-%m-%d')
         
-        return {
+        cert_data = {
             "entidad": "SERVICIO NACIONAL DE APRENDIZAJE - SENA",
             "centro": "CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE",
             "programa_sennova": "SENNOVA",
             "tipo_documento": "CERTIFICADO DE PARTICIPACIÓN EN SEMILLERO",
             "datos_aprendiz": {
-                "nombre": info["nombre"].upper(),
-                "documento": info["documento"],
-                "ficha": info["ficha"],
-                "programa": info["programa"]
+                "nombre": (info.get("nombre") or "Aprendiz").upper(),
+                "documento": info.get("documento") or "N/A",
+                "ficha": info.get("ficha") or "N/A",
+                "programa": info.get("programa") or "Formación SENA"
             },
             "datos_semillero": {
                 "nombre": semillero.nombre,
                 "grupo": semillero.grupo.nombre if semillero.grupo else "N/A",
                 "horas": semillero.horas_dedicadas,
-                "fecha_ingreso": aprendiz.fecha_ingreso.strftime('%Y-%m-%d')
+                "fecha_ingreso": fecha_ing_str
             },
             "fecha_emision": date.today().strftime('%d de %B de %Y'),
             "firmas": [
-                {"nombre": semillero.owner.nombre, "rol": "Líder de Semillero"},
+                {"nombre": semillero.owner.nombre if semillero.owner else "Líder", "rol": "Líder de Semillero"},
                 {"nombre": "SUBDIRECTOR DE CENTRO", "rol": "Subdirector CGAO"}
             ]
+        }
+        return {
+            "datos_certificado": cert_data,
+            **cert_data
         }
     except sa.exc.OperationalError as db_err:
         raise db_err
@@ -256,7 +261,7 @@ def generar_certificados_masivos(
                 },
                 "fecha_emision": date.today().strftime('%d de %B de %Y'),
                 "firmas": [
-                    {"nombre": proyecto.owner.nombre, "rol": "Investigador Principal"},
+                    {"nombre": proyecto.owner.nombre if proyecto.owner else "Investigador Principal", "rol": "Investigador Principal"},
                     {"nombre": "SUBDIRECTOR DE CENTRO", "rol": "Subdirector CGAO"}
                 ]
             })
@@ -321,7 +326,7 @@ def generar_detalle_presupuesto(
             "proyecto": {
                 "nombre": proyecto.nombre,
                 "codigo": proyecto.codigo_sgps,
-                "investigador": proyecto.owner.nombre,
+                "investigador": proyecto.owner.nombre if proyecto.owner else "Investigador Principal",
                 "vigencia": f"{proyecto.vigencia} meses"
             },
             "resumen_financiero": {
@@ -383,7 +388,7 @@ def generar_bitacora_oficial(
                     "titulo": e.titulo,
                     "categoria": e.categoria,
                     "contenido": e.contenido,
-                    "autor": e.user.nombre,
+                    "autor": e.user.nombre if e.user else "Investigador",
                     "estado_firma": "COMPLETA" if (e.is_firmado_investigador and e.is_firmado_aprendiz) else "PENDIENTE",
                     "hash_verificacion": e.signature_metadata.get("investigador", {}).get("integrity_hash", "N/A") if e.signature_metadata else "N/A",
                     "adjuntos_count": len(e.adjuntos) if e.adjuntos else 0

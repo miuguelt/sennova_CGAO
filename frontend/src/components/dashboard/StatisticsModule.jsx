@@ -19,14 +19,14 @@ import { ProyectosAPI } from '../../api/proyectos';
 const COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
 const MetricCard = ({ label, value, trend, icon: Icon, colorCls }) => (
-  <Card className="p-6 border-0 shadow-sm ring-1 ring-slate-100 overflow-hidden relative group">
+  <Card className="p-6 border border-slate-200 shadow-sm overflow-hidden relative group bg-white">
     <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-5 group-hover:scale-110 transition-transform ${colorCls.replace('text', 'bg')}`} />
     <div className="flex items-center justify-between relative z-10">
       <div>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+        <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">{label}</p>
         <h3 className="text-3xl font-black text-slate-900 tracking-tighter tabular-nums">{value}</h3>
         {trend && (
-          <div className={`flex items-center mt-2 text-[10px] font-bold ${trend > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+          <div className={`flex items-center mt-2 text-[10px] font-black ${trend > 0 ? 'text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200' : 'text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full border border-rose-200'}`}>
             {trend > 0 ? <ArrowUpRight size={10} className="mr-1" /> : <ArrowDownRight size={10} className="mr-1" />}
             <span>{Math.abs(trend)}% vs mes anterior</span>
           </div>

@@ -1,9 +1,9 @@
 """
 Router de Reportes SENNOVA
-Generación de reportes consolidados para reportes trimestrales a nivel nacional
+Generación de reportes consolidados (Excel / CSV) para seguimiento institucional y reportes trimestrales nacionales.
 """
 
-from io import BytesIO
+from io import BytesIO, StringIO
 from datetime import datetime, timezone
 import uuid
 from typing import Optional, Literal
@@ -18,10 +18,11 @@ from app.database import get_db
 from app.auth import get_current_admin, get_current_investigador_or_instructor
 from app.models import User, Proyecto, Grupo, Semillero, Producto
 
-# Importar librerías de reportes
+# Importar librerías de Excel
 try:
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
     EXCEL_AVAILABLE = True
 except ImportError:
     EXCEL_AVAILABLE = False
@@ -31,30 +32,65 @@ router = APIRouter(
     tags=["Reportes SENNOVA"]
 )
 
+# Paleta institucional de estilos Excel (SENA / SENNOVA)
+HEADER_FILL = PatternFill(start_color="047857", end_color="047857", fill_type="solid")  # Emerald 700
+HEADER_FONT = Font(bold=True, color="FFFFFF", size=10)
+TITLE_FONT = Font(bold=True, size=13, color="0F172A")
+SUBTITLE_FONT = Font(size=9, color="64748B")
+TOTAL_FILL = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+TOTAL_FONT = Font(bold=True, size=9, color="0F172A")
+
+THIN_BORDER = Border(
+    left=Side(style='thin', color='CBD5E1'),
+    right=Side(style='thin', color='CBD5E1'),
+    top=Side(style='thin', color='CBD5E1'),
+    bottom=Side(style='thin', color='CBD5E1')
+)
+
+TOTAL_BORDER = Border(
+    left=Side(style='thin', color='CBD5E1'),
+    right=Side(style='thin', color='CBD5E1'),
+    top=Side(style='medium', color='047857'),
+    bottom=Side(style='double', color='047857')
+)
+
 
 def get_estado_color(estado: str) -> str:
-    """Retorna color para el estado del proyecto."""
+    """Retorna color de celda según el estado del proyecto."""
     colors = {
-        "Aprobado": "C6EFCE",
-        "En ejecución": "B8CCE4",
-        "Finalizado": "E2EFDA",
-        "Rechazado": "FFC7CE",
-        "Formulación": "FFEB9C",
-        "Enviado": "BDD7EE"
+        "Aprobado": "D1FAE5",      # Emerald 100
+        "En ejecución": "DBEAFE",  # Blue 100
+        "Finalizado": "E2E8F0",    # Slate 200
+        "Rechazado": "FEE2E2",     # Red 100
+        "Formulación": "FEF3C7",   # Amber 100
+        "Enviado": "E0E7FF"        # Indigo 100
     }
-    return colors.get(estado, "FFFFFF")
+    return colors.get(str(estado or '').strip(), "FFFFFF")
 
+
+def auto_fit_columns(ws, max_cols, min_width=12, max_width=45):
+    """Ajusta automáticamente el ancho de las columnas con límites mínimos y máximos."""
+    for col_idx in range(1, max_cols + 1):
+        col_letter = get_column_letter(col_idx)
+        max_len = 0
+        for cell in ws[col_letter]:
+            if cell.row > 4 and cell.value is not None:
+                max_len = max(max_len, len(str(cell.value)))
+        ws.column_dimensions[col_letter].width = max(min_width, min(max_len + 3, max_width))
+
+
+# ─── 1. Consolidado de Proyectos ─────────────────────────────────────────────
 
 @router.get("/proyectos-consolidado")
 def generar_consolidado_proyectos(
-    año: Optional[int] = Query(None, description="Año de los proyectos"),
+    año: Optional[int] = Query(None, description="Año de vigencia de los proyectos"),
     formato: Literal["excel", "csv"] = Query("excel", description="Formato de salida"),
     current_user: User = Depends(get_current_investigador_or_instructor),
     db: Session = Depends(get_db)
 ):
     """
-    Genera reporte consolidado de proyectos para reportes SENNOVA.
-    Incluye: proyectos, equipo, presupuesto, productos asociados.
+    Genera reporte consolidado de proyectos para seguimiento y reportes nacionales SENNOVA.
+    Incluye: proyectos, equipo, presupuesto asignado, productos asociados y líneas.
     """
     if not EXCEL_AVAILABLE and formato == "excel":
         raise HTTPException(
@@ -63,7 +99,6 @@ def generar_consolidado_proyectos(
         )
     
     try:
-        # Consultar proyectos con relaciones
         query = db.query(Proyecto)
         if año:
             query = query.filter(Proyecto.vigencia == año)
@@ -80,123 +115,121 @@ def generar_consolidado_proyectos(
 
 
 def _generar_excel_consolidado(proyectos, db, año_filtro):
-    """Genera archivo Excel con formato SENNOVA."""
+    """Genera archivo Excel de proyectos con formato institucional SENNOVA."""
     wb = Workbook()
     ws = wb.active
     ws.title = "Consolidado Proyectos"
     
-    # Estilos
-    header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF", size=11)
-    subheader_fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
-    subheader_font = Font(bold=True, size=10)
-    thin_border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
+    # Encabezado institucional
+    año_texto = str(año_filtro) if año_filtro else "Todas las vigencias"
+    ws["A1"] = "CONSOLIDADO DE PROYECTOS DE INVESTIGACIÓN - SENNOVA CGAO VÉLEZ"
+    ws["A2"] = f"Vigencia: {año_texto} | Total Proyectos: {len(proyectos)} | Generado: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
     
-    # Título del reporte
-    año_texto = str(año_filtro) if año_filtro else "Todos"
-    ws["A1"] = "CONSOLIDADO DE PROYECTOS SENNOVA - CGAO VÉLEZ"
-    ws["A2"] = f"Año: {año_texto} | Generado: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}"
-    ws["A3"] = f"Total proyectos: {len(proyectos)}"
-    
-    # Merge celdas título
     ws.merge_cells("A1:K1")
     ws.merge_cells("A2:K2")
-    ws.merge_cells("A3:K3")
+    ws["A1"].font = TITLE_FONT
+    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+    ws["A2"].font = SUBTITLE_FONT
+    ws["A2"].alignment = Alignment(horizontal="center", vertical="center")
     
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A1"].alignment = Alignment(horizontal="center")
-    ws["A2"].alignment = Alignment(horizontal="center")
-    ws["A3"].alignment = Alignment(horizontal="center")
-    
-    # Headers de columnas (fila 5)
     headers = [
-        "Código SGPS", "Nombre Corto", "Nombre Completo", "Estado", 
-        "Vigencia", "Presupuesto Total", "Convocatoria", "Líder",
-        "N° Miembros", "N° Productos", "Tipología"
+        "Código SGPS", "Nombre Corto", "Nombre Completo del Proyecto", "Estado", 
+        "Vigencia", "Presupuesto Total (COP)", "Convocatoria", "Investigador Líder",
+        "N° Miembros", "N° Productos", "Tipología / Línea"
     ]
     
     for col, header in enumerate(headers, 1):
-        cell = ws.cell(row=5, column=col, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-        cell.border = thin_border
+        cell = ws.cell(row=4, column=col, value=header)
+        cell.fill = HEADER_FILL
+        cell.font = HEADER_FONT
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = THIN_BORDER
     
-    # Datos
-    row = 6
+    row = 5
+    total_presupuesto = 0
+    total_miembros = 0
+    total_productos = 0
+    
     for proyecto in proyectos:
-        # Contar miembros del equipo
         n_miembros = len(proyecto.equipo) if proyecto.equipo else 0
+        n_productos = len(proyecto.productos) if hasattr(proyecto, 'productos') and proyecto.productos else 0
+        lider = proyecto.owner.nombre if (proyecto.owner and proyecto.owner.nombre) else "Sin asignar"
+        convocatoria = proyecto.convocatoria.nombre if (proyecto.convocatoria and proyecto.convocatoria.nombre) else "N/A"
+        presupuesto = float(proyecto.presupuesto_total or 0)
         
-        # Contar productos
-        n_productos = len(proyecto.productos) if hasattr(proyecto, 'productos') else 0
+        total_presupuesto += presupuesto
+        total_miembros += n_miembros
+        total_productos += n_productos
         
-        # Obtener líder (owner o primer miembro)
-        lider = proyecto.owner.nombre if proyecto.owner else "Sin asignar"
-        
-        # Convocatoria
-        convocatoria = "N/A"
-        if proyecto.convocatoria:
-            convocatoria = proyecto.convocatoria.nombre
+        nombre_proyecto = proyecto.nombre or "Sin nombre"
+        nombre_corto = proyecto.nombre_corto or (nombre_proyecto[:45] if nombre_proyecto else "Sin definir")
         
         data = [
             proyecto.codigo_sgps or "Sin código",
-            proyecto.nombre_corto or proyecto.nombre[:50],
-            proyecto.nombre,
-            proyecto.estado,
+            nombre_corto,
+            nombre_proyecto,
+            proyecto.estado or "Aprobado",
             proyecto.vigencia or "N/A",
-            proyecto.presupuesto_total or 0,
+            presupuesto,
             convocatoria,
             lider,
             n_miembros,
             n_productos,
-            proyecto.tipologia or "N/A"
+            proyecto.tipologia or proyecto.linea_programatica or "I+D"
         ]
         
         for col, value in enumerate(data, 1):
             cell = ws.cell(row=row, column=col, value=value)
-            cell.border = thin_border
-            cell.alignment = Alignment(horizontal="left" if col in [2, 3, 7, 8] else "center")
+            cell.border = THIN_BORDER
+            cell.font = Font(size=9)
             
-            # Color por estado
-            if col == 4:  # Columna de estado
-                cell.fill = PatternFill(
-                    start_color=get_estado_color(str(value)),
-                    end_color=get_estado_color(str(value)),
-                    fill_type="solid"
-                )
+            if col in [2, 3, 7, 8, 11]:
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+            elif col == 6:
+                cell.alignment = Alignment(horizontal="right", vertical="center")
+                cell.number_format = '"$"#,##0'
+            else:
+                cell.alignment = Alignment(horizontal="center", vertical="center")
             
-            # Formato moneda para presupuesto
-            if col == 6 and value:
-                cell.number_format = '$#,##0.00'
+            if col == 4:
+                color_hex = get_estado_color(str(value))
+                cell.fill = PatternFill(start_color=color_hex, end_color=color_hex, fill_type="solid")
         
         row += 1
     
-    # Ajustar anchos
-    ws.column_dimensions['A'].width = 15
-    ws.column_dimensions['B'].width = 25
-    ws.column_dimensions['C'].width = 40
-    ws.column_dimensions['D'].width = 15
-    ws.column_dimensions['E'].width = 10
-    ws.column_dimensions['F'].width = 18
-    ws.column_dimensions['G'].width = 30
-    ws.column_dimensions['H'].width = 25
-    ws.column_dimensions['I'].width = 12
-    ws.column_dimensions['J'].width = 12
-    ws.column_dimensions['K'].width = 20
+    # Fila de Totales
+    total_row = row
+    ws.cell(row=total_row, column=1, value="TOTALES").font = TOTAL_FONT
+    ws.cell(row=total_row, column=1).alignment = Alignment(horizontal="center", vertical="center")
+    ws.cell(row=total_row, column=1).fill = TOTAL_FILL
+    ws.cell(row=total_row, column=1).border = TOTAL_BORDER
     
-    # Guardar en memoria
+    for c in range(2, 12):
+        cell = ws.cell(row=total_row, column=c)
+        cell.fill = TOTAL_FILL
+        cell.border = TOTAL_BORDER
+        cell.font = TOTAL_FONT
+        if c == 6:
+            cell.value = total_presupuesto
+            cell.number_format = '"$"#,##0'
+            cell.alignment = Alignment(horizontal="right", vertical="center")
+        elif c == 9:
+            cell.value = total_miembros
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+        elif c == 10:
+            cell.value = total_productos
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+        else:
+            cell.value = ""
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+    
+    auto_fit_columns(ws, len(headers))
+    
     output = BytesIO()
     wb.save(output)
     output.seek(0)
     
     filename = f"consolidado_proyectos_{año_filtro or 'todos'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-    
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -205,49 +238,52 @@ def _generar_excel_consolidado(proyectos, db, año_filtro):
 
 
 def _generar_csv_consolidado(proyectos, año_filtro):
-    """Genera archivo CSV simple."""
+    """Genera archivo CSV compatible con Excel."""
     import csv
-    output = BytesIO()
+    str_output = StringIO()
     
     headers = [
-        "codigo_sgps", "nombre_corto", "nombre", "estado", 
-        "vigencia", "presupuesto_total", "convocatoria", "lider",
+        "codigo_sgps", "nombre_corto", "nombre_completo", "estado", 
+        "vigencia", "presupuesto_total_cop", "convocatoria", "lider",
         "num_miembros", "num_productos", "tipologia"
     ]
     
-    writer = csv.writer(output)
+    writer = csv.writer(str_output)
     writer.writerow(headers)
     
     for proyecto in proyectos:
         n_miembros = len(proyecto.equipo) if proyecto.equipo else 0
-        n_productos = len(proyecto.productos) if hasattr(proyecto, 'productos') else 0
-        lider = proyecto.owner.nombre if proyecto.owner else "Sin asignar"
-        convocatoria = proyecto.convocatoria.nombre if proyecto.convocatoria else "N/A"
+        n_productos = len(proyecto.productos) if hasattr(proyecto, 'productos') and proyecto.productos else 0
+        lider = proyecto.owner.nombre if (proyecto.owner and proyecto.owner.nombre) else "Sin asignar"
+        convocatoria = proyecto.convocatoria.nombre if (proyecto.convocatoria and proyecto.convocatoria.nombre) else "N/A"
+        nombre_proyecto = proyecto.nombre or "Sin nombre"
+        nombre_corto = proyecto.nombre_corto or (nombre_proyecto[:45] if nombre_proyecto else "")
         
         writer.writerow([
             proyecto.codigo_sgps or "",
-            proyecto.nombre_corto or proyecto.nombre[:50],
-            proyecto.nombre,
-            proyecto.estado,
+            nombre_corto,
+            nombre_proyecto,
+            proyecto.estado or "Aprobado",
             proyecto.vigencia or "",
             proyecto.presupuesto_total or 0,
             convocatoria,
             lider,
             n_miembros,
             n_productos,
-            proyecto.tipologia or ""
+            proyecto.tipologia or proyecto.linea_programatica or ""
         ])
     
-    output.seek(0)
-    
     filename = f"consolidado_proyectos_{año_filtro or 'todos'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    output = BytesIO(str_output.getvalue().encode('utf-8-sig'))
     
     return StreamingResponse(
         output,
-        media_type="text/csv",
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
+
+# ─── 2. Consolidado de Grupos de Investigación ───────────────────────────────
 
 @router.get("/grupos-consolidado")
 def generar_consolidado_grupos(
@@ -255,7 +291,7 @@ def generar_consolidado_grupos(
     current_user: User = Depends(get_current_investigador_or_instructor),
     db: Session = Depends(get_db)
 ):
-    """Genera reporte consolidado de grupos de investigación."""
+    """Genera reporte consolidado de grupos de investigación (GrupLAC)."""
     if not EXCEL_AVAILABLE and formato == "excel":
         raise HTTPException(status_code=500, detail="openpyxl no está instalado")
     
@@ -268,43 +304,82 @@ def generar_consolidado_grupos(
             ws.title = "Grupos GRUPLAC"
             
             # Título
-            ws["A1"] = "GRUPOS DE INVESTIGACIÓN - CGAO VÉLEZ"
-            ws["A2"] = f"Total grupos: {len(grupos)} | Generado: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}"
+            ws["A1"] = "GRUPOS DE INVESTIGACIÓN (GRUPLAC) - SENNOVA CGAO VÉLEZ"
+            ws["A2"] = f"Total Grupos: {len(grupos)} | Generado: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
             ws.merge_cells("A1:H1")
             ws.merge_cells("A2:H2")
-            ws["A1"].font = Font(bold=True, size=14)
-            ws["A1"].alignment = Alignment(horizontal="center")
+            ws["A1"].font = TITLE_FONT
+            ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+            ws["A2"].font = SUBTITLE_FONT
+            ws["A2"].alignment = Alignment(horizontal="center", vertical="center")
             
-            # Headers
-            headers = ["Nombre", "Código GRUPLAC", "Clasificación", "Líder", 
-                    "N° Integrantes", "N° Semilleros", "Fecha Creación", "Líneas de Investigación"]
-            
-            header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
-            header_font = Font(bold=True, color="FFFFFF")
+            headers = [
+                "Nombre del Grupo", "Código GrupLAC", "Clasificación MinCiencias", "Líder / Director", 
+                "N° Integrantes", "N° Semilleros", "Fecha Creación", "Líneas de Investigación"
+            ]
             
             for col, header in enumerate(headers, 1):
-                cell = ws.cell(row=5, column=col, value=header)
-                cell.fill = header_fill
-                cell.font = header_font
+                cell = ws.cell(row=4, column=col, value=header)
+                cell.fill = HEADER_FILL
+                cell.font = HEADER_FONT
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                cell.border = THIN_BORDER
             
-            # Datos
-            for row, grupo in enumerate(grupos, 6):
+            row = 5
+            total_integrantes = 0
+            total_semilleros = 0
+            
+            for grupo in grupos:
                 n_integrantes = len(grupo.integrantes) if grupo.integrantes else 0
-                n_semilleros = len(grupo.semilleros) if hasattr(grupo, 'semilleros') else 0
+                n_semilleros = len(grupo.semilleros) if hasattr(grupo, 'semilleros') and grupo.semilleros else 0
                 lineas = ", ".join(grupo.lineas_investigacion or [])
+                fecha_creacion = grupo.created_at.strftime('%Y-%m-%d') if grupo.created_at else "N/A"
                 
-                ws.cell(row=row, column=1, value=grupo.nombre)
-                ws.cell(row=row, column=2, value=grupo.codigo_gruplac or "N/A")
-                ws.cell(row=row, column=3, value=grupo.clasificacion or "No clasificado")
-                ws.cell(row=row, column=4, value=grupo.owner.nombre if grupo.owner else "Sin líder")
-                ws.cell(row=row, column=5, value=n_integrantes)
-                ws.cell(row=row, column=6, value=n_semilleros)
-                ws.cell(row=row, column=7, value=grupo.created_at.strftime('%Y-%m-%d') if grupo.created_at else "N/A")
-                ws.cell(row=row, column=8, value=lineas)
+                total_integrantes += n_integrantes
+                total_semilleros += n_semilleros
+                
+                data = [
+                    grupo.nombre,
+                    grupo.codigo_gruplac or "N/A",
+                    grupo.clasificacion or "Reconocido",
+                    grupo.owner.nombre if (grupo.owner and grupo.owner.nombre) else "Sin líder",
+                    n_integrantes,
+                    n_semilleros,
+                    fecha_creacion,
+                    lineas
+                ]
+                
+                for col, value in enumerate(data, 1):
+                    cell = ws.cell(row=row, column=col, value=value)
+                    cell.border = THIN_BORDER
+                    cell.font = Font(size=9)
+                    cell.alignment = Alignment(horizontal="left" if col in [1, 4, 8] else "center", vertical="center")
+                
+                row += 1
             
-            # Ajustar anchos
-            for i, width in enumerate([30, 20, 15, 25, 12, 12, 15, 40], 1):
-                ws.column_dimensions[chr(64+i)].width = width
+            # Totales
+            total_row = row
+            ws.cell(row=total_row, column=1, value="TOTALES").font = TOTAL_FONT
+            ws.cell(row=total_row, column=1).alignment = Alignment(horizontal="center", vertical="center")
+            ws.cell(row=total_row, column=1).fill = TOTAL_FILL
+            ws.cell(row=total_row, column=1).border = TOTAL_BORDER
+            
+            for c in range(2, 9):
+                cell = ws.cell(row=total_row, column=c)
+                cell.fill = TOTAL_FILL
+                cell.border = TOTAL_BORDER
+                cell.font = TOTAL_FONT
+                if c == 5:
+                    cell.value = total_integrantes
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                elif c == 6:
+                    cell.value = total_semilleros
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                else:
+                    cell.value = ""
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+            
+            auto_fit_columns(ws, len(headers))
             
             output = BytesIO()
             wb.save(output)
@@ -316,27 +391,27 @@ def generar_consolidado_grupos(
                 headers={"Content-Disposition": f"attachment; filename=consolidado_grupos_{datetime.now().strftime('%Y%m%d')}.xlsx"}
             )
         else:
-            # CSV
             import csv
-            output = BytesIO()
-            writer = csv.writer(output)
-            writer.writerow(["nombre", "codigo_gruplac", "clasificacion", "lider", "integrantes", "semilleros", "lineas"])
+            str_output = StringIO()
+            writer = csv.writer(str_output)
+            writer.writerow(["nombre", "codigo_gruplac", "clasificacion", "lider", "integrantes", "semilleros", "fecha_creacion", "lineas"])
             
             for grupo in grupos:
                 writer.writerow([
                     grupo.nombre,
                     grupo.codigo_gruplac or "",
                     grupo.clasificacion or "",
-                    grupo.owner.nombre if grupo.owner else "",
+                    grupo.owner.nombre if (grupo.owner and grupo.owner.nombre) else "",
                     len(grupo.integrantes) if grupo.integrantes else 0,
-                    len(grupo.semilleros) if hasattr(grupo, 'semilleros') else 0,
+                    len(grupo.semilleros) if hasattr(grupo, 'semilleros') and grupo.semilleros else 0,
+                    grupo.created_at.strftime('%Y-%m-%d') if grupo.created_at else "",
                     ", ".join(grupo.lineas_investigacion or [])
                 ])
             
-            output.seek(0)
+            output = BytesIO(str_output.getvalue().encode('utf-8-sig'))
             return StreamingResponse(
                 output,
-                media_type="text/csv",
+                media_type="text/csv; charset=utf-8",
                 headers={"Content-Disposition": f"attachment; filename=consolidado_grupos_{datetime.now().strftime('%Y%m%d')}.csv"}
             )
     except (OperationalError, SQLAlchemyError) as db_err:
@@ -344,6 +419,8 @@ def generar_consolidado_grupos(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ─── 3. Consolidado de Productos de Investigación ────────────────────────────
 
 @router.get("/productos-consolidado")
 def generar_consolidado_productos(
@@ -353,15 +430,17 @@ def generar_consolidado_productos(
     current_user: User = Depends(get_current_investigador_or_instructor),
     db: Session = Depends(get_db)
 ):
-    """Genera reporte de productos para convocatorias de recategorización."""
+    """Genera reporte consolidado de productos CTeI para convocatorias MinCiencias."""
     if not EXCEL_AVAILABLE and formato == "excel":
         raise HTTPException(status_code=500, detail="openpyxl no está instalado")
     
     try:
         query = db.query(Producto)
         if año:
-            query = query.filter(Producto.fecha_publicacion >= f"{año}-01-01", 
-                                Producto.fecha_publicacion <= f"{año}-12-31")
+            query = query.filter(
+                Producto.fecha_publicacion >= f"{año}-01-01", 
+                Producto.fecha_publicacion <= f"{año}-12-31"
+            )
         if verificados_only:
             query = query.filter(Producto.is_verificado == True)
         
@@ -370,47 +449,89 @@ def generar_consolidado_productos(
         if formato == "excel":
             wb = Workbook()
             ws = wb.active
-            ws.title = "Productos Verificados"
+            ws.title = "Productos MinCiencias"
             
-            # Título
-            ws["A1"] = "PRODUCTOS DE INVESTIGACIÓN - CGAO VÉLEZ"
+            ws["A1"] = "PRODUCTOS DE INVESTIGACIÓN Y DESARROLLO (CTeI) - SENNOVA CGAO VÉLEZ"
             filtro_texto = f"Año: {año}" if año else "Todos los años"
-            filtro_texto += " | Solo verificados" if verificados_only else ""
-            ws["A2"] = f"{filtro_texto} | Total: {len(productos)} | Generado: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}"
+            filtro_texto += " | Solo verificados" if verificados_only else " | Todos los estados"
+            ws["A2"] = f"{filtro_texto} | Total Productos: {len(productos)} | Generado: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+            
             ws.merge_cells("A1:I1")
             ws.merge_cells("A2:I2")
-            ws["A1"].font = Font(bold=True, size=14)
-            ws["A1"].alignment = Alignment(horizontal="center")
+            ws["A1"].font = TITLE_FONT
+            ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+            ws["A2"].font = SUBTITLE_FONT
+            ws["A2"].alignment = Alignment(horizontal="center", vertical="center")
             
-            # Headers
-            headers = ["Tipo", "Nombre", "Descripción", "Fecha Publicación", 
-                    "DOI", "Verificado", "Proyecto Asociado", "Autor", "URL"]
-            
-            header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
-            header_font = Font(bold=True, color="FFFFFF")
+            headers = [
+                "Tipo MinCiencias", "Nombre del Producto", "Descripción", "Fecha Publicación", 
+                "DOI / Identificador", "Verificado", "Proyecto Asociado", "Autor / Investigador", "URL / Soporte"
+            ]
             
             for col, header in enumerate(headers, 1):
-                cell = ws.cell(row=5, column=col, value=header)
-                cell.fill = header_fill
-                cell.font = header_font
+                cell = ws.cell(row=4, column=col, value=header)
+                cell.fill = HEADER_FILL
+                cell.font = HEADER_FONT
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                cell.border = THIN_BORDER
             
-            # Datos
-            for row, producto in enumerate(productos, 6):
-                proyecto_nombre = producto.proyecto.nombre_corto if producto.proyecto else "Sin proyecto"
+            row = 5
+            total_verificados = 0
+            
+            for producto in productos:
+                if producto.is_verificado:
+                    total_verificados += 1
+                    
+                proyecto_nombre = producto.proyecto.nombre_corto if (producto.proyecto and producto.proyecto.nombre_corto) else (producto.proyecto.nombre if producto.proyecto else "Sin proyecto")
+                autor_nombre = producto.owner.nombre if (producto.owner and producto.owner.nombre) else "N/A"
+                fecha_pub = str(producto.fecha_publicacion or "N/A")
                 
-                ws.cell(row=row, column=1, value=producto.tipo)
-                ws.cell(row=row, column=2, value=producto.nombre)
-                ws.cell(row=row, column=3, value=producto.descripcion or "")
-                ws.cell(row=row, column=4, value=producto.fecha_publicacion or "N/A")
-                ws.cell(row=row, column=5, value=producto.doi or "N/A")
-                ws.cell(row=row, column=6, value="Sí" if producto.is_verificado else "No")
-                ws.cell(row=row, column=7, value=proyecto_nombre)
-                ws.cell(row=row, column=8, value=producto.owner.nombre if producto.owner else "N/A")
-                ws.cell(row=row, column=9, value=producto.url or "N/A")
+                data = [
+                    producto.tipo,
+                    producto.nombre,
+                    producto.descripcion or "",
+                    fecha_pub,
+                    producto.doi or "N/A",
+                    "SÍ" if producto.is_verificado else "NO",
+                    proyecto_nombre,
+                    autor_nombre,
+                    producto.url or "N/A"
+                ]
+                
+                for col, value in enumerate(data, 1):
+                    cell = ws.cell(row=row, column=col, value=value)
+                    cell.border = THIN_BORDER
+                    cell.font = Font(size=9)
+                    cell.alignment = Alignment(horizontal="left" if col in [2, 3, 7, 8, 9] else "center", vertical="center")
+                    
+                    if col == 6:
+                        color_hex = "D1FAE5" if producto.is_verificado else "FEE2E2"
+                        cell.fill = PatternFill(start_color=color_hex, end_color=color_hex, fill_type="solid")
+                
+                row += 1
             
-            # Ajustar anchos
-            for i, width in enumerate([15, 35, 40, 15, 25, 12, 25, 30, 30], 1):
-                ws.column_dimensions[chr(64+i)].width = width
+            # Fila de Resumen
+            total_row = row
+            ws.cell(row=total_row, column=1, value="RESUMEN").font = TOTAL_FONT
+            ws.cell(row=total_row, column=1).fill = TOTAL_FILL
+            ws.cell(row=total_row, column=1).border = TOTAL_BORDER
+            ws.cell(row=total_row, column=1).alignment = Alignment(horizontal="center", vertical="center")
+            
+            for c in range(2, 10):
+                cell = ws.cell(row=total_row, column=c)
+                cell.fill = TOTAL_FILL
+                cell.border = TOTAL_BORDER
+                cell.font = TOTAL_FONT
+                if c == 2:
+                    cell.value = f"Total: {len(productos)} productos"
+                    cell.alignment = Alignment(horizontal="left", vertical="center")
+                elif c == 6:
+                    cell.value = f"{total_verificados} Verificados"
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                else:
+                    cell.value = ""
+            
+            auto_fit_columns(ws, len(headers))
             
             output = BytesIO()
             wb.save(output)
@@ -423,29 +544,30 @@ def generar_consolidado_productos(
                 headers={"Content-Disposition": f"attachment; filename=consolidado_productos_{suffix}_{datetime.now().strftime('%Y%m%d')}.xlsx"}
             )
         else:
-            # CSV
             import csv
-            output = BytesIO()
-            writer = csv.writer(output)
-            writer.writerow(["tipo", "nombre", "descripcion", "fecha_publicacion", "doi", "verificado", "proyecto", "url"])
+            str_output = StringIO()
+            writer = csv.writer(str_output)
+            writer.writerow(["tipo", "nombre", "descripcion", "fecha_publicacion", "doi", "verificado", "proyecto", "autor", "url"])
             
             for producto in productos:
+                proyecto_nombre = producto.proyecto.nombre_corto if (producto.proyecto and producto.proyecto.nombre_corto) else (producto.proyecto.nombre if producto.proyecto else "")
                 writer.writerow([
                     producto.tipo,
                     producto.nombre,
                     producto.descripcion or "",
-                    producto.fecha_publicacion or "",
+                    str(producto.fecha_publicacion or ""),
                     producto.doi or "",
                     "Sí" if producto.is_verificado else "No",
-                    producto.proyecto.nombre_corto if producto.proyecto else "",
+                    proyecto_nombre,
+                    producto.owner.nombre if (producto.owner and producto.owner.nombre) else "",
                     producto.url or ""
                 ])
             
-            output.seek(0)
             suffix = f"{año or 'todos'}_{'verificados' if verificados_only else 'todos'}"
+            output = BytesIO(str_output.getvalue().encode('utf-8-sig'))
             return StreamingResponse(
                 output,
-                media_type="text/csv",
+                media_type="text/csv; charset=utf-8",
                 headers={"Content-Disposition": f"attachment; filename=consolidado_productos_{suffix}_{datetime.now().strftime('%Y%m%d')}.csv"}
             )
     except (OperationalError, SQLAlchemyError) as db_err:
@@ -454,13 +576,15 @@ def generar_consolidado_productos(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ─── 4. Consolidado de Semilleros de Investigación ───────────────────────────
+
 @router.get("/semilleros-consolidado")
 def generar_consolidado_semilleros(
     formato: Literal["excel", "csv"] = Query("excel"),
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_investigador_or_instructor),
     db: Session = Depends(get_db)
 ):
-    """Genera certificación de semilleros con aprendices para reportes."""
+    """Genera reporte consolidado de semilleros y aprendices vinculados."""
     if not EXCEL_AVAILABLE and formato == "excel":
         raise HTTPException(status_code=500, detail="openpyxl no está instalado")
     
@@ -472,41 +596,75 @@ def generar_consolidado_semilleros(
             ws = wb.active
             ws.title = "Semilleros y Aprendices"
             
-            # Título
-            ws["A1"] = "SEMILLEROS DE INVESTIGACIÓN - CGAO VÉLEZ"
-            ws["A2"] = f"Total semilleros: {len(semilleros)} | Generado: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}"
+            ws["A1"] = "SEMILLEROS DE INVESTIGACIÓN FORMATIVA - SENNOVA CGAO VÉLEZ"
+            ws["A2"] = f"Total Semilleros: {len(semilleros)} | Generado: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
             ws.merge_cells("A1:G1")
             ws.merge_cells("A2:G2")
-            ws["A1"].font = Font(bold=True, size=14)
-            ws["A1"].alignment = Alignment(horizontal="center")
+            ws["A1"].font = TITLE_FONT
+            ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+            ws["A2"].font = SUBTITLE_FONT
+            ws["A2"].alignment = Alignment(horizontal="center", vertical="center")
             
-            # Headers
-            headers = ["Nombre Semillero", "Grupo Vinculado", "Líder", "Fecha Creación",
-                    "N° Aprendices", "Estado"]
-            
-            header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
-            header_font = Font(bold=True, color="FFFFFF")
+            headers = [
+                "Nombre del Semillero", "Sigla / Código", "Grupo Vinculado", "Líder de Semillero", 
+                "Fecha Creación", "N° Aprendices", "Estado"
+            ]
             
             for col, header in enumerate(headers, 1):
-                cell = ws.cell(row=5, column=col, value=header)
-                cell.fill = header_fill
-                cell.font = header_font
+                cell = ws.cell(row=4, column=col, value=header)
+                cell.fill = HEADER_FILL
+                cell.font = HEADER_FONT
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                cell.border = THIN_BORDER
             
-            # Datos
-            for row, semillero in enumerate(semilleros, 6):
-                n_aprendices = len(semillero.aprendices) if hasattr(semillero, 'aprendices') else 0
-                grupo_nombre = semillero.grupo.nombre if semillero.grupo else "Sin grupo"
+            row = 5
+            total_aprendices = 0
+            
+            for semillero in semilleros:
+                n_aprendices = len(semillero.aprendices) if hasattr(semillero, 'aprendices') and semillero.aprendices else 0
+                grupo_nombre = semillero.grupo.nombre if (semillero.grupo and semillero.grupo.nombre) else "Sin grupo"
+                lider_nombre = semillero.owner.nombre if (semillero.owner and semillero.owner.nombre) else "Sin líder"
+                fecha_creacion = semillero.created_at.strftime('%Y-%m-%d') if semillero.created_at else "N/A"
                 
-                ws.cell(row=row, column=1, value=semillero.nombre)
-                ws.cell(row=row, column=2, value=grupo_nombre)
-                ws.cell(row=row, column=3, value=semillero.owner.nombre if semillero.owner else "Sin líder")
-                ws.cell(row=row, column=4, value=semillero.created_at.strftime('%Y-%m-%d') if semillero.created_at else "N/A")
-                ws.cell(row=row, column=5, value=n_aprendices)
-                ws.cell(row=row, column=6, value=semillero.estado)
+                total_aprendices += n_aprendices
+                
+                data = [
+                    semillero.nombre,
+                    getattr(semillero, 'sigla', None) or getattr(semillero, 'codigo', None) or "N/A",
+                    grupo_nombre,
+                    lider_nombre,
+                    fecha_creacion,
+                    n_aprendices,
+                    semillero.estado or "Activo"
+                ]
+                
+                for col, value in enumerate(data, 1):
+                    cell = ws.cell(row=row, column=col, value=value)
+                    cell.border = THIN_BORDER
+                    cell.font = Font(size=9)
+                    cell.alignment = Alignment(horizontal="left" if col in [1, 3, 4] else "center", vertical="center")
+                
+                row += 1
             
-            # Ajustar anchos
-            for i, width in enumerate([30, 25, 25, 15, 12, 12], 1):
-                ws.column_dimensions[chr(64+i)].width = width
+            # Totales
+            total_row = row
+            ws.cell(row=total_row, column=1, value="TOTALES").font = TOTAL_FONT
+            ws.cell(row=total_row, column=1).fill = TOTAL_FILL
+            ws.cell(row=total_row, column=1).border = TOTAL_BORDER
+            ws.cell(row=total_row, column=1).alignment = Alignment(horizontal="center", vertical="center")
+            
+            for c in range(2, 8):
+                cell = ws.cell(row=total_row, column=c)
+                cell.fill = TOTAL_FILL
+                cell.border = TOTAL_BORDER
+                cell.font = TOTAL_FONT
+                if c == 6:
+                    cell.value = total_aprendices
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                else:
+                    cell.value = ""
+            
+            auto_fit_columns(ws, len(headers))
             
             output = BytesIO()
             wb.save(output)
@@ -518,26 +676,26 @@ def generar_consolidado_semilleros(
                 headers={"Content-Disposition": f"attachment; filename=consolidado_semilleros_{datetime.now().strftime('%Y%m%d')}.xlsx"}
             )
         else:
-            # CSV
             import csv
-            output = BytesIO()
-            writer = csv.writer(output)
-            writer.writerow(["nombre", "grupo", "lider", "fecha_creacion", "aprendices", "estado"])
+            str_output = StringIO()
+            writer = csv.writer(str_output)
+            writer.writerow(["nombre", "sigla", "grupo", "lider", "fecha_creacion", "aprendices", "estado"])
             
             for semillero in semilleros:
                 writer.writerow([
                     semillero.nombre,
-                    semillero.grupo.nombre if semillero.grupo else "",
-                    semillero.owner.nombre if semillero.owner else "",
+                    getattr(semillero, 'sigla', None) or getattr(semillero, 'codigo', None) or "",
+                    semillero.grupo.nombre if (semillero.grupo and semillero.grupo.nombre) else "",
+                    semillero.owner.nombre if (semillero.owner and semillero.owner.nombre) else "",
                     semillero.created_at.strftime('%Y-%m-%d') if semillero.created_at else "",
-                    len(semillero.aprendices) if hasattr(semillero, 'aprendices') else 0,
-                    semillero.estado
+                    len(semillero.aprendices) if hasattr(semillero, 'aprendices') and semillero.aprendices else 0,
+                    semillero.estado or "Activo"
                 ])
             
-            output.seek(0)
+            output = BytesIO(str_output.getvalue().encode('utf-8-sig'))
             return StreamingResponse(
                 output,
-                media_type="text/csv",
+                media_type="text/csv; charset=utf-8",
                 headers={"Content-Disposition": f"attachment; filename=consolidado_semilleros_{datetime.now().strftime('%Y%m%d')}.csv"}
             )
     except (OperationalError, SQLAlchemyError) as db_err:
@@ -546,23 +704,145 @@ def generar_consolidado_semilleros(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/estadisticas-resumen")
-def get_estadisticas_resumen(
-    admin: User = Depends(get_current_admin),
+# ─── 5. Consolidado de Talento Humano e Investigadores ───────────────────────
+
+@router.get("/talento-consolidado")
+def generar_consolidado_talento(
+    formato: Literal["excel", "csv"] = Query("excel"),
+    current_user: User = Depends(get_current_investigador_or_instructor),
     db: Session = Depends(get_db)
 ):
-    """Retorna estadísticas consolidadas para dashboard de reportes."""
+    """Genera reporte consolidado de talento humano, investigadores e instructores."""
+    if not EXCEL_AVAILABLE and formato == "excel":
+        raise HTTPException(status_code=500, detail="openpyxl no está instalado")
+
     try:
-        current_year = datetime.now().year
+        investigadores = db.query(User).filter(User.rol.in_(['investigador', 'instructor', 'admin'])).all()
         
-        # Conteos generales
+        if formato == "excel":
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Talento SENNOVA"
+            
+            ws["A1"] = "DIRECTORIO CONSOLIDADO DE TALENTO HUMANO - SENNOVA CGAO"
+            ws["A2"] = f"Total Personal CTeI: {len(investigadores)} | Generado: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+            ws.merge_cells("A1:G1")
+            ws.merge_cells("A2:G2")
+            ws["A1"].font = TITLE_FONT
+            ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+            ws["A2"].font = SUBTITLE_FONT
+            ws["A2"].alignment = Alignment(horizontal="center", vertical="center")
+            
+            headers = ["Nombre Completo", "Correo Institucional", "Regional", "Sede / Centro", "Nivel Académico", "Rol SENNOVA", "Estado"]
+            
+            for col, header in enumerate(headers, 1):
+                cell = ws.cell(row=4, column=col, value=header)
+                cell.fill = HEADER_FILL
+                cell.font = HEADER_FONT
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                cell.border = THIN_BORDER
+                
+            row = 5
+            total_activos = 0
+            for inv in investigadores:
+                if inv.is_active:
+                    total_activos += 1
+                
+                data = [
+                    inv.nombre,
+                    inv.email,
+                    inv.regional or "SANTANDER",
+                    inv.sede or "CGAO VÉLEZ",
+                    inv.nivel_academico or "Profesional",
+                    (inv.rol or 'investigador').capitalize(),
+                    "Activo" if inv.is_active else "Inactivo"
+                ]
+                
+                for col, value in enumerate(data, 1):
+                    cell = ws.cell(row=row, column=col, value=value)
+                    cell.border = THIN_BORDER
+                    cell.font = Font(size=9)
+                    cell.alignment = Alignment(horizontal="left" if col in [1, 2, 5] else "center", vertical="center")
+                    
+                    if col == 7:
+                        color_hex = "D1FAE5" if inv.is_active else "FEE2E2"
+                        cell.fill = PatternFill(start_color=color_hex, end_color=color_hex, fill_type="solid")
+                
+                row += 1
+            
+            # Totales
+            total_row = row
+            ws.cell(row=total_row, column=1, value="TOTALES").font = TOTAL_FONT
+            ws.cell(row=total_row, column=1).fill = TOTAL_FILL
+            ws.cell(row=total_row, column=1).border = TOTAL_BORDER
+            ws.cell(row=total_row, column=1).alignment = Alignment(horizontal="center", vertical="center")
+            
+            for c in range(2, 8):
+                cell = ws.cell(row=total_row, column=c)
+                cell.fill = TOTAL_FILL
+                cell.border = TOTAL_BORDER
+                cell.font = TOTAL_FONT
+                if c == 2:
+                    cell.value = f"Total: {len(investigadores)} registrados"
+                    cell.alignment = Alignment(horizontal="left", vertical="center")
+                elif c == 7:
+                    cell.value = f"{total_activos} Activos"
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                else:
+                    cell.value = ""
+            
+            auto_fit_columns(ws, len(headers))
+            
+            output = BytesIO()
+            wb.save(output)
+            output.seek(0)
+            return StreamingResponse(
+                output,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": "attachment; filename=reporte_talento_sennova.xlsx"}
+            )
+        else:
+            import csv
+            str_output = StringIO()
+            writer = csv.writer(str_output)
+            writer.writerow(["nombre", "email", "regional", "sede", "nivel_academico", "rol", "estado"])
+            for inv in investigadores:
+                writer.writerow([
+                    inv.nombre, 
+                    inv.email, 
+                    inv.regional or "SANTANDER",
+                    inv.sede or "CGAO VÉLEZ", 
+                    inv.nivel_academico or "", 
+                    inv.rol or "", 
+                    "Activo" if inv.is_active else "Inactivo"
+                ])
+            output = BytesIO(str_output.getvalue().encode('utf-8-sig'))
+            return StreamingResponse(
+                output, 
+                media_type="text/csv; charset=utf-8", 
+                headers={"Content-Disposition": "attachment; filename=reporte_talento.csv"}
+            )
+    except (OperationalError, SQLAlchemyError) as db_err:
+        raise db_err
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─── 6. Estadísticas Resumen Dashboard ───────────────────────────────────────
+
+@router.get("/estadisticas-resumen")
+def get_estadisticas_resumen(
+    current_user: User = Depends(get_current_investigador_or_instructor),
+    db: Session = Depends(get_db)
+):
+    """Retorna estadísticas consolidadas para el dashboard de reportes."""
+    try:
         total_proyectos = db.query(Proyecto).count()
         total_grupos = db.query(Grupo).count()
         total_semilleros = db.query(Semillero).count()
         total_productos = db.query(Producto).count()
-        total_investigadores = db.query(User).filter(User.rol == 'investigador').count()
+        total_investigadores = db.query(User).filter(User.rol.in_(['investigador', 'instructor'])).count()
         
-        # Proyectos por estado dinámico de la DB
         proyectos_por_estado = {
             str(estado): int(count)
             for estado, count in db.query(Proyecto.estado, func.count(Proyecto.id))
@@ -571,7 +851,6 @@ def get_estadisticas_resumen(
             .all()
         }
         
-        # Proyectos por vigencia / año
         proyectos_por_año = {
             str(año): int(count)
             for año, count in db.query(Proyecto.vigencia, func.count(Proyecto.id))
@@ -580,7 +859,6 @@ def get_estadisticas_resumen(
             .all()
         }
         
-        # Productos por tipo dinámico de la DB
         productos_por_tipo = {
             str(tipo): int(count)
             for tipo, count in db.query(Producto.tipo, func.count(Producto.id))
@@ -589,11 +867,9 @@ def get_estadisticas_resumen(
             .all()
         }
         
-        # Productos verificados vs pendientes
         productos_verificados = db.query(Producto).filter(Producto.is_verificado == True).count()
         productos_pendientes = total_productos - productos_verificados
         
-        # Grupos por clasificación GRUPLAC dinámico de la DB
         grupos_por_clasificacion = {
             str(clasif): int(count)
             for clasif, count in db.query(Grupo.clasificacion, func.count(Grupo.id))
@@ -627,58 +903,7 @@ def get_estadisticas_resumen(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/talento-consolidado")
-def generar_consolidado_talento(
-    formato: Literal["excel", "csv"] = Query("excel"),
-    admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    """Genera reporte consolidado de talento humano e investigadores."""
-    try:
-        investigadores = db.query(User).filter(User.rol == 'investigador').all()
-        
-        if formato == "excel" and EXCEL_AVAILABLE:
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "Talento SENNOVA"
-            
-            headers = ["Nombre", "Email", "Regional", "Sede", "Nivel Académico", "Impacto", "Estado"]
-            for col, header in enumerate(headers, 1):
-                cell = ws.cell(row=1, column=col, value=header)
-                cell.font = Font(bold=True)
-                
-            for row, inv in enumerate(investigadores, 2):
-                ws.cell(row=row, column=1, value=inv.nombre)
-                ws.cell(row=row, column=2, value=inv.email)
-                ws.cell(row=row, column=3, value=inv.regional or "SANTANDER")
-                ws.cell(row=row, column=4, value=inv.sede or "CGAO")
-                ws.cell(row=row, column=5, value=inv.nivel_academico or "N/A")
-                ws.cell(row=row, column=6, value=f"{getattr(inv, 'impacto', 0)}%")
-                ws.cell(row=row, column=7, value="Activo" if inv.is_active else "Inactivo")
-                
-            output = BytesIO()
-            wb.save(output)
-            output.seek(0)
-            return StreamingResponse(
-                output,
-                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                headers={"Content-Disposition": "attachment; filename=reporte_talento_sennova.xlsx"}
-            )
-        else:
-            # Fallback to CSV
-            import csv
-            output = BytesIO()
-            writer = csv.writer(output)
-            writer.writerow(["nombre", "email", "sede", "nivel_academico", "estado"])
-            for inv in investigadores:
-                writer.writerow([inv.nombre, inv.email, inv.sede or "", inv.nivel_academico or "", "Activo" if inv.is_active else "Inactivo"])
-            output.seek(0)
-            return StreamingResponse(output, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=reporte_talento.csv"})
-    except (OperationalError, SQLAlchemyError) as db_err:
-        raise db_err
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+# ─── 7. Certificado Individual de Investigador ───────────────────────────────
 
 @router.get("/investigador/{user_id}/certificado")
 def generar_certificado_investigador(
@@ -738,7 +963,6 @@ def generar_certificado_investigador(
             c.save()
             output.seek(0)
         except ImportError:
-            # Fallback si no está reportlab
             output = BytesIO()
             content = f"Error: Se requiere la librería 'reportlab' para generar el PDF de {user.nombre}."
             output.write(content.encode('utf-8'))

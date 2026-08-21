@@ -1,13 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   MessageSquare, Send, Search, Plus, User, Check, CheckCheck,
   Clock, RefreshCw, X, Users, ArrowLeft, Sparkles, Filter,
-  Shield, GraduationCap, Briefcase, Mail
+  Shield, GraduationCap, Briefcase, Mail, Radio, Wifi, WifiOff,
+  Paperclip
 } from 'lucide-react';
 import { MensajesAPI } from '@/api/mensajes';
+import { useRealtimeChat } from '@/hooks/useRealtimeChat';
+import { useTypingPulse } from '@/hooks/useTypingPulse';
+import MessageAttachments from './MessageAttachments';
+import MessageComposer from './MessageComposer';
+import { useMessageAttachments } from '@/hooks/useMessageAttachments';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import Card from '../ui/Card';
+import Modal from '../ui/Modal';
+
+// Con el canal SSE abierto los cambios llegan como eventos; el sondeo periódico
+// solo actúa como respaldo mientras el canal está caído o reconectando.
+const SONDEO_RESPALDO_MS = 15000;
 
 const ROLE_CONFIG = {
   admin: {
@@ -24,6 +35,13 @@ const ROLE_CONFIG = {
     color: 'blue',
     gradient: 'from-blue-600 to-indigo-700'
   },
+  instructor: {
+    label: 'Instructor',
+    badgeVariant: 'primary',
+    icon: Briefcase,
+    color: 'blue',
+    gradient: 'from-blue-600 to-indigo-700'
+  },
   aprendiz: {
     label: 'Aprendiz Semillero',
     badgeVariant: 'warning',
@@ -33,7 +51,48 @@ const ROLE_CONFIG = {
   },
 };
 
-export default function MensajeriaModule({ currentUser, onNotify, initialContact = null }) {
+/**
+ * Componente visual para los Checks de Confirmación de 3 Estados:
+ * 1. Enviado (1 check gris tenue)
+ * 2. Entregado (2 checks grises)
+ * 3. Leído (2 checks verde esmeralda brillante)
+ */
+function MessageStatusCheck({ isMine, leido, entregado, fechaLectura, fechaEntrega, createdAt, formatHora, isDark = true }) {
+  if (!isMine) return null;
+
+  if (leido) {
+    const tooltip = fechaLectura ? `Leído a las ${formatHora(fechaLectura)}` : 'Leído';
+    return (
+      <span title={tooltip} className="inline-flex items-center text-emerald-300 ml-1 transition-all">
+        <CheckCheck size={14} className="stroke-[2.5]" />
+      </span>
+    );
+  }
+
+  if (entregado) {
+    const tooltip = fechaEntrega ? `Entregado a las ${formatHora(fechaEntrega)}` : 'Entregado';
+    return (
+      <span title={tooltip} className={`inline-flex items-center ml-1 transition-all ${isDark ? 'text-emerald-100/70' : 'text-slate-400'}`}>
+        <CheckCheck size={14} className="stroke-[2.5]" />
+      </span>
+    );
+  }
+
+  const tooltip = createdAt ? `Enviado a las ${formatHora(createdAt)}` : 'Enviado';
+  return (
+    <span title={tooltip} className={`inline-flex items-center ml-1 transition-all ${isDark ? 'text-emerald-100/50' : 'text-slate-400'}`}>
+      <Check size={14} className="stroke-[2.5]" />
+    </span>
+  );
+}
+
+export default function MensajeriaModule({
+  currentUser,
+  onNotify,
+  initialContact = null,
+  initialAction = null,
+  onActionHandled = null
+}) {
   const [conversaciones, setConversaciones] = useState([]);
   const [selectedUser, setSelectedUser] = useState(initialContact);
   const [mensajes, setMensajes] = useState([]);
@@ -44,7 +103,7 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
   
   // Filtros y búsquedas
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('todos'); // todos, investigador, aprendiz, admin
+  const [roleFilter, setRoleFilter] = useState('todos');
   
   // Modal nuevo mensaje
   const [showNewChatModal, setShowNewChatModal] = useState(false);
@@ -53,56 +112,61 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
   const [destinatarioSearch, setDestinatarioSearch] = useState('');
   const [destinatarioRol, setDestinatarioRol] = useState('');
   
+  // Estado "Escribiendo..."
+  const [partnerTyping, setPartnerTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
+  
   // Stats
   const [stats, setStats] = useState({ total_recibidos: 0, no_leidos: 0, total_enviados: 0 });
 
+  // Adjuntos: subida, bandeja y descarte viven en su propio hook
+  const adjuntos = useMessageAttachments({ onNotify });
+
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const handledActionRef = useRef(null);
+  const activeTargetRef = useRef(null);
+  const componentMountedRef = useRef(true);
 
-  // Carga inicial y polling
   useEffect(() => {
-    loadConversaciones(true);
-    loadStats();
-    
-    // Polling cada 8 segundos
-    const pollTimer = setInterval(() => {
-      loadConversaciones(false);
-      if (selectedUser?.id) {
-        loadMensajesSilencioso(selectedUser.id);
-      }
-      loadStats();
-    }, 8000);
-
-    return () => clearInterval(pollTimer);
+    componentMountedRef.current = true;
+    return () => {
+      componentMountedRef.current = false;
+    };
   }, []);
 
-  // Cuando cambia el usuario seleccionado
-  useEffect(() => {
-    if (selectedUser?.id) {
-      loadMensajes(selectedUser.id);
-      marcarComoLeidos(selectedUser.id);
-    } else {
-      setMensajes([]);
-    }
-  }, [selectedUser?.id]);
+  // Formato de horas y fechas
+  const formatHora = useCallback((dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+  }, []);
 
-  // Auto scroll al fondo al recibir o enviar mensajes
-  useEffect(() => {
-    if (typeof messagesEndRef.current?.scrollIntoView === 'function') {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [mensajes]);
+  const formatFecha = useCallback((dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const hoy = new Date();
+    const esHoy = d.toDateString() === hoy.toDateString();
+    
+    const ayer = new Date();
+    ayer.setDate(ayer.getDate() - 1);
+    const esAyer = d.toDateString() === ayer.toDateString();
 
-  const loadStats = async () => {
+    if (esHoy) return formatHora(dateStr);
+    if (esAyer) return 'Ayer';
+    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+  }, [formatHora]);
+
+  const loadStats = useCallback(async () => {
     try {
       const data = await MensajesAPI.getStats();
       if (data) setStats(data);
     } catch (err) {
       console.error('Error cargando estadísticas de mensajes:', err);
     }
-  };
+  }, []);
 
-  const loadConversaciones = async (showLoader = false) => {
+  const loadConversaciones = useCallback(async (showLoader = false) => {
     if (showLoader) setLoadingConversaciones(true);
     try {
       const data = await MensajesAPI.getConversaciones();
@@ -112,9 +176,9 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
     } finally {
       if (showLoader) setLoadingConversaciones(false);
     }
-  };
+  }, []);
 
-  const loadMensajes = async (otroUsuarioId) => {
+  const loadMensajes = useCallback(async (otroUsuarioId) => {
     setLoadingMensajes(true);
     try {
       const data = await MensajesAPI.getConversacion(otroUsuarioId);
@@ -124,21 +188,9 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
     } finally {
       setLoadingMensajes(false);
     }
-  };
+  }, [onNotify]);
 
-  const loadMensajesSilencioso = async (otroUsuarioId) => {
-    try {
-      const data = await MensajesAPI.getConversacion(otroUsuarioId);
-      if (data && data.length !== mensajes.length) {
-        setMensajes(data);
-        marcarComoLeidos(otroUsuarioId);
-      }
-    } catch (err) {
-      // Ignorar error de polling silencioso
-    }
-  };
-
-  const marcarComoLeidos = async (otroUsuarioId) => {
+  const marcarComoLeidos = useCallback(async (otroUsuarioId) => {
     try {
       await MensajesAPI.marcarLeidos(otroUsuarioId);
       setConversaciones(prev =>
@@ -150,26 +202,249 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
     } catch (err) {
       console.error('Error marcando mensajes como leídos:', err);
     }
+  }, [loadStats]);
+
+  // Manejo de eventos en tiempo real (SSE)
+  const handleNewMessage = useCallback((msg) => {
+    if (!msg) return;
+
+    // Si el mensaje corresponde a la conversación abierta actualmente
+    if (selectedUser?.id && (msg.remitente_id === selectedUser.id || msg.destinatario_id === selectedUser.id)) {
+      setMensajes(prev => {
+        // Evitar duplicados
+        if (prev.some(m => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+
+      // Si el mensaje es recibido del contacto activo, marcar como leído inmediatamente
+      if (msg.remitente_id === selectedUser.id) {
+        marcarComoLeidos(selectedUser.id);
+      }
+    }
+
+    loadConversaciones(false);
+    loadStats();
+  }, [selectedUser?.id, marcarComoLeidos, loadConversaciones, loadStats]);
+
+  const handleMessagesDelivered = useCallback((data) => {
+    // Si el destinatario activo recibió mensajes míos, actualizar sus estados a entregado
+    if (data?.destinatario_id === selectedUser?.id || data?.remitente_id === currentUser?.id) {
+      setMensajes(prev =>
+        prev.map(m =>
+          m.remitente_id === currentUser?.id ? { ...m, entregado: true, fecha_entrega: data.timestamp } : m
+        )
+      );
+    }
+    loadConversaciones(false);
+  }, [selectedUser?.id, currentUser?.id, loadConversaciones]);
+
+  const handleMessagesRead = useCallback((data) => {
+    // Si el interlocutor leyó mis mensajes, actualizar los checks a leídos (verde)
+    if (data?.lector_id === selectedUser?.id || data?.otro_usuario_id === selectedUser?.id) {
+      setMensajes(prev =>
+        prev.map(m =>
+          m.remitente_id === currentUser?.id ? { ...m, leido: true, fecha_lectura: data.timestamp, entregado: true } : m
+        )
+      );
+    }
+    loadConversaciones(false);
+    loadStats();
+  }, [selectedUser?.id, currentUser?.id, loadConversaciones, loadStats]);
+
+  const handleTypingStatus = useCallback((data) => {
+    if (data?.remitente_id === selectedUser?.id) {
+      setPartnerTyping(Boolean(data.is_typing));
+
+      // Auto-limpieza a los 4 segundos por si no llega evento de stop
+      clearTimeout(typingTimeoutRef.current);
+      if (data.is_typing) {
+        typingTimeoutRef.current = setTimeout(() => {
+          setPartnerTyping(false);
+        }, 4000);
+      }
+    }
+  }, [selectedUser?.id]);
+
+  const handleMessageDeleted = useCallback((data) => {
+    if (data?.mensaje_id) {
+      setMensajes(prev => prev.filter(m => m.id !== data.mensaje_id));
+      loadConversaciones(false);
+      loadStats();
+    }
+  }, [loadConversaciones, loadStats]);
+
+  // Pulso "escribiendo..." del usuario hacia su interlocutor
+  const { registrarPulsacion, detenerPulso } = useTypingPulse(selectedUser?.id);
+
+  // Conexión reactiva en tiempo real con SSE
+  const { isConnected } = useRealtimeChat({
+    currentUser,
+    selectedUserId: selectedUser?.id,
+    onNewMessage: handleNewMessage,
+    onMessagesDelivered: handleMessagesDelivered,
+    onMessagesRead: handleMessagesRead,
+    onTypingStatus: handleTypingStatus,
+    onMessageDeleted: handleMessageDeleted,
+  });
+
+  // Carga inicial
+  useEffect(() => {
+    loadConversaciones(true);
+    loadStats();
+  }, [loadConversaciones, loadStats]);
+
+  // Sondeo de respaldo: solo mientras el canal asíncrono no esté disponible.
+  // Con SSE conectado los eventos ya traen cada cambio y sondear duplicaría carga.
+  useEffect(() => {
+    if (isConnected) return undefined;
+
+    const pollTimer = setInterval(() => {
+      loadConversaciones(false);
+      loadStats();
+    }, SONDEO_RESPALDO_MS);
+
+    return () => clearInterval(pollTimer);
+  }, [isConnected, loadConversaciones, loadStats]);
+
+  // Manejo de redirección inicial / navegación directa al chat desde notificaciones u otras vistas
+  useEffect(() => {
+    const actionData = initialAction?.data || initialAction?.initialData || initialContact;
+    if (!actionData) return;
+
+    const targetUserId = typeof actionData === 'string'
+      ? actionData
+      : (actionData.usuario_id || actionData.contacto_id || actionData.id);
+
+    if (!targetUserId) return;
+
+    const actionKey = `${targetUserId}-${initialAction?.form || ''}`;
+    if (handledActionRef.current === actionKey && selectedUser?.id === targetUserId) {
+      return;
+    }
+
+    activeTargetRef.current = targetUserId;
+
+    const resolveAndSelectUser = async () => {
+      // 1. Si los datos ya vienen completos en actionData
+      if (typeof actionData === 'object' && actionData.nombre && actionData.id) {
+        if (componentMountedRef.current && activeTargetRef.current === targetUserId) {
+          handledActionRef.current = actionKey;
+          setSelectedUser(actionData);
+          onActionHandled?.();
+        }
+        return;
+      }
+
+      // 2. Si ya está cargado en conversaciones existentes
+      const foundInConversaciones = conversaciones.find(
+        (c) => String(c.otro_usuario?.id) === String(targetUserId)
+      );
+      if (foundInConversaciones?.otro_usuario) {
+        if (componentMountedRef.current && activeTargetRef.current === targetUserId) {
+          handledActionRef.current = actionKey;
+          setSelectedUser(foundInConversaciones.otro_usuario);
+          onActionHandled?.();
+        }
+        return;
+      }
+
+      // 3. Consultar a la API el contacto por ID
+      try {
+        const contactData = await MensajesAPI.getContacto(targetUserId);
+        if (componentMountedRef.current && activeTargetRef.current === targetUserId && contactData?.id) {
+          handledActionRef.current = actionKey;
+          setSelectedUser(contactData);
+          onActionHandled?.();
+          return;
+        }
+      } catch (err) {
+        console.warn('Fallback al consultar contacto:', err);
+      }
+
+      // 4. Fallback: buscar en destinatarios
+      try {
+        const destList = await MensajesAPI.getDestinatarios();
+        const foundInDest = destList?.find((u) => String(u.id) === String(targetUserId));
+        if (componentMountedRef.current && activeTargetRef.current === targetUserId && foundInDest) {
+          handledActionRef.current = actionKey;
+          setSelectedUser(foundInDest);
+          onActionHandled?.();
+          return;
+        }
+      } catch (err) {
+        console.error('Error buscando contacto en destinatarios:', err);
+      }
+
+      // 5. Fallback final: crear objeto básico para permitir abrir el chat y cargar mensajes
+      if (componentMountedRef.current && activeTargetRef.current === targetUserId) {
+        handledActionRef.current = actionKey;
+        setSelectedUser({
+          id: targetUserId,
+          nombre: actionData.nombre || 'Usuario',
+          rol: actionData.rol || 'investigador',
+          email: actionData.email || '',
+        });
+        onActionHandled?.();
+      }
+    };
+
+    resolveAndSelectUser();
+  }, [initialAction, initialContact, conversaciones, selectedUser?.id, onActionHandled]);
+
+  // Cuando cambia el usuario seleccionado
+  useEffect(() => {
+    if (selectedUser?.id) {
+      loadMensajes(selectedUser.id);
+      marcarComoLeidos(selectedUser.id);
+      setPartnerTyping(false);
+    } else {
+      setMensajes([]);
+      setPartnerTyping(false);
+    }
+  }, [selectedUser?.id, loadMensajes, marcarComoLeidos]);
+
+  // Auto scroll al fondo al recibir o enviar mensajes o al activarse el typing
+  useEffect(() => {
+    if (typeof messagesEndRef.current?.scrollIntoView === 'function') {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [mensajes, partnerTyping]);
+
+  const handleInputChange = (e) => {
+    const text = e.target.value;
+    setNuevoMensajeTexto(text);
+    e.target.style.height = 'auto';
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+
+    registrarPulsacion();
   };
 
   const handleEnviarMensaje = async (e) => {
     e?.preventDefault();
     const contenido = nuevoMensajeTexto.trim();
-    if (!contenido || !selectedUser?.id || sending) return;
+    const tieneAdjuntos = adjuntos.ids.length > 0;
+    if ((!contenido && !tieneAdjuntos) || !selectedUser?.id || sending || adjuntos.subiendo) return;
 
     setSending(true);
+    detenerPulso();
+
     try {
       const response = await MensajesAPI.enviar({
         destinatario_id: selectedUser.id,
         contenido: contenido,
+        adjunto_ids: adjuntos.ids,
       });
 
-      // Actualizar mensajes localmente optimista
-      setMensajes(prev => [...prev, response]);
+      // Actualizar mensajes localmente si no vino por SSE
+      setMensajes(prev => {
+        if (prev.some(m => m.id === response.id)) return prev;
+        return [...prev, response];
+      });
+
       setNuevoMensajeTexto('');
+      adjuntos.limpiar();
       if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
-      // Actualizar lista de conversaciones
       loadConversaciones(false);
       loadStats();
     } catch (err) {
@@ -187,10 +462,12 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
   };
 
   const openNewChatModal = async () => {
+    setDestinatarioSearch('');
+    setDestinatarioRol('');
     setShowNewChatModal(true);
     setLoadingDestinatarios(true);
     try {
-      const data = await MensajesAPI.getDestinatarios();
+      const data = await MensajesAPI.getDestinatarios('', '');
       setDestinatarios(data || []);
     } catch (err) {
       onNotify?.('Error al cargar contactos disponibles', 'error');
@@ -214,6 +491,11 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
   const handleSelectDestinatario = (userObj) => {
     setSelectedUser(userObj);
     setShowNewChatModal(false);
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    }, 150);
   };
 
   // Filtrado de conversaciones
@@ -230,27 +512,6 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
     return matchSearch && matchRole;
   });
 
-  const formatHora = (dateStr) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
-  };
-
-  const formatFecha = (dateStr) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    const hoy = new Date();
-    const esHoy = d.toDateString() === hoy.toDateString();
-    
-    const ayer = new Date();
-    ayer.setDate(ayer.getDate() - 1);
-    const esAyer = d.toDateString() === ayer.toDateString();
-
-    if (esHoy) return formatHora(dateStr);
-    if (esAyer) return 'Ayer';
-    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
-  };
-
   return (
     <div className="space-y-6">
       {/* Cabecera del Módulo */}
@@ -260,14 +521,29 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
             <MessageSquare size={26} />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              Mensajería Interna SENNOVA
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                Mensajería Interna SENNOVA
+              </h1>
+              {/* Indicador de conexión en tiempo real */}
+              <span
+                title={isConnected ? 'Conectado al canal asíncrono en tiempo real (SSE)' : 'Reconectando canal en tiempo real...'}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                  isConnected
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                {isConnected ? 'Tiempo real' : 'Sincronizando'}
+              </span>
+
               {stats.no_leidos > 0 && (
                 <span className="px-2.5 py-0.5 rounded-full bg-rose-500 text-white text-xs font-bold animate-pulse">
                   {stats.no_leidos} nuevo{stats.no_leidos > 1 ? 's' : ''}
                 </span>
               )}
-            </h1>
+            </div>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
               Comunicación directa y colaborativa entre Coordinación, Investigadores y Aprendices
             </p>
@@ -288,7 +564,7 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
       {/* Contenedor Principal de Mensajería: 2 Columnas */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[620px] max-h-[750px]">
         
-        {/* PANEL IZQUIERDO: Lista de Conversaciones (Oculto en móvil si hay chat seleccionado) */}
+        {/* PANEL IZQUIERDO: Lista de Conversaciones */}
         <div className={`lg:col-span-5 xl:col-span-4 border-r border-slate-200 flex flex-col ${selectedUser ? 'hidden lg:flex' : 'flex'}`}>
           {/* Barra de búsqueda y filtros */}
           <div className="p-4 border-b border-slate-100 space-y-3 bg-slate-50/50">
@@ -405,9 +681,20 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
                         </Badge>
                       </div>
 
-                      <p className={`text-xs truncate ${conv.no_leidos > 0 ? 'font-black text-slate-900' : 'text-slate-500'}`}>
-                        {isMine && <span className="text-slate-400 font-normal">Tú: </span>}
-                        {conv.ultimo_mensaje?.contenido || 'Sin mensajes'}
+                      <p className={`text-xs truncate flex items-center gap-1 ${conv.no_leidos > 0 ? 'font-black text-slate-900' : 'text-slate-500'}`}>
+                        {isMine && (
+                          <span className="inline-flex items-center text-slate-400 font-normal mr-0.5">
+                            {conv.ultimo_mensaje?.leido ? (
+                              <CheckCheck size={13} className="text-emerald-600 mr-1" title="Leído" />
+                            ) : conv.ultimo_mensaje?.entregado ? (
+                              <CheckCheck size={13} className="text-slate-400 mr-1" title="Entregado" />
+                            ) : (
+                              <Check size={13} className="text-slate-400 mr-1" title="Enviado" />
+                            )}
+                            Tú:
+                          </span>
+                        )}
+                        <span className="truncate">{conv.ultimo_mensaje?.contenido || 'Sin mensajes'}</span>
                       </p>
                     </div>
 
@@ -453,17 +740,25 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
                       </Badge>
                     </div>
                     <p className="text-[11px] text-slate-400 truncate flex items-center gap-2">
-                      <span>{selectedUser.email}</span>
-                      {selectedUser.programa_formacion && (
+                      {partnerTyping ? (
+                        <span className="text-emerald-600 font-bold animate-pulse">
+                          escribiendo...
+                        </span>
+                      ) : (
                         <>
-                          <span>•</span>
-                          <span className="text-amber-700 font-medium">{selectedUser.programa_formacion} {selectedUser.ficha ? `(${selectedUser.ficha})` : ''}</span>
-                        </>
-                      )}
-                      {selectedUser.rol_sennova && (
-                        <>
-                          <span>•</span>
-                          <span className="text-emerald-700 font-medium">{selectedUser.rol_sennova}</span>
+                          <span>{selectedUser.email}</span>
+                          {selectedUser.programa_formacion && (
+                            <>
+                              <span>•</span>
+                              <span className="text-amber-700 font-medium">{selectedUser.programa_formacion} {selectedUser.ficha ? `(${selectedUser.ficha})` : ''}</span>
+                            </>
+                          )}
+                          {selectedUser.rol_sennova && (
+                            <>
+                              <span>•</span>
+                              <span className="text-emerald-700 font-medium">{selectedUser.rol_sennova}</span>
+                            </>
+                          )}
                         </>
                       )}
                     </p>
@@ -518,77 +813,58 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
                               {msg.asunto}
                             </p>
                           )}
-                          <p>{msg.contenido}</p>
+                          {msg.contenido && <p>{msg.contenido}</p>}
+                          <MessageAttachments adjuntos={msg.adjuntos} />
                           
+                          {/* Pie de mensaje: Hora y Check de Confirmación de 3 Estados */}
                           <div className={`flex items-center justify-end gap-1 mt-1.5 text-[10px] ${isMine ? 'text-emerald-100/80' : 'text-slate-400'}`}>
                             <span>{formatHora(msg.created_at)}</span>
-                            {isMine && (
-                              msg.leido ? (
-                                <CheckCheck size={13} className="text-emerald-200" title="Leído" />
-                              ) : (
-                                <Check size={13} className="text-white/60" title="Enviado" />
-                              )
-                            )}
+                            <MessageStatusCheck
+                              isMine={isMine}
+                              leido={msg.leido}
+                              entregado={msg.entregado}
+                              fechaLectura={msg.fecha_lectura}
+                              fechaEntrega={msg.fecha_entrega}
+                              createdAt={msg.created_at}
+                              formatHora={formatHora}
+                              isDark={isMine}
+                            />
                           </div>
                         </div>
                       </div>
                     );
                   })
                 )}
+
+                {/* Indicador de "Escribiendo..." flotante */}
+                {partnerTyping && (
+                  <div className="flex items-center gap-2 text-xs text-slate-500 bg-white border border-slate-200 rounded-2xl px-3.5 py-2 w-fit shadow-sm animate-fadeIn">
+                    <span className="font-semibold">{selectedUser.nombre} está escribiendo</span>
+                    <div className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  </div>
+                )}
+
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Respuestas Rápidas / Sugerencias */}
-              <div className="px-4 py-2 bg-white/70 border-t border-slate-100 flex items-center gap-2 overflow-x-auto scrollbar-none">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex-shrink-0">Sugerencias:</span>
-                {[
-                  '¡Hola! ¿Cómo estás?',
-                  '¿Me confirmas el avance del entregable?',
-                  'Quedo atento a tus comentarios.',
-                  'Excelente trabajo con la bitácora.',
-                ].map((sug, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setNuevoMensajeTexto(sug)}
-                    className="px-2.5 py-1 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg text-[11px] text-slate-600 font-medium whitespace-nowrap transition-colors border border-transparent hover:border-emerald-200"
-                  >
-                    {sug}
-                  </button>
-                ))}
-              </div>
-
-              {/* Área de Entrada de Mensaje */}
-              <div className="p-4 bg-white border-t border-slate-200">
-                <form onSubmit={handleEnviarMensaje} className="flex items-end gap-3">
-                  <div className="flex-1 bg-slate-50 border border-slate-200 focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-2xl p-2.5 transition-all">
-                    <textarea
-                      ref={textareaRef}
-                      rows={1}
-                      value={nuevoMensajeTexto}
-                      onChange={(e) => {
-                        setNuevoMensajeTexto(e.target.value);
-                        e.target.style.height = 'auto';
-                        e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
-                      }}
-                      onKeyDown={handleKeyDown}
-                      placeholder={`Escribe un mensaje para ${selectedUser.nombre}... (Enter para enviar)`}
-                      className="w-full bg-transparent border-0 resize-none outline-none text-xs font-medium text-slate-800 placeholder:text-slate-400 max-h-28"
-                    />
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={!nuevoMensajeTexto.trim() || sending}
-                    className="h-11 w-11 p-0 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {sending ? (
-                      <RefreshCw size={18} className="animate-spin" />
-                    ) : (
-                      <Send size={18} />
-                    )}
-                  </Button>
-                </form>
-              </div>
+              <MessageComposer
+                destinatarioNombre={selectedUser.nombre}
+                texto={nuevoMensajeTexto}
+                onTextoChange={handleInputChange}
+                onSugerencia={(sugerencia) => {
+                  setNuevoMensajeTexto(sugerencia);
+                  textareaRef.current?.focus();
+                }}
+                onKeyDown={handleKeyDown}
+                onEnviar={handleEnviarMensaje}
+                textareaRef={textareaRef}
+                adjuntos={adjuntos}
+                enviando={sending}
+              />
             </>
           ) : (
             /* Estado Vacío cuando no hay chat seleccionado */
@@ -598,7 +874,7 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
               </div>
               <h3 className="text-base font-black text-slate-800">Centro de Mensajería SENNOVA</h3>
               <p className="text-xs text-slate-500 max-w-sm mt-1 mb-6 leading-relaxed">
-                Selecciona una conversación del panel lateral o inicia un nuevo chat para coordinar proyectos, bitácoras y actividades de investigación.
+                Selecciona una conversación del panel lateral o inicia un nuevo chat para coordinar proyectos, bitácoras y actividades de investigación con confirmación en tiempo real.
               </p>
               <Button
                 onClick={openNewChatModal}
@@ -612,125 +888,118 @@ export default function MensajeriaModule({ currentUser, onNotify, initialContact
         </div>
       </div>
 
-      {/* MODAL: Nuevo Mensaje / Directorio de Destinatarios */}
-      {showNewChatModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
-            {/* Cabecera del Modal */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                  <Users size={20} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm">Nuevo Mensaje</h3>
-                  <p className="text-[11px] text-slate-400">Selecciona un usuario para iniciar el chat</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowNewChatModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-              >
-                <X size={18} />
-              </button>
+      {/* MODAL: Nuevo Mensaje */}
+      <Modal
+        isOpen={showNewChatModal}
+        onClose={() => setShowNewChatModal(false)}
+        size="md"
+        variant="sena"
+        icon={Users}
+        title="Nuevo Mensaje"
+        subtitle="Selecciona un usuario para iniciar el chat"
+        footer={
+          <div className="flex justify-end w-full">
+            <Button variant="secondary" onClick={() => setShowNewChatModal(false)}>Cerrar</Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {/* Búsqueda y Filtros de Contactos */}
+          <div className="space-y-3">
+            <div className="relative">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre, email o programa..."
+                value={destinatarioSearch}
+                onChange={(e) => {
+                  setDestinatarioSearch(e.target.value);
+                  handleSearchDestinatarios(e.target.value, destinatarioRol);
+                }}
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+              />
             </div>
 
-            {/* Búsqueda y Filtros de Contactos */}
-            <div className="p-4 border-b border-slate-100 space-y-3">
-              <div className="relative">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar por nombre, email o programa..."
-                  value={destinatarioSearch}
-                  onChange={(e) => {
-                    setDestinatarioSearch(e.target.value);
-                    handleSearchDestinatarios(e.target.value, destinatarioRol);
+            {/* Filtros de rol */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { id: '', label: 'Todos' },
+                { id: 'investigador', label: 'Investigadores' },
+                { id: 'aprendiz', label: 'Aprendices' },
+                { id: 'admin', label: 'Coordinadores' },
+              ].map(tab => (
+                <button
+                  type="button"
+                  key={tab.id}
+                  onClick={() => {
+                    setDestinatarioRol(tab.id);
+                    handleSearchDestinatarios(destinatarioSearch, tab.id);
                   }}
-                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                />
-              </div>
-
-              {/* Filtros de rol */}
-              <div className="flex items-center gap-1.5">
-                {[
-                  { id: '', label: 'Todos' },
-                  { id: 'investigador', label: 'Investigadores' },
-                  { id: 'aprendiz', label: 'Aprendices' },
-                  { id: 'admin', label: 'Coordinadores' },
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setDestinatarioRol(tab.id);
-                      handleSearchDestinatarios(destinatarioSearch, tab.id);
-                    }}
-                    className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                      destinatarioRol === tab.id
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Lista de Destinatarios */}
-            <div className="flex-1 overflow-y-auto p-4 divide-y divide-slate-100 max-h-80">
-              {loadingDestinatarios ? (
-                <div className="py-12 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
-                  <RefreshCw size={22} className="animate-spin text-emerald-600" />
-                  <span>Buscando contactos...</span>
-                </div>
-              ) : destinatarios.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs">
-                  No se encontraron usuarios disponibles.
-                </div>
-              ) : (
-                destinatarios.map((dest) => {
-                  const roleConfig = ROLE_CONFIG[dest.rol] || ROLE_CONFIG.investigador;
-                  const RoleIcon = roleConfig.icon;
-
-                  return (
-                    <button
-                      key={dest.id}
-                      onClick={() => handleSelectDestinatario(dest)}
-                      className="w-full p-3 text-left flex items-center justify-between gap-3 hover:bg-emerald-50/60 rounded-xl transition-all group"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${roleConfig.gradient} flex items-center justify-center text-white font-black text-xs shadow-sm flex-shrink-0`}>
-                          {dest.nombre.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-900 group-hover:text-emerald-700 truncate">
-                            {dest.nombre}
-                          </p>
-                          <p className="text-[10px] text-slate-400 truncate">
-                            {dest.email}
-                          </p>
-                          {dest.programa_formacion && (
-                            <p className="text-[10px] text-amber-700 font-medium truncate">
-                              {dest.programa_formacion} {dest.ficha ? `(${dest.ficha})` : ''}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge variant={roleConfig.badgeVariant} className="text-[9px]">
-                          {roleConfig.label}
-                        </Badge>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
+                  className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    destinatarioRol === tab.id
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </div>
+
+          {/* Lista de Destinatarios */}
+          <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto custom-scrollbar rounded-2xl border border-slate-100 bg-slate-50/50 p-2">
+            {loadingDestinatarios ? (
+              <div className="py-12 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
+                <RefreshCw size={22} className="animate-spin text-emerald-600" />
+                <span>Buscando contactos...</span>
+              </div>
+            ) : destinatarios.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs">
+                No se encontraron usuarios disponibles.
+              </div>
+            ) : (
+              destinatarios.map((dest) => {
+                const roleConfig = ROLE_CONFIG[dest.rol] || ROLE_CONFIG.investigador;
+
+                return (
+                  <button
+                    type="button"
+                    key={dest.id}
+                    onClick={() => handleSelectDestinatario(dest)}
+                    className="w-full p-2.5 text-left flex items-center justify-between gap-3 hover:bg-white rounded-xl transition-all group hover:shadow-sm"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${roleConfig.gradient} flex items-center justify-center text-white font-black text-xs shadow-sm flex-shrink-0`}>
+                        {dest.nombre.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 group-hover:text-emerald-700 truncate">
+                          {dest.nombre}
+                        </p>
+                        <p className="text-[10px] text-slate-400 truncate">
+                          {dest.email}
+                        </p>
+                        {dest.programa_formacion && (
+                          <p className="text-[10px] text-amber-700 font-medium truncate">
+                            {dest.programa_formacion} {dest.ficha ? `(${dest.ficha})` : ''}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Badge variant={roleConfig.badgeVariant} className="text-[9px]">
+                        {roleConfig.label}
+                      </Badge>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

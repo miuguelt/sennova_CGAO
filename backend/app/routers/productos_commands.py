@@ -133,7 +133,7 @@ def _apply_product_update(
     producto: Producto, producto_update: ProductoUpdate, db: Session
 ) -> None:
     """Apply allowed fields and persist the product update."""
-    update_data = producto_update.dict(exclude_unset=True)
+    update_data = producto_update.model_dump(exclude_unset=True) if hasattr(producto_update, 'model_dump') else producto_update.dict(exclude_unset=True)
     if producto.is_verificado:
         update_data.pop("proyecto_id", None)
     for field, value in update_data.items():

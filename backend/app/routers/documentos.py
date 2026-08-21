@@ -18,7 +18,7 @@ from app.config import get_settings
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import Documento, User, Proyecto
-from app.schemas import DocumentoResponse
+from app.schemas import DocumentoResponse, DocumentoCreate
 from app.utils import log_actividad
 from app.services.proyectos_service import evaluar_y_auto_finalizar_proyecto
 
@@ -37,7 +37,7 @@ def view_documento(
     db: Session = Depends(get_db)
 ):
     """Ver documento directamente en el navegador."""
-    doc = db.query(Documento).filter(Documento.id == uuid.UUID(documento_id)).first()
+    doc = db.query(Documento).filter(Documento.id == str(documento_id)).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
     
@@ -47,6 +47,8 @@ def view_documento(
             proyecto = db.query(Proyecto).filter(Proyecto.id == doc.entidad_id).first()
             if not (proyecto and any(m.id == current_user.id for m in proyecto.equipo)):
                 raise HTTPException(status_code=403, detail="Sin acceso")
+        elif doc.entidad_tipo in ["general", "formato", "plantilla"]:
+            pass
         else:
             raise HTTPException(status_code=403, detail="Sin acceso")
     
@@ -118,15 +120,16 @@ def list_documentos(
     if entidad_tipo:
         query = query.filter(Documento.entidad_tipo == entidad_tipo)
     if entidad_id:
-        query = query.filter(Documento.entidad_id == uuid.UUID(entidad_id))
+        query = query.filter(Documento.entidad_id == str(entidad_id))
     if tipo:
         query = query.filter(Documento.tipo == tipo)
     
-    # Si no es admin, solo ver sus propios documentos o documentos públicos
+    # Si no es admin, solo ver sus propios documentos o documentos públicos de proyectos y generales
     if current_user.rol != "admin":
         query = query.filter(
             (Documento.owner_id == current_user.id) |
-            (Documento.entidad_tipo == "proyecto")  # Proyectos son públicos entre el equipo
+            (Documento.entidad_tipo == "proyecto") |
+            (Documento.entidad_tipo.in_(["general", "formato", "plantilla"]))
         )
     
     documentos = query.order_by(Documento.created_at.desc()).all()
@@ -140,7 +143,7 @@ def get_documento(
     db: Session = Depends(get_db)
 ):
     """Obtener detalle de un documento."""
-    doc = db.query(Documento).filter(Documento.id == uuid.UUID(documento_id)).first()
+    doc = db.query(Documento).filter(Documento.id == str(documento_id)).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
     
@@ -157,11 +160,63 @@ def get_documento(
     return doc
 
 
+@router.post("", response_model=DocumentoResponse, status_code=201)
+@router.post("/", response_model=DocumentoResponse, status_code=201)
+def create_documento_base64(
+    data: DocumentoCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Crea o registra un documento mediante base64 (JSON)."""
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para subir documentos")
+
+    doc_id = str(uuid.uuid4())
+    file_ext = data.nombre_archivo.split('.')[-1] if '.' in data.nombre_archivo else 'bin'
+    file_name = f"{doc_id}.{file_ext}"
+    file_path = STORAGE_DIR / file_name
+
+    try:
+        binary_data = base64.b64decode(data.data_base64)
+        with open(file_path, "wb") as f:
+            f.write(binary_data)
+    except Exception:
+        file_path = None
+
+    documento = Documento(
+        id=doc_id,
+        entidad_tipo=data.entidad_tipo,
+        entidad_id=str(data.entidad_id),
+        tipo=data.tipo,
+        nombre_archivo=data.nombre_archivo,
+        file_path=str(file_path) if file_path else None,
+        data_base64=data.data_base64 if not file_path else None,
+        content_type="application/pdf" if data.nombre_archivo.endswith(".pdf") else "application/octet-stream",
+        owner_id=str(current_user.id)
+    )
+
+    db.add(documento)
+    try:
+        db.commit()
+        db.refresh(documento)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if data.entidad_tipo == "proyecto" and data.tipo == "informe_final":
+        try:
+            evaluar_y_auto_finalizar_proyecto(str(data.entidad_id), db)
+        except Exception:
+            pass
+
+    return documento
+
+
 @router.post("/upload", response_model=DocumentoResponse, status_code=201)
 async def upload_documento(
-    entidad_tipo: str = Form(..., description="Tipo: proyecto, producto, user"),
-    entidad_id: str = Form(...),
-    tipo: str = Form(..., description="Tipo: cvlac_pdf, acta, contrato, informe, otro"),
+    entidad_tipo: Optional[str] = Form("general", description="Tipo: proyecto, producto, user, general, formato"),
+    entidad_id: Optional[str] = Form(None),
+    tipo: Optional[str] = Form("evidencia", description="Tipo: cvlac_pdf, acta, contrato, informe, evidencia, soporte_minciencias, otro"),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -183,12 +238,16 @@ async def upload_documento(
     with open(file_path, "wb") as f:
         f.write(content)
     
+    resolved_entidad_tipo = entidad_tipo or "general"
+    resolved_entidad_id = entidad_id if (entidad_id and entidad_id.strip()) else str(current_user.id)
+    resolved_tipo = tipo or "evidencia"
+    
     # Crear documento en BD
     documento = Documento(
         id=doc_id,
-        entidad_tipo=entidad_tipo,
-        entidad_id=str(uuid.UUID(entidad_id)),
-        tipo=tipo,
+        entidad_tipo=resolved_entidad_tipo,
+        entidad_id=resolved_entidad_id,
+        tipo=resolved_tipo,
         nombre_archivo=file.filename,
         content_type=content_type,
         file_path=str(file_path).replace("\\", "/"),
@@ -211,9 +270,9 @@ async def upload_documento(
     db.refresh(documento)
     
     # Si se subió un informe final de proyecto, evaluar auto-finalización
-    if entidad_tipo == "proyecto" and tipo == "informe_final":
+    if resolved_entidad_tipo == "proyecto" and resolved_tipo == "informe_final":
         try:
-            evaluar_y_auto_finalizar_proyecto(entidad_id, db)
+            evaluar_y_auto_finalizar_proyecto(resolved_entidad_id, db)
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning("Error al evaluar auto-finalización tras subir informe_final: %s", e)
@@ -228,7 +287,7 @@ def download_documento(
     db: Session = Depends(get_db)
 ):
     """Descargar un documento. Retorna base64 por compatibilidad con frontend."""
-    doc = db.query(Documento).filter(Documento.id == uuid.UUID(documento_id)).first()
+    doc = db.query(Documento).filter(Documento.id == str(documento_id)).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
     
@@ -241,6 +300,8 @@ def download_documento(
                 pass
             else:
                 raise HTTPException(status_code=403, detail="Sin acceso")
+        elif doc.entidad_tipo in ["general", "formato", "plantilla"]:
+            pass
         else:
             raise HTTPException(status_code=403, detail="Sin acceso")
     
@@ -274,7 +335,7 @@ def delete_documento(
     db: Session = Depends(get_db)
 ):
     """Eliminar un documento de la BD y del disco."""
-    doc = db.query(Documento).filter(Documento.id == uuid.UUID(documento_id)).first()
+    doc = db.query(Documento).filter(Documento.id == str(documento_id)).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
     
@@ -358,15 +419,15 @@ def get_proyecto_documentos(
     """Listar documentos de un proyecto específico."""
     from app.models import Proyecto
     
-    proyecto = db.query(Proyecto).filter(Proyecto.id == uuid.UUID(proyecto_id)).first()
+    proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     
     # Verificar acceso
     has_access = (
         current_user.rol == "admin" or
-        proyecto.owner_id == current_user.id or
-        any(m.id == current_user.id for m in proyecto.equipo)
+        str(proyecto.owner_id) == str(current_user.id) or
+        any(str(m.id) == str(current_user.id) for m in proyecto.equipo)
     )
     
     if not has_access:
@@ -374,7 +435,7 @@ def get_proyecto_documentos(
     
     documentos = db.query(Documento).filter(
         Documento.entidad_tipo == "proyecto",
-        Documento.entidad_id == uuid.UUID(proyecto_id)
+        Documento.entidad_id == str(proyecto_id)
     ).order_by(Documento.created_at.desc()).all()
     
     return documentos

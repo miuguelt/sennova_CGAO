@@ -12,12 +12,14 @@ RUN npm install
 # Copiar el resto del código
 COPY . .
 
-# Argumentos de construcción para variables de entorno (Vite necesita VITE_ al inicio)
-ARG VITE_API_URL
+# Argumentos de construcción para variables de entorno (Vite necesita VITE_ al inicio).
+# Son las únicas dos que el código lee vía import.meta.env; quedan horneadas en el
+# bundle, así que cambiarlas exige reconstruir la imagen del frontend.
+ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
 
-ARG VITE_BACKEND_URL
-ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+ARG VITE_CVLAC_BASE_URL=https://scienti.minciencias.gov.co
+ENV VITE_CVLAC_BASE_URL=$VITE_CVLAC_BASE_URL
 
 # Construir la aplicación
 RUN npm run build

@@ -482,7 +482,8 @@ def cambiar_estado_entregable(
         return {
             "message": f"Estado actualizado a: {nuevo_estado}",
             "entregable_id": entregable_id,
-            "nuevo_estado": nuevo_estado
+            "nuevo_estado": nuevo_estado,
+            "estado": nuevo_estado
         }
     except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
         db.rollback()

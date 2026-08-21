@@ -168,6 +168,7 @@ class Grupo(Base):
     owner = relationship("User", back_populates="grupos_creados", foreign_keys=[owner_id])
     integrantes = relationship("User", secondary=grupo_integrantes, back_populates="grupos_miembro")
     semilleros = relationship("Semillero", back_populates="grupo", cascade="all, delete-orphan")
+    proyectos = relationship("Proyecto", back_populates="grupo", cascade="all, delete-orphan")
 
 
 class Semillero(Base):
@@ -296,9 +297,10 @@ class Proyecto(Base):
     informe_final_path = Column(String(255))        # Informe final subido
     # ─────────────────────────────────────────────────────────────────
     
-    # Vinculación con Retos y Semilleros
+    # Vinculación con Retos, Semilleros y Grupos de Investigación
     reto_origen_id = get_uuid_column(ForeignKey("retos.id"))
     semillero_id = get_uuid_column(ForeignKey("semilleros.id"))  # Semillero al que pertenece
+    grupo_id = get_uuid_column(ForeignKey("grupos.id", ondelete="SET NULL"), nullable=True)  # Grupo de Investigación principal
     
     convocatoria_id = get_uuid_column(ForeignKey("convocatorias.id"))
     owner_id = get_uuid_column(ForeignKey("users.id"), nullable=False)
@@ -310,6 +312,7 @@ class Proyecto(Base):
     # Relaciones
     convocatoria = relationship("Convocatoria", back_populates="proyectos")
     semillero = relationship("Semillero", back_populates="proyectos")
+    grupo = relationship("Grupo", back_populates="proyectos", foreign_keys=[grupo_id])
     owner = relationship("User", back_populates="proyectos_creados", foreign_keys=[owner_id])
     equipo = relationship("User", secondary=proyecto_equipo, back_populates="proyectos_miembro")
     productos = relationship("Producto", back_populates="proyecto")
@@ -557,6 +560,8 @@ class Mensaje(Base):
     
     leido = Column(Boolean, default=False, index=True)
     fecha_lectura = Column(DateTime, nullable=True)
+    entregado = Column(Boolean, default=False, index=True)
+    fecha_entrega = Column(DateTime, nullable=True)
     es_anuncio = Column(Boolean, default=False)
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
@@ -565,3 +570,39 @@ class Mensaje(Base):
     # Relaciones
     remitente = relationship("User", foreign_keys=[remitente_id], back_populates="mensajes_enviados")
     destinatario = relationship("User", foreign_keys=[destinatario_id], back_populates="mensajes_recibidos")
+    adjuntos = relationship(
+        "MensajeAdjunto",
+        back_populates="mensaje",
+        cascade="all, delete-orphan",
+        order_by="MensajeAdjunto.created_at"
+    )
+
+
+class MensajeAdjunto(Base):
+    """Archivo adjunto a un mensaje (imagen, video, audio o documento).
+
+    El archivo vive fuera de la base de datos, en el almacén direccionable por
+    contenido. `storage_path` es relativo a esa raíz y `sha256` identifica el
+    contenido: dos adjuntos con el mismo digest comparten un único archivo.
+    `mensaje_id` es nulo entre la subida y el envío del mensaje.
+    """
+    __tablename__ = "mensaje_adjuntos"
+
+    id = get_uuid_column(primary_key=True, default=uuid.uuid4)
+
+    mensaje_id = get_uuid_column(ForeignKey("mensajes.id", ondelete="CASCADE"), nullable=True, index=True)
+    owner_id = get_uuid_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    nombre_archivo = Column(String(255), nullable=False)
+    content_type = Column(String(120), nullable=False)
+    categoria = Column(String(20), nullable=False, index=True)  # imagen | video | audio | documento
+    tamano_bytes = Column(Integer, nullable=False, default=0)
+
+    sha256 = Column(String(64), nullable=False, index=True)
+    storage_path = Column(String(255), nullable=False)
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    # Relaciones
+    mensaje = relationship("Mensaje", back_populates="adjuntos")
+    owner = relationship("User", foreign_keys=[owner_id])

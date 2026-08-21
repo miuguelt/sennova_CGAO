@@ -2,7 +2,6 @@ from typing import List, Optional
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from uuid import UUID
 
 from app.database import get_db
 from app.auth import get_current_user, get_current_admin
@@ -12,10 +11,11 @@ from app.schemas import AprendizResponse, AprendizUpdate
 router = APIRouter(prefix="/aprendices", tags=["Gestión de Aprendices"])
 
 @router.get("", response_model=List[AprendizResponse])
+@router.get("/", response_model=List[AprendizResponse])
 def list_aprendices(
     skip: int = 0,
     limit: int = 100,
-    semillero_id: Optional[UUID] = None,
+    semillero_id: Optional[str] = None,
     estado: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -28,7 +28,7 @@ def list_aprendices(
         query = db.query(Aprendiz)
         
         if semillero_id:
-            query = query.filter(Aprendiz.semillero_id == semillero_id)
+            query = query.filter(Aprendiz.semillero_id == str(semillero_id))
         if estado:
             query = query.filter(Aprendiz.estado == estado)
             
@@ -40,13 +40,15 @@ def list_aprendices(
 
 @router.get("/{aprendiz_id}", response_model=AprendizResponse)
 def get_aprendiz(
-    aprendiz_id: UUID,
+    aprendiz_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Obtiene el detalle de un aprendiz específico."""
     try:
-        aprendiz = db.query(Aprendiz).filter(Aprendiz.id == aprendiz_id).first()
+        aprendiz = db.query(Aprendiz).filter(
+            (Aprendiz.id == str(aprendiz_id)) | (Aprendiz.user_id == str(aprendiz_id))
+        ).first()
         if not aprendiz:
             raise HTTPException(status_code=404, detail="Aprendiz no encontrado")
         return aprendiz
@@ -59,23 +61,25 @@ def get_aprendiz(
 
 @router.put("/{aprendiz_id}", response_model=AprendizResponse)
 def update_aprendiz(
-    aprendiz_id: UUID,
+    aprendiz_id: str,
     data: AprendizUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Actualiza el estado de un aprendiz."""
     try:
-        aprendiz = db.query(Aprendiz).filter(Aprendiz.id == aprendiz_id).first()
+        aprendiz = db.query(Aprendiz).filter(
+            (Aprendiz.id == str(aprendiz_id)) | (Aprendiz.user_id == str(aprendiz_id))
+        ).first()
         if not aprendiz:
             raise HTTPException(status_code=404, detail="Aprendiz no encontrado")
         
         # Solo administradores o el líder del semillero pueden editar
-        semillero = db.query(Semillero).filter(Semillero.id == aprendiz.semillero_id).first()
-        if current_user.rol != "admin" and str(semillero.owner_id) != str(current_user.id):
+        semillero = db.query(Semillero).filter(Semillero.id == str(aprendiz.semillero_id)).first()
+        if current_user.rol != "admin" and (not semillero or str(semillero.owner_id) != str(current_user.id)):
             raise HTTPException(status_code=403, detail="No tiene permisos para modificar este aprendiz")
         
-        update_data = data.dict(exclude_unset=True)
+        update_data = data.model_dump(exclude_unset=True) if hasattr(data, 'model_dump') else data.dict(exclude_unset=True)
         for field, value in update_data.items():
             setattr(aprendiz, field, value)
             
@@ -94,13 +98,15 @@ def update_aprendiz(
 
 @router.delete("/{aprendiz_id}")
 def delete_aprendiz(
-    aprendiz_id: UUID,
+    aprendiz_id: str,
     current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """Elimina el registro de vinculación de un aprendiz (Solo Admin)."""
     try:
-        aprendiz = db.query(Aprendiz).filter(Aprendiz.id == aprendiz_id).first()
+        aprendiz = db.query(Aprendiz).filter(
+            (Aprendiz.id == str(aprendiz_id)) | (Aprendiz.user_id == str(aprendiz_id))
+        ).first()
         if not aprendiz:
             raise HTTPException(status_code=404, detail="Aprendiz no encontrado")
             

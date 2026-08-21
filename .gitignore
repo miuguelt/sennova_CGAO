@@ -50,6 +50,12 @@ sennova.db
 # Las bases de prueba viven en un directorio temporal por corrida (tests/db_support.py).
 # La regla cubre las copias antiguas que quedaron en el arbol de codigo.
 test_*.db
+# Pidfiles: los escriben procesos de infraestructura en la raiz del proyecto y
+# quedaban sin ignorar, en estado contradictorio dentro de git.
+*.pid
+# Credenciales de operacion: no se versionan. Los scripts que las necesiten
+# deben leerlas del entorno.
+login.json
 # Docker Data (Local Only)
 _data/
 postgres_data/

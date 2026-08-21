@@ -12,6 +12,9 @@ import Badge from '../ui/Badge';
 import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
+import Modal from '../ui/Modal';
+import Drawer from '../ui/Drawer';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import { SemillerosAPI } from '../../api/semilleros';
 
 const SECTORES = [
@@ -48,6 +51,7 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
   const [selectedReto, setSelectedReto] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
   
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
@@ -112,16 +116,22 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
     }
   };
 
-  const handleDelete = async (id, e) => {
+  const handleDelete = (id, e) => {
     if (e) e.stopPropagation();
-    if (!window.confirm('¿Estás seguro de eliminar este reto del banco?')) return;
+    setDeleteConfirm({ isOpen: true, id });
+  };
+
+  const confirmDeleteAction = async () => {
+    const id = deleteConfirm.id;
+    if (!id) return;
     try {
       await RetosAPI.delete(id);
-      onNotify('Reto eliminado del sistema', 'success');
+      onNotify('Reto eliminado del banco de innovación', 'success');
       setIsDetailOpen(false);
+      setDeleteConfirm({ isOpen: false, id: null });
       loadRetos();
     } catch (err) {
-      onNotify('Error al eliminar el reto', 'error');
+      onNotify('Error al eliminar el reto: ' + (err.message || ''), 'error');
     }
   };
 
@@ -287,8 +297,8 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
                         {reto.sector_productivo || 'General'}
                       </div>
                       {reto.semillero_asignado_id && (
-                        <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md w-fit border border-emerald-100">
-                          <Users size={10} /> {reto.semillero_nombre || 'Semillero Asignado'}
+                        <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md w-fit border border-emerald-200">
+                          <Users size={10} /> {semilleros.find(s => s.id === reto.semillero_asignado_id)?.nombre || reto.semillero_nombre || 'Semillero Asignado'}
                         </div>
                       )}
                     </div>
@@ -313,234 +323,242 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
         </div>
       )}
 
-      {/* ── Detail Side-Over ── */}
-      {isDetailOpen && selectedReto && (() => {
+      {/* ── Detail Drawer (Estandarizado en Pila) ── */}
+      {selectedReto && (() => {
         const sector = getSectorIcon(selectedReto.sector_productivo);
         const estado = ESTADOS.find(e => e.value === selectedReto.estado) || ESTADOS[0];
-        const Icon = sector.icon;
 
         return (
-          <div className="fixed inset-0 z-[100] overflow-hidden print:static print:block print:overflow-visible">
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-fadeIn print:hidden" onClick={() => setIsDetailOpen(false)} />
-            <div className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10 print:static print:block print:w-full">
-              <div className="w-screen max-w-lg h-full bg-white shadow-2xl flex flex-col animate-slideInRight print:w-full print:max-w-none print:shadow-none print:animate-none print:static">
-                {/* Header Detail */}
-                <div className={`px-8 py-8 border-b border-slate-100 ${sector.bg}`}>
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="p-3 bg-white rounded-2xl shadow-sm text-amber-600">
-                      <Icon size={24} />
-                    </div>
-                    <div className="flex gap-2">
-                      {(currentUser?.rol === 'admin' || currentUser?.id === selectedReto.owner_id) && (
-                        <>
-                          <button onClick={(e) => handleOpenEdit(selectedReto, e)} className="p-2.5 bg-white text-blue-600 hover:bg-blue-50 rounded-xl shadow-sm border border-blue-100 transition-all"><Edit2 size={18} /></button>
-                          <button onClick={(e) => handleDelete(selectedReto.id, e)} className="p-2.5 bg-white text-rose-600 hover:bg-rose-50 rounded-xl shadow-sm border border-rose-100 transition-all"><Trash2 size={18} /></button>
-                        </>
-                      )}
-                      <button onClick={() => setIsDetailOpen(false)} className="p-2.5 bg-white text-slate-400 hover:text-slate-600 rounded-xl shadow-sm border border-slate-100 transition-all ml-2"><X size={18} /></button>
-                    </div>
-                  </div>
-                  <h2 className="text-2xl font-black text-slate-900 leading-tight mb-4">{selectedReto.titulo}</h2>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant={estado.variant} className="px-3 py-1 text-xs font-bold uppercase tracking-wider">{estado.label}</Badge>
-                    <Badge variant="amber" className="px-3 py-1 text-xs font-bold uppercase tracking-wider">{selectedReto.prioridad} prioridad</Badge>
-                  </div>
-                </div>
-
-                {/* Body Detail */}
-                <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin">
-                  <section>
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                      <Info size={14} className="text-amber-500" /> Descripción del Problema
-                    </h3>
-                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 text-slate-700 leading-relaxed text-sm shadow-inner">
-                      {selectedReto.descripcion}
-                    </div>
-                  </section>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Sector Impactado</p>
-                      <p className="font-bold text-slate-900 flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${sector.bg.replace('50', '500')}`} />
-                        {selectedReto.sector_productivo}
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Empresa / Origen</p>
-                      <p className="font-bold text-slate-900 flex items-center gap-2">
-                        <Building size={14} className="text-slate-400" />
-                        {selectedReto.empresa_solicitante || 'No especificada'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <section className="pt-4">
-                    <div className="p-6 bg-amber-50 rounded-2xl border border-amber-100 mb-4">
-                      <h4 className="font-bold text-amber-900 mb-2 flex items-center gap-2">
-                        <Mail size={18} /> ¿Quieres proponer una solución?
-                      </h4>
-                      <p className="text-sm text-amber-800/80 mb-4 leading-relaxed">
-                        Si tienes una idea o proyecto que pueda resolver este reto, contacta directamente con el solicitante o coordina con el centro.
-                      </p>
-                      <a 
-                        href={`mailto:${selectedReto.contacto_email}`} 
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-amber-600 text-white rounded-xl font-bold text-sm hover:bg-amber-700 transition-all shadow-md shadow-amber-200"
-                      >
-                        Enviar propuesta a: {selectedReto.contacto_email || 'CGAO Investiga'}
-                      </a>
-                    </div>
-                    
-                    {currentUser?.rol !== 'admin' && currentUser?.rol !== 'aprendiz' && (
-                      <Button 
-                        variant="primary" 
-                        className="w-full py-4 bg-slate-900 hover:bg-black text-white shadow-xl flex items-center justify-center gap-2"
-                        onClick={() => {
-                          onNotify('Iniciando formulación de proyecto de solución basada en este reto...', 'info');
-                          onModuleAction?.({ 
-                            module: 'proyectos', 
-                            form: 'create', 
-                            initialData: { 
-                              nombre: selectedReto.titulo, 
-                              descripcion: selectedReto.descripcion,
-                              reto_origen_id: selectedReto.id 
-                            } 
-                          });
-                        }}
-                      >
-                        <Zap size={18} fill="currentColor" className="text-amber-400" /> 
-                        Formular Proyecto de Solución
-                      </Button>
-                    )}
-                    {currentUser?.rol === 'aprendiz' && (
-                      <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 text-center">
-                        <p className="text-xs text-indigo-900 font-bold mb-2">¿Tienes una idea para este reto?</p>
-                        <p className="text-[11px] text-slate-500 mb-3">Habla con tu instructor o tutor de semillero para registrar una propuesta formativa conjunta.</p>
-                        <Button 
-                          variant="outline" 
-                          className="w-full bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50 text-xs font-bold"
-                          onClick={() => onModuleAction?.({ module: 'semilleros' })}
-                        >
-                          Explorar Semilleros Disponibles
-                        </Button>
-                      </div>
-                    )}
-                  </section>
-                </div>
-
-                {/* Footer Detail */}
-                <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 print:hidden">
-                  <Button variant="secondary" className="flex-1" onClick={() => setIsDetailOpen(false)}>Cerrar</Button>
-                  <Button variant="primary" className="flex-1 bg-slate-900 hover:bg-black" onClick={() => window.print()}>
-                    <ExternalLink size={16} className="mr-2" /> Exportar PDF
-                  </Button>
-                </div>
+          <Drawer
+            isOpen={isDetailOpen && !!selectedReto}
+            onClose={() => setIsDetailOpen(false)}
+            size="lg"
+            variant="warning"
+            title={selectedReto.titulo}
+            badge={
+              <div className="flex flex-wrap gap-2">
+                <Badge variant={estado.variant} className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">{estado.label}</Badge>
+                <Badge variant="amber" className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">{selectedReto.prioridad} prioridad</Badge>
               </div>
+            }
+            footer={
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                <Button variant="secondary" className="flex-1 justify-center order-2 sm:order-1" onClick={() => setIsDetailOpen(false)}>Cerrar</Button>
+                {(currentUser?.rol === 'admin' || currentUser?.id === selectedReto.owner_id) && (
+                  <Button 
+                    variant="sena" 
+                    className="flex-1 justify-center order-1 sm:order-2" 
+                    onClick={(e) => handleOpenEdit(selectedReto, e)}
+                  >
+                    <Edit2 size={16} className="mr-1.5" /> Editar Reto
+                  </Button>
+                )}
+                <Button variant="primary" className="bg-slate-900 hover:bg-black justify-center" onClick={() => window.print()}>
+                  <ExternalLink size={16} className="mr-1.5" /> PDF
+                </Button>
+              </div>
+            }
+          >
+            <div className="space-y-6">
+              <section>
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                  <Info size={14} className="text-amber-500" /> Descripción del Problema
+                </h3>
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-slate-700 leading-relaxed text-xs font-medium">
+                  {selectedReto.descripcion}
+                </div>
+              </section>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Sector Impactado</p>
+                  <p className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${sector.bg.replace('50', '500')}`} />
+                    {selectedReto.sector_productivo}
+                  </p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Empresa / Origen</p>
+                  <p className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                    <Building size={14} className="text-slate-400" />
+                    {selectedReto.empresa_solicitante || 'No especificada'}
+                  </p>
+                </div>
+                {selectedReto.semillero_asignado_id && (
+                  <div className="sm:col-span-2 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 shadow-sm">
+                    <p className="text-[10px] font-bold text-emerald-800 uppercase mb-1">Semillero Vinculado a la Solución</p>
+                    <p className="text-xs font-bold text-emerald-950 flex items-center gap-2">
+                      <Users size={14} className="text-emerald-600" />
+                      {semilleros.find(s => s.id === selectedReto.semillero_asignado_id)?.nombre || selectedReto.semillero_nombre || 'Semillero Asignado'}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <section className="pt-2">
+                <div className="p-5 bg-amber-50/80 rounded-2xl border border-amber-100 mb-4">
+                  <h4 className="text-xs font-bold text-amber-900 mb-1.5 flex items-center gap-2">
+                    <Mail size={16} /> ¿Quieres proponer una solución?
+                  </h4>
+                  <p className="text-xs text-amber-800/80 mb-3 leading-relaxed">
+                    Si tienes una idea o proyecto que pueda resolver este reto, contacta directamente con el solicitante o coordina con el centro.
+                  </p>
+                  <a 
+                    href={`mailto:${selectedReto.contacto_email}`} 
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-amber-600 text-white rounded-xl font-bold text-xs hover:bg-amber-700 transition-all shadow-md shadow-amber-200"
+                  >
+                    Enviar propuesta a: {selectedReto.contacto_email || 'CGAO Investiga'}
+                  </a>
+                </div>
+                
+                {currentUser?.rol !== 'admin' && currentUser?.rol !== 'aprendiz' && (
+                  <Button 
+                    variant="primary" 
+                    className="w-full py-3 bg-slate-900 hover:bg-black text-white shadow-xl flex items-center justify-center gap-2 text-xs font-bold"
+                    onClick={() => {
+                      onNotify('Iniciando formulación de proyecto de solución basada en este reto...', 'info');
+                      onModuleAction?.({ 
+                        module: 'proyectos', 
+                        form: 'create', 
+                        initialData: { 
+                          nombre: selectedReto.titulo, 
+                          descripcion: selectedReto.descripcion,
+                          reto_origen_id: selectedReto.id 
+                        } 
+                      });
+                    }}
+                  >
+                    <Zap size={16} fill="currentColor" className="text-amber-400" /> 
+                    Formular Proyecto de Solución
+                  </Button>
+                )}
+                {currentUser?.rol === 'aprendiz' && (
+                  <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 text-center">
+                    <p className="text-xs text-indigo-900 font-bold mb-1.5">¿Tienes una idea para este reto?</p>
+                    <p className="text-[11px] text-slate-500 mb-3">Habla con tu instructor o tutor de semillero para registrar una propuesta formativa conjunta.</p>
+                    <Button 
+                      variant="outline" 
+                      className="w-full bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50 text-xs font-bold justify-center"
+                      onClick={() => onModuleAction?.({ module: 'semilleros' })}
+                    >
+                      Explorar Semilleros Disponibles
+                    </Button>
+                  </div>
+                )}
+              </section>
             </div>
-          </div>
+          </Drawer>
         );
       })()}
 
-      {/* ── Form Modal (Crear/Editar) ── */}
-      {showModal && (
-        <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-          <div className="fixed inset-0" onClick={() => setShowModal(false)} aria-hidden="true" />
-          <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-scaleIn border-0 shadow-2xl bg-white relative z-10 rounded-3xl">
-            <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-amber-600 to-amber-700 text-white shrink-0">
-              <div>
-                <h2 className="text-xl font-black tracking-tight">{isEditing ? 'Actualizar Reto' : 'Publicar Nuevo Reto'}</h2>
-                <p className="text-xs text-amber-100 font-bold uppercase tracking-widest mt-0.5">Liderazgo Sennova CGAO</p>
-              </div>
-              <button onClick={() => setShowModal(false)} className="p-2 text-slate-200 hover:text-white rounded-xl hover:bg-white/10 transition-all"><X size={20} /></button>
-            </div>
-            
-            <div className="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
-              <Input 
-                label="Título del Reto de Investigación" 
-                placeholder="Ej: Análisis de eficiencia energética en calderas industriales..." 
-                value={formData.titulo} 
-                onChange={e => setFormData({...formData, titulo: e.target.value})} 
-                required 
+      {/* ── Form Modal (Estandarizado en Pila) ── */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        size="xl"
+        variant="warning"
+        icon={isEditing ? Edit2 : Lightbulb}
+        title={isEditing ? 'Actualizar Reto' : 'Publicar Nuevo Reto'}
+        subtitle="Banco institucional de retos e innovación CGAO"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowModal(false)} className="w-full sm:w-auto justify-center">Cancelar</Button>
+            <Button 
+              variant="sena"
+              onClick={handleSubmit} 
+              disabled={!formData.titulo || !formData.descripcion}
+              className="w-full sm:w-auto justify-center"
+            >
+              {isEditing ? 'Actualizar Reto' : 'Publicar Reto'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <Input 
+            label="Título del Reto de Investigación" 
+            placeholder="Ej: Análisis de eficiencia energética en calderas industriales..." 
+            value={formData.titulo} 
+            onChange={e => setFormData({...formData, titulo: e.target.value})} 
+            required 
+          />
+          
+          <TextArea 
+            label="Descripción Técnica y Necesidad" 
+            placeholder="Detalla el problema, el contexto y qué se espera lograr..." 
+            value={formData.descripcion} 
+            onChange={e => setFormData({...formData, descripcion: e.target.value})} 
+            rows={5} 
+            required 
+          />
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select 
+              label="Sector Productivo" 
+              value={formData.sector_productivo} 
+              onChange={e => setFormData({...formData, sector_productivo: e.target.value})}
+              options={SECTORES.map(s => ({ value: s.value, label: s.value }))}
+            />
+            <Input 
+              label="Empresa / Organización Solicitante" 
+              placeholder="Nombre de la empresa o grupo" 
+              value={formData.empresa_solicitante} 
+              onChange={e => setFormData({...formData, empresa_solicitante: e.target.value})} 
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input 
+              label="Email de Contacto" 
+              type="email" 
+              placeholder="ejemplo@empresa.com" 
+              value={formData.contacto_email} 
+              onChange={e => setFormData({...formData, contacto_email: e.target.value})} 
+            />
+            <Select 
+              label="Prioridad de Atención" 
+              value={formData.prioridad} 
+              onChange={e => setFormData({...formData, prioridad: e.target.value})} 
+              options={[
+                { value: 'baja', label: 'Baja - Largo Plazo' },
+                { value: 'media', label: 'Media - Trimestral' },
+                { value: 'alta', label: 'Alta - Urgente' }
+              ]} 
+            />
+          </div>
+
+          {isEditing && (
+            <div className="pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Select 
+                label="Estado de Gestión" 
+                value={formData.estado} 
+                onChange={e => setFormData({...formData, estado: e.target.value})} 
+                options={ESTADOS} 
               />
-              
-              <TextArea 
-                label="Descripción Técnica y Necesidad" 
-                placeholder="Detalla el problema, el contexto y qué se espera lograr..." 
-                value={formData.descripcion} 
-                onChange={e => setFormData({...formData, descripcion: e.target.value})} 
-                rows={5} 
-                required 
+              <Select 
+                label="Semillero Asignado" 
+                value={formData.semillero_asignado_id} 
+                onChange={e => setFormData({...formData, semillero_asignado_id: e.target.value})} 
+                options={[
+                  { value: '', label: 'Sin asignar' },
+                  ...semilleros.map(s => ({ value: s.id, label: s.nombre }))
+                ]} 
               />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Select 
-                  label="Sector Productivo" 
-                  value={formData.sector_productivo} 
-                  onChange={e => setFormData({...formData, sector_productivo: e.target.value})}
-                  options={SECTORES.map(s => ({ value: s.value, label: s.value }))}
-                />
-                <Input 
-                  label="Empresa / Organización Solicitante" 
-                  placeholder="Nombre de la empresa o grupo" 
-                  value={formData.empresa_solicitante} 
-                  onChange={e => setFormData({...formData, empresa_solicitante: e.target.value})} 
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input 
-                  label="Email de Contacto" 
-                  type="email" 
-                  placeholder="ejemplo@empresa.com" 
-                  value={formData.contacto_email} 
-                  onChange={e => setFormData({...formData, contacto_email: e.target.value})} 
-                />
-                <Select 
-                  label="Prioridad de Atención" 
-                  value={formData.prioridad} 
-                  onChange={e => setFormData({...formData, prioridad: e.target.value})} 
-                  options={[
-                    { value: 'baja', label: 'Baja - Largo Plazo' },
-                    { value: 'media', label: 'Media - Trimestral' },
-                    { value: 'alta', label: 'Alta - Urgente' }
-                  ]} 
-                />
-              </div>
-
-              {isEditing && (
-                <div className="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Select 
-                    label="Estado de Gestión" 
-                    value={formData.estado} 
-                    onChange={e => setFormData({...formData, estado: e.target.value})} 
-                    options={ESTADOS} 
-                  />
-                  <Select 
-                    label="Semillero Asignado" 
-                    value={formData.semillero_asignado_id} 
-                    onChange={e => setFormData({...formData, semillero_asignado_id: e.target.value})} 
-                    options={[
-                      { value: '', label: 'Sin asignar' },
-                      ...semilleros.map(s => ({ value: s.id, label: s.nombre }))
-                    ]} 
-                  />
-                </div>
-              )}
             </div>
-
-            <div className="px-6 sm:px-8 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50 shrink-0">
-              <Button variant="outline" onClick={() => setShowModal(false)} className="px-6">Cancelar</Button>
-              <Button 
-                className="bg-amber-600 hover:bg-amber-700 text-white px-8 h-11" 
-                onClick={handleSubmit} 
-                disabled={!formData.titulo || !formData.descripcion}
-              >
-                {isEditing ? 'Actualizar Información' : 'Publicar en el Banco'}
-              </Button>
-            </div>
-          </Card>
+          )}
         </div>
-      )}
+      </Modal>
+
+      {/* ── Confirm Delete Dialog ── */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, id: null })}
+        onConfirm={confirmDeleteAction}
+        title="¿Eliminar Reto del Banco?"
+        description="¿Estás seguro de eliminar este reto de innovación? Esta acción no se puede deshacer."
+        confirmText="Eliminar Reto"
+        variant="danger"
+      />
     </div>
   );
 };

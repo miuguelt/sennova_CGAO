@@ -2,11 +2,11 @@ from typing import Optional
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Proyecto, User, proyecto_equipo
+from app.models import Proyecto, User, proyecto_equipo, Entregable, Grupo, Semillero
 from app.schemas import (
     ProyectoCreate, ProyectoUpdate, EquipoMiembro
 )
@@ -38,22 +38,123 @@ def can_edit_proyecto(proyecto: Proyecto, user: User) -> bool:
     return user.rol == "admin" or str(proyecto.owner_id) == str(user.id)
 
 
+def _format_proyecto_dict(
+    p: Proyecto,
+    equipo_map: dict = None,
+    entregables_info: dict = None
+) -> dict:
+    """Construye un diccionario serializable y enriquecido para un proyecto."""
+    p_id_str = str(p.id)
+    
+    # 1. Integrantes del equipo
+    equipo = []
+    if p.equipo:
+        for m in p.equipo:
+            info = equipo_map.get(str(m.id)) if equipo_map else None
+            equipo.append({
+                "id": str(m.id),
+                "nombre": m.nombre,
+                "email": m.email,
+                "rol": getattr(m, 'rol', None),
+                "rol_sennova": getattr(m, 'rol_sennova', None),
+                "sede": getattr(m, 'sede', None),
+                "rol_en_proyecto": info.rol_en_proyecto if info else "Miembro",
+                "horas_dedicadas": info.horas_dedicadas if info else 0,
+                "ficha": getattr(m, 'ficha', None),
+                "programa_formacion": getattr(m, 'programa_formacion', None)
+            })
+
+    # 2. Resolución de Grupo y Semillero
+    grupo_id_resolved = str(p.grupo_id) if p.grupo_id else (
+        str(p.semillero.grupo_id) if p.semillero and p.semillero.grupo_id else None
+    )
+    grupo_nombre_resolved = p.grupo.nombre if p.grupo else (
+        p.semillero.grupo.nombre if p.semillero and p.semillero.grupo else None
+    )
+    semillero_nombre_resolved = p.semillero.nombre if p.semillero else None
+
+    # 3. Avance técnico / Cumplimiento de entregables
+    total_entregables = 0
+    entregables_aprobados = 0
+    if entregables_info:
+        total_entregables = entregables_info.get("total", 0)
+        entregables_aprobados = entregables_info.get("aprobados", 0)
+    elif hasattr(p, 'entregables') and p.entregables is not None:
+        try:
+            entregables_list = list(p.entregables)
+            total_entregables = len(entregables_list)
+            entregables_aprobados = sum(1 for e in entregables_list if e.estado == 'aprobado')
+        except Exception:
+            pass
+
+    if total_entregables > 0:
+        avance_porcentaje = int((entregables_aprobados / total_entregables) * 100)
+    elif str(p.estado).lower() in ("finalizado", "completado"):
+        avance_porcentaje = 100
+    else:
+        avance_porcentaje = 0
+
+    return {
+        "id": p_id_str,
+        "nombre": p.nombre,
+        "nombre_corto": p.nombre_corto,
+        "codigo_sgps": p.codigo_sgps,
+        "estado": p.estado,
+        "vigencia": p.vigencia,
+        "presupuesto_total": p.presupuesto_total,
+        "año": p.año,
+        "año_fin": p.año_fin,
+        "continua_siguiente_año": p.continua_siguiente_año,
+        "tipologia": p.tipologia,
+        "linea_investigacion": p.linea_investigacion,
+        "red_conocimiento": p.red_conocimiento,
+        "descripcion": p.descripcion,
+        "objetivo_general": p.objetivo_general,
+        "objetivos_especificos": p.objetivos_especificos or [],
+        "is_publico": p.is_publico,
+        "presupuesto_detallado": p.presupuesto_detallado or {},
+        "linea_programatica": p.linea_programatica,
+        "reto_origen_id": str(p.reto_origen_id) if p.reto_origen_id else None,
+        "semillero_id": str(p.semillero_id) if p.semillero_id else None,
+        "semillero_nombre": semillero_nombre_resolved,
+        "grupo_id": grupo_id_resolved,
+        "grupo_nombre": grupo_nombre_resolved,
+        "convocatoria_id": str(p.convocatoria_id) if p.convocatoria_id else None,
+        "owner_id": str(p.owner_id),
+        "owner": {
+            "id": str(p.owner.id),
+            "nombre": p.owner.nombre,
+            "email": p.owner.email
+        } if p.owner else None,
+        "equipo": equipo,
+        "total_equipo": len(equipo),
+        "total_productos": len(p.productos) if p.productos else 0,
+        "total_entregables": total_entregables,
+        "entregables_aprobados": entregables_aprobados,
+        "avance_porcentaje": avance_porcentaje,
+        "created_at": p.created_at,
+        "updated_at": p.updated_at
+    }
+
+
 @router.get("")
 def list_proyectos(
     skip: int = 0,
     limit: int = 100,
     estado: Optional[str] = None,
     convocatoria_id: Optional[str] = None,
+    grupo_id: Optional[str] = None,
+    semillero_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Listar proyectos (todos si admin, solo propios/miembro si investigador)."""
-    from sqlalchemy.orm import joinedload
-    
-    # Usar joinedload para traer equipo y productos de una sola vez
+    """Listar proyectos con sus relaciones, equipo, grupo y avance técnico."""
     query = db.query(Proyecto).options(
         joinedload(Proyecto.equipo),
-        joinedload(Proyecto.productos)
+        joinedload(Proyecto.productos),
+        joinedload(Proyecto.semillero).joinedload(Semillero.grupo),
+        joinedload(Proyecto.grupo),
+        joinedload(Proyecto.owner)
     )
     
     if current_user.rol != "admin":
@@ -67,6 +168,13 @@ def list_proyectos(
         query = query.filter(Proyecto.estado == estado)
     if convocatoria_id:
         query = query.filter(Proyecto.convocatoria_id == str(convocatoria_id))
+    if semillero_id:
+        query = query.filter(Proyecto.semillero_id == str(semillero_id))
+    if grupo_id:
+        query = query.filter(
+            (Proyecto.grupo_id == str(grupo_id)) |
+            (Proyecto.semillero.has(Semillero.grupo_id == str(grupo_id)))
+        )
     
     proyectos = query.offset(skip).limit(limit).all()
     
@@ -86,55 +194,27 @@ def list_proyectos(
             equipo_master_map[p_id] = {}
         equipo_master_map[p_id][u_id] = row
 
+    # Pre-cargar estadísticas de entregables de forma agregada
+    entregables_map = {}
+    if proyecto_ids:
+        entregables_query = db.query(
+            Entregable.proyecto_id,
+            sa.func.count(Entregable.id).label('total'),
+            sa.func.sum(sa.case((Entregable.estado == 'aprobado', 1), else_=0)).label('aprobados')
+        ).filter(Entregable.proyecto_id.in_(proyecto_ids)).group_by(Entregable.proyecto_id).all()
+        
+        for row in entregables_query:
+            entregables_map[str(row.proyecto_id)] = {
+                "total": int(row.total or 0),
+                "aprobados": int(row.aprobados or 0)
+            }
+
     result = []
     for p in proyectos:
         p_id_str = str(p.id)
         equipo_map = equipo_master_map.get(p_id_str, {})
-        
-        equipo = []
-        for m in p.equipo:
-            info = equipo_map.get(str(m.id))
-            equipo.append({
-                "id": str(m.id),
-                "nombre": m.nombre,
-                "email": m.email,
-                "rol_en_proyecto": info.rol_en_proyecto if info else "Miembro",
-                "horas_dedicadas": info.horas_dedicadas if info else 0,
-                "ficha": getattr(m, 'ficha', None),
-                "programa_formacion": getattr(m, 'programa_formacion', None)
-            })
-        
-        result.append({
-            "id": p_id_str,
-            "nombre": p.nombre,
-            "nombre_corto": p.nombre_corto,
-            "codigo_sgps": p.codigo_sgps,
-            "estado": p.estado,
-            "vigencia": p.vigencia,
-            "presupuesto_total": p.presupuesto_total,
-            "año": p.año,
-            "año_fin": p.año_fin,
-            "continua_siguiente_año": p.continua_siguiente_año,
-            "tipologia": p.tipologia,
-            "linea_investigacion": p.linea_investigacion,
-            "red_conocimiento": p.red_conocimiento,
-            "descripcion": p.descripcion,
-            "objetivo_general": p.objetivo_general,
-            "objetivos_especificos": p.objetivos_especificos or [],
-            "is_publico": p.is_publico,
-            "presupuesto_detallado": p.presupuesto_detallado or {},
-            "linea_programatica": p.linea_programatica,
-            "reto_origen_id": str(p.reto_origen_id) if p.reto_origen_id else None,
-            "semillero_id": str(p.semillero_id) if p.semillero_id else None,
-            "convocatoria_id": str(p.convocatoria_id) if p.convocatoria_id else None,
-            "owner_id": str(p.owner_id),
-            "owner": None,
-            "equipo": equipo,
-            "total_equipo": len(equipo),
-            "total_productos": len(p.productos),
-            "created_at": p.created_at,
-            "updated_at": p.updated_at
-        })
+        e_info = entregables_map.get(p_id_str, {"total": 0, "aprobados": 0})
+        result.append(_format_proyecto_dict(p, equipo_map=equipo_map, entregables_info=e_info))
     
     return result
 
@@ -145,64 +225,34 @@ def get_proyecto(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Obtener detalle de un proyecto."""
-    proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
+    """Obtener detalle enriquecido de un proyecto."""
+    proyecto = db.query(Proyecto).options(
+        joinedload(Proyecto.equipo),
+        joinedload(Proyecto.productos),
+        joinedload(Proyecto.semillero).joinedload(Semillero.grupo),
+        joinedload(Proyecto.grupo),
+        joinedload(Proyecto.owner)
+    ).filter(Proyecto.id == str(proyecto_id)).first()
+    
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     
     if not check_proyecto_access(proyecto, current_user):
         raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
     
-    # Construir respuesta manualmente
-    equipo = []
-    # Obtener los datos de la tabla de asociación
+    # Obtener equipo
     stmt = proyecto_equipo.select().where(proyecto_equipo.c.proyecto_id == str(proyecto.id))
     equipo_res = db.execute(stmt).fetchall()
     equipo_map = {str(row.user_id): row for row in equipo_res}
 
-    for m in proyecto.equipo:
-        info = equipo_map.get(str(m.id))
-        equipo.append({
-            "id": str(m.id),
-            "nombre": m.nombre,
-            "email": m.email,
-            "rol_en_proyecto": info.rol_en_proyecto if info else "Miembro",
-            "horas_dedicadas": info.horas_dedicadas if info else 0,
-            "ficha": getattr(m, 'ficha', None),
-            "programa_formacion": getattr(m, 'programa_formacion', None)
-        })
-    
-    return {
-        "id": str(proyecto.id),
-        "nombre": proyecto.nombre,
-        "nombre_corto": proyecto.nombre_corto,
-        "codigo_sgps": proyecto.codigo_sgps,
-        "estado": proyecto.estado,
-        "vigencia": proyecto.vigencia,
-        "presupuesto_total": proyecto.presupuesto_total,
-        "año": proyecto.año,
-        "año_fin": proyecto.año_fin,
-        "continua_siguiente_año": proyecto.continua_siguiente_año,
-        "tipologia": proyecto.tipologia,
-        "linea_investigacion": proyecto.linea_investigacion,
-        "red_conocimiento": proyecto.red_conocimiento,
-        "descripcion": proyecto.descripcion,
-        "objetivo_general": proyecto.objetivo_general,
-        "objetivos_especificos": proyecto.objetivos_especificos or [],
-        "is_publico": proyecto.is_publico,
-        "presupuesto_detallado": proyecto.presupuesto_detallado or {},
-        "linea_programatica": proyecto.linea_programatica,
-        "reto_origen_id": str(proyecto.reto_origen_id) if proyecto.reto_origen_id else None,
-        "semillero_id": str(proyecto.semillero_id) if proyecto.semillero_id else None,
-        "convocatoria_id": str(proyecto.convocatoria_id) if proyecto.convocatoria_id else None,
-        "owner_id": str(proyecto.owner_id),
-        "owner": None,
-        "equipo": equipo,
-        "total_equipo": len(equipo),
-        "total_productos": len(proyecto.productos),
-        "created_at": proyecto.created_at,
-        "updated_at": proyecto.updated_at
+    # Entregables del proyecto
+    entregables_list = list(proyecto.entregables or [])
+    e_info = {
+        "total": len(entregables_list),
+        "aprobados": sum(1 for e in entregables_list if e.estado == 'aprobado')
     }
+
+    return _format_proyecto_dict(proyecto, equipo_map=equipo_map, entregables_info=e_info)
 
 
 @router.post("", status_code=201)
@@ -211,12 +261,25 @@ def create_proyecto(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Crear un nuevo proyecto."""
+    """Crear un nuevo proyecto vinculándolo a su grupo y semillero."""
     if current_user.rol == 'aprendiz':
         raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para crear proyectos")
         
-    # Convertir UUID a string para SQLite
     convocatoria_id_str = str(proyecto_data.convocatoria_id) if proyecto_data.convocatoria_id else None
+    grupo_id_str = str(proyecto_data.grupo_id) if proyecto_data.grupo_id else None
+    semillero_id_str = str(proyecto_data.semillero_id) if proyecto_data.semillero_id else None
+
+    # Si se especificó semillero pero no grupo, resolver automáticamente el grupo del semillero
+    if semillero_id_str and not grupo_id_str:
+        semillero_obj = db.query(Semillero).filter(Semillero.id == semillero_id_str).first()
+        if semillero_obj and semillero_obj.grupo_id:
+            grupo_id_str = str(semillero_obj.grupo_id)
+    
+    # Si aún no hay grupo_id, asignar el primer grupo disponible
+    if not grupo_id_str:
+        first_grupo = db.query(Grupo).first()
+        if first_grupo:
+            grupo_id_str = str(first_grupo.id)
     
     proyecto = Proyecto(
         nombre=proyecto_data.nombre,
@@ -238,7 +301,8 @@ def create_proyecto(
         presupuesto_detallado=proyecto_data.presupuesto_detallado,
         linea_programatica=proyecto_data.linea_programatica,
         reto_origen_id=str(proyecto_data.reto_origen_id) if proyecto_data.reto_origen_id else None,
-        semillero_id=str(proyecto_data.semillero_id) if proyecto_data.semillero_id else None,
+        semillero_id=semillero_id_str,
+        grupo_id=grupo_id_str,
         convocatoria_id=convocatoria_id_str,
         owner_id=str(current_user.id)
     )
@@ -282,37 +346,7 @@ def create_proyecto(
         entidad_id=str(proyecto.id)
     )
     
-    return {
-        "id": proyecto_id_str,
-        "nombre": proyecto.nombre,
-        "nombre_corto": proyecto.nombre_corto,
-        "codigo_sgps": proyecto.codigo_sgps,
-        "estado": proyecto.estado,
-        "vigencia": proyecto.vigencia,
-        "presupuesto_total": proyecto.presupuesto_total,
-        "año": proyecto.año,
-        "año_fin": proyecto.año_fin,
-        "continua_siguiente_año": proyecto.continua_siguiente_año,
-        "tipologia": proyecto.tipologia,
-        "linea_investigacion": proyecto.linea_investigacion,
-        "red_conocimiento": proyecto.red_conocimiento,
-        "descripcion": proyecto.descripcion,
-        "objetivo_general": proyecto.objetivo_general,
-        "objetivos_especificos": proyecto.objetivos_especificos or [],
-        "is_publico": proyecto.is_publico,
-        "presupuesto_detallado": proyecto.presupuesto_detallado or {},
-        "linea_programatica": proyecto.linea_programatica,
-        "reto_origen_id": str(proyecto.reto_origen_id) if proyecto.reto_origen_id else None,
-        "semillero_id": str(proyecto.semillero_id) if proyecto.semillero_id else None,
-        "convocatoria_id": str(proyecto.convocatoria_id) if proyecto.convocatoria_id else None,
-        "owner_id": str(proyecto.owner_id),
-        "owner": None,
-        "equipo": [],
-        "total_equipo": 0,
-        "total_productos": 0,
-        "created_at": proyecto.created_at,
-        "updated_at": proyecto.updated_at
-    }
+    return get_proyecto(str(proyecto.id), current_user, db)
 
 
 @router.put("/{proyecto_id}")
@@ -356,12 +390,18 @@ def update_proyecto(
 
     for field, value in update_data.items():
         if field != "equipo":  # Equipo se maneja separado
-            if field in ("convocatoria_id", "reto_origen_id", "semillero_id"):
+            if field in ("convocatoria_id", "reto_origen_id", "semillero_id", "grupo_id"):
                 if value is not None and str(value).strip() not in ("", "null", "None"):
                     value = str(value)
                 else:
                     value = None
             setattr(proyecto, field, value)
+            
+    # Si cambió semillero_id y no se pasó grupo_id explícitamente, actualizar grupo_id
+    if "semillero_id" in update_data and proyecto.semillero_id and not update_data.get("grupo_id"):
+        semillero_obj = db.query(Semillero).filter(Semillero.id == str(proyecto.semillero_id)).first()
+        if semillero_obj and semillero_obj.grupo_id:
+            proyecto.grupo_id = str(semillero_obj.grupo_id)
     
     try:
         db.commit()
@@ -383,11 +423,12 @@ def update_proyecto(
         entidad_id=str(proyecto.id)
     )
 
-    # Retornar el detalle completo (usando el mismo formato que get_proyecto)
+    # Retornar el detalle completo
     return get_proyecto(proyecto_id, current_user, db)
 
 
 @router.get("/{proyecto_id}/liquidar/check")
+@router.get("/{proyecto_id}/check-liquidacion")
 def check_liquidacion(
     proyecto_id: str,
     db: Session = Depends(get_db),
@@ -570,6 +611,7 @@ def remove_proyecto_miembro(
     
     return {"message": "Miembro eliminado correctamente"}
 @router.post("/{proyecto_id}/generate-budget-template")
+@router.post("/{proyecto_id}/generar-presupuesto-plantilla")
 def generate_budget_template(
     proyecto_id: str,
     db: Session = Depends(get_db),

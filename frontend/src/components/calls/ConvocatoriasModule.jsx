@@ -13,6 +13,9 @@ import Badge from '../ui/Badge';
 import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
+import Modal from '../ui/Modal';
+import Drawer from '../ui/Drawer';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import { ConvocatoriasAPI } from '../../api/convocatorias';
 import { ProyectosAPI } from '../../api/proyectos';
 
@@ -336,25 +339,33 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
   const [targetConvocatoria, setTargetConvocatoria] = useState(null);
   const [selectedProyectoToLink, setSelectedProyectoToLink] = useState('');
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (showLoading = false) => {
+    if (showLoading) setLoading(true);
     try {
       const [convData, proyData] = await Promise.all([
         ConvocatoriasAPI.list(),
         ProyectosAPI.list()
       ]);
-      setConvocatorias(convData || []);
+      const cList = convData || [];
+      setConvocatorias(cList);
       setProyectos(proyData || []);
+      setSelectedConvocatoria(prev => {
+        if (!prev) return null;
+        const updated = cList.find(c => c.id === prev.id);
+        return updated ? { ...prev, ...updated } : prev;
+      });
     } catch (err) {
       onNotify?.('Error al cargar convocatorias y proyectos', 'error');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    loadData(true);
   }, []);
+
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
 
   const handleOpenCreate = () => {
     setFormData(EMPTY_FORM);
@@ -368,13 +379,18 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar esta convocatoria? Esta acción no se puede deshacer.')) return;
+  const handleDelete = (id) => {
+    setDeleteConfirm({ isOpen: true, id });
+  };
+
+  const confirmDeleteAction = async () => {
+    if (!deleteConfirm.id) return;
     try {
-      await ConvocatoriasAPI.delete(id);
+      await ConvocatoriasAPI.delete(deleteConfirm.id);
       onNotify?.('Convocatoria eliminada correctamente', 'success');
+      setDeleteConfirm({ isOpen: false, id: null });
+      if (selectedConvocatoria?.id === deleteConfirm.id) setDetailOpen(false);
       loadData();
-      if (selectedConvocatoria?.id === id) setDetailOpen(false);
     } catch (err) {
       onNotify?.('Error al eliminar la convocatoria', 'error');
     }
@@ -491,7 +507,7 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
     return diff > 0 && diff <= 15;
   }).length;
 
-  if (loading) {
+  if (loading && convocatorias.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-4">
@@ -536,43 +552,43 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
         </div>
 
         {/* Grid de KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-slate-100">
-          <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 flex items-center gap-3">
-            <div className="p-3 bg-emerald-600 text-white rounded-xl shadow-md">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-slate-200">
+          <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-center gap-3">
+            <div className="p-3 bg-emerald-700 text-white rounded-xl shadow-md">
               <CheckCircle size={20} />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Convocatorias Abiertas</p>
+              <p className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Convocatorias Abiertas</p>
               <p className="text-xl font-black text-slate-900">{totalAbiertas}</p>
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 flex items-center gap-3">
-            <div className="p-3 bg-indigo-600 text-white rounded-xl shadow-md">
+          <div className="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200 flex items-center gap-3">
+            <div className="p-3 bg-indigo-700 text-white rounded-xl shadow-md">
               <Target size={20} />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Proyectos Postulados</p>
+              <p className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Proyectos Postulados</p>
               <p className="text-xl font-black text-slate-900">{totalProyectosPostulados}</p>
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3">
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
             <div className="p-3 bg-slate-800 text-white rounded-xl shadow-md">
               <DollarSign size={20} />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Presupuesto Postulado</p>
+              <p className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Presupuesto Postulado</p>
               <p className="text-lg font-black text-slate-900">{formatCurrency(presupuestoTotalAcumulado)}</p>
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-100 flex items-center gap-3">
-            <div className="p-3 bg-amber-500 text-white rounded-xl shadow-md">
+          <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 flex items-center gap-3">
+            <div className="p-3 bg-amber-600 text-white rounded-xl shadow-md">
               <Clock size={20} />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Próximas a Cerrar</p>
+              <p className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Próximas a Cerrar</p>
               <p className="text-xl font-black text-slate-900">{convocatoriasPorVencer}</p>
             </div>
           </div>
@@ -734,338 +750,335 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
         </Card>
       )}
 
-      {/* ── DETALLE SIDE-OVER (Drawer Lateral) ── */}
-      {detailOpen && selectedConvocatoria && (
-        <div className="fixed inset-0 z-[100] overflow-hidden">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-fadeIn" onClick={() => setDetailOpen(false)} />
-          <div className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
-            <div className="w-screen max-w-xl h-full bg-white shadow-2xl flex flex-col animate-slideInRight">
-              {/* Drawer Header */}
-              <div className="px-8 py-7 border-b border-slate-100 bg-emerald-50">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="p-3 bg-white rounded-2xl shadow-sm text-emerald-600">
-                    <Calendar size={24} />
-                  </div>
-                  <div className="flex gap-2">
-                    {currentUser?.rol === 'admin' && (
-                      <>
-                        <button onClick={() => handleOpenEdit(selectedConvocatoria)} className="p-2 bg-white text-blue-600 hover:bg-blue-50 rounded-xl shadow-sm border border-blue-100 transition-all">
-                          <Edit size={18} />
-                        </button>
-                        <button onClick={() => handleDelete(selectedConvocatoria.id)} className="p-2 bg-white text-rose-600 hover:bg-rose-50 rounded-xl shadow-sm border border-rose-100 transition-all">
-                          <Trash2 size={18} />
-                        </button>
-                      </>
-                    )}
-                    <button onClick={() => setDetailOpen(false)} className="p-2 bg-white text-slate-400 hover:text-slate-600 rounded-xl shadow-sm border border-slate-100 transition-all ml-2">
-                      <X size={18} />
-                    </button>
-                  </div>
-                </div>
-                <h2 className="text-xl font-black text-slate-900 leading-tight mb-3">{selectedConvocatoria.nombre}</h2>
-                <div className="flex flex-wrap gap-2 items-center">
-                  <StatusBadge status={selectedConvocatoria.estado} />
-                  <Badge variant="emerald" className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                    {selectedConvocatoria.año} {selectedConvocatoria.fuente || 'SENNOVA'}
-                  </Badge>
-                  {selectedConvocatoria.numero_oe && (
-                    <Badge variant="indigo" className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                      OE: {selectedConvocatoria.numero_oe}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* Drawer Content */}
-              <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin">
-                {/* Descripción */}
-                <section>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                    <Info size={14} className="text-emerald-500" /> Descripción y Términos de Referencia
-                  </h3>
-                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-slate-700 leading-relaxed text-sm">
-                    {selectedConvocatoria.descripcion || 'Sin descripción técnica registrada para esta convocatoria.'}
-                  </div>
-                </section>
-
-                {/* ── SECCIÓN DE PROYECTOS POSTULADOS DETALLADOS ── */}
-                <section className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                      <Target size={14} className="text-emerald-600" /> Proyectos Postulados / Vinculados
-                    </h3>
-                    <Badge variant="emerald" className="font-bold text-[10px]">
-                      {proyectos.filter(p => String(p.convocatoria_id) === String(selectedConvocatoria.id)).length} Iniciativas
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-3">
-                    {proyectos.filter(p => String(p.convocatoria_id) === String(selectedConvocatoria.id)).length > 0 ? (
-                      proyectos.filter(p => String(p.convocatoria_id) === String(selectedConvocatoria.id)).map(p => (
-                        <div key={p.id} className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                                {p.codigo_sgps || 'SIN CÓDIGO SGPS'}
-                              </span>
-                              <h4 className="font-bold text-slate-900 text-sm mt-1">{p.nombre}</h4>
-                            </div>
-                            <button
-                              onClick={() => handleUnlinkProject(p.id)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                              title="Desvincular proyecto de esta convocatoria"
-                            >
-                              <Unlink size={16} />
-                            </button>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl">
-                            <div>
-                              <span className="text-[10px] font-bold text-slate-400 block uppercase">Línea Investigación</span>
-                              <span className="font-medium text-slate-800 truncate block">{p.linea_investigacion || 'Investigación Aplicada'}</span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] font-bold text-slate-400 block uppercase">Presupuesto</span>
-                              <span className="font-bold text-emerald-700">{formatCurrency(p.presupuesto_total)}</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between pt-1">
-                            <span className="text-xs text-slate-500 flex items-center gap-1">
-                              <User size={13} className="text-slate-400" />
-                              {p.owner?.nombre || p.responsable_nombre || 'Investigador SENNOVA'}
-                            </span>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => { setDetailOpen(false); navigateToProyecto(p.id); }}
-                              className="text-xs text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-                            >
-                              Ver Proyecto <ArrowUpRight size={13} className="ml-1" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-6 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl space-y-2">
-                        <p className="text-slate-500 text-xs font-bold">No hay proyectos postulados a esta convocatoria.</p>
-                        <p className="text-slate-400 text-xs">Arrastra un proyecto del pool o usa el botón "Postular Proyecto" a continuación.</p>
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                {/* Cronograma de Cierre */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <Clock size={14} className="text-amber-500" /> Cronograma de Cierre
-                  </h3>
-                  <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                    <div>
-                      <p className="text-[10px] font-bold text-amber-700 uppercase">Fecha Límite de Recepción</p>
-                      <p className="font-black text-slate-900">{selectedConvocatoria.fecha_cierre || 'No definida'}</p>
-                    </div>
-                    {selectedConvocatoria.fecha_cierre && (
-                      <Badge variant="amber" className="font-black">
-                        {Math.ceil((new Date(selectedConvocatoria.fecha_cierre) - new Date()) / (1000 * 60 * 60 * 24))} días restantes
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                {selectedConvocatoria.enlace_externo && (
-                  <Button 
-                    onClick={() => window.open(selectedConvocatoria.enlace_externo, '_blank')}
-                    variant="outline" 
-                    className="w-full py-3.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50 flex items-center justify-center gap-2 text-sm"
-                  >
-                    <ExternalLink size={16} /> Ver Términos de Referencia Oficiales
-                  </Button>
-                )}
-              </div>
-
-              {/* Drawer Footer Actions */}
-              <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
-                <Button variant="secondary" className="flex-1" onClick={() => setDetailOpen(false)}>
-                  Cerrar
-                </Button>
-                {selectedConvocatoria.estado === 'abierta' && (
-                  <Button 
-                    variant="primary" 
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
-                    onClick={() => handleOpenPostularModal(selectedConvocatoria)}
-                  >
-                    <Send size={16} className="mr-2" /> Postular Proyecto
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL POSTULAR PROYECTO ── */}
-      {postularModalOpen && targetConvocatoria && (
-        <div className="fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-          <div className="fixed inset-0" onClick={() => setPostularModalOpen(false)} aria-hidden="true" />
-          <Card className="w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-scaleIn border-0 shadow-2xl bg-white relative z-10 rounded-3xl">
-            <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shrink-0">
-              <div>
-                <h3 className="text-lg font-black tracking-tight">Postular Proyecto</h3>
-                <p className="text-xs text-emerald-100 font-bold uppercase tracking-wider">{targetConvocatoria.nombre}</p>
-              </div>
-              <button onClick={() => setPostularModalOpen(false)} className="p-1.5 text-slate-200 hover:text-white rounded-lg transition-colors"><X size={18} /></button>
-            </div>
-
-            <div className="p-6 space-y-5 flex-1 overflow-y-auto custom-scrollbar">
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Selecciona uno de tus proyectos activos sin convocatoria para matricularlo en esta oferta institucional.
-              </p>
-
-              {proyectosMisDisponibles.length > 0 ? (
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 block">Proyectos Disponibles:</label>
-                  <select 
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                    value={selectedProyectoToLink}
-                    onChange={(e) => setSelectedProyectoToLink(e.target.value)}
-                  >
-                    <option value="">Selecciona un proyecto...</option>
-                    {proyectosMisDisponibles.map(p => (
-                      <option key={p.id} value={p.id}>
-                        [{p.codigo_sgps || 'SGPS'}] {p.nombre} ({formatCurrency(p.presupuesto_total)})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
-                  No se encontraron proyectos disponibles para vincular. Puedes crear una nueva propuesta en el módulo de Proyectos.
-                </div>
+      {/* ── DETALLE SIDE-OVER (Drawer Estandarizado en Pila) ── */}
+      <Drawer
+        isOpen={detailOpen && !!selectedConvocatoria}
+        onClose={() => setDetailOpen(false)}
+        size="lg"
+        variant="emerald"
+        icon={Calendar}
+        title={selectedConvocatoria?.nombre}
+        badge={
+          selectedConvocatoria && (
+            <div className="flex flex-wrap gap-2 items-center">
+              <StatusBadge status={selectedConvocatoria.estado} />
+              <Badge variant="emerald" className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                {selectedConvocatoria.año} {selectedConvocatoria.fuente || 'SENNOVA'}
+              </Badge>
+              {selectedConvocatoria.numero_oe && (
+                <Badge variant="indigo" className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                  OE: {selectedConvocatoria.numero_oe}
+                </Badge>
               )}
             </div>
-
-            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 shrink-0">
-              <Button variant="outline" onClick={() => setPostularModalOpen(false)}>Cancelar</Button>
+          )
+        }
+        headerActions={
+          selectedConvocatoria && currentUser?.rol === 'admin' && (
+            <div className="flex gap-2">
+              <button 
+                onClick={() => handleOpenEdit(selectedConvocatoria)} 
+                className="p-2 bg-white text-blue-600 hover:bg-blue-50 rounded-xl shadow-sm border border-blue-100 transition-all"
+                title="Editar convocatoria"
+              >
+                <Edit size={18} />
+              </button>
+              <button 
+                onClick={() => handleDelete(selectedConvocatoria.id)} 
+                className="p-2 bg-white text-rose-600 hover:bg-rose-50 rounded-xl shadow-sm border border-rose-100 transition-all"
+                title="Eliminar convocatoria"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+          )
+        }
+        footer={
+          <div className="flex gap-3 w-full">
+            <Button variant="secondary" className="flex-1" onClick={() => setDetailOpen(false)}>
+              Cerrar
+            </Button>
+            {selectedConvocatoria?.estado === 'abierta' && (
               <Button 
                 variant="primary" 
-                className="bg-emerald-600 hover:bg-emerald-700" 
-                disabled={!selectedProyectoToLink}
-                onClick={handleConfirmPostular}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
+                onClick={() => handleOpenPostularModal(selectedConvocatoria)}
               >
-                Confirmar Postulación
+                <Send size={16} className="mr-2" /> Postular Proyecto
               </Button>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* ── MODAL FORMULARIO CREAR / EDITAR CONVOCATORIA ── */}
-      {showForm && (
-        <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-          <div className="fixed inset-0" onClick={() => setShowForm(false)} aria-hidden="true" />
-          <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-scaleIn border-0 shadow-2xl bg-white relative z-10 rounded-3xl">
-            <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shrink-0">
-              <div>
-                <h2 className="text-xl font-black tracking-tight">{isEditing ? 'Actualizar Convocatoria' : 'Nueva Convocatoria'}</h2>
-                <p className="text-xs text-emerald-100 font-bold uppercase tracking-widest mt-0.5">Gestión SENNOVA CGAO</p>
+            )}
+          </div>
+        }
+      >
+        {selectedConvocatoria && (
+          <div className="space-y-8 animate-fadeIn">
+            {/* Descripción */}
+            <section>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                <Info size={14} className="text-emerald-500" /> Descripción y Términos de Referencia
+              </h3>
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-slate-700 leading-relaxed text-sm">
+                {selectedConvocatoria.descripcion || 'Sin descripción técnica registrada para esta convocatoria.'}
               </div>
-              <button onClick={() => setShowForm(false)} className="p-2 text-slate-200 hover:text-white rounded-xl hover:bg-white/10 transition-all"><X size={20} /></button>
-            </div>
-            
-            <div className="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <Input 
-                    label="Nombre de la Convocatoria" 
-                    placeholder="Ej: Convocatoria Nacional de Proyectos I+D+i 2026" 
-                    value={formData.nombre} 
-                    onChange={e => setFormData({...formData, nombre: e.target.value})} 
-                    required 
-                  />
+            </section>
+
+            {/* Proyectos Postulados */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <Target size={14} className="text-emerald-600" /> Proyectos Postulados / Vinculados
+                </h3>
+                <Badge variant="emerald" className="font-bold text-[10px]">
+                  {proyectos.filter(p => String(p.convocatoria_id) === String(selectedConvocatoria.id)).length} Iniciativas
+                </Badge>
+              </div>
+
+              <div className="space-y-3">
+                {proyectos.filter(p => String(p.convocatoria_id) === String(selectedConvocatoria.id)).length > 0 ? (
+                  proyectos.filter(p => String(p.convocatoria_id) === String(selectedConvocatoria.id)).map(p => (
+                    <div key={p.id} className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                            {p.codigo_sgps || 'SIN CÓDIGO SGPS'}
+                          </span>
+                          <h4 className="font-bold text-slate-900 text-sm mt-1">{p.nombre}</h4>
+                        </div>
+                        <button
+                          onClick={() => handleUnlinkProject(p.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Desvincular proyecto de esta convocatoria"
+                        >
+                          <Unlink size={16} />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl">
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 block uppercase">Línea Investigación</span>
+                          <span className="font-medium text-slate-800 truncate block">{p.linea_investigacion || 'Investigación Aplicada'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 block uppercase">Presupuesto</span>
+                          <span className="font-bold text-emerald-700">{formatCurrency(p.presupuesto_total)}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-xs text-slate-500 flex items-center gap-1">
+                          <User size={13} className="text-slate-400" />
+                          {p.owner?.nombre || p.responsable_nombre || 'Investigador SENNOVA'}
+                        </span>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => { setDetailOpen(false); navigateToProyecto(p.id); }}
+                          className="text-xs text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                        >
+                          Ver Proyecto <ArrowUpRight size={13} className="ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-6 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl space-y-2">
+                    <p className="text-slate-500 text-xs font-bold">No hay proyectos postulados a esta convocatoria.</p>
+                    <p className="text-slate-400 text-xs">Arrastra un proyecto del pool o usa el botón "Postular Proyecto" a continuación.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Cronograma de Cierre */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                <Clock size={14} className="text-amber-500" /> Cronograma de Cierre
+              </h3>
+              <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                <div>
+                  <p className="text-[10px] font-bold text-amber-700 uppercase">Fecha Límite de Recepción</p>
+                  <p className="font-black text-slate-900">{selectedConvocatoria.fecha_cierre || 'No definida'}</p>
                 </div>
-
-                <div className="md:col-span-2">
-                  <TextArea 
-                    label="Descripción y Alcance" 
-                    placeholder="Detalla los objetivos, requisitos y población objetivo..." 
-                    value={formData.descripcion} 
-                    onChange={e => setFormData({...formData, descripcion: e.target.value})} 
-                    rows={4} 
-                  />
-                </div>
-                
-                <Select
-                  label="Fuente / Entidad"
-                  value={formData.fuente || 'SENNOVA'}
-                  onChange={(e) => setFormData({...formData, fuente: e.target.value})}
-                  options={[
-                    { value: 'SENNOVA', label: 'SENNOVA' },
-                    { value: 'Minciencias', label: 'Minciencias' },
-                    { value: 'Capacidad_Instalada', label: 'Capacidad Instalada' },
-                    { value: 'Otra', label: 'Otra Entidad' }
-                  ]}
-                />
-
-                <Input 
-                  label="Año" 
-                  type="number"
-                  value={formData.año} 
-                  onChange={e => setFormData({...formData, año: e.target.value})} 
-                />
-
-                <Input 
-                  label="Número OE (Opcional)" 
-                  value={formData.numero_oe}
-                  onChange={(e) => setFormData({...formData, numero_oe: e.target.value})}
-                  placeholder="Ej. OE-2024-001"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input 
-                  label="Fecha Inicio" 
-                  type="date"
-                  value={formData.fecha_inicio} 
-                  onChange={e => setFormData({...formData, fecha_inicio: e.target.value})} 
-                />
-                <Input 
-                  label="Fecha Cierre" 
-                  type="date"
-                  value={formData.fecha_cierre} 
-                  onChange={e => setFormData({...formData, fecha_cierre: e.target.value})} 
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Select 
-                  label="Estado Actual" 
-                  value={formData.estado} 
-                  onChange={e => setFormData({...formData, estado: e.target.value})} 
-                  options={ESTADOS} 
-                />
-                <Input 
-                  label="Enlace a TdR (URL)" 
-                  placeholder="https://sena.edu.co/convocatoria..." 
-                  value={formData.enlace_externo} 
-                  onChange={e => setFormData({...formData, enlace_externo: e.target.value})} 
-                />
+                {selectedConvocatoria.fecha_cierre && (
+                  <Badge variant="amber" className="font-black">
+                    {Math.ceil((new Date(selectedConvocatoria.fecha_cierre) - new Date()) / (1000 * 60 * 60 * 24))} días restantes
+                  </Badge>
+                )}
               </div>
             </div>
 
-            <div className="px-6 sm:px-8 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50 shrink-0">
-              <Button variant="outline" onClick={() => setShowForm(false)} className="px-6">Cancelar</Button>
+            {selectedConvocatoria.enlace_externo && (
               <Button 
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 h-11" 
-                onClick={handleSubmit} 
-                disabled={!formData.nombre}
+                onClick={() => window.open(selectedConvocatoria.enlace_externo, '_blank')}
+                variant="outline" 
+                className="w-full py-3.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50 flex items-center justify-center gap-2 text-sm"
               >
-                {isEditing ? 'Guardar Cambios' : 'Crear Convocatoria'}
+                <ExternalLink size={16} /> Ver Términos de Referencia Oficiales
               </Button>
-            </div>
-          </Card>
+            )}
+          </div>
+        )}
+      </Drawer>
+
+      {/* ── MODAL POSTULAR PROYECTO (Estandarizado en Pila) ── */}
+      <Modal
+        isOpen={postularModalOpen && !!targetConvocatoria}
+        onClose={() => setPostularModalOpen(false)}
+        size="md"
+        variant="emerald"
+        icon={Send}
+        title="Postular Proyecto"
+        subtitle={targetConvocatoria?.nombre}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setPostularModalOpen(false)}>Cancelar</Button>
+            <Button 
+              variant="primary" 
+              className="bg-emerald-600 hover:bg-emerald-700" 
+              disabled={!selectedProyectoToLink}
+              onClick={handleConfirmPostular}
+            >
+              Confirmar Postulación
+            </Button>
+          </>
+        }
+      >
+        <p className="text-xs text-slate-600 leading-relaxed">
+          Selecciona uno de tus proyectos activos sin convocatoria para matricularlo en esta oferta institucional.
+        </p>
+
+        {proyectosMisDisponibles.length > 0 ? (
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-700 block">Proyectos Disponibles:</label>
+            <select 
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+              value={selectedProyectoToLink}
+              onChange={(e) => setSelectedProyectoToLink(e.target.value)}
+            >
+              <option value="">Selecciona un proyecto...</option>
+              {proyectosMisDisponibles.map(p => (
+                <option key={p.id} value={p.id}>
+                  [{p.codigo_sgps || 'SGPS'}] {p.nombre} ({formatCurrency(p.presupuesto_total)})
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
+            No se encontraron proyectos disponibles para vincular. Puedes crear una nueva propuesta en el módulo de Proyectos.
+          </div>
+        )}
+      </Modal>
+
+      {/* ── MODAL FORMULARIO CREAR / EDITAR CONVOCATORIA (Estandarizado en Pila) ── */}
+      <Modal
+        isOpen={showForm}
+        onClose={() => setShowForm(false)}
+        size="lg"
+        variant="emerald"
+        icon={Calendar}
+        title={isEditing ? 'Actualizar Convocatoria' : 'Nueva Convocatoria'}
+        subtitle="Gestión SENNOVA CGAO"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowForm(false)} className="px-6">Cancelar</Button>
+            <Button 
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 h-11" 
+              onClick={handleSubmit} 
+              disabled={!formData.nombre}
+            >
+              {isEditing ? 'Guardar Cambios' : 'Crear Convocatoria'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <Input 
+            label="Nombre de la Convocatoria" 
+            placeholder="Ej: Convocatoria Nacional de Proyectos I+D+i 2026" 
+            value={formData.nombre} 
+            onChange={e => setFormData({...formData, nombre: e.target.value})} 
+            required 
+          />
+
+          <TextArea 
+            label="Descripción y Alcance" 
+            placeholder="Detalla los objetivos, requisitos y población objetivo..." 
+            value={formData.descripcion} 
+            onChange={e => setFormData({...formData, descripcion: e.target.value})} 
+            rows={4} 
+          />
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Select
+              label="Fuente / Entidad"
+              value={formData.fuente || 'SENNOVA'}
+              onChange={(e) => setFormData({...formData, fuente: e.target.value})}
+              options={[
+                { value: 'SENNOVA', label: 'SENNOVA' },
+                { value: 'Minciencias', label: 'Minciencias' },
+                { value: 'Capacidad_Instalada', label: 'Capacidad Instalada' },
+                { value: 'Otra', label: 'Otra Entidad' }
+              ]}
+            />
+
+            <Input 
+              label="Año" 
+              type="number"
+              value={formData.año} 
+              onChange={e => setFormData({...formData, año: e.target.value})} 
+            />
+
+            <Input 
+              label="Número OE (Opcional)" 
+              value={formData.numero_oe}
+              onChange={(e) => setFormData({...formData, numero_oe: e.target.value})}
+              placeholder="Ej. OE-2024-001"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input 
+              label="Fecha Inicio" 
+              type="date"
+              value={formData.fecha_inicio} 
+              onChange={e => setFormData({...formData, fecha_inicio: e.target.value})} 
+            />
+            <Input 
+              label="Fecha Cierre" 
+              type="date"
+              value={formData.fecha_cierre} 
+              onChange={e => setFormData({...formData, fecha_cierre: e.target.value})} 
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select 
+              label="Estado Actual" 
+              value={formData.estado} 
+              onChange={e => setFormData({...formData, estado: e.target.value})} 
+              options={ESTADOS} 
+            />
+            <Input 
+              label="Enlace a TdR (URL)" 
+              placeholder="https://sena.edu.co/convocatoria..." 
+              value={formData.enlace_externo} 
+              onChange={e => setFormData({...formData, enlace_externo: e.target.value})} 
+            />
+          </div>
         </div>
-      )}
+      </Modal>
+
+      {/* ── Confirm Delete Dialog ── */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, id: null })}
+        onConfirm={confirmDeleteAction}
+        title="¿Eliminar Convocatoria?"
+        description="¿Estás seguro de eliminar esta convocatoria? Esta acción no se puede deshacer y desvinculará sus iniciativas."
+        confirmText="Eliminar Convocatoria"
+        variant="danger"
+      />
     </div>
   );
 };

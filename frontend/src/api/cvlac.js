@@ -3,7 +3,7 @@
  * Gestión de currículos LAC (Colciencias)
  */
 
-import { API_URL, fetchAPI } from './config';
+import { fetchAPI } from './config';
 
 const API_BASE = '/cvlac';
 
@@ -16,6 +16,10 @@ export const CVLACAPI = {
     return fetchAPI(`${API_BASE}/validar-url?${params}`);
   },
 
+  async validarUrl(url) {
+    return this.validarURL(url);
+  },
+
   /**
    * Sube un PDF de CVLAC
    */
@@ -24,20 +28,10 @@ export const CVLACAPI = {
     formData.append('file', file);
     if (userId) formData.append('user_id', userId);
 
-    const response = await fetch(`${API_URL}${API_BASE}/subir-pdf`, {
+    return fetchAPI(`${API_BASE}/subir-pdf`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
       body: formData
     });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Error al subir CVLAC');
-    }
-
-    return response.json();
   },
 
   /**
@@ -58,9 +52,10 @@ export const CVLACAPI = {
    * Importa productos desde CVLAC parseado
    */
   async importarProductos(userId, productos) {
+    const payload = Array.isArray(productos) ? { productos } : productos;
     return fetchAPI(`${API_BASE}/importar-productos?user_id=${userId}`, {
       method: 'POST',
-      body: JSON.stringify(productos)
+      body: JSON.stringify(payload)
     });
   },
 
@@ -71,3 +66,5 @@ export const CVLACAPI = {
     return fetchAPI(`${API_BASE}/resumen-sistema`);
   }
 };
+
+export const CvlacAPI = CVLACAPI;

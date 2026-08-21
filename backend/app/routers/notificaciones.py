@@ -15,7 +15,7 @@ from app.database import get_db
 from app.auth import get_current_user, get_current_admin
 from app.models import User, Notificacion
 from app.schemas import (
-    NotificacionResponse, NotificacionListResponse, 
+    NotificacionCreate, NotificacionResponse, NotificacionListResponse, 
     NotificacionMarcarLeida, NotificacionStats
 )
 
@@ -28,6 +28,7 @@ router = APIRouter(
 @router.get("/", response_model=List[NotificacionListResponse])
 def listar_notificaciones(
     solo_no_leidas: bool = Query(False, description="Solo notificaciones no leídas"),
+    leida: Optional[bool] = Query(None, description="Filtrar por estado leída (true/false)"),
     limite: int = Query(50, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -36,7 +37,12 @@ def listar_notificaciones(
     try:
         query = db.query(Notificacion).filter(Notificacion.user_id == str(current_user.id))
         
-        if solo_no_leidas:
+        if leida is not None:
+            if leida:
+                query = query.filter(Notificacion.leida == True)
+            else:
+                query = query.filter((Notificacion.leida == False) | (Notificacion.leida.is_(None)))
+        elif solo_no_leidas:
             query = query.filter((Notificacion.leida == False) | (Notificacion.leida.is_(None)))
         
         notificaciones = query.order_by(desc(Notificacion.created_at)).limit(limite).all()
@@ -245,6 +251,50 @@ def crear_notificacion_sistema(
     except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
         db.rollback()
         raise db_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/enviar-mensaje", status_code=status.HTTP_201_CREATED)
+def enviar_mensaje_usuario(
+    data: NotificacionCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Envía un mensaje o notificación directa a un usuario."""
+    try:
+        destinatario = db.query(User).filter(User.id == str(data.user_id)).first()
+        if not destinatario:
+            raise HTTPException(status_code=404, detail="Usuario destinatario no encontrado")
+        
+        titulo = data.titulo
+        if current_user.rol != 'admin' and not titulo.lower().startswith("mensaje de"):
+            titulo = f"Mensaje de {current_user.nombre}: {titulo}"
+            
+        notificacion = Notificacion(
+            user_id=str(data.user_id),
+            tipo=data.tipo or 'sistema',
+            titulo=titulo,
+            mensaje=data.mensaje,
+            prioridad=data.prioridad or 'normal',
+            entidad_tipo=data.entidad_tipo or 'user_message',
+            entidad_id=str(data.entidad_id) if data.entidad_id else str(current_user.id)
+        )
+        
+        db.add(notificacion)
+        db.commit()
+        db.refresh(notificacion)
+        
+        return {
+            "message": "Mensaje enviado exitosamente",
+            "notificacion_id": str(notificacion.id)
+        }
+    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
+        db.rollback()
+        raise db_err
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

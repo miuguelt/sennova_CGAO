@@ -25,13 +25,19 @@ import MensajeriaModule from './components/messages/MensajeriaModule';
 import GlobalSearch from './components/common/GlobalSearch';
 import QuickActionHub from './components/common/QuickActionHub';
 import { Toaster, toast } from 'react-hot-toast';
+import { subscribeToDataRefresh } from './utils/dataRefresh';
 
 function AppContent() {
-  const { currentUser, login, register, logout, updateUser, apiError } = useAuth();
-  const [currentView, setCurrentView] = useState('dashboard');
+  const { currentUser, loading, login, register, logout, updateUser, apiError } = useAuth();
+  const [currentView, setCurrentView] = useState('grupos');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
+  const [dataVersion, setDataVersion] = useState(0);
+
+  useEffect(() => subscribeToDataRefresh(() => {
+    setDataVersion((version) => version + 1);
+  }), []);
 
   const onNotify = (message, type = 'success') => {
     if (type === 'success') toast.success(message);
@@ -58,6 +64,15 @@ function AppContent() {
     window.addEventListener('keydown', onKeydown);
     return () => window.removeEventListener('keydown', onKeydown);
   }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 text-white">
+        <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Cargando SENNOVA CGAO...</p>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return (
@@ -104,7 +119,7 @@ function AppContent() {
       '/mensajes': 'mensajes',
     };
 
-    const nextView = routeByUrl[result?.url] || routeByType[result?.type] || 'dashboard';
+    const nextView = routeByUrl[result?.url] || routeByType[result?.type] || 'grupos';
     setCurrentView(nextView);
   };
 
@@ -118,27 +133,17 @@ function AppContent() {
 
     // RBAC Guards
     const adminOnlyViews = ['auditoria', 'configuracion', 'cvlac-admin', 'cvlac_admin'];
-    const staffOnlyViews = ['investigadores', 'aprendices', 'presupuesto', 'grupos', 'convocatorias', 'reportes'];
+    const staffOnlyViews = ['investigadores', 'aprendices', 'presupuesto', 'convocatorias', 'reportes'];
 
     if (adminOnlyViews.includes(currentView) && !isAdmin) {
       return (
-        <DashboardModule 
-          {...props} 
-          onOpenSearch={() => setIsSearchOpen(true)} 
-          onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} 
-          onModuleAction={handleModuleAction} 
-        />
+        <GrupoModule {...props} />
       );
     }
 
     if (staffOnlyViews.includes(currentView) && isAprendiz) {
       return (
-        <DashboardModule 
-          {...props} 
-          onOpenSearch={() => setIsSearchOpen(true)} 
-          onNewProject={() => {}} 
-          onModuleAction={handleModuleAction} 
-        />
+        <GrupoModule {...props} />
       );
     }
     
@@ -149,8 +154,8 @@ function AppContent() {
       case 'mis-proyectos':  return <ProyectosModule {...props} initialAction={actionFor('mis-proyectos')} onActionHandled={handleActionHandled} />;
       case 'investigadores': return <InvestigadoresModule {...props} />;
       case 'aprendices':     return <AprendicesModule {...props} />;
-      case 'productos':      return <ProductosModule {...props} />;
-      case 'mis-productos':  return <ProductosModule {...props} />;
+      case 'productos':      return <ProductosModule {...props} initialAction={actionFor('productos')} onActionHandled={handleActionHandled} />;
+      case 'mis-productos':  return <ProductosModule {...props} initialAction={actionFor('mis-productos')} onActionHandled={handleActionHandled} />;
       case 'grupos':         return <GrupoModule {...props} />;
       case 'semilleros':     return <SemillerosModule {...props} />;
       case 'convocatorias':  return <ConvocatoriasModule {...props} />;
@@ -161,27 +166,31 @@ function AppContent() {
       case 'presupuesto':    return <PresupuestoModule {...props} initialAction={actionFor('presupuesto')} onActionHandled={handleActionHandled} />;
       case 'retos':          return <RetosModule {...props} onModuleAction={handleModuleAction} />;
       case 'notificaciones': return <NotificacionesModule {...props} />;
-      case 'mensajes':       return <MensajeriaModule {...props} />;
+      case 'mensajes':       return <MensajeriaModule {...props} initialAction={actionFor('mensajes')} onActionHandled={handleActionHandled} />;
       case 'cvlac_admin':    return <CVLACAdminModule {...props} />;
       case 'cvlac-admin':    return <CVLACAdminModule {...props} />;
       case 'auditoria':      return <AuditoriaModule {...props} />;
       case 'documentos':     return <DocumentCenterModule {...props} />;
       case 'repositorio':    return <DocumentCenterModule {...props} />;
-      default:               return <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => isAprendiz ? handleModuleAction({ module: 'bitacora', form: 'create' }) : handleModuleAction({ module: 'proyectos', form: 'create' })} onModuleAction={handleModuleAction} />;
+      default:               return <GrupoModule {...props} />;
     }
   };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      <Navbar 
+      <Navbar
+        key={`navbar-${dataVersion}`}
         currentUser={currentUser} 
         currentModule={currentView} 
         onNavigate={navigateTo} 
+        onModuleAction={handleModuleAction}
         onLogout={logout} 
         onOpenSearch={() => setIsSearchOpen(true)}
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 print:max-w-none print:p-0 print:m-0 print:pt-0">
-        {renderView()}
+        <React.Fragment key={`view-${currentView}-${dataVersion}`}>
+          {renderView()}
+        </React.Fragment>
       </main>
       <GlobalSearch
         isOpen={isSearchOpen}

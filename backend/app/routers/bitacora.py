@@ -86,7 +86,7 @@ def crear_entrada(
         if not proyecto:
             raise HTTPException(status_code=404, detail="Proyecto no encontrado")
             
-        payload = entry_in.dict()
+        payload = entry_in.model_dump() if hasattr(entry_in, 'model_dump') else entry_in.dict()
         payload["proyecto_id"] = str(entry_in.proyecto_id)
         
         new_entry = BitacoraEntry(
@@ -193,7 +193,7 @@ def actualizar_entrada(
         if entry.user_id != current_user.id and current_user.rol != 'admin':
             raise HTTPException(status_code=403, detail="No tiene permisos para editar esta entrada")
             
-        update_data = entry_in.dict(exclude_unset=True)
+        update_data = entry_in.model_dump(exclude_unset=True) if hasattr(entry_in, 'model_dump') else entry_in.dict(exclude_unset=True)
         for key, value in update_data.items():
             setattr(entry, key, value)
             

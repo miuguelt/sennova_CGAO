@@ -24,9 +24,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
+        # Unicas variables que el codigo del frontend lee (import.meta.env).
+        # Se hornean en el build: cambiarlas exige reconstruir la imagen.
         VITE_API_URL: ${VITE_API_URL:-/api}
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
-        VITE_FRONTEND_URL: ${VITE_FRONTEND_URL}
+        VITE_CVLAC_BASE_URL: ${VITE_CVLAC_BASE_URL:-https://scienti.minciencias.gov.co}
     image: sennova-frontend:${APP_VERSION:-latest}
     container_name: sennova_frontend
     restart: unless-stopped
@@ -73,11 +74,11 @@ services:
       DB_HOST: ${DB_HOST:-sennova-db}
       DB_PORT: "${DB_PORT:-5432}"
       DB_USER: ${DB_USER:-sennova}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PASSWORD: "${DB_PASSWORD:?Define DB_PASSWORD con minimo 12 caracteres}"
       DB_NAME: ${DB_NAME:-sennova}
       DATABASE_URL: "${DATABASE_URL:-postgresql+psycopg://${DB_USER:-sennova}:${DB_PASSWORD}@sennova-db:5432/${DB_NAME:-sennova}}"
       # ── Seguridad ──
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: "${JWT_SECRET:?Define JWT_SECRET con minimo 32 caracteres generado con secrets.token_urlsafe(48)}"
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
       # ── CORS ──
@@ -87,12 +88,16 @@ services:
       FRONTEND_URL: "${FRONTEND_URL:-https://${DOMAIN:-localhost}}"
       BACKEND_URL: "${BACKEND_URL:-https://${DOMAIN:-localhost}/api}"
       # ── Admin Inicial ──
+      # Unico dato de negocio que debe existir antes del primer arranque. Lo crea
+      # el entrypoint (scripts/bootstrap_initial_data.py) de forma idempotente:
+      # en redespliegues no duplica el admin ni reescribe su contrasena.
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@sena.edu.co}
-      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-123456}
+      INITIAL_ADMIN_PASSWORD: "${INITIAL_ADMIN_PASSWORD:?Define INITIAL_ADMIN_PASSWORD con minimo 12 caracteres}"
       INITIAL_ADMIN_NOMBRE: "${INITIAL_ADMIN_NOMBRE:-Administrador SENNOVA}"
       INITIAL_ADMIN_DOCUMENTO: "${INITIAL_ADMIN_DOCUMENTO:-admin01}"
       INITIAL_ADMIN_SEDE: "${INITIAL_ADMIN_SEDE:-CGAO}"
-      SEED_INITIAL_DATA: "${SEED_INITIAL_DATA:-false}"
+      # Poblado de demostracion: destructivo. El backend lo ignora en produccion.
+      SEED_INITIAL_DATA: "false"
       STORAGE_DIR: ${STORAGE_DIR:-/app/storage}
       # ── CVLAC ──
       CVLAC_BASE_URL: ${CVLAC_BASE_URL:-https://scienti.minciencias.gov.co}
@@ -126,34 +131,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 45s
-
-  # ── DB INITIALIZER (corre y muere — idempotente) ───────────────────────
-  sennova-db-init:
-    image: sennova-backend:${APP_VERSION:-latest}
-    container_name: sennova_db_init
-    restart: "no"
-    command: >
-      sh -c "
-        echo '🔄 Esperando base de datos...' &&
-        sleep 5 &&
-        echo '🔧 Ejecutando migraciones...' &&
-        alembic upgrade head &&
-        echo '✅ Inicialización completa.'
-      "
-    environment:
-      APP_ENV: production
-      DB_HOST: ${DB_HOST:-sennova-db}
-      DB_PORT: "${DB_PORT:-5432}"
-      DB_USER: ${DB_USER:-sennova}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME:-sennova}
-      DATABASE_URL: "${DATABASE_URL:-postgresql+psycopg://${DB_USER:-sennova}:${DB_PASSWORD}@sennova-db:5432/${DB_NAME:-sennova}}"
-      JWT_SECRET: ${JWT_SECRET}
-    depends_on:
-      sennova-db:
-        condition: service_healthy
-    networks:
-      - sennova-net
 
   # ── POSTGRESQL 16 ──────────────────────────────────────────────────────
   sennova-db:

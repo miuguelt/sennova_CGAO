@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -14,10 +15,23 @@ from app.models import User, Grupo, Semillero, Aprendiz, Convocatoria, Proyecto,
 
 # Configuración desde variables de entorno
 SQLITE_URL = os.getenv('SQLITE_URL', 'sqlite:///./backend/sennova.db')
-POSTGRES_URL = os.getenv('DATABASE_URL', 'postgresql+psycopg://postgres:sennova123@127.0.0.1:5432/sennova')
+# Sin DSN de reserva: el anterior llevaba una contraseña literal y apuntaba al
+# puerto 5432, que la topología del workspace prohíbe (PostgreSQL vive en 5434).
+POSTGRES_URL = os.getenv('DATABASE_URL')
+if not POSTGRES_URL:
+    raise SystemExit(
+        "Falta DATABASE_URL. Defínela en el entorno o en el .env local del "
+        "proyecto antes de ejecutar la migración."
+    )
+
+
+def safe_dsn(url: str) -> str:
+    """DSN sin contraseña, para poder registrarlo sin filtrar la credencial."""
+    return re.sub(r'://([^:/@]+):[^@]+@', r'://\1:***@', url)
+
 
 def migrate():
-    print(f"🚀 Iniciando migración de {SQLITE_URL} a {POSTGRES_URL}...")
+    print(f"🚀 Iniciando migración de {SQLITE_URL} a {safe_dsn(POSTGRES_URL)}...")
     
     # Motores
     sqlite_engine = create_engine(SQLITE_URL)

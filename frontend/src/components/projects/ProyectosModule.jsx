@@ -3,7 +3,8 @@ import {
   Plus, Search, FolderOpen, X, Users, Calendar, Trash2,
   DollarSign, ChevronRight, Clock, Send, CheckCircle2, AlertCircle, User, Loader2,
   LayoutGrid, List as ListIcon, MoreVertical, Edit2, Filter, ArrowRight, Award, FileText,
-  MapPin, Package, Settings, Zap, Target, Clock3, CheckCircle, ShieldCheck, Check, Trophy
+  MapPin, Package, Settings, Zap, Target, Clock3, CheckCircle, ShieldCheck, Check, Trophy,
+  Sparkles, GraduationCap, Info, Activity
 } from 'lucide-react';
 import { 
   PieChart, Pie, Cell, Tooltip as ReTooltip, 
@@ -13,6 +14,7 @@ import {
 import { ProyectosAPI } from '../../api/proyectos';
 import { UsuariosAPI as UsersAPI } from '../../api/usuarios';
 import { SemillerosAPI } from '../../api/semilleros';
+import { GruposAPI } from '../../api/grupos';
 import { RetosAPI } from '../../api/retos';
 import { ConvocatoriasAPI } from '../../api/convocatorias';
 import { PlantillasAPI } from '../../api/plantillas';
@@ -23,8 +25,13 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import TextArea from '../ui/TextArea';
 import StatusBadge from '../ui/StatusBadge';
+import Modal from '../ui/Modal';
+import Drawer from '../ui/Drawer';
+import ScrollableTabs from '../ui/ScrollableTabs';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import useClickOutside from '../../hooks/useClickOutside';
 import { PDFGenerator } from '../../utils/pdfGenerator';
+import ProyectoEquipoTab from './ProyectoEquipoTab';
 
 // ─── Gantt Component ──────────────────────────────────────────────────────────
 const ProjectTimeline = ({ entregables = [] }) => {
@@ -37,60 +44,56 @@ const ProjectTimeline = ({ entregables = [] }) => {
         <div className="absolute top-0 left-5 bottom-0 w-1 bg-gradient-to-b from-emerald-500/20 via-slate-100 to-slate-100 rounded-full" />
         
         {fases.map((fase, idx) => {
-          const items = entregables.filter(e => e.fase === fase);
+          const itemsDeFase = entregables.filter((_, i) => (i % 4) === idx);
+          
           return (
-            <div key={fase} className="relative pl-14 pb-10 last:pb-0">
-              {/* Indicador de Fase Premium */}
-              <div className="absolute left-0 w-10 h-10 bg-white border-4 border-slate-50 rounded-2xl flex items-center justify-center z-10 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/30">
-                <span className="text-xs font-black text-emerald-600 italic">F{idx + 1}</span>
-              </div>
-              
-              <div className="mb-6">
-                <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
-                  {fase}
-                  <div className="h-px flex-1 bg-slate-100" />
-                  <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-600">{items.length} entregables</Badge>
-                </h4>
+            <div key={fase} className="relative flex items-start gap-6 mb-8 last:mb-0 group">
+              {/* Nodo indicador con pulso para fases activas */}
+              <div className="relative z-10">
+                <div className="w-10 h-10 rounded-2xl bg-white border-2 border-emerald-500 shadow-lg shadow-emerald-500/10 flex items-center justify-center text-xs font-black text-emerald-600 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300">
+                  {idx + 1}
+                </div>
               </div>
 
-              {/* Grid de Hitos */}
-              <div className="grid grid-cols-1 gap-4">
-                {items.length === 0 ? (
-                  <div className="p-4 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                    <p className="text-[11px] text-slate-400 font-medium italic">Sin hitos programados para esta etapa.</p>
+              {/* Contenido de la Fase */}
+              <div className="flex-1 pt-1 bg-white/50 backdrop-blur-xs p-4 rounded-2xl border border-slate-100 hover:border-emerald-100 hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                      Hito Metodológico
+                    </span>
+                    <h5 className="font-extrabold text-slate-800 text-sm mt-0.5">{fase}</h5>
                   </div>
-                ) : (
-                  items.map(item => (
-                    <div key={item.id} className="flex items-center gap-4 group">
-                      <div className="flex-1 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-300 transform hover:-translate-y-0.5">
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">{item.titulo}</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">{item.descripcion || 'Sin descripción de actividad'}</p>
-                          </div>
-                          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-lg tracking-wider ${
-                            item.estado === 'aprobado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                  <span className="text-[11px] font-black text-slate-400 font-mono bg-slate-50 px-2 py-1 rounded-lg">
+                    {itemsDeFase.length} Entregables
+                  </span>
+                </div>
+
+                {itemsDeFase.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                    {itemsDeFase.map(e => (
+                      <div 
+                        key={e.id} 
+                        className="p-3 bg-slate-50/80 rounded-xl border border-slate-100/80 flex flex-col justify-between hover:bg-emerald-50/30 hover:border-emerald-200/60 transition-all"
+                      >
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <CheckCircle2 size={13} className={e.estado === 'aprobado' ? 'text-emerald-500' : 'text-slate-300'} />
+                          <span className="text-xs font-bold text-slate-700 truncate">{e.nombre}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                          <span>{e.fecha_limite ? new Date(e.fecha_limite).toLocaleDateString('es-CO') : 'Sin fecha'}</span>
+                          <span className={`px-1.5 py-0.5 rounded font-black uppercase text-[8px] ${
+                            e.estado === 'aprobado' ? 'bg-emerald-100 text-emerald-700' :
+                            e.estado === 'en_revision' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'
                           }`}>
-                            {item.estado}
+                            {e.estado}
                           </span>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full rounded-full transition-all duration-1000 ${item.estado === 'aprobado' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-amber-400'}`} 
-                              style={{width: item.estado === 'aprobado' ? '100%' : '15%'}} 
-                            />
-                          </div>
-                          <div className="flex items-center gap-1.5 text-slate-400">
-                            <Calendar size={10} />
-                            <span className="text-[10px] font-bold tabular-nums">
-                              {new Date(item.fecha_entrega).toLocaleDateString('es-CO')}
-                            </span>
-                          </div>
-                        </div>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic py-1">No hay entregables mapeados para esta fase aún.</p>
                 )}
               </div>
             </div>
@@ -164,6 +167,13 @@ const TIPOLOGIA_OPTIONS = [
   { value: 'Innovación',     label: 'Innovación' },
   { value: 'Investigación',  label: 'Investigación' },
   { value: 'Modernización',  label: 'Modernización' },
+];
+
+const FORMATOS_OFICIALES = [
+  { id: 'etapa_productiva', nombre: 'Formato Planeación Etapa Productiva', codigo: 'F-01-SENN' },
+  { id: 'seguimiento', nombre: 'Formato de Seguimiento Técnico', codigo: 'F-02-SENN' },
+  { id: 'informe_final', nombre: 'Informe Final de Proyecto', codigo: 'F-03-SENN' },
+  { id: 'bitacora', nombre: 'Bitácora Técnica Oficial', codigo: 'F-04-SENN' },
 ];
 
 const controlValue = (eventOrValue) => eventOrValue?.target ? eventOrValue.target.value : eventOrValue;
@@ -313,6 +323,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [convocatorias,    setConvocatorias]    = useState([]);
   const [usuarios,         setUsuarios]         = useState([]);
   const [semilleros,       setSemilleros]       = useState([]);
+  const [grupos,           setGrupos]           = useState([]);
   const [loading,          setLoading]          = useState(true);
   const [viewMode,         setViewMode]         = useState('kanban');
   const [showLiquidation,  setShowLiquidation]  = useState(false);
@@ -342,10 +353,11 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const menuRef = React.useRef(null);
 
   const isOwnerOrAdmin = (project) => currentUser?.rol !== 'aprendiz' && (currentUser?.rol === 'admin' || project?.owner_id === currentUser?.id);
+  const teamMembers = selectedProyecto?.equipo || [];
 
   useClickOutside(menuRef, () => setMenuOpenId(null));
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(true); }, []);
 
   // Close menus on click outside
   useEffect(() => {
@@ -365,7 +377,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     }));
   };
 
-  // Manejar acción inicial (ej: abrir formulario de creación)
+  // Manejar acción inicial (ej: abrir formulario de creación o ver detalle de un proyecto)
   useEffect(() => {
     if (initialAction?.form === 'create') {
       setFormData({
@@ -376,28 +388,52 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       setFormTab('basic');
       setShowForm(true);
       onActionHandled?.();
+    } else if (initialAction?.form === 'view' && initialAction?.data?.id) {
+      const targetId = String(initialAction.data.id);
+      const found = proyectos.find(p => String(p.id) === targetId);
+      if (found) {
+        handleOpenDetail(found);
+        onActionHandled?.();
+      } else {
+        ProyectosAPI.get(targetId).then(p => {
+          if (p) {
+            handleOpenDetail(p);
+            onActionHandled?.();
+          }
+        }).catch(() => {});
+      }
     }
-  }, [initialAction, onActionHandled]);
+  }, [initialAction, proyectos, onActionHandled]);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (showLoading = false) => {
+    if (showLoading) setLoading(true);
     try {
-      const [p, u, r, s, c] = await Promise.all([
+      const [p, u, r, s, c, g] = await Promise.all([
         ProyectosAPI.list(),
         UsersAPI.list(),
         RetosAPI.list(),
         SemillerosAPI.list(),
-        ConvocatoriasAPI.list()
+        ConvocatoriasAPI.list(),
+        GruposAPI.list()
       ]);
-      setProyectos(Array.isArray(p) ? p : []);
+      const pList = Array.isArray(p) ? p : [];
+      setProyectos(pList);
       setUsuarios(Array.isArray(u) ? u : []);
       setRetosDisponibles(Array.isArray(r) ? r : []);
       setSemilleros(Array.isArray(s) ? s : []);
       setConvocatorias(Array.isArray(c) ? c : []);
+      setGrupos(Array.isArray(g) ? g : []);
+
+      setSelectedProyecto(prev => {
+        if (!prev) return null;
+        const updated = pList.find(item => String(item.id) === String(prev.id));
+        return updated ? { ...prev, ...updated } : prev;
+      });
     } catch (err) {
       console.error(err);
+    } finally {
+      if (showLoading) setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleCreate = async () => {
@@ -438,6 +474,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       linea_programatica: proyecto.linea_programatica || '',
       reto_origen_id: proyecto.reto_origen_id || '',
       semillero_id: proyecto.semillero_id || '',
+      grupo_id: proyecto.grupo_id || '',
       convocatoria_id: proyecto.convocatoria_id || '',
       año: proyecto.año || new Date().getFullYear(),
       año_fin: proyecto.año_fin || new Date().getFullYear(),
@@ -449,13 +486,21 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     setMenuOpenId(null);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar este proyecto? Esta acción no se puede deshacer.')) return;
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
+
+  const handleDelete = (id) => {
+    setDeleteConfirm({ isOpen: true, id });
+    setMenuOpenId(null);
+  };
+
+  const confirmDeleteAction = async () => {
+    if (!deleteConfirm.id) return;
     try {
-      await ProyectosAPI.delete(id);
+      await ProyectosAPI.delete(deleteConfirm.id);
       onNotify?.('Proyecto eliminado correctamente', 'success');
+      setDeleteConfirm({ isOpen: false, id: null });
+      if (selectedProyecto?.id === deleteConfirm.id) setIsDetailOpen(false);
       loadData();
-      setMenuOpenId(null);
     } catch (err) {
       onNotify?.('Error al eliminar: ' + err.message, 'error');
     }
@@ -516,7 +561,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   };
 
   const handleRemoveMember = async (userId) => {
-    if (!window.confirm('¿Eliminar este miembro del equipo?')) return;
+    if (!userId || !selectedProyecto) return;
     try {
       await ProyectosAPI.removeEquipo(selectedProyecto.id, userId);
       onNotify?.('Miembro eliminado del equipo', 'success');
@@ -759,7 +804,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       .toLowerCase().includes(searchTerm.toLowerCase());
     const hayStatus = !statusFilter || p.estado_normalizado === statusFilter || p.estado === statusFilter;
     const projectYear = p.año || (p.created_at ? new Date(p.created_at).getFullYear() : new Date().getFullYear());
-    const hayAño = projectYear === selectedYear;
+    const hayAño = selectedYear === 'todos' || projectYear === selectedYear;
     return haySearch && hayStatus && hayAño;
   });
 
@@ -769,7 +814,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
   const byState = (state) => filtered.filter(p => p.estado_normalizado === state);
 
-  if (loading) return <Skeleton />;
+  if (loading && proyectos.length === 0) return <Skeleton />;
 
   return (
     <div className="space-y-4 md:space-y-6 animate-fadeIn pb-20">
@@ -797,21 +842,21 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               onClick={() => setViewMode('kanban')}
               aria-label="Vista tablero"
               aria-pressed={viewMode === 'kanban'}
-              className={`p-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
-                viewMode === 'kanban' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400 hover:text-slate-700'
+              className={`p-1.5 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                viewMode === 'kanban' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:text-slate-600'
               }`}
             >
-              <LayoutGrid size={18} />
+              <LayoutGrid size={17} aria-hidden="true" />
             </button>
             <button
-              onClick={() => setViewMode('table')}
+              onClick={() => setViewMode('list')}
               aria-label="Vista lista"
-              aria-pressed={viewMode === 'table'}
-              className={`p-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
-                viewMode === 'table' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400 hover:text-slate-700'
+              aria-pressed={viewMode === 'list'}
+              className={`p-1.5 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                viewMode === 'list' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:text-slate-600'
               }`}
             >
-              <ListIcon size={18} />
+              <ListIcon size={17} aria-hidden="true" />
             </button>
           </div>
           {currentUser?.rol !== 'aprendiz' && (
@@ -854,21 +899,24 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       )}
 
       {/* ── Year Folders ── */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {uniqueYears.map(year => (
-          <button
-            key={year}
-            onClick={() => setSelectedYear(year)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-t-xl border-b-2 font-black text-xs uppercase tracking-widest transition-all ${
-              selectedYear === year 
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-500 shadow-sm' 
-                : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
-            }`}
-          >
-            <FolderOpen size={16} className={selectedYear === year ? 'text-emerald-500' : 'text-slate-400'} />
-            {year}
-          </button>
-        ))}
+      <div className="bg-white/60 rounded-2xl border border-slate-200/60 p-1 shadow-xs">
+        <ScrollableTabs
+          tabs={[
+            { id: 'todos', label: `Todos (${proyectos.length})`, icon: FolderOpen },
+            ...uniqueYears.map(year => ({
+              id: String(year),
+              label: String(year),
+              icon: FolderOpen,
+              count: proyectos.filter(p => p.ano_ejecucion === year || p.año === year).length || undefined
+            }))
+          ]}
+          activeTab={String(selectedYear)}
+          onTabChange={(tabId) => setSelectedYear(tabId === 'todos' ? 'todos' : Number(tabId) || tabId)}
+          variant="emerald"
+          size="md"
+          className="bg-transparent border-0"
+          ariaLabel="Filtrar proyectos por año de ejecución"
+        />
       </div>
 
       {/* ── Filters ── */}
@@ -906,9 +954,9 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
             const totalBudget = cards.reduce((sum, c) => sum + (Number(c.presupuesto_total) || 0), 0);
             
             const headerThemes = {
-              'Aprobado':     { border: 'border-blue-200', bg: 'bg-blue-50/80', badge: 'bg-blue-100 text-blue-700', text: 'text-blue-900', dot: 'bg-blue-500' },
-              'En ejecución': { border: 'border-emerald-200', bg: 'bg-emerald-50/80', badge: 'bg-emerald-100 text-emerald-700', text: 'text-emerald-900', dot: 'bg-emerald-500' },
-              'Finalizado':   { border: 'border-slate-200', bg: 'bg-slate-50/80', badge: 'bg-slate-200 text-slate-700', text: 'text-slate-900', dot: 'bg-slate-500' },
+              'Aprobado':     { border: 'border-blue-300', bg: 'bg-blue-50', badge: 'bg-blue-100 text-blue-950 font-black border border-blue-200', text: 'text-blue-950 font-black', dot: 'bg-blue-600' },
+              'En ejecución': { border: 'border-emerald-300', bg: 'bg-emerald-50', badge: 'bg-emerald-100 text-emerald-950 font-black border border-emerald-200', text: 'text-emerald-950 font-black', dot: 'bg-emerald-600' },
+              'Finalizado':   { border: 'border-slate-300', bg: 'bg-slate-100/80', badge: 'bg-slate-200 text-slate-950 font-black border border-slate-300', text: 'text-slate-950 font-black', dot: 'bg-slate-600' },
             };
             const theme = headerThemes[state] || headerThemes['Aprobado'];
 
@@ -920,7 +968,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                     <div className={`w-3 h-3 rounded-full ${theme.dot} shadow-sm`} aria-hidden="true" />
                     <div>
                       <h3 className={`font-black text-xs uppercase tracking-widest ${theme.text}`}>{state}</h3>
-                      <p className="text-[10px] font-bold text-slate-500 mt-0.5 tabular-nums">
+                      <p className="text-[10px] font-bold text-slate-700 mt-0.5 tabular-nums">
                         ${totalBudget >= 1e6 ? `${(totalBudget / 1e6).toFixed(1)}M` : totalBudget.toLocaleString('es-CO')}
                       </p>
                     </div>
@@ -994,6 +1042,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                   <th scope="col" className="px-4 md:px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Proyecto</th>
                   <th scope="col" className="hidden md:table-cell px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Código</th>
                   <th scope="col" className="px-4 md:px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Estado</th>
+                  <th scope="col" className="hidden lg:table-cell px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Avance Técnico</th>
                   <th scope="col" className="hidden sm:table-cell px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">Presupuesto</th>
                   <th scope="col" className="px-4 py-4 w-10"></th>
                 </tr>
@@ -1008,10 +1057,40 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                   >
                     <td className="px-4 md:px-6 py-4">
                       <p className="font-bold text-slate-900 text-sm">{p.nombre_corto || p.nombre}</p>
-                      <p className="hidden sm:block text-[10px] text-slate-500 font-medium mt-0.5 line-clamp-1">{p.linea_investigacion}</p>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                        {p.grupo_nombre && (
+                          <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                            {p.grupo_nombre}
+                          </span>
+                        )}
+                        {p.semillero_nombre && (
+                          <span className="text-[9px] font-bold bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded">
+                            {p.semillero_nombre}
+                          </span>
+                        )}
+                        <span className="hidden sm:inline text-[10px] text-slate-400 font-medium truncate max-w-[180px]">{p.linea_investigacion}</span>
+                      </div>
                     </td>
-                    <td className="hidden md:table-cell px-6 py-4 font-mono text-[10px] text-emerald-700 font-bold">{p.codigo_sgps}</td>
+                    <td className="hidden md:table-cell px-6 py-4 font-mono text-[10px] text-emerald-700 font-bold">{p.codigo_sgps || 'S/C'}</td>
                     <td className="px-4 md:px-6 py-4"><StatusBadge estado={p.estado} className="text-[10px]" /></td>
+                    <td className="hidden lg:table-cell px-6 py-4">
+                      <div className="w-36 space-y-1">
+                        <div className="flex justify-between items-center text-[10px] font-bold">
+                          <span className="text-slate-400">{p.entregables_aprobados || 0}/{p.total_entregables || 0} ent.</span>
+                          <span className="text-emerald-700 font-black">{p.avance_porcentaje || 0}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              (p.avance_porcentaje || 0) >= 100 ? 'bg-emerald-500' :
+                              (p.avance_porcentaje || 0) >= 50 ? 'bg-teal-500' :
+                              (p.avance_porcentaje || 0) > 0 ? 'bg-amber-500' : 'bg-slate-300'
+                            }`}
+                            style={{ width: `${Math.min(100, Math.max(0, p.avance_porcentaje || 0))}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
                     <td className="hidden sm:table-cell px-6 py-4 text-xs font-bold text-slate-700 tabular-nums text-right">
                       ${p.presupuesto_total?.toLocaleString('es-CO')}
                     </td>
@@ -1071,959 +1150,668 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
         </Card>
       )}
 
-      {/* ── Detail slide-over — Mobile optimized ── */}
-      {isDetailOpen && selectedProyecto && (
-        <div className="fixed inset-0 z-[100] overflow-hidden" role="dialog" aria-modal="true">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-fadeIn" onClick={() => setIsDetailOpen(false)} />
-          <div className="absolute inset-y-0 right-0 flex max-w-full pl-0 sm:pl-10">
-            <div className="w-screen max-w-xl h-full bg-white shadow-2xl flex flex-col animate-slideInRight">
-              {/* Header */}
-              <div className="px-5 md:px-6 py-5 border-b border-slate-100 bg-slate-50 flex flex-col gap-4">
-                <div className="flex items-center justify-between gap-3">
-                  <StatusBadge estado={selectedProyecto.estado} />
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenElaboracionDiagnostic(selectedProyecto)}
-                      className="h-8 px-3 text-[11px] font-black text-slate-700 bg-white hover:bg-slate-50 border-slate-200 shadow-sm flex items-center gap-1.5"
-                    >
-                      <Sparkles size={13} className="text-emerald-600" />
-                      Diagnóstico Elaboración
-                    </Button>
-                    <Button
-                      variant="sena"
-                      size="sm"
-                      onClick={() => handleOpenLiquidation(selectedProyecto)}
-                      className="h-8 px-3 text-[11px] font-black tracking-wide bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white shadow-sm flex items-center gap-1.5"
-                    >
-                      <ShieldCheck size={14} />
-                      Requisitos Liquidación
-                    </Button>
-                    <button onClick={() => setIsDetailOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                      <X size={20} className="text-slate-500" />
-                    </button>
-                  </div>
-                </div>
-                <h2 className="text-lg md:text-xl font-bold text-slate-900 leading-tight">
-                  {selectedProyecto.nombre}
-                </h2>
-                
-                {/* Tabs Navigation */}
-                <div className="flex border-b border-slate-100 mt-2">
-                  {[
-                    { id: 'summary', label: 'Resumen', icon: FileText },
-                    { id: 'team',    label: 'Equipo',  icon: Users },
-                    { id: 'timeline', label: 'Línea de Tiempo', icon: Clock3 },
-                    { id: 'formats',  label: 'Formatos', icon: FileText },
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-2 px-4 py-2 text-xs font-bold transition-all border-b-2 ${
-                        activeTab === tab.id
-                          ? 'border-emerald-500 text-emerald-600 bg-emerald-50/50'
-                          : 'border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      <tab.icon size={14} />
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Body */}
-              <div className="flex-1 overflow-y-auto px-5 md:px-6 py-6 scrollbar-thin bg-white">
-                
-                {activeTab === 'summary' && (
-                  <div className="space-y-8 animate-fadeIn">
-                    {/* Financial Summary with Charts */}
-                    <section>
-                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                        <DollarSign size={12} /> Ejecución por Rubros
-                      </h3>
-                      
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                        {/* CSS-based simple bars for quick view */}
-                        <div className="space-y-4">
-                          {RUBROS.map(r => {
-                            const val = getRubroValue(selectedProyecto, r.id);
-                            const pct = selectedProyecto.presupuesto_total > 0 
-                              ? (val / selectedProyecto.presupuesto_total) * 100 
-                              : 0;
-                            return (
-                              <div key={r.id} className="space-y-1.5">
-                                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-tight">
-                                  <span className="text-slate-500 flex items-center gap-1.5">
-                                    <r.icon size={10} className={r.color} /> {r.label}
-                                  </span>
-                                  <span className="text-slate-900">${val.toLocaleString('es-CO')} ({pct.toFixed(1)}%)</span>
-                                </div>
-                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                  <div 
-                                    className={`h-full rounded-full ${r.color.replace('text', 'bg')} opacity-80`} 
-                                    style={{ width: `${pct}%` }} 
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* Recharts Pie Visualization */}
-                        {(() => {
-                          const pieData = RUBROS.map(r => ({
-                            name: r.label,
-                            value: getRubroValue(selectedProyecto, r.id)
-                          })).filter(d => d.value > 0);
-
-                          return (
-                            <div className="h-[200px] w-full bg-slate-50/50 rounded-3xl border border-slate-100 flex items-center justify-center relative overflow-hidden">
-                              {pieData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                  <PieChart>
-                                    <Pie
-                                      data={pieData}
-                                      cx="50%"
-                                      cy="50%"
-                                      innerRadius={60}
-                                      outerRadius={80}
-                                      paddingAngle={5}
-                                      dataKey="value"
-                                    >
-                                      {RUBROS.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={
-                                          entry.id === 'personal' ? '#10b981' : 
-                                          entry.id === 'materiales' ? '#3b82f6' :
-                                          entry.id === 'viaticos' ? '#f59e0b' :
-                                          entry.id === 'servicios' ? '#6366f1' : '#f43f5e'
-                                        } />
-                                      ))}
-                                    </Pie>
-                                    <ReTooltip 
-                                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
-                                      formatter={(value) => `$${value.toLocaleString('es-CO')}`}
-                                    />
-                                  </PieChart>
-                                </ResponsiveContainer>
-                              ) : (
-                                <div className="text-center p-4">
-                                  <DollarSign size={24} className="text-slate-300 mx-auto mb-1" />
-                                  <p className="text-xs font-bold text-slate-500">Sin rubros clasificados</p>
-                                  <p className="text-[10px] text-slate-400">Total registrado: ${(selectedProyecto.presupuesto_total || 0).toLocaleString('es-CO')}</p>
-                                </div>
-                              )}
-                              {pieData.length > 0 && (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Total</p>
-                                  <p className="text-sm font-black text-slate-900 tabular-nums">
-                                    ${(selectedProyecto.presupuesto_total || 0).toLocaleString('es-CO')}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 pt-2 mb-8">
-                        <Button variant="outline" size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest" onClick={handleGenerateCronograma}>
-                          <Calendar size={12} className="mr-1.5" /> Generar Cronograma
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-8 text-[10px] font-black uppercase tracking-widest border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                          onClick={async () => {
-                            try {
-                              setLoading(true);
-                              const data = await PlantillasAPI.getReportePresupuesto(selectedProyecto.id);
-                              PDFGenerator.generateBudgetReport(data);
-                              onNotify?.('Reporte financiero generado con éxito', 'success');
-                            } catch (err) {
-                              onNotify?.('Error al generar reporte: ' + err.message, 'error');
-                            } finally {
-                              setLoading(false);
-                            }
-                          }}
-                        >
-                          {loading ? <Loader2 className="animate-spin mr-1.5" size={12} /> : <DollarSign size={12} className="mr-1.5" />} 
-                          Exportar Presupuesto
-                        </Button>
-                      </div>
-                    </section>
-
-                    {/* Description */}
-                    <section>
-                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                        <FileText size={12} /> Descripción del Proyecto
-                      </h3>
-                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 leading-relaxed shadow-sm">
-                        <p className="text-sm text-slate-700">
-                          {selectedProyecto.descripcion || 'Sin descripción detallada.'}
-                        </p>
-                      </div>
-                    </section>
-                  </div>
-                )}
-
-                {activeTab === 'team' && (
-                  <section className="animate-fadeIn space-y-8">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                        <Users size={12} /> Equipo de Investigación
-                      </h3>
-                      {isOwnerOrAdmin(selectedProyecto) && (
-                        <Button 
-                          variant={isPoolVisible ? 'secondary' : 'outline'} 
-                          size="sm" 
-                          className="h-8 text-[10px] font-black uppercase tracking-widest"
-                          onClick={() => setIsPoolVisible(!isPoolVisible)}
-                        >
-                          {isPoolVisible ? 'Cerrar Directorio' : 'Vincular Talento'}
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="relative">
-                      {/* Talent Pool Sidebar 2.0 */}
-                      {isPoolVisible && (
-                        <div className="absolute left-0 top-0 bottom-0 w-full sm:w-72 bg-white border-r border-slate-100 z-50 shadow-2xl flex flex-col animate-slideInLeft rounded-r-3xl overflow-hidden ring-1 ring-slate-200">
-                          <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Zap size={14} className="text-emerald-400" />
-                              <span className="text-[10px] font-black uppercase tracking-widest">Talento CGAO</span>
-                            </div>
-                            <button onClick={() => setIsPoolVisible(false)} className="p-1 hover:bg-white/10 rounded-lg"><X size={14} /></button>
-                          </div>
-                          
-                          {/* Sidebar Tabs */}
-                          <div className="flex bg-slate-50 p-1 border-b border-slate-100">
-                            <button 
-                              onClick={() => setTalentTab('investigadores')}
-                              className={`flex-1 py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${talentTab === 'investigadores' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
-                            >
-                              Investigadores
-                            </button>
-                            <button 
-                              onClick={() => setTalentTab('aprendices')}
-                              className={`flex-1 py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${talentTab === 'aprendices' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
-                            >
-                              Aprendices
-                            </button>
-                          </div>
-
-                          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/30">
-                            {usuarios
-                              .filter(u => !selectedProyecto.equipo?.some(m => m.id === u.id))
-                              .filter(u => talentTab === 'aprendices' ? u.rol === 'aprendiz' : u.rol !== 'aprendiz')
-                              .map(u => (
-                              <div 
-                                key={u.id}
-                                draggable
-                                onDragStart={(e) => handleDragUserStart(e, u)}
-                                onClick={() => {
-                                  setMemberToLink(u);
-                                  setLinkingRole(talentTab === 'aprendices' ? 'Aprendiz' : 'Investigador');
-                                }}
-                                className="group p-3 bg-white border border-slate-100 rounded-2xl cursor-grab active:cursor-grabbing hover:border-emerald-400 hover:shadow-md transition-all flex items-center justify-between gap-3"
-                              >
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${talentTab === 'aprendices' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                    {u.nombre.charAt(0)}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="text-[11px] font-black text-slate-700 truncate">{u.nombre}</p>
-                                    <p className="text-[9px] text-slate-400 font-bold truncate opacity-0 group-hover:opacity-100 transition-opacity">Click para vincular</p>
-                                  </div>
-                                </div>
-                                <Plus size={14} className="text-slate-300 group-hover:text-emerald-500" />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Role/Hours Prompt Overlay */}
-                      {memberToLink && (
-                        <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-md flex flex-col items-center justify-center p-8 animate-fadeIn text-center">
-                          <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/10">
-                            <Users size={32} />
-                          </div>
-                          <h4 className="text-sm font-black text-slate-900 mb-1">Vincular a {memberToLink.nombre}</h4>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">Configuración de Rol</p>
-                          
-                          <div className="w-full max-w-xs space-y-4">
-                            <div className="space-y-1.5 text-left">
-                              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Rol en el Proyecto</label>
-                              <select 
-                                value={linkingRole}
-                                onChange={(e) => setLinkingRole(e.target.value)}
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
-                              >
-                                <option value="Investigador Principal">Investigador Principal</option>
-                                <option value="Coinvestigador">Coinvestigador</option>
-                                <option value="Investigador">Investigador</option>
-                                <option value="Aprendiz">Aprendiz</option>
-                                <option value="Asesor">Asesor</option>
-                                <option value="Experto Técnico">Experto Técnico</option>
-                              </select>
-                            </div>
-
-                            <div className="space-y-1.5 text-left">
-                              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Horas Semanales</label>
-                              <input 
-                                type="number"
-                                value={linkingHours}
-                                onChange={(e) => setLinkingHours(parseInt(e.target.value) || 0)}
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
-                              />
-                            </div>
-
-                            <div className="flex gap-3 pt-4">
-                              <Button variant="secondary" className="flex-1" onClick={() => setMemberToLink(null)}>Cancelar</Button>
-                              <Button variant="sena" className="flex-1" onClick={() => handleAddMember(memberToLink.id, linkingRole, linkingHours)}>Vincular</Button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Project Team List */}
-                      <div 
-                        className={`grid grid-cols-1 gap-4 p-6 rounded-[2.5rem] border-2 border-dashed transition-all min-h-[300px] ${dragOverTeam ? 'border-emerald-500 bg-emerald-50 scale-[1.01]' : 'border-slate-100'}`}
-                        onDragOver={(e) => { e.preventDefault(); setDragOverTeam(true); }}
-                        onDragLeave={() => setDragOverTeam(false)}
-                        onDrop={async (e) => {
-                          e.preventDefault();
-                          setDragOverTeam(false);
-                          const userId = e.dataTransfer.getData('userId');
-                          const user = usuarios.find(u => u.id === userId);
-                          if (user) {
-                            setMemberToLink(user);
-                            setLinkingRole(user.rol === 'aprendiz' ? 'Aprendiz' : 'Investigador');
-                          }
-                        }}
-                      >
-                        {(selectedProyecto.equipo || []).length === 0 && !memberToLink && (
-                          <div className="flex flex-col items-center justify-center py-10 opacity-40">
-                            <Users size={48} className="text-slate-300 mb-4" />
-                            <p className="text-xs text-slate-400 font-black uppercase tracking-widest">Sin miembros vinculados</p>
-                            <p className="text-[10px] text-slate-400 mt-1 italic">Arrastra talentos aquí para comenzar</p>
-                          </div>
-                        )}
-                        
-                        {selectedProyecto.equipo?.map(m => (
-                          <div key={m.id} className="group flex items-center justify-between p-4 bg-white rounded-3xl border border-slate-100 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-300">
-                            <div className="flex items-center gap-4">
-                              <div className="relative">
-                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-lg ${m.rol_en_proyecto === 'Aprendiz' ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-indigo-500/20' : 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-emerald-500/20'}`}>
-                                  {m.nombre.charAt(0)}
-                                </div>
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-50">
-                                  <ShieldCheck size={12} className="text-emerald-500" />
-                                </div>
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-black text-slate-800 truncate">{m.nombre}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="outline" className={`text-[9px] border-slate-100 uppercase font-black tracking-tighter ${m.rol_en_proyecto === 'Aprendiz' ? 'text-indigo-600 bg-indigo-50/50' : 'text-emerald-600 bg-emerald-50/50'}`}>
-                                    {m.rol_en_proyecto || 'Investigador'}
-                                  </Badge>
-                                  <span className="text-[9px] font-black text-slate-400 flex items-center gap-1 uppercase">
-                                    <Clock size={10} /> {m.horas_dedicadas || 20}H/Sem
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            {isOwnerOrAdmin(selectedProyecto) && (
-                              <button 
-                                onClick={() => handleRemoveMember(m.id)}
-                                className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                                title="Remover del equipo"
-                              >
-                                <X size={16} />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Certificates Section (Strategic Addition) */}
-                    <Card className="p-6 border-0 bg-slate-50 border-slate-100 rounded-[2.5rem] space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-amber-100 text-amber-600 rounded-xl">
-                          <Trophy size={20} />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reconocimiento</p>
-                          <h4 className="text-xs font-black text-slate-900">Certificación de Participación</h4>
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                        Genera certificados automáticos para los integrantes del equipo que hayan cumplido con sus entregables.
-                      </p>
-                      {isOwnerOrAdmin(selectedProyecto) && (
-                        <Button 
-                          variant="sena" 
-                          size="sm" 
-                          className="w-full h-10 text-[10px] font-black uppercase tracking-widest mt-2"
-                          onClick={handleOpenLiquidation}
-                          disabled={selectedProyecto.estado === 'Finalizado'}
-                        >
-                          {selectedProyecto.estado === 'Finalizado' ? 'Proyecto Liquidado' : 'Liquidar Proyecto'}
-                        </Button>
-                      )}
-                    </Card>
-
-                    {/* Summary Tab Content */}
-
-                    {/* Quick Search Directory */}
-                    <div className="p-6 bg-slate-900 rounded-[2rem] space-y-4 shadow-2xl relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
-                      <div className="flex items-center justify-between relative z-10">
-                        <label className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] block">Directorio Global CGAO</label>
-                        <Search size={14} className="text-emerald-500" />
-                      </div>
-                      <div className="relative z-10">
-                        <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
-                        <select 
-                          className="w-full pl-10 pr-4 py-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-xs font-bold text-white focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none cursor-pointer shadow-inner"
-                          onChange={(e) => {
-                            const u = usuarios.find(usr => usr.id === e.target.value);
-                            if (u) {
-                              setMemberToLink(u);
-                              setLinkingRole(u.ficha ? 'Aprendiz' : 'Investigador');
-                            }
-                            e.target.value = ""; 
-                          }}
-                          value=""
-                        >
-                          <option value="">Seleccionar investigador o aprendiz...</option>
-                          {usuarios.filter(u => !selectedProyecto.equipo?.some(m => m.id === u.id)).map(u => (
-                            <option key={u.id} value={u.id}>{u.nombre} ({u.rol === 'aprendiz' ? `Aprendiz - ${u.ficha || 'S/F'}` : 'Investigador'})</option>
-                          ))}
-                        </select>
-                      </div>
-                      <p className="text-[9px] text-slate-500 font-medium italic px-1 relative z-10">
-                        * Los aprendices vinculados deben pertenecer a semilleros activos para certificación automática.
-                      </p>
-                    </div>
-                  </section>
-                )}
-
-                {activeTab === 'timeline' && (
-                  <div className="space-y-6 animate-fadeIn">
-                    <div className="flex flex-col sm:flex-row justify-between items-center bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 gap-4">
-                      <div>
-                        <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">Automatización</p>
-                        <p className="text-xs text-slate-600 font-medium">¿Sin actividades? Genera el cronograma estándar SENNOVA.</p>
-                      </div>
-                      <Button variant="sena" size="sm" onClick={handleGenerateCronograma} disabled={loading} className="w-full sm:w-auto shadow-lg shadow-emerald-200">
-                        <Zap size={14} className="mr-2" /> Generar Plan
-                      </Button>
-                    </div>
-                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                      <Clock3 size={12} /> Progreso de Hitos SENNOVA
-                    </h3>
-                    <ProjectTimeline entregables={selectedProyecto.entregables || []} />
-                  </div>
-                )}
-
-                {activeTab === 'formats' && (
-                  <div className="space-y-6 animate-fadeIn">
-                    <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
-                      <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <FileText size={14} className="text-slate-400" />
-                        Formatos y Seguimiento
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {[
-                          { id: 'etapa_productiva', label: 'Formato Etapa Productiva', desc: 'Documento inicial de etapa productiva', icon: FileText },
-                          { id: 'bitacora', label: 'Bitácora de Proyecto', desc: 'Registro de actividades y novedades', icon: Clock3 },
-                          { id: 'seguimiento', label: 'Formato de Seguimiento', desc: 'Reporte periódico de avances', icon: Target },
-                          { id: 'informe_final', label: 'Informe Final', desc: 'Documento de cierre y resultados', icon: CheckCircle2 }
-                        ].map(formato => (
-                          <div key={formato.id} className="p-4 bg-white border border-slate-200 rounded-xl hover:border-emerald-300 hover:shadow-md transition-all group flex items-start justify-between cursor-pointer">
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <formato.icon size={14} className="text-emerald-500" />
-                                <p className="text-xs font-bold text-slate-800">{formato.label}</p>
-                              </div>
-                              <p className="text-[10px] text-slate-500 mt-1">{formato.desc}</p>
-                            </div>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => handleGenerateFormat(formato.id)}
-                              disabled={generatingFormatId === formato.id}
-                            >
-                              {generatingFormatId === formato.id ? (
-                                <><Loader2 size={12} className="animate-spin mr-1" /> Generando</>
-                              ) : 'Generar'}
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase mt-4 italic text-center">
-                        * Los formatos se autocompletan con la información del proyecto y los investigadores.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-5 md:p-6 border-t border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row gap-3">
-                <Button className="flex-1 justify-center order-2 sm:order-1" variant="secondary" onClick={() => setIsDetailOpen(false)}>Cerrar</Button>
-                <Button 
-                  className="flex-1 justify-center order-1 sm:order-2" 
-                  variant="sena"
-                  onClick={() => {
-                    setIsDetailOpen(false);
-                    handleEdit(selectedProyecto);
-                  }}
-                >
-                  <Edit2 size={16} /> Editar Proyecto
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Create form — Mobile optimized ── */}
-      {showForm && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center sm:p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-fadeIn" onClick={() => setShowForm(false)} />
-          <Card variant="elevated" className="w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl relative z-10 animate-scaleIn flex flex-col rounded-none sm:rounded-3xl border-0 overflow-hidden shadow-2xl">
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">{isEditing ? 'Editar Proyecto' : 'Iniciar Proyecto'}</h2>
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-0.5">
-                  {isEditing ? `Actualizando ${formData.codigo_sgps || 'Proyecto'}` : 'Formulación técnica'}
-                </p>
-              </div>
-              <button onClick={() => setShowForm(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                <X size={20} className="text-slate-500" />
-              </button>
-            </div>
-
-            <div className="flex-1 flex flex-col min-h-0 bg-white">
-              {/* Form Tabs */}
-              <div className="flex border-b border-slate-100 px-6 bg-slate-50/30">
-                {[
-                  { id: 'basic',  label: 'Básicos',  icon: FileText },
-                  { id: 'tech',   label: 'Técnicos', icon: Target },
-                  { id: 'budget', label: 'Finanzas', icon: DollarSign },
-                ].map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => setFormTab(t.id)}
-                    className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 -mb-px ${
-                      formTab === t.id
-                        ? 'border-emerald-500 text-emerald-600 bg-white'
-                        : 'border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <t.icon size={14} />
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex-1 p-6 space-y-6 overflow-y-auto scrollbar-thin">
-                {formTab === 'basic' && (
-                  <section className="space-y-5 animate-fadeIn">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div className="md:col-span-2">
-                        <Input 
-                          label="Nombre del Proyecto" 
-                          placeholder="Nombre completo del proyecto..." 
-                          value={formData.nombre} 
-                          onChange={patch('nombre')} 
-                          required 
-                          className={!formData.nombre && 'border-amber-200'}
-                        />
-                      </div>
-                      <Input label="Nombre Corto / Acrónimo" value={formData.nombre_corto} onChange={patch('nombre_corto')} placeholder="Ej: SIGPI, PADGEC..." />
-                      <Input label="Código SGPS" value={formData.codigo_sgps} onChange={patch('codigo_sgps')} placeholder="SGPS-XXXX" />
-                        <Select label="Tipología" options={TIPOLOGIA_OPTIONS} value={formData.tipologia} onChange={patch('tipologia')} />
-                        <div className="md:col-span-2">
-                          <Select 
-                            label="Semillero de Investigación Vinculado" 
-                            value={formData.semillero_id} 
-                            onChange={patch('semillero_id')} 
-                            options={[
-                              { value: '', label: 'Sin semillero vinculado (Iniciativa de Grupo)' },
-                              ...semilleros.map(s => ({ value: s.id, label: s.nombre }))
-                            ]}
-                            className="bg-emerald-50/30 border-emerald-100"
-                          />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:col-span-2">
-                          <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1.5">
-                              <Calendar size={12} className="text-emerald-500" /> Año Inicio
-                            </label>
-                            <input
-                              type="number"
-                              value={formData.año}
-                              onChange={patch('año')}
-                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1.5">
-                              <Calendar size={12} className="text-slate-500" /> Año Fin
-                            </label>
-                            <input
-                              type="number"
-                              value={formData.año_fin}
-                              onChange={patch('año_fin')}
-                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1.5">
-                              <Clock size={12} className="text-blue-500" /> Vigencia (Meses)
-                            </label>
-                            <input
-                              type="number"
-                              value={formData.vigencia}
-                              onChange={patch('vigencia')}
-                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
-                            />
-                          </div>
-                        </div>
-                        <div className="md:col-span-2 mt-2">
-                          <label className="flex items-center gap-3 cursor-pointer p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={formData.continua_siguiente_año}
-                              onChange={(e) => patch('continua_siguiente_año')(e.target.checked)}
-                              className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                            />
-                            <div>
-                              <span className="text-sm font-bold text-slate-800">Continúa el siguiente año</span>
-                              <p className="text-[10px] text-slate-500 mt-0.5">El proyecto es multianual y se mantendrá en ejecución durante el próximo período lectivo.</p>
-                            </div>
-                          </label>
-                        </div>
-                      <div className="md:col-span-2">
-                          <Select 
-                            label="Convocatoria SENNOVA" 
-                            value={formData.convocatoria_id} 
-                            onChange={patch('convocatoria_id')} 
-                            options={[
-                              { value: '', label: 'Sin convocatoria vinculada (Uso interno)' },
-                              ...convocatorias.map(c => ({ value: c.id, label: `${c.numero_oe} - ${c.nombre} (${c.año})` }))
-                            ]}
-                            className="bg-blue-50/30 border-blue-100"
-                          />
-                        </div>
-                    </div>
-                  </section>
-                )}
-
-                {formTab === 'tech' && (
-                  <section className="space-y-5 animate-fadeIn">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div className="md:col-span-2">
-                        <Select 
-                          label="Reto de Origen (Opcional)" 
-                          value={formData.reto_origen_id} 
-                          onChange={patch('reto_origen_id')} 
-                          options={[
-                            { value: '', label: 'Ningún reto vinculado - Iniciativa propia' },
-                            ...retosDisponibles.map(r => ({ value: r.id, label: r.titulo }))
-                          ]}
-                        />
-                      </div>
-                      <Input label="Línea Programática" value={formData.linea_programatica} onChange={patch('linea_programatica')} placeholder="Ej: 65, 82..." />
-                      <Input label="Línea de Investigación" value={formData.linea_investigacion} onChange={patch('linea_investigacion')} placeholder="Ej: Software, Agro..." />
-                      <div className="md:col-span-2">
-                        <Input label="Red de Conocimiento" value={formData.red_conocimiento} onChange={patch('red_conocimiento')} placeholder="Ej: Red de Informática, Electrónica y Telecomunicaciones..." />
-                      </div>
-                      
-                      <div className="md:col-span-2">
-                        <TextArea
-                          label="Objetivo General"
-                          placeholder="Formular el objetivo general del proyecto..."
-                          value={formData.objetivo_general}
-                          onChange={patch('objetivo_general')}
-                          rows={3}
-                          className="rounded-2xl"
-                        />
-                      </div>
-
-                      <div className="md:col-span-2 space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700 ml-1">Objetivos Específicos (uno por línea)</label>
-                        <TextArea
-                          placeholder="1. Diseñar la arquitectura del sistema...&#10;2. Implementar módulo de integración...&#10;3. Evaluar resultados con aprendices..."
-                          value={Array.isArray(formData.objetivos_especificos) ? formData.objetivos_especificos.join('\n') : (formData.objetivos_especificos || '')}
-                          onChange={(e) => {
-                            const lines = e.target.value.split('\n').filter(l => l.trim() !== '');
-                            setFormData(prev => ({ ...prev, objetivos_especificos: lines }));
-                          }}
-                          rows={4}
-                          className="rounded-2xl font-sans"
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <TextArea
-                          label="Resumen Ejecutivo / Descripción"
-                          placeholder="Describe el alcance y contexto del proyecto..."
-                          value={formData.descripcion}
-                          onChange={patch('descripcion')}
-                          rows={4}
-                          className="rounded-2xl"
-                        />
-                      </div>
-                    </div>
-                  </section>
-                )}
-
-                {formTab === 'budget' && (
-                  <section className="space-y-6 animate-fadeIn">
-                    <div className="bg-emerald-600 p-6 rounded-[2rem] text-white shadow-xl shadow-emerald-200 flex items-center justify-between overflow-hidden relative group">
-                      <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Presupuesto Total Estimado</p>
-                        <h4 className="text-3xl font-black tabular-nums tracking-tighter">
-                          ${formData.presupuesto_total?.toLocaleString('es-CO')}
-                        </h4>
-                      </div>
-                      <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-                        <Zap size={24} fill="currentColor" />
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {RUBROS.map(r => (
-                        <div key={r.id} className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-emerald-200 transition-all group">
-                          <label className="text-[10px] font-black text-slate-400 uppercase mb-3 flex items-center gap-2 group-hover:text-emerald-600 transition-colors">
-                            <r.icon size={12} className={r.color} /> {r.label}
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 font-bold">$</span>
-                            <input
-                              type="number"
-                              value={formData.presupuesto_detallado[r.id]}
-                              onChange={(e) => updateRubro(r.id, e.target.value)}
-                              className="w-full pl-7 pr-3 py-2 bg-slate-50 border border-transparent rounded-xl text-sm focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black tabular-nums text-slate-700"
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
-                      <AlertCircle size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                      <p className="text-[10px] text-amber-700 font-medium leading-relaxed">
-                        Asegúrate de que los valores coincidan con los rubros aprobados en el Plan de Adquisiciones institucional.
-                      </p>
-                    </div>
-                  </section>
-                )}
-              </div>
-            </div>
-
-            <div className="px-6 py-5 border-t border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row justify-end gap-3">
-              <Button variant="secondary" onClick={() => { setShowForm(false); setIsEditing(false); setFormData(EMPTY_FORM); }} className="w-full sm:w-auto justify-center">Cancelar</Button>
-              <Button variant="sena" onClick={handleSave} disabled={!formData.nombre.trim()} className="w-full sm:w-auto justify-center shadow-lg shadow-emerald-200">
-                {isEditing ? 'Guardar Cambios' : 'Crear Proyecto'}
+      {/* ── Detail Drawer (Estandarizado en Pila) ── */}
+      <Drawer
+        isOpen={isDetailOpen && !!selectedProyecto}
+        onClose={() => setIsDetailOpen(false)}
+        size="lg"
+        variant="emerald"
+        title={selectedProyecto?.nombre}
+        badge={selectedProyecto && <StatusBadge estado={selectedProyecto.estado} />}
+        headerActions={
+          selectedProyecto && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleOpenElaboracionDiagnostic(selectedProyecto)}
+                className="h-8 px-3 text-[11px] font-black text-slate-700 bg-white hover:bg-slate-50 border-slate-200 shadow-sm flex items-center gap-1.5"
+              >
+                <Sparkles size={13} className="text-emerald-600" />
+                Diagnóstico Elaboración
+              </Button>
+              <Button
+                variant="sena"
+                size="sm"
+                onClick={() => handleOpenLiquidation(selectedProyecto)}
+                className="h-8 px-3 text-[11px] font-black tracking-wide bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white shadow-sm flex items-center gap-1.5"
+              >
+                <ShieldCheck size={14} />
+                Requisitos Liquidación
               </Button>
             </div>
-          </Card>
-        </div>
-      )}
+          )
+        }
+        tabs={[
+          { id: 'summary', label: 'Resumen', icon: FileText },
+          { id: 'team', label: 'Equipo', icon: Users },
+          { id: 'timeline', label: 'Línea de Tiempo', icon: Clock3 },
+          { id: 'formats', label: 'Formatos', icon: FileText },
+        ]}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        footer={
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <Button className="flex-1 justify-center order-2 sm:order-1" variant="secondary" onClick={() => setIsDetailOpen(false)}>Cerrar</Button>
+            <Button 
+              className="flex-1 justify-center order-1 sm:order-2" 
+              variant="sena"
+              onClick={() => {
+                handleEdit(selectedProyecto);
+              }}
+            >
+              <Edit2 size={16} className="mr-1.5" /> Editar Proyecto
+            </Button>
+          </div>
+        }
+      >
+        {selectedProyecto && (
+          <div>
+            {activeTab === 'summary' && (
+              <div className="space-y-8 animate-fadeIn">
+                <section>
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                    <DollarSign size={12} /> Ejecución por Rubros
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div className="space-y-4">
+                      {RUBROS.map(r => {
+                        const val = getRubroValue(selectedProyecto, r.id);
+                        const pct = selectedProyecto.presupuesto_total > 0 
+                          ? (val / selectedProyecto.presupuesto_total) * 100 
+                          : 0;
+                        return (
+                          <div key={r.id} className="space-y-1.5">
+                            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-tight">
+                              <span className="text-slate-500 flex items-center gap-1.5">
+                                <r.icon size={10} className={r.color} /> {r.label}
+                              </span>
+                              <span className="text-slate-900">${val.toLocaleString('es-CO')} ({pct.toFixed(1)}%)</span>
+                            </div>
+                            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full ${r.color.replace('text', 'bg')} opacity-80`} 
+                                style={{ width: `${pct}%` }} 
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
 
-      {/* ── Liquidation Checklist Modal ── */}
-      {showLiquidation && liqChecklist && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="fixed inset-0" onClick={() => setShowLiquidation(false)} aria-hidden="true" />
-          <Card className="w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn border-0 overflow-hidden bg-white relative z-10 rounded-3xl">
-            <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-6 text-white relative shrink-0">
-              <button 
-                onClick={() => setShowLiquidation(false)} 
-                className="absolute top-4 right-4 p-2 hover:bg-white/10 text-slate-400 hover:text-white rounded-full transition-all"
-              >
-                <X size={20} />
-              </button>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-emerald-500 text-white rounded-2xl shadow-lg shadow-emerald-500/20">
-                  <ShieldCheck size={24} />
+                    {(() => {
+                      const pieData = RUBROS.map(r => ({
+                        name: r.label,
+                        value: getRubroValue(selectedProyecto, r.id)
+                      })).filter(d => d.value > 0);
+
+                      return (
+                        <div className="h-[200px] w-full bg-slate-50/50 rounded-3xl border border-slate-100 flex items-center justify-center relative overflow-hidden">
+                          {pieData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie
+                                  data={pieData}
+                                  cx="50%"
+                                  cy="50%"
+                                  innerRadius={60}
+                                  outerRadius={80}
+                                  paddingAngle={5}
+                                  dataKey="value"
+                                >
+                                  {RUBROS.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={
+                                      entry.id === 'personal' ? '#10b981' : 
+                                      entry.id === 'materiales' ? '#3b82f6' :
+                                      entry.id === 'viaticos' ? '#f59e0b' :
+                                      entry.id === 'servicios' ? '#6366f1' : '#f43f5e'
+                                    } />
+                                  ))}
+                                </Pie>
+                                <ReTooltip 
+                                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
+                                  formatter={(value) => `$${value.toLocaleString('es-CO')}`}
+                                />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="text-center p-4">
+                              <DollarSign size={24} className="text-slate-300 mx-auto mb-1" />
+                              <p className="text-xs font-bold text-slate-500">Sin rubros clasificados</p>
+                              <p className="text-[10px] text-slate-400">Total registrado: ${(selectedProyecto.presupuesto_total || 0).toLocaleString('es-CO')}</p>
+                            </div>
+                          )}
+                          {pieData.length > 0 && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Total</p>
+                              <p className="text-sm font-black text-slate-900 tabular-nums">
+                                ${(selectedProyecto.presupuesto_total || 0).toLocaleString('es-CO')}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-2 mb-8">
+                    <Button variant="outline" size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest" onClick={handleGenerateCronograma}>
+                      <Calendar size={12} className="mr-1.5" /> Generar Cronograma
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 text-[10px] font-black uppercase tracking-widest border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      onClick={async () => {
+                        try {
+                          await PDFGenerator.generateProjectPDF(selectedProyecto, teamMembers);
+                          onNotify?.('Ficha técnica exportada correctamente', 'success');
+                        } catch (err) {
+                          onNotify?.('Error al generar PDF: ' + err.message, 'error');
+                        }
+                      }}
+                    >
+                      <FileText size={12} className="mr-1.5" /> Ficha Técnica PDF
+                    </Button>
+                  </div>
+                </section>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                    <p className="text-[10px] font-black text-slate-700 uppercase mb-1">Línea de Investigación</p>
+                    <p className="text-sm font-bold text-slate-900">{selectedProyecto.linea_investigacion || 'No definida'}</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                    <p className="text-[10px] font-black text-slate-700 uppercase mb-1">Semillero Asociado</p>
+                    <p className="text-sm font-bold text-slate-900">{selectedProyecto.semillero?.nombre || 'Independiente / No asignado'}</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-xl font-black tracking-tight">Requisitos Institucionales SENNOVA</h2>
-                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">
-                    Cierre Técnico & Auto-Finalización ({liqChecklist.porcentaje_completitud ?? 0}%)
+
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  <p className="text-[10px] font-black text-slate-700 uppercase mb-1">Objetivo General</p>
+                  <p className="text-xs text-slate-800 leading-relaxed font-medium">
+                    {selectedProyecto.objetivo_general || 'Sin objetivo general registrado para este proyecto.'}
+                  </p>
+                </div>
+                
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  <p className="text-[10px] font-black text-slate-700 uppercase mb-1">Descripción / Resumen Ejecutivo</p>
+                  <p className="text-xs text-slate-800 leading-relaxed font-medium">
+                    {selectedProyecto.descripcion || 'Sin descripción técnica registrada.'}
                   </p>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div className="p-6 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-              {liqChecklist.auto_finalizado && (
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 animate-pulse">
-                  <Sparkles className="text-emerald-600 shrink-0" size={20} />
-                  <p className="text-xs font-black text-emerald-800">
-                    🎉 ¡PROYECTO AUTO-FINALIZADO! El sistema verificó el 100% de cumplimiento institucionales y movió el proyecto a Finalizado automáticamente.
+            {activeTab === 'team' && (
+              <ProyectoEquipoTab
+                proyecto={selectedProyecto}
+                teamMembers={teamMembers}
+                usuarios={usuarios}
+                currentUser={currentUser}
+                isOwnerOrAdmin={isOwnerOrAdmin}
+                onAddMember={handleAddMember}
+                onRemoveMember={handleRemoveMember}
+                onNotify={onNotify}
+              />
+            )}
+
+            {activeTab === 'timeline' && (
+              <div className="animate-fadeIn">
+                <ProjectTimeline entregables={selectedProyecto.entregables || []} />
+              </div>
+            )}
+
+            {activeTab === 'formats' && (
+              <div className="space-y-6 animate-fadeIn">
+                <div>
+                  <h3 className="text-xs font-black text-slate-900 mb-1 flex items-center gap-2">
+                    <FileText size={16} className="text-emerald-600" />
+                    Formatos Oficiales SENNOVA
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Descargue las plantillas oficiales pre-diligenciadas con la información institucional del proyecto.
                   </p>
                 </div>
-              )}
 
-              {/* Progress bar */}
-              <div>
-                <div className="flex justify-between items-center text-xs font-bold mb-1">
-                  <span className="text-slate-700">Progreso de Requisitos Institucionales</span>
-                  <span className="text-emerald-600">{liqChecklist.porcentaje_completitud ?? 0}%</span>
+                <div className="space-y-3">
+                  {FORMATOS_OFICIALES.map(p => (
+                    <div key={p.id} className="p-4 rounded-2xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/20 transition-all flex items-center justify-between">
+                      <div className="flex items-center gap-3.5">
+                        <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-xl">
+                          <FileText size={18} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900">{p.nombre}</h4>
+                          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md mt-0.5 inline-block">
+                            {p.codigo}
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleGenerateFormat(p.id)}
+                        disabled={generatingFormatId === p.id}
+                        className="text-xs font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      >
+                        {generatingFormatId === p.id ? (
+                          <><Loader2 size={12} className="animate-spin mr-1" /> Generando</>
+                        ) : 'Generar'}
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-                <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                  <div 
-                    className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" 
-                    style={{ width: `${liqChecklist.porcentaje_completitud ?? 0}%` }}
+                <p className="text-[9px] text-slate-400 font-bold uppercase mt-4 italic text-center">
+                  * Los formatos se autocompletan con la información del proyecto y los investigadores.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </Drawer>
+
+      {/* ── Create / Edit Form Modal (Estandarizado en Pila) ── */}
+      <Modal
+        isOpen={showForm}
+        onClose={() => { setShowForm(false); setIsEditing(false); setFormData(EMPTY_FORM); }}
+        size="2xl"
+        variant="emerald"
+        icon={isEditing ? Edit2 : Plus}
+        title={isEditing ? 'Editar Proyecto' : 'Iniciar Proyecto'}
+        subtitle={isEditing ? `Actualizando ${formData.codigo_sgps || 'Proyecto'}` : 'Formulación técnica'}
+        tabs={[
+          { id: 'basic', label: 'Básicos', icon: FileText },
+          { id: 'tech', label: 'Técnicos', icon: Target },
+          { id: 'budget', label: 'Finanzas', icon: DollarSign },
+        ]}
+        activeTab={formTab}
+        onTabChange={setFormTab}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setShowForm(false); setIsEditing(false); setFormData(EMPTY_FORM); }} className="w-full sm:w-auto justify-center">Cancelar</Button>
+            <Button variant="sena" onClick={handleSave} disabled={!formData.nombre?.trim()} className="w-full sm:w-auto justify-center shadow-lg shadow-emerald-200">
+              {isEditing ? 'Guardar Cambios' : 'Crear Proyecto'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          {formTab === 'basic' && (
+            <section className="space-y-5 animate-fadeIn">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="md:col-span-2">
+                  <Input 
+                    label="Nombre del Proyecto" 
+                    placeholder="Nombre completo del proyecto..." 
+                    value={formData.nombre} 
+                    onChange={patch('nombre')} 
+                    required 
+                    className={!formData.nombre && 'border-amber-200'}
+                  />
+                </div>
+                <Input label="Nombre Corto / Acrónimo" value={formData.nombre_corto} onChange={patch('nombre_corto')} placeholder="Ej: SIGPI, PADGEC..." />
+                <Input label="Código SGPS" value={formData.codigo_sgps} onChange={patch('codigo_sgps')} placeholder="SGPS-XXXX" />
+                <Select label="Tipología" options={TIPOLOGIA_OPTIONS} value={formData.tipologia} onChange={patch('tipologia')} />
+                <div>
+                  <Select 
+                    label="Grupo de Investigación" 
+                    value={formData.grupo_id || ''} 
+                    onChange={patch('grupo_id')} 
+                    options={[
+                      { value: '', label: 'Seleccionar Grupo de Investigación...' },
+                      ...grupos.map(g => ({ value: g.id, label: g.nombre }))
+                    ]}
+                    className="bg-emerald-50/30 border-emerald-100"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Select 
+                    label="Semillero de Investigación Vinculado" 
+                    value={formData.semillero_id || ''} 
+                    onChange={patch('semillero_id')} 
+                    options={[
+                      { value: '', label: 'Sin semillero vinculado (Iniciativa Directa de Grupo)' },
+                      ...semilleros.map(s => ({ value: s.id, label: `${s.sigla ? s.sigla + ' - ' : ''}${s.nombre}` }))
+                    ]}
+                    className="bg-emerald-50/30 border-emerald-100"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:col-span-2">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1.5">
+                      <Calendar size={12} className="text-emerald-500" /> Año Inicio
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.año}
+                      onChange={patch('año')}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1.5">
+                      <Calendar size={12} className="text-slate-500" /> Año Fin
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.año_fin}
+                      onChange={patch('año_fin')}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1.5">
+                      <Clock size={12} className="text-blue-500" /> Vigencia (Meses)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.vigencia}
+                      onChange={patch('vigencia')}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+                <div className="md:col-span-2 mt-2">
+                  <label className="flex items-center gap-3 cursor-pointer p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={formData.continua_siguiente_año}
+                      onChange={(e) => patch('continua_siguiente_año')(e.target.checked)}
+                      className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <span className="text-sm font-bold text-slate-800">Continúa el siguiente año</span>
+                      <p className="text-[10px] text-slate-500 mt-0.5">El proyecto es multianual y se mantendrá en ejecución durante el próximo período lectivo.</p>
+                    </div>
+                  </label>
+                </div>
+                <div className="md:col-span-2">
+                  <Select 
+                    label="Convocatoria SENNOVA" 
+                    value={formData.convocatoria_id} 
+                    onChange={patch('convocatoria_id')} 
+                    options={[
+                      { value: '', label: 'Sin convocatoria vinculada (Uso interno)' },
+                      ...convocatorias.map(c => ({ value: c.id, label: `${c.numero_oe || 'OE'} - ${c.nombre} (${c.año})` }))
+                    ]}
+                    className="bg-blue-50/30 border-blue-100"
                   />
                 </div>
               </div>
+            </section>
+          )}
 
-              <div className="space-y-3">
-                {liqChecklist.checklist.map((item) => (
-                  <div 
-                    key={item.id} 
-                    className={`flex items-start justify-between p-4 rounded-2xl border transition-all ${item.status ? 'bg-emerald-50/50 border-emerald-100' : 'bg-rose-50/50 border-rose-100'}`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`p-1.5 rounded-lg mt-0.5 ${item.status ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                        {item.status ? <Check size={14} /> : <AlertCircle size={14} />}
-                      </div>
-                      <div>
-                        <span className={`text-xs font-bold block ${item.status ? 'text-emerald-800' : 'text-rose-800'}`}>
-                          {item.label}
-                        </span>
-                        {item.detalles && (
-                          <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
-                            {item.detalles}
-                          </span>
-                        )}
-                      </div>
+          {formTab === 'tech' && (
+            <section className="space-y-5 animate-fadeIn">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="md:col-span-2">
+                  <Select 
+                    label="Reto de Origen (Opcional)" 
+                    value={formData.reto_origen_id} 
+                    onChange={patch('reto_origen_id')} 
+                    options={[
+                      { value: '', label: 'Ningún reto vinculado - Iniciativa propia' },
+                      ...retosDisponibles.map(r => ({ value: r.id, label: r.titulo }))
+                    ]}
+                  />
+                </div>
+                <Input label="Línea Programática" value={formData.linea_programatica} onChange={patch('linea_programatica')} placeholder="Ej: 65, 82..." />
+                <Input label="Línea de Investigación" value={formData.linea_investigacion} onChange={patch('linea_investigacion')} placeholder="Ej: Software, Agro..." />
+                <div className="md:col-span-2">
+                  <Input label="Red de Conocimiento" value={formData.red_conocimiento} onChange={patch('red_conocimiento')} placeholder="Ej: Red de Informática, Electrónica y Telecomunicaciones..." />
+                </div>
+                
+                <div className="md:col-span-2">
+                  <TextArea
+                    label="Objetivo General"
+                    placeholder="Formular el objetivo general del proyecto..."
+                    value={formData.objetivo_general}
+                    onChange={patch('objetivo_general')}
+                    rows={3}
+                    className="rounded-2xl"
+                  />
+                </div>
+
+                <div className="md:col-span-2 space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 ml-1">Objetivos Específicos (uno por línea)</label>
+                  <TextArea
+                    placeholder="1. Diseñar la arquitectura del sistema...&#10;2. Implementar módulo de integración...&#10;3. Evaluar resultados con aprendices..."
+                    value={Array.isArray(formData.objetivos_especificos) ? formData.objetivos_especificos.join('\n') : (formData.objetivos_especificos || '')}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n').filter(l => l.trim() !== '');
+                      setFormData(prev => ({ ...prev, objetivos_especificos: lines }));
+                    }}
+                    rows={4}
+                    className="rounded-2xl font-sans"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <TextArea
+                    label="Resumen Ejecutivo / Descripción"
+                    placeholder="Describe el alcance y contexto del proyecto..."
+                    value={formData.descripcion}
+                    onChange={patch('descripcion')}
+                    rows={4}
+                    className="rounded-2xl"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+
+          {formTab === 'budget' && (
+            <section className="space-y-6 animate-fadeIn">
+              <div className="bg-emerald-600 p-6 rounded-[2rem] text-white shadow-xl shadow-emerald-200 flex items-center justify-between overflow-hidden relative group">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Presupuesto Total Estimado</p>
+                  <h4 className="text-3xl font-black tabular-nums tracking-tighter">
+                    ${formData.presupuesto_total?.toLocaleString('es-CO')}
+                  </h4>
+                </div>
+                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                  <Zap size={24} fill="currentColor" />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {RUBROS.map(r => (
+                  <div key={r.id} className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-emerald-200 transition-all group">
+                    <label className="text-[10px] font-black text-slate-400 uppercase mb-3 flex items-center gap-2 group-hover:text-emerald-600 transition-colors">
+                      <r.icon size={12} className={r.color} /> {r.label}
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 font-bold">$</span>
+                      <input
+                        type="number"
+                        value={formData.presupuesto_detallado[r.id]}
+                        onChange={(e) => updateRubro(r.id, e.target.value)}
+                        className="w-full pl-7 pr-3 py-2 bg-slate-50 border border-transparent rounded-xl text-sm focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black tabular-nums text-slate-700"
+                      />
                     </div>
-                    {item.status ? (
-                      <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[8px] shrink-0">CUMPLIDO</Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-rose-50 text-rose-600 border-rose-100 text-[8px] shrink-0">PENDIENTE</Badge>
-                    )}
                   </div>
                 ))}
               </div>
-
-              {!liqChecklist.can_liquidate && (
-                <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3">
-                  <AlertCircle className="text-amber-500 shrink-0" size={18} />
-                  <p className="text-[10px] font-bold text-amber-700 leading-normal">
-                    IMPORTANTE: Cuando se apruebe el último entregable, se verifique el último producto o se suba el informe final, el sistema moverá automáticamente este proyecto a Finalizado.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
-              <Button variant="outline" className="flex-1" onClick={() => setShowLiquidation(false)}>
-                Cerrar
-              </Button>
-              <Button 
-                variant="primary" 
-                className="flex-1" 
-                disabled={!liqChecklist.can_liquidate || loading}
-                onClick={handleFinalizeProject}
-              >
-                {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : 'Finalizar Proyecto'}
-              </Button>
-            </div>
-          </Card>
+              <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
+                <AlertCircle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-amber-700 font-medium leading-relaxed">
+                  Asegúrate de que los valores coincidan con los rubros aprobados en el Plan de Adquisiciones institucional.
+                </p>
+              </div>
+            </section>
+          )}
         </div>
-      )}
+      </Modal>
 
-      {/* ── Elaboración & Quality Diagnostic Modal ── */}
-      {showElaboracionModal && elaboracionData && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="fixed inset-0" onClick={() => setShowElaboracionModal(false)} aria-hidden="true" />
-          <Card className="w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn border-0 overflow-hidden bg-white relative z-10 rounded-3xl">
-            <div className="bg-gradient-to-r from-emerald-800 to-teal-900 p-6 text-white relative shrink-0">
-              <button 
-                onClick={() => setShowElaboracionModal(false)} 
-                className="absolute top-4 right-4 p-2 hover:bg-white/10 text-emerald-200 hover:text-white rounded-full transition-all"
-              >
-                <X size={20} />
-              </button>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-emerald-500 text-white rounded-2xl shadow-lg shadow-emerald-500/20">
-                  <FileText size={24} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-black tracking-tight">Diagnóstico de Elaboración SENNOVA</h2>
-                  <p className="text-emerald-200 text-[10px] font-black uppercase tracking-widest mt-1">Calidad de Formulación ({elaboracionData.score_total}/100 pts)</p>
-                </div>
+      {/* ── Liquidation Checklist Modal (Estandarizado en Pila) ── */}
+      <Modal
+        isOpen={showLiquidation && !!liqChecklist}
+        onClose={() => setShowLiquidation(false)}
+        size="lg"
+        variant="default"
+        icon={ShieldCheck}
+        title="Requisitos Institucionales SENNOVA"
+        subtitle={`Cierre Técnico & Auto-Finalización (${liqChecklist?.porcentaje_completitud ?? 0}%)`}
+        footer={
+          <div className="flex gap-3 w-full">
+            <Button variant="outline" className="flex-1" onClick={() => setShowLiquidation(false)}>
+              Cerrar
+            </Button>
+            <Button 
+              variant="primary" 
+              className="flex-1" 
+              disabled={!liqChecklist?.can_liquidate || loading}
+              onClick={handleFinalizeProject}
+            >
+              {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : 'Finalizar Proyecto'}
+            </Button>
+          </div>
+        }
+      >
+        {liqChecklist && (
+          <div className="space-y-6">
+            {liqChecklist.auto_finalizado && (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 animate-pulse">
+                <Sparkles className="text-emerald-600 shrink-0" size={20} />
+                <p className="text-xs font-black text-emerald-800">
+                  🎉 ¡PROYECTO AUTO-FINALIZADO! El sistema verificó el 100% de cumplimiento institucionales y movió el proyecto a Finalizado automáticamente.
+                </p>
+              </div>
+            )}
+
+            {/* Progress bar */}
+            <div>
+              <div className="flex justify-between items-center text-xs font-bold mb-1">
+                <span className="text-slate-700">Progreso de Requisitos Institucionales</span>
+                <span className="text-emerald-600">{liqChecklist.porcentaje_completitud ?? 0}%</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                <div 
+                  className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" 
+                  style={{ width: `${liqChecklist.porcentaje_completitud ?? 0}%` }}
+                />
               </div>
             </div>
 
-            <div className="p-6 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-              <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider text-emerald-600 font-black block">Calidad de Formulación</span>
-                  <span className="text-lg font-black text-emerald-900">{elaboracionData.nivel_calidad}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-2xl font-black text-emerald-600">{elaboracionData.score_total}</span>
-                  <span className="text-xs text-emerald-500 font-bold">/100 pts</span>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-3">Evaluación por Criterios</h3>
-                <div className="space-y-2.5">
-                  {elaboracionData.criterios.map((crit, idx) => (
-                    <div key={idx} className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-1.5 rounded-lg ${crit.status ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {crit.status ? <Check size={14} /> : <AlertCircle size={14} />}
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-slate-800 block">{crit.categoria}</span>
-                          <span className="text-[10px] text-slate-500 font-medium">{crit.detalle}</span>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-slate-700 shrink-0">{crit.puntos}/{crit.max} pts</span>
+            <div className="space-y-3">
+              {liqChecklist.checklist.map((item) => (
+                <div 
+                  key={item.id} 
+                  className={`flex items-start justify-between p-4 rounded-2xl border transition-all ${item.status ? 'bg-emerald-50/50 border-emerald-100' : 'bg-rose-50/50 border-rose-100'}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`p-1.5 rounded-lg mt-0.5 ${item.status ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                      {item.status ? <Check size={14} /> : <AlertCircle size={14} />}
                     </div>
-                  ))}
+                    <div>
+                      <span className={`text-xs font-bold block ${item.status ? 'text-emerald-800' : 'text-rose-800'}`}>
+                        {item.label}
+                      </span>
+                      {item.detalles && (
+                        <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
+                          {item.detalles}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {item.status ? (
+                    <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[8px] shrink-0">CUMPLIDO</Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-rose-50 text-rose-600 border-rose-100 text-[8px] shrink-0">PENDIENTE</Badge>
+                  )}
                 </div>
+              ))}
+            </div>
+
+            {!liqChecklist.can_liquidate && (
+              <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3">
+                <AlertCircle className="text-amber-500 shrink-0" size={18} />
+                <p className="text-[10px] font-bold text-amber-700 leading-normal">
+                  IMPORTANTE: Cuando se apruebe el último entregable, se verifique el último producto o se suba el informe final, el sistema moverá automáticamente este proyecto a Finalizado.
+                </p>
               </div>
+            )}
+          </div>
+        )}
+      </Modal>
 
-              {elaboracionData.recomendaciones && elaboracionData.recomendaciones.length > 0 && (
-                <div className="p-4 bg-indigo-50/70 border border-indigo-100 rounded-2xl space-y-2">
-                  <h4 className="text-xs font-black text-indigo-900 flex items-center gap-2">
-                    <Sparkles size={14} className="text-indigo-600" />
-                    Recomendaciones de Mejora SENNOVA
-                  </h4>
-                  <ul className="space-y-1.5 pl-5 list-disc text-xs text-indigo-800 font-medium">
-                    {elaboracionData.recomendaciones.map((rec, i) => (
-                      <li key={i}>{rec}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+      {/* ── Elaboración & Quality Diagnostic Modal (Estandarizado en Pila) ── */}
+      <Modal
+        isOpen={showElaboracionModal && !!elaboracionData}
+        onClose={() => setShowElaboracionModal(false)}
+        size="lg"
+        variant="emerald"
+        icon={FileText}
+        title="Diagnóstico de Elaboración SENNOVA"
+        subtitle={`Calidad de Formulación (${elaboracionData?.score_total}/100 pts)`}
+        footer={
+          <Button variant="outline" onClick={() => setShowElaboracionModal(false)}>
+            Cerrar Diagnóstico
+          </Button>
+        }
+      >
+        {elaboracionData && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-emerald-600 font-black block">Calidad de Formulación</span>
+                <span className="text-lg font-black text-emerald-900">{elaboracionData.nivel_calidad}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-black text-emerald-600">{elaboracionData.score_total}</span>
+                <span className="text-xs text-emerald-500 font-bold">/100 pts</span>
+              </div>
             </div>
 
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
-              <Button variant="outline" onClick={() => setShowElaboracionModal(false)}>
-                Cerrar Diagnóstico
-              </Button>
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-3">Evaluación por Criterios</h3>
+              <div className="space-y-2.5">
+                {elaboracionData.criterios?.map((crit, idx) => (
+                  <div key={idx} className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-1.5 rounded-lg ${crit.status ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {crit.status ? <Check size={14} /> : <AlertCircle size={14} />}
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 block">{crit.categoria}</span>
+                        <span className="text-[10px] text-slate-500 font-medium">{crit.detalle}</span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-slate-700 shrink-0">{crit.puntos}/{crit.max} pts</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </Card>
-        </div>
-      )}
+
+            {elaboracionData.recomendaciones && elaboracionData.recomendaciones.length > 0 && (
+              <div className="p-4 bg-indigo-50/70 border border-indigo-100 rounded-2xl space-y-2">
+                <h4 className="text-xs font-black text-indigo-900 flex items-center gap-2">
+                  <Sparkles size={14} className="text-indigo-600" />
+                  Recomendaciones de Mejora SENNOVA
+                </h4>
+                <ul className="space-y-1.5 pl-5 list-disc text-xs text-indigo-800 font-medium">
+                  {elaboracionData.recomendaciones.map((rec, i) => (
+                    <li key={i}>{rec}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Confirm Delete Dialog ── */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, id: null })}
+        onConfirm={confirmDeleteAction}
+        title="¿Eliminar Proyecto?"
+        description="¿Estás seguro de eliminar este proyecto? Esta acción no se puede deshacer y borrará entregables y registros asociados."
+        confirmText="Eliminar Proyecto"
+        variant="danger"
+      />
     </div>
   );
 };

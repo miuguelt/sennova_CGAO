@@ -13,6 +13,7 @@ import Badge from '../ui/Badge';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import TextArea from '../ui/TextArea';
+import Modal from '../ui/Modal';
 
 const selectValue = (eventOrValue) => eventOrValue?.target ? eventOrValue.target.value : eventOrValue;
 
@@ -361,57 +362,62 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
         </div>
       )}
 
-      {/* ── Form Modal ── */}
-      {showForm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="fixed inset-0" onClick={() => setShowForm(false)} aria-hidden="true" />
-          <Card className="w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl animate-scaleIn overflow-hidden border-0 bg-white relative z-10 rounded-3xl">
-            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-6 text-white relative shrink-0">
-              <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 p-2 hover:bg-white/20 text-slate-200 hover:text-white rounded-full transition-colors"><X size={20} /></button>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><CalendarDays size={24} /></div>
-                <div>
-                  <h2 className="text-xl font-black">{isEditing ? 'Editar Entregable' : 'Nueva Tarea / Entregable'}</h2>
-                  <p className="text-emerald-100 text-xs font-medium uppercase tracking-widest mt-1">Gestión de cronograma operativo</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6 sm:p-8 bg-white space-y-5 flex-1 overflow-y-auto custom-scrollbar">
-              <Input label="Título de la Tarea / Entregable" value={formData.titulo} onChange={(e) => setFormData({...formData, titulo: e.target.value})} required />
-              <div className="grid grid-cols-2 gap-4">
-                <Select 
-                  label="Fase del Proyecto" 
-                  options={['Fase I', 'Fase II', 'Fase III', 'Fase Final'].map(f => ({value: f, label: f}))}
-                  value={formData.fase}
-                  onChange={(val) => setFormData({...formData, fase: selectValue(val)})}
-                />
-                <Input 
-                  label="Fecha Límite" 
-                  type="date" 
-                  value={formData.fecha_entrega} 
-                  onChange={(e) => setFormData({...formData, fecha_entrega: e.target.value})} 
-                />
-              </div>
-              <Select 
-                label="Proyecto Vinculado" 
-                options={proyectos.map(p => ({value: p.id, label: p.nombre_corto || p.nombre}))}
-                value={formData.proyecto_id}
-                onChange={(val) => setFormData({...formData, proyecto_id: selectValue(val)})}
-                required
-              />
-              <TextArea label="Instrucciones / Descripción" value={formData.descripcion} onChange={(e) => setFormData({...formData, descripcion: e.target.value})} rows={4} />
-            </div>
-
-            <div className="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
-              <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
-              <Button variant="sena" onClick={handleSubmit}>
-                {isEditing ? 'Guardar Cambios' : 'Agendar Entregable'}
-              </Button>
-            </div>
-          </Card>
+      {/* ── Form Modal (Estandarizado en Pila) ── */}
+      <Modal
+        isOpen={showForm}
+        onClose={() => { setShowForm(false); setIsEditing(false); }}
+        size="lg"
+        variant="emerald"
+        icon={CalendarDays}
+        title={isEditing ? 'Editar Entregable' : 'Nueva Tarea / Entregable'}
+        subtitle="Gestión de cronograma operativo"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setShowForm(false); setIsEditing(false); }} className="w-full sm:w-auto justify-center">Cancelar</Button>
+            <Button variant="sena" onClick={handleSubmit} disabled={!formData.titulo || !formData.proyecto_id} className="w-full sm:w-auto justify-center">
+              {isEditing ? 'Guardar Cambios' : 'Agendar Entregable'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <Input 
+            label="Título de la Tarea / Entregable" 
+            value={formData.titulo} 
+            onChange={(e) => setFormData({...formData, titulo: e.target.value})} 
+            required 
+            placeholder="Ej: Informe técnico de avance..."
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select 
+              label="Fase del Proyecto" 
+              options={['Fase I', 'Fase II', 'Fase III', 'Fase Final'].map(f => ({value: f, label: f}))}
+              value={formData.fase}
+              onChange={(val) => setFormData({...formData, fase: selectValue(val)})}
+            />
+            <Input 
+              label="Fecha Límite" 
+              type="date" 
+              value={formData.fecha_entrega} 
+              onChange={(e) => setFormData({...formData, fecha_entrega: e.target.value})} 
+            />
+          </div>
+          <Select 
+            label="Proyecto Vinculado" 
+            options={proyectos.map(p => ({value: p.id, label: p.nombre_corto || p.nombre}))}
+            value={formData.proyecto_id}
+            onChange={(val) => setFormData({...formData, proyecto_id: selectValue(val)})}
+            required
+          />
+          <TextArea 
+            label="Instrucciones / Descripción" 
+            value={formData.descripcion} 
+            onChange={(e) => setFormData({...formData, descripcion: e.target.value})} 
+            rows={4} 
+            placeholder="Detalles sobre entregables esperados y criterios de aprobación..."
+          />
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

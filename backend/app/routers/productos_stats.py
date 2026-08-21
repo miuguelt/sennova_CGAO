@@ -132,6 +132,7 @@ def _add_template_products(
 
 
 @router.get("/stats/resumen")
+@router.get("/stats")
 def get_productos_stats(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
@@ -139,18 +140,16 @@ def get_productos_stats(
     query = db.query(Producto)
     if current_user.rol != "admin":
         query = query.filter(
-            (Producto.owner_id == current_user.id) | (Producto.is_verificado == True)
+            (Producto.owner_id == str(current_user.id)) | (Producto.is_verificado == True)
         )
-    rows = (
-        db.query(Producto.tipo, func.count(Producto.id).label("cantidad"))
-        .filter(
-            (current_user.rol == "admin")
-            | (Producto.owner_id == str(current_user.id))
-            | (Producto.is_verificado == True)
+    
+    stats_query = db.query(Producto.tipo, func.count(Producto.id).label("cantidad"))
+    if current_user.rol != "admin":
+        stats_query = stats_query.filter(
+            (Producto.owner_id == str(current_user.id)) | (Producto.is_verificado == True)
         )
-        .group_by(Producto.tipo)
-        .all()
-    )
+    rows = stats_query.group_by(Producto.tipo).all()
+
     return {
         "total": query.count(),
         "verificados": query.filter(Producto.is_verificado == True).count(),
@@ -160,6 +159,7 @@ def get_productos_stats(
 
 
 @router.get("/mis-productos/list")
+@router.get("/mis-productos")
 def get_mis_productos(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):

@@ -2,7 +2,7 @@
 Configuración de SENNOVA CGAO
 REGLA ANTI-HARDCODING: Todas las configuraciones sensibles desde variables de entorno
 """
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 import os
 import warnings
@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     DB_USER: str = os.getenv("DB_USER", "sennova")
     DB_PASSWORD: str = os.getenv("DB_PASSWORD", "sennova123")
     DB_HOST: str = os.getenv("DB_HOST", "localhost")
-    DB_PORT: str = os.getenv("DB_PORT", "5432")
+    DB_PORT: str = os.getenv("DB_PORT", "5434")
     DB_NAME: str = os.getenv("DB_NAME", "sennova")
     
     # Prioridad: 1. DATABASE_URL completa, 2. Construcción dinámica, 3. SQLite default
@@ -35,7 +35,11 @@ class Settings(BaseSettings):
     
     # App
     APP_NAME: str = os.getenv("APP_NAME", "SENNOVA CGAO API")
-    DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
+    # El modo desarrollo se pide explícitamente. Con el default invertido, un
+    # despliegue que olvide definir DEBUG obtenía a la vez el JWT_SECRET por
+    # defecto, la contraseña de siembra por defecto y el CORS abierto a la LAN,
+    # porque validate_production_settings solo corre cuando DEBUG es false.
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     
     # Servidor
     HOST: str = os.getenv("HOST", "127.0.0.1")
@@ -43,16 +47,16 @@ class Settings(BaseSettings):
     
     # CORS
     ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", 
-        "http://localhost:3110,http://localhost:3100,http://localhost:5173,"
-        "http://127.0.0.1:3110,http://127.0.0.1:3100,http://127.0.0.1:3001")
+        "http://localhost:3006,http://127.0.0.1:3006,http://localhost:5173,"
+        "http://127.0.0.1:5173,http://localhost:3110,http://localhost:3100")
     
     # URLs públicas (para emails, links, etc.)
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3006")
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
     
     # Initial Setup & Seeding
     INITIAL_ADMIN_EMAIL: str = os.getenv("INITIAL_ADMIN_EMAIL", "admin@sena.edu.co")
-    INITIAL_ADMIN_PASSWORD: str = os.getenv("INITIAL_ADMIN_PASSWORD", "123456")
+    INITIAL_ADMIN_PASSWORD: str = os.getenv("INITIAL_ADMIN_PASSWORD", "")
     INITIAL_ADMIN_NOMBRE: str = os.getenv("INITIAL_ADMIN_NOMBRE", "Administrador SENNOVA")
     INITIAL_ADMIN_DOCUMENTO: str = os.getenv("INITIAL_ADMIN_DOCUMENTO", "admin01")
     INITIAL_ADMIN_SEDE: str = os.getenv("INITIAL_ADMIN_SEDE", "CGAO")
@@ -86,10 +90,11 @@ class Settings(BaseSettings):
             return f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
     
-    class Config:
-        env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env") if os.path.exists(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")) else ".env"
-        case_sensitive = True
-        extra = "ignore"
+    model_config = SettingsConfigDict(
+        env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env") if os.path.exists(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")) else ".env",
+        case_sensitive=True,
+        extra="ignore"
+    )
 
 
 def validate_production_settings(settings: Settings):
@@ -118,11 +123,12 @@ def validate_production_settings(settings: Settings):
                 "Debe tener mínimo 12 caracteres y no ser el valor por defecto."
             )
         
-        if "123456" in settings.INITIAL_ADMIN_PASSWORD:
-            warnings.warn(
-                "⚠️  INITIAL_ADMIN_PASSWORD es el valor por defecto. "
-                "Considera cambiarlo inmediatamente después del primer login.",
-                UserWarning
+        if settings.SEED_INITIAL_DATA and len(settings.INITIAL_ADMIN_PASSWORD) < 12:
+            raise ValueError(
+                "🚨 INITIAL_ADMIN_PASSWORD no es segura para producción. "
+                "Debe tener mínimo 12 caracteres. Defínela en el entorno o "
+                "desactiva SEED_INITIAL_DATA; un administrador con contraseña "
+                "por defecto no puede quedar publicado."
             )
 
 

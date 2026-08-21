@@ -3,20 +3,22 @@ import { cn } from "@/lib/utils";
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "sena" | "secondary" | "outline" | "ghost" | "danger" | "indigo";
+  variant?: "primary" | "sena" | "secondary" | "outline" | "ghost" | "danger" | "warning" | "indigo" | "success";
   size?: "sm" | "md" | "lg" | "icon";
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", size = "md", children, ...props }, ref) => {
     const variants = {
-      primary: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-200/50 active:scale-95 transition-all",
-      sena: "bg-gradient-to-r from-[#2A7D00] to-[#39A900] text-white hover:from-[#205E00] hover:to-[#2d8000] shadow-lg shadow-emerald-600/20 active:scale-[0.98] transition-all font-bold",
-      secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200 border border-slate-200",
-      outline: "border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300",
-      ghost: "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-      danger: "bg-rose-500 text-white hover:bg-rose-600 shadow-md shadow-rose-200/50 active:scale-95 transition-all",
-      indigo: "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-200/50 active:scale-95 transition-all",
+      primary: "bg-emerald-700 text-white hover:bg-emerald-800 shadow-md shadow-emerald-900/20 active:scale-95 transition-all font-bold",
+      sena: "bg-gradient-to-r from-[#175200] to-[#257c00] text-white hover:from-[#103d00] hover:to-[#1b5e00] shadow-lg shadow-emerald-950/20 active:scale-[0.98] transition-all font-bold",
+      secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200 border border-slate-300 font-bold",
+      outline: "border-2 border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-950 font-bold",
+      ghost: "text-slate-700 hover:bg-slate-100 hover:text-slate-950 font-bold",
+      danger: "bg-rose-700 text-white hover:bg-rose-800 shadow-md shadow-rose-900/20 active:scale-95 transition-all font-bold",
+      warning: "bg-amber-500 text-slate-950 hover:bg-amber-400 border border-amber-600 shadow-md shadow-amber-900/10 active:scale-95 transition-all font-black",
+      indigo: "bg-indigo-700 text-white hover:bg-indigo-800 shadow-md shadow-indigo-900/20 active:scale-95 transition-all font-bold",
+      success: "bg-emerald-700 text-white hover:bg-emerald-800 shadow-md shadow-emerald-900/20 active:scale-95 transition-all font-bold",
     };
 
     const sizes = {

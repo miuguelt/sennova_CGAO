@@ -167,7 +167,7 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
 
           <Card className="p-8 shadow-2xl shadow-slate-200/50 border-0 ring-1 ring-slate-100">
             {/* Tab switcher */}
-            <div role="tablist" aria-label="Modo de acceso" className="flex gap-1 mb-8 p-1.5 bg-slate-100/50 rounded-2xl">
+            <div role="tablist" aria-label="Modo de acceso" className="flex gap-1 mb-8 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
               {[
                 { label: 'Ingreso', value: true },
                 { label: 'Registro',    value: false },
@@ -181,8 +181,8 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
                     'flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
                     isLogin === value
-                      ? 'bg-white text-slate-900 shadow-lg shadow-slate-200/50'
-                      : 'text-slate-500 hover:text-slate-700',
+                      ? 'bg-white text-slate-950 shadow-md border border-slate-200'
+                      : 'text-slate-600 hover:text-slate-950 font-bold',
                   ].join(' ')}
                 >
                   {label}
@@ -197,13 +197,13 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
                 className={[
                   'mb-6 px-4 py-3 rounded-2xl text-xs font-bold flex items-start gap-3 border animate-fadeIn',
                   isSuccess
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                    : 'bg-rose-50 text-rose-700 border-rose-100',
+                    ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                    : 'bg-rose-50 text-rose-900 border-rose-300',
                 ].join(' ')}
               >
                 {isSuccess
-                  ? <CheckCircle2 size={16} className="flex-shrink-0 mt-0.5 text-emerald-500" aria-hidden="true" />
-                  : <AlertCircle  size={16} className="flex-shrink-0 mt-0.5 text-rose-500" aria-hidden="true" />
+                  ? <CheckCircle2 size={16} className="flex-shrink-0 mt-0.5 text-emerald-700" aria-hidden="true" />
+                  : <AlertCircle  size={16} className="flex-shrink-0 mt-0.5 text-rose-700" aria-hidden="true" />
                 }
                 {error}
               </div>

@@ -56,9 +56,9 @@ const AuditoriaModule = ({ onNotify }) => {
   };
 
   const getStatusBadge = (code) => {
-    if (code >= 200 && code < 300) return <span className="text-emerald-500 font-bold">{code}</span>;
-    if (code >= 400) return <span className="text-rose-500 font-bold">{code}</span>;
-    return <span className="text-amber-500 font-bold">{code}</span>;
+    if (code >= 200 && code < 300) return <span className="text-emerald-700 font-black">{code}</span>;
+    if (code >= 400) return <span className="text-rose-700 font-black">{code}</span>;
+    return <span className="text-amber-800 font-black">{code}</span>;
   };
 
   const handleExport = () => {
@@ -97,23 +97,23 @@ const AuditoriaModule = ({ onNotify }) => {
         <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
           <div className="flex gap-4 md:gap-6 items-center">
             <div className="shrink-0 w-12 h-12 md:w-16 md:h-16 bg-gradient-to-tr from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 rotate-3">
-              <Shield size={24} className="text-slate-900 md:hidden" />
-              <Shield size={32} className="text-slate-900 hidden md:block" />
+              <Shield size={24} className="text-slate-950 md:hidden" />
+              <Shield size={32} className="text-slate-950 hidden md:block" />
             </div>
             <div>
-              <h1 className="text-xl md:text-3xl font-black tracking-tight">Centro de Control y Auditoría</h1>
-              <p className="text-slate-400 text-xs md:text-sm font-medium flex items-center gap-2 mt-1">
-                <Terminal size={14} className="hidden sm:block" /> Monitorización en tiempo real del ecosistema
+              <h1 className="text-xl md:text-3xl font-black tracking-tight text-white">Centro de Control y Auditoría</h1>
+              <p className="text-slate-200 text-xs md:text-sm font-semibold flex items-center gap-2 mt-1">
+                <Terminal size={14} className="hidden sm:block text-emerald-400" /> Monitorización en tiempo real del ecosistema
               </p>
             </div>
           </div>
           
           <div className="flex w-full lg:w-auto gap-3">
-            <Button variant="outline" onClick={handleCleanup} className="flex-1 lg:flex-none justify-center border-rose-500/30 text-rose-400 hover:bg-rose-500/10">
+            <Button variant="outline" onClick={handleCleanup} className="flex-1 lg:flex-none justify-center border-rose-500 bg-rose-950/60 text-rose-200 hover:bg-rose-900 hover:text-white font-bold">
               <AlertTriangle size={18} className="mr-2" />
               <span>Depurar &gt;30d</span>
             </Button>
-            <Button variant="outline" onClick={loadData} className="flex-1 lg:flex-none justify-center">
+            <Button variant="outline" onClick={loadData} className="flex-1 lg:flex-none justify-center bg-slate-800 border-slate-700 text-white hover:bg-slate-700 font-bold">
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
               <span className="ml-2 lg:hidden">Refrescar</span>
             </Button>
@@ -129,24 +129,24 @@ const AuditoriaModule = ({ onNotify }) => {
         {/* Mini Stats Bar */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-8 pt-8 border-t border-slate-800">
           <div className="space-y-1">
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Eventos Totales</p>
-            <p className="text-xl md:text-2xl font-black">{stats?.total_logs || 0}</p>
+            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-300">Eventos Totales</p>
+            <p className="text-xl md:text-2xl font-black text-white">{stats?.total_logs || 0}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Actividades</p>
-            <p className="text-xl md:text-2xl font-black">{stats?.total_actividades || 0}</p>
+            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-300">Actividades</p>
+            <p className="text-xl md:text-2xl font-black text-white">{stats?.total_actividades || 0}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Tasa de Error</p>
-            <p className={`text-xl md:text-2xl font-black ${stats?.tasa_error > 5 ? 'text-rose-400' : 'text-emerald-400'}`}>
+            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-300">Tasa de Error</p>
+            <p className={`text-xl md:text-2xl font-black ${stats?.tasa_error > 5 ? 'text-rose-300' : 'text-emerald-300'}`}>
               {stats?.tasa_error?.toFixed(2)}%
             </p>
           </div>
           <div className="space-y-1 col-span-1">
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Sistema</p>
+            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-300">Sistema</p>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <p className="text-sm md:text-sm font-black text-emerald-400 uppercase tracking-tighter">Operativo</p>
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <p className="text-sm md:text-sm font-black text-emerald-300 uppercase tracking-tighter">Operativo</p>
             </div>
           </div>
         </div>
@@ -159,24 +159,24 @@ const AuditoriaModule = ({ onNotify }) => {
             <div className="flex p-1 bg-slate-100 rounded-2xl w-full sm:w-auto border border-slate-200">
               <button 
                 onClick={() => setActiveTab('actividades')}
-                className={`flex-1 sm:px-6 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'actividades' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 sm:px-6 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'actividades' ? 'bg-white text-emerald-800 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-950'}`}
               >
                 <Activity size={14} /> Actividades
               </button>
               <button 
                 onClick={() => setActiveTab('técnicos')}
-                className={`flex-1 sm:px-6 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'técnicos' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 sm:px-6 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'técnicos' ? 'bg-white text-emerald-800 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-950'}`}
               >
                 <Terminal size={14} /> Logs Técnicos
               </button>
             </div>
 
             <div className="relative group w-full sm:w-64 lg:w-80">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-700 transition-colors" size={18} />
               <input 
                 type="text" 
                 placeholder="Búsqueda rápida..."
-                className="w-full pl-11 pr-4 py-3 bg-white border-0 ring-1 ring-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 shadow-sm transition-all text-sm font-medium"
+                className="w-full pl-11 pr-4 py-3 bg-white border border-slate-300 rounded-2xl focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 shadow-sm transition-all text-sm font-semibold text-slate-900"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -191,24 +191,24 @@ const AuditoriaModule = ({ onNotify }) => {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-50/50 border-b border-slate-100">
-                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Usuario</th>
+                      <tr className="bg-slate-50/80 border-b border-slate-200">
+                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-700">Usuario</th>
                         {activeTab === 'actividades' ? (
                           <>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Acción</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Descripción</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-700">Acción</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-700">Descripción</th>
                           </>
                         ) : (
                           <>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Método / Ruta</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-700">Método / Ruta</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-700">Status</th>
                           </>
                         )}
-                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Origen</th>
-                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Fecha</th>
+                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-700">Origen</th>
+                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-700 text-right">Fecha</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
+                    <tbody className="divide-y divide-slate-100">
                       {loading ? (
                         [1,2,3,4,5].map(i => (
                           <tr key={i} className="animate-pulse">
@@ -225,19 +225,19 @@ const AuditoriaModule = ({ onNotify }) => {
                           <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${idx % 2 === 0 ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${idx % 2 === 0 ? 'bg-indigo-100 text-indigo-900' : 'bg-emerald-100 text-emerald-900'}`}>
                                   {item.user_nombre?.charAt(0) || '?'}
                                 </div>
-                                <span className="text-sm font-bold text-slate-700 truncate max-w-[120px]">{item.user_nombre}</span>
+                                <span className="text-sm font-bold text-slate-900 truncate max-w-[120px]">{item.user_nombre}</span>
                               </div>
                             </td>
                             {activeTab === 'actividades' ? (
                               <>
                                 <td className="px-6 py-4">
-                                  <Badge variant="outline" className="border-slate-200 text-[9px] font-black uppercase">{item.tipo_accion}</Badge>
+                                  <Badge variant="outline" className="border-slate-300 text-[9px] font-black uppercase text-slate-800">{item.tipo_accion}</Badge>
                                 </td>
                                 <td className="px-6 py-4">
-                                  <p className="text-xs text-slate-500 font-medium max-w-[200px] lg:max-w-xs truncate" title={item.descripcion}>{item.descripcion}</p>
+                                  <p className="text-xs text-slate-700 font-medium max-w-[200px] lg:max-w-xs truncate" title={item.descripcion}>{item.descripcion}</p>
                                 </td>
                               </>
                             ) : (
@@ -245,7 +245,7 @@ const AuditoriaModule = ({ onNotify }) => {
                                 <td className="px-6 py-4">
                                   <div className="flex items-center gap-2">
                                     {getMethodBadge(item.method)}
-                                    <span className="text-[10px] font-mono text-slate-400 truncate max-w-[120px]">{item.endpoint}</span>
+                                    <span className="text-[10px] font-mono text-slate-700 font-semibold truncate max-w-[120px]">{item.endpoint}</span>
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 font-mono text-sm">
@@ -254,16 +254,16 @@ const AuditoriaModule = ({ onNotify }) => {
                               </>
                             )}
                             <td className="px-6 py-4">
-                              <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold">
+                              <div className="flex items-center gap-2 text-slate-600 text-[10px] font-bold">
                                 <Globe size={12} /> {item.ip_address || '0.0.0.0'}
                               </div>
                             </td>
                             <td className="px-6 py-4 text-right">
                               <div className="flex flex-col items-end">
-                                <span className="text-xs font-bold text-slate-700">
+                                <span className="text-xs font-bold text-slate-900">
                                   {item.created_at ? format(new Date(item.created_at), 'dd MMM, yyyy', { locale: es }) : 'N/A'}
                                 </span>
-                                <span className="text-[9px] text-slate-400 font-black uppercase tracking-tighter">
+                                <span className="text-[9px] text-slate-500 font-black uppercase tracking-tighter">
                                   {item.created_at ? format(new Date(item.created_at), 'HH:mm:ss') : 'N/A'}
                                 </span>
                               </div>
@@ -291,34 +291,34 @@ const AuditoriaModule = ({ onNotify }) => {
                   <Card key={item.id} className="p-5 border-0 shadow-md bg-white space-y-4">
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-3">
-                        <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black ${idx % 2 === 0 ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                        <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black ${idx % 2 === 0 ? 'bg-indigo-100 text-indigo-900' : 'bg-emerald-100 text-emerald-900'}`}>
                           {item.user_nombre?.charAt(0) || '?'}
                         </div>
                         <div>
                           <p className="text-sm font-black text-slate-900 leading-tight">{item.user_nombre}</p>
-                          <div className="flex items-center gap-2 mt-1 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                          <div className="flex items-center gap-2 mt-1 text-slate-600 text-[10px] font-bold uppercase tracking-widest">
                             <Clock size={10} /> {item.created_at ? format(new Date(item.created_at), 'HH:mm:ss') : 'N/A'}
                           </div>
                         </div>
                       </div>
-                      <Badge variant="outline" className="border-slate-100 text-[8px] font-black">
+                      <Badge variant="outline" className="border-slate-300 text-[9px] font-black text-slate-800">
                         {activeTab === 'actividades' ? item.tipo_accion : item.method}
                       </Badge>
                     </div>
 
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      <p className="text-xs text-slate-600 font-bold leading-relaxed break-words">
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                      <p className="text-xs text-slate-800 font-bold leading-relaxed break-words">
                         {activeTab === 'actividades' ? item.descripcion : item.endpoint}
                       </p>
                       {activeTab === 'técnicos' && (
                         <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between items-center">
-                          <span className="text-[10px] font-black uppercase text-slate-400">Response Code</span>
+                          <span className="text-[10px] font-black uppercase text-slate-700">Response Code</span>
                           {getStatusBadge(item.status_code)}
                         </div>
                       )}
                     </div>
 
-                    <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-widest pt-1">
+                    <div className="flex justify-between items-center text-[10px] font-black text-slate-600 uppercase tracking-widest pt-1">
                       <div className="flex items-center gap-1.5">
                         <Globe size={12} /> {item.ip_address || '0.0.0.0'}
                       </div>
@@ -332,12 +332,12 @@ const AuditoriaModule = ({ onNotify }) => {
             </div>
             
             {!loading && (activeTab === 'actividades' ? actividades : logs).length === 0 && (
-              <div className="py-20 text-center bg-white rounded-[2rem] border border-dashed border-slate-200">
-                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
-                  <Database size={32} className="text-slate-300" />
+              <div className="py-20 text-center bg-white rounded-[2rem] border border-dashed border-slate-300">
+                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-200">
+                  <Database size={32} className="text-slate-400" />
                 </div>
                 <h3 className="text-slate-900 font-black">No se encontraron registros</h3>
-                <p className="text-slate-400 text-sm font-medium">Intenta con otros términos de búsqueda.</p>
+                <p className="text-slate-600 text-sm font-semibold">Intenta con otros términos de búsqueda.</p>
               </div>
             )}
           </div>
@@ -345,10 +345,10 @@ const AuditoriaModule = ({ onNotify }) => {
 
         {/* ── Sidebar Stats ── */}
         <div className="w-full lg:w-80 space-y-6">
-          <Card className="p-6 border-0 shadow-lg bg-emerald-600 text-white relative overflow-hidden">
-            <BarChart3 className="absolute bottom-0 right-0 -mb-6 -mr-6 w-32 h-32 opacity-10 rotate-12" />
+          <Card className="p-6 border-0 shadow-lg bg-emerald-700 text-white relative overflow-hidden">
+            <BarChart3 className="absolute bottom-0 right-0 -mb-6 -mr-6 w-32 h-32 opacity-15 rotate-12" />
             <div className="relative z-10">
-              <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80">Distribución de Actividad</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-100">Distribución de Actividad</h3>
               <div className="mt-6 space-y-4">
                 {stats?.actividades_resumen && Object.entries(stats.actividades_resumen).map(([tipo, count]) => (
                   <div key={tipo} className="space-y-1.5">
@@ -368,46 +368,46 @@ const AuditoriaModule = ({ onNotify }) => {
             </div>
           </Card>
 
-          <Card className="p-6 border-0 shadow-lg bg-white space-y-6">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-              <History size={14} className="text-indigo-500" /> Salud de la Infraestructura
+          <Card className="p-6 border border-slate-200 shadow-sm bg-white space-y-6">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-700 flex items-center gap-2">
+              <History size={14} className="text-indigo-600" /> Salud de la Infraestructura
             </h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3 md:gap-4">
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="flex items-center gap-3">
-                  <Server size={18} className="text-slate-400" />
-                  <span className="text-xs font-bold text-slate-700">Latencia BD</span>
+                  <Server size={18} className="text-slate-500" />
+                  <span className="text-xs font-bold text-slate-800">Latencia BD</span>
                 </div>
-                <span className="text-xs font-black text-emerald-600">
+                <span className="text-xs font-black text-emerald-700">
                   {stats?.db_latency_ms !== undefined ? `${stats.db_latency_ms} ms` : '12.0 ms'}
                 </span>
               </div>
               
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="flex items-center gap-3">
-                  <Cpu size={18} className="text-slate-400" />
-                  <span className="text-xs font-bold text-slate-700">Estado DB</span>
+                  <Cpu size={18} className="text-slate-500" />
+                  <span className="text-xs font-bold text-slate-800">Estado DB</span>
                 </div>
-                <span className={`text-xs font-black uppercase ${stats?.system_status === 'operativo' || !stats?.system_status ? 'text-emerald-600' : 'text-amber-600'}`}>
+                <span className={`text-xs font-black uppercase ${stats?.system_status === 'operativo' || !stats?.system_status ? 'text-emerald-700' : 'text-amber-800'}`}>
                   {stats?.system_status || 'Operativo'}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="flex items-center gap-3">
-                  <HardDrive size={18} className="text-slate-400" />
-                  <span className="text-xs font-bold text-slate-700">Uso de Disco</span>
+                  <HardDrive size={18} className="text-slate-500" />
+                  <span className="text-xs font-bold text-slate-800">Uso de Disco</span>
                 </div>
-                <span className="text-xs font-black text-indigo-600">
+                <span className="text-xs font-black text-indigo-700">
                   {stats?.disk_usage_pct !== undefined ? `${stats.disk_usage_pct}%` : 'N/A'}
                 </span>
               </div>
             </div>
 
-            <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 flex gap-3">
-              <AlertTriangle className="text-indigo-600 shrink-0" size={18} />
-              <p className="text-[10px] text-indigo-800 font-bold leading-relaxed">
+            <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-200 flex gap-3">
+              <AlertTriangle className="text-indigo-700 shrink-0" size={18} />
+              <p className="text-[10px] text-indigo-950 font-bold leading-relaxed">
                 Todos los sistemas reportan estados nominales. No se requieren acciones preventivas inmediatas.
               </p>
             </div>

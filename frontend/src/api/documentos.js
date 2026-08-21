@@ -12,24 +12,10 @@ export const DocumentosAPI = {
 
   get: (id) => fetchAPI(`/documentos/${id}`),
 
-  upload: (formData) => {
-    const token = localStorage.getItem('token');
-    return fetch(`${API_URL}/documentos/upload`, {
+  upload: (formData) => fetchAPI('/documentos/upload', {
       method: 'POST',
-      headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-      },
       body: formData,
-    }).then(async (response) => {
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ 
-          detail: `Error ${response.status}: ${response.statusText}` 
-        }));
-        throw new Error(error.detail || error.message || 'Error en la petición');
-      }
-      return response.json();
-    });
-  },
+    }),
 
   download: (id) => fetchAPI(`/documentos/${id}/download`),
 

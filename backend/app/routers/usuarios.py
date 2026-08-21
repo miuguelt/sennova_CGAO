@@ -138,11 +138,18 @@ def get_usuario(
 ):
     """Obtener detalle de un usuario (admin o el propio usuario)."""
     try:
-        # Permitir si es admin O si es el mismo usuario
-        if current_user.rol != "admin" and str(current_user.id) != str(user_id):
+        # Permitir si es admin, si es investigador, o si es el mismo usuario
+        if current_user.rol == "aprendiz" and str(current_user.id) != str(user_id):
             raise HTTPException(status_code=403, detail="No tiene permiso para ver este perfil")
             
-        user = db.query(User).filter(User.id == str(user_id)).first()
+        uid = str(user_id)
+        user = db.query(User).filter(User.id == uid).first()
+        if not user:
+            apr_record = db.query(Aprendiz).filter(Aprendiz.id == uid).first()
+            if apr_record and apr_record.user_id:
+                uid = str(apr_record.user_id)
+                user = db.query(User).filter(User.id == uid).first()
+
         if not user:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
         return _make_user_dict(user, db)
@@ -215,7 +222,7 @@ def update_usuario(
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
         
         # REGLA DE SEGURIDAD: Solo admin puede cambiar roles o estado activo
-        update_data = user_update.dict(exclude_unset=True)
+        update_data = user_update.model_dump(exclude_unset=True) if hasattr(user_update, 'model_dump') else user_update.dict(exclude_unset=True)
         
         if current_user.rol != "admin":
             # Si no es admin, quitar campos sensibles

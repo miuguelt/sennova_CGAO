@@ -21,7 +21,8 @@ def fix_schema():
         "proyectos": [
             ("semillero_id", "UUID" if "postgresql" in engine.url.drivername else "VARCHAR(36)"),
             ("reto_origen_id", "UUID" if "postgresql" in engine.url.drivername else "VARCHAR(36)"),
-            ("convocatoria_id", "UUID" if "postgresql" in engine.url.drivername else "VARCHAR(36)")
+            ("convocatoria_id", "UUID" if "postgresql" in engine.url.drivername else "VARCHAR(36)"),
+            ("grupo_id", "UUID" if "postgresql" in engine.url.drivername else "VARCHAR(36)")
         ],
         "aprendices": [
             ("user_id", "UUID" if "postgresql" in engine.url.drivername else "VARCHAR(36)"),
@@ -48,6 +49,10 @@ def fix_schema():
             ("prioridad", "VARCHAR(20) DEFAULT 'media'"),
             ("semillero_asignado_id", "UUID" if "postgresql" in engine.url.drivername else "VARCHAR(36)"),
             ("owner_id", "UUID" if "postgresql" in engine.url.drivername else "VARCHAR(36)")
+        ],
+        "mensajes": [
+            ("entregado", "BOOLEAN DEFAULT FALSE"),
+            ("fecha_entrega", "TIMESTAMP")
         ]
     }
     

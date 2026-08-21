@@ -1,7 +1,7 @@
 from typing import Optional
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, get_current_admin
@@ -28,6 +28,10 @@ def _make_grupo_dict(grupo: Grupo, db: Session) -> dict:
             "id": str(user.id),
             "nombre": user.nombre,
             "email": user.email,
+            "rol": getattr(user, 'rol', None),
+            "rol_sennova": getattr(user, 'rol_sennova', None) or getattr(user, 'rol', None),
+            "estado_cv_lac": getattr(user, 'estado_cv_lac', None) or "Sin CVLAC",
+            "cv_lac_url": getattr(user, 'cv_lac_url', None),
             "rol_en_grupo": result.rol_en_grupo if result else "Miembro",
             "fecha_vinculacion": result.fecha_vinculacion.isoformat() if result and result.fecha_vinculacion else None
         }
@@ -41,13 +45,27 @@ def _make_grupo_dict(grupo: Grupo, db: Session) -> dict:
         "clasificacion": grupo.clasificacion,
         "gruplac_url": grupo.gruplac_url,
         "lineas_investigacion": grupo.lineas_investigacion or [],
+        "director_nombre": grupo.director_nombre,
+        "director_email": grupo.director_email,
+        "fecha_reconocimiento": grupo.fecha_reconocimiento.isoformat() if grupo.fecha_reconocimiento else None,
+        "vigencia_hasta": grupo.vigencia_hasta.isoformat() if grupo.vigencia_hasta else None,
+        "descripcion_grupo": grupo.descripcion_grupo,
+        "mision": grupo.mision,
+        "vision": grupo.vision,
+        "plan_operativo_path": grupo.plan_operativo_path,
+        "mision_path": grupo.mision_path,
+        "convocatoria_activa": grupo.convocatoria_activa,
         "is_publico": grupo.is_publico,
-        "estado": grupo.estado,
+        "estado": grupo.estado or 'activo',
         "owner_id": str(grupo.owner_id),
-        "owner": None,
+        "owner": {
+            "id": str(grupo.owner.id),
+            "nombre": grupo.owner.nombre,
+            "email": grupo.owner.email
+        } if grupo.owner else None,
         "integrantes": integrantes,
         "total_integrantes": len(integrantes),
-        "created_at": grupo.created_at
+        "created_at": grupo.created_at.isoformat() if hasattr(grupo.created_at, 'isoformat') and grupo.created_at else str(grupo.created_at)
     }
 
 
@@ -186,7 +204,7 @@ def update_grupo(
     if current_user.rol != "admin" and str(grupo.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso para editar")
     
-    update_data = grupo_update.dict(exclude_unset=True)
+    update_data = grupo_update.model_dump(exclude_unset=True) if hasattr(grupo_update, 'model_dump') else grupo_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(grupo, field, value)
     
@@ -246,15 +264,46 @@ def delete_grupo(
 # GESTIÓN DE INTEGRANTES
 # ==========================================
 
-@router.post("/{grupo_id}/integrantes")
-def add_integrante(
+@router.get("/{grupo_id}/integrantes")
+def get_integrantes(
     grupo_id: str,
-    user_id: str,
-    rol_en_grupo: str = "Miembro",
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Agregar integrante al grupo."""
+    """Listar integrantes de un grupo de investigación."""
+    grupo = db.query(Grupo).filter(Grupo.id == str(grupo_id)).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    
+    return [
+        {
+            "id": str(u.id),
+            "nombre": u.nombre,
+            "email": u.email,
+            "rol_sennova": getattr(u, 'rol_sennova', None) or u.rol,
+            "sede": u.sede
+        } for u in grupo.integrantes
+    ]
+
+
+@router.post("/{grupo_id}/integrantes")
+def add_integrante(
+    grupo_id: str,
+    payload: Optional[dict] = None,
+    user_id: Optional[str] = None,
+    rol_en_grupo: Optional[str] = "Miembro",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Agregar integrante al grupo (soporta JSON body o query params)."""
+    # Extraer parámetros de payload si viene como JSON
+    if payload and isinstance(payload, dict):
+        user_id = payload.get("user_id") or user_id
+        rol_en_grupo = payload.get("rol_en_grupo") or payload.get("rol") or rol_en_grupo or "Miembro"
+
+    if not user_id:
+        raise HTTPException(status_code=422, detail="El campo user_id es requerido")
+
     grupo = db.query(Grupo).filter(Grupo.id == str(grupo_id)).first()
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
@@ -265,7 +314,7 @@ def add_integrante(
     if current_user.rol != "admin" and str(grupo.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
     
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == str(user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     
@@ -365,13 +414,18 @@ def get_grupo_stats(
     semillero_ids = [str(s.id) for s in semilleros]
     
     # 2. Integrantes del grupo
-    integrantes_ids = [str(u.id) for u in grupo.integrantes] + [str(grupo.owner_id)]
+    integrantes = list(grupo.integrantes)
+    if grupo.owner and grupo.owner not in integrantes:
+        integrantes.append(grupo.owner)
+    integrantes_ids = [str(u.id) for u in integrantes]
     
-    # 3. Proyectos vinculados a semilleros del grupo o liderados por integrantes
-    proyectos = db.query(Proyecto).filter(
-        (Proyecto.semillero_id.in_(semillero_ids)) | (Proyecto.owner_id.in_(integrantes_ids))
-    ).all() if (semillero_ids or integrantes_ids) else []
-    
+    # 3. Proyectos vinculados directamente al grupo, a sus semilleros o liderados por integrantes
+    proyectos_query = db.query(Proyecto).filter(
+        (Proyecto.grupo_id == str(grupo.id)) |
+        (Proyecto.semillero_id.in_(semillero_ids) if semillero_ids else False) |
+        (Proyecto.owner_id.in_(integrantes_ids) if integrantes_ids else False)
+    )
+    proyectos = proyectos_query.all()
     proyecto_ids = [str(p.id) for p in proyectos]
     
     # 4. Productos vinculados a proyectos o creados por integrantes
@@ -379,7 +433,7 @@ def get_grupo_stats(
         (Producto.proyecto_id.in_(proyecto_ids)) | (Producto.owner_id.in_(integrantes_ids))
     ).all() if (proyecto_ids or integrantes_ids) else []
     
-    # Categorización de productos
+    # Categorización de productos Minciencias
     tipo_counts = Counter()
     for prod in productos:
         tipo_str = prod.tipo or 'Otros'
@@ -391,8 +445,8 @@ def get_grupo_stats(
             tipo_counts['Prototipos'] += 1
         elif any(w in tipo_str.lower() for w in ['libro', 'capítulo', 'manual', 'd1']):
             tipo_counts['Libros'] += 1
-        elif any(w in tipo_str.lower() for w in ['consultoría', 'servicio', 'informe', 'técnico']):
-            tipo_counts['Consultoría'] += 1
+        elif any(w in tipo_str.lower() for w in ['consultoría', 'servicio', 'informe', 'técnico', 'apropiación', 'social', 'evento']):
+            tipo_counts['Apropiación Social'] += 1
         else:
             tipo_counts['Otros'] += 1
             
@@ -401,7 +455,8 @@ def get_grupo_stats(
         {'name': 'Software', 'value': tipo_counts['Software']},
         {'name': 'Prototipos', 'value': tipo_counts['Prototipos']},
         {'name': 'Libros', 'value': tipo_counts['Libros']},
-        {'name': 'Consultoría', 'value': tipo_counts['Consultoría']}
+        {'name': 'Apropiación Social', 'value': tipo_counts['Apropiación Social']},
+        {'name': 'Otros', 'value': tipo_counts['Otros']}
     ]
     
     # 5. Aprendices en semilleros del grupo
@@ -409,7 +464,34 @@ def get_grupo_stats(
         Aprendiz.semillero_id.in_(semillero_ids)
     ).scalar() if semillero_ids else 0
     
-    # 6. Cumplimiento de entregables
+    # 6. Proyectos por Estado
+    estados_proyectos = Counter(p.estado or 'Aprobado' for p in proyectos)
+    proyectos_por_estado = [
+        {'name': 'Aprobados', 'value': estados_proyectos.get('Aprobado', 0) + estados_proyectos.get('Formulación', 0) + estados_proyectos.get('En formulación', 0)},
+        {'name': 'En Ejecución', 'value': estados_proyectos.get('Ejecución', 0) + estados_proyectos.get('En ejecución', 0) + estados_proyectos.get('Activo', 0)},
+        {'name': 'Finalizados', 'value': estados_proyectos.get('Finalizado', 0) + estados_proyectos.get('finalizado', 0)},
+        {'name': 'Cancelados/Otros', 'value': estados_proyectos.get('Cancelado', 0) + estados_proyectos.get('Suspendido', 0)}
+    ]
+    
+    # 7. Semilleros por Línea de Investigación
+    lineas_semilleros = Counter(s.linea_investigacion or 'Sin Línea Asignada' for s in semilleros)
+    semilleros_por_linea = [
+        {'name': linea[:28] + ('...' if len(linea) > 28 else ''), 'fullName': linea, 'value': count}
+        for linea, count in lineas_semilleros.most_common(6)
+    ]
+    
+    # 8. Estado CvLAC de Investigadores
+    cvlac_actualizados = sum(1 for u in integrantes if str(getattr(u, 'estado_cv_lac', '')).lower() in ['actualizado', 'al día', 'vigente'])
+    cvlac_desactualizados = sum(1 for u in integrantes if str(getattr(u, 'estado_cv_lac', '')).lower() in ['desactualizado', 'no actualizado', 'por actualizar', 'pendiente'])
+    cvlac_sin = max(0, len(integrantes) - (cvlac_actualizados + cvlac_desactualizados))
+    cvlac_stats = {
+        'actualizados': cvlac_actualizados,
+        'desactualizados': cvlac_desactualizados,
+        'sin_cvlac': cvlac_sin,
+        'total': len(integrantes)
+    }
+    
+    # 9. Cumplimiento y Avance de entregables
     entregables = db.query(Entregable).filter(
         Entregable.proyecto_id.in_(proyecto_ids)
     ).all() if proyecto_ids else []
@@ -419,37 +501,229 @@ def get_grupo_stats(
     if total_e > 0:
         cumplimiento = int((aprobados / total_e * 100))
     elif len(proyectos) > 0:
-        # Calcular según el avance reportado en los proyectos del grupo
-        progresos = [p.progreso for p in proyectos if p.progreso is not None]
-        cumplimiento = int(sum(progresos) / len(progresos)) if progresos else 0
+        finalizados = sum(1 for p in proyectos if str(p.estado).lower() in ["finalizado", "completado"])
+        cumplimiento = int((finalizados / len(proyectos)) * 100)
     else:
         cumplimiento = 0
     
-    # 7. Distribución temporal real (últimos meses con actividad)
+    # 10. Horas formativas dedicadas
+    horas_totales = sum(s.horas_dedicadas or 0 for s in semilleros)
+    
+    # 11. Presupuesto acumulado y ejecutado
+    presupuesto_total = sum(float(p.presupuesto_total or 0) for p in proyectos)
+    
+    # Presupuesto ejecutado ponderado por el progreso de entregables de cada proyecto
+    entregables_by_proj = {}
+    for e in entregables:
+        pid = str(e.proyecto_id)
+        if pid not in entregables_by_proj:
+            entregables_by_proj[pid] = {"total": 0, "aprobados": 0}
+        entregables_by_proj[pid]["total"] += 1
+        if e.estado == "aprobado":
+            entregables_by_proj[pid]["aprobados"] += 1
+            
+    presupuesto_ejecutado = 0.0
+    avances_individuales = []
+    for p in proyectos:
+        pid = str(p.id)
+        p_budget = float(p.presupuesto_total or 0)
+        p_ent = entregables_by_proj.get(pid, {"total": 0, "aprobados": 0})
+        if p_ent["total"] > 0:
+            p_prog = p_ent["aprobados"] / p_ent["total"]
+        elif str(p.estado).lower() in ("finalizado", "completado"):
+            p_prog = 1.0
+        else:
+            p_prog = 0.0
+        presupuesto_ejecutado += p_budget * p_prog
+        avances_individuales.append(int(p_prog * 100))
+        
+    avance_promedio = int(sum(avances_individuales) / len(avances_individuales)) if avances_individuales else cumplimiento
+    
+    # 12. Distribución temporal real
     from datetime import datetime, timezone
     meses_nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
     mes_actual = datetime.now(timezone.utc).month
     
     impacto_regional = []
-    for i in range(5):
-        m_idx = (mes_actual - 5 + i) % 12
+    for i in range(6):
+        m_idx = (mes_actual - 6 + i) % 12
         m_num = m_idx + 1
         m_nombre = meses_nombres[m_idx]
         
-        # Conteo de proyectos y productos creados en ese mes
         val = sum(1 for p in proyectos if p.created_at and p.created_at.month == m_num) + \
               sum(1 for pr in productos if pr.created_at and pr.created_at.month == m_num)
         
-        impacto_regional.append({'month': m_nombre, 'valor': val})
+        impacto_regional.append({'month': m_nombre, 'actividad': val})
     
     return {
         "produccion": produccion_data,
+        "proyectos_por_estado": proyectos_por_estado,
+        "semilleros_por_linea": semilleros_por_linea,
+        "cvlac_stats": cvlac_stats,
         "cumplimiento": cumplimiento,
+        "avance_promedio": avance_promedio,
+        "entregables_totales": total_e,
+        "entregables_aprobados": aprobados,
         "impacto_regional": impacto_regional,
         "total_semilleros": len(semilleros),
         "total_proyectos": len(proyectos),
         "total_productos": len(productos),
         "total_aprendices": total_aprendices or 0,
-        "total_integrantes": len(grupo.integrantes)
+        "total_integrantes": len(integrantes),
+        "horas_formativas": horas_totales,
+        "presupuesto_total": presupuesto_total,
+        "presupuesto_ejecutado": round(presupuesto_ejecutado, 2)
     }
+
+
+@router.get("/{grupo_id}/proyectos")
+def list_grupo_proyectos(
+    grupo_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Listar todos los proyectos vinculados al grupo con métricas de avance y equipo."""
+    from app.routers.proyectos import _format_proyecto_dict
+    from app.models import Semillero, Proyecto, Entregable, proyecto_equipo
+    from sqlalchemy.orm import joinedload
+    
+    grupo = db.query(Grupo).filter(Grupo.id == str(grupo_id)).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+        
+    semilleros = db.query(Semillero).filter(Semillero.grupo_id == str(grupo.id)).all()
+    semillero_ids = [str(s.id) for s in semilleros]
+    
+    integrantes_ids = [str(u.id) for u in grupo.integrantes]
+    if grupo.owner_id and str(grupo.owner_id) not in integrantes_ids:
+        integrantes_ids.append(str(grupo.owner_id))
+
+    proyectos = db.query(Proyecto).options(
+        joinedload(Proyecto.equipo),
+        joinedload(Proyecto.productos),
+        joinedload(Proyecto.semillero),
+        joinedload(Proyecto.grupo),
+        joinedload(Proyecto.owner)
+    ).filter(
+        (Proyecto.grupo_id == str(grupo.id)) |
+        (Proyecto.semillero_id.in_(semillero_ids) if semillero_ids else False) |
+        (Proyecto.owner_id.in_(integrantes_ids) if integrantes_ids else False)
+    ).all()
+
+    proyecto_ids = [str(p.id) for p in proyectos]
+    
+    # Pre-cargar tabla de equipo
+    equipo_master_map = {}
+    if proyecto_ids:
+        stmt = proyecto_equipo.select().where(proyecto_equipo.c.proyecto_id.in_(proyecto_ids))
+        equipo_data_all = db.execute(stmt).fetchall()
+        for row in equipo_data_all:
+            p_id = str(row.proyecto_id)
+            u_id = str(row.user_id)
+            if p_id not in equipo_master_map:
+                equipo_master_map[p_id] = {}
+            equipo_master_map[p_id][u_id] = row
+
+    # Pre-cargar entregables
+    entregables_map = {}
+    if proyecto_ids:
+        entregables_query = db.query(
+            Entregable.proyecto_id,
+            sa.func.count(Entregable.id).label('total'),
+            sa.func.sum(sa.case((Entregable.estado == 'aprobado', 1), else_=0)).label('aprobados')
+        ).filter(Entregable.proyecto_id.in_(proyecto_ids)).group_by(Entregable.proyecto_id).all()
+        
+        for row in entregables_query:
+            entregables_map[str(row.proyecto_id)] = {
+                "total": int(row.total or 0),
+                "aprobados": int(row.aprobados or 0)
+            }
+
+    result = []
+    for p in proyectos:
+        p_id_str = str(p.id)
+        e_info = entregables_map.get(p_id_str, {"total": 0, "aprobados": 0})
+        eq_map = equipo_master_map.get(p_id_str, {})
+        result.append(_format_proyecto_dict(p, equipo_map=eq_map, entregables_info=e_info))
+
+    return result
+
+
+# ==========================================
+# PLAN OPERATIVO & DOCUMENTOS DEL GRUPO
+# ==========================================
+
+@router.post("/{grupo_id}/plan-operativo")
+async def upload_plan_operativo(
+    grupo_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Subir archivo de plan operativo del grupo."""
+    from pathlib import Path
+    import shutil
+    import uuid
+    from app.config import get_settings
+    
+    grupo = db.query(Grupo).filter(Grupo.id == str(grupo_id)).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    if current_user.rol == "aprendiz":
+        raise HTTPException(status_code=403, detail="Sin permiso para modificar plan operativo")
+    
+    settings = get_settings()
+    storage_dir = Path(settings.STORAGE_DIR) / "documentos" if hasattr(settings, "STORAGE_DIR") else Path("storage/documentos")
+    storage_dir.mkdir(parents=True, exist_ok=True)
+    
+    file_ext = Path(file.filename).suffix or ".pdf"
+    safe_filename = f"plan_operativo_{grupo_id[:8]}_{uuid.uuid4().hex[:6]}{file_ext}"
+    dest_path = storage_dir / safe_filename
+    
+    with open(dest_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    grupo.plan_operativo_path = safe_filename
+    db.commit()
+    db.refresh(grupo)
+    
+    log_actividad(
+        db,
+        current_user.id,
+        "subir_plan_operativo",
+        f"Subió plan operativo para el grupo: {grupo.nombre}",
+        entidad_tipo="grupo",
+        entidad_id=str(grupo.id)
+    )
+    
+    return {"message": "Plan operativo subido exitosamente", "path": safe_filename}
+
+
+@router.get("/{grupo_id}/plan-operativo")
+def download_plan_operativo(
+    grupo_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Descargar archivo de plan operativo del grupo."""
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+    from app.config import get_settings
+    
+    grupo = db.query(Grupo).filter(Grupo.id == str(grupo_id)).first()
+    if not grupo or not grupo.plan_operativo_path:
+        raise HTTPException(status_code=404, detail="Plan operativo no cargado aún")
+    
+    settings = get_settings()
+    storage_dir = Path(settings.STORAGE_DIR) / "documentos" if hasattr(settings, "STORAGE_DIR") else Path("storage/documentos")
+    file_path = storage_dir / grupo.plan_operativo_path
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Archivo físico no encontrado en el servidor")
+        
+    return FileResponse(
+        path=str(file_path),
+        filename=f"Plan_Operativo_{grupo.nombre}.pdf",
+        content_disposition_type="attachment"
+    )
 

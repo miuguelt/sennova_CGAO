@@ -82,7 +82,7 @@ describe('API Modules', () => {
       const { BitacoraAPI } = await getFreshImport('../api/bitacora');
       mockFetchAPI.mockResolvedValue({});
       await BitacoraAPI.crear({ contenido: 'test' });
-      expect(mockFetchAPI).toHaveBeenCalledWith('/bitacora/', expect.objectContaining({ method: 'POST' }));
+      expect(mockFetchAPI).toHaveBeenCalledWith('/bitacora', expect.objectContaining({ method: 'POST' }));
     });
 
     it('delete calls fetchAPI with DELETE', async () => {
