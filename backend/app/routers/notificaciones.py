@@ -61,16 +61,17 @@ def estadisticas_notificaciones(
 ):
     """Retorna estadísticas de notificaciones del usuario."""
     try:
-        total = db.query(Notificacion).filter(Notificacion.user_id == current_user.id).count()
+        uid = str(current_user.id)
+        total = db.query(Notificacion).filter(Notificacion.user_id == uid).count()
         no_leidas = db.query(Notificacion).filter(
-            Notificacion.user_id == current_user.id,
-            Notificacion.leida == False
+            Notificacion.user_id == uid,
+            (Notificacion.leida == False) | (Notificacion.leida.is_(None))
         ).count()
         
         # Por tipo
         por_tipo = {}
         tipos = db.query(Notificacion.tipo, func.count(Notificacion.id)).filter(
-            Notificacion.user_id == current_user.id
+            Notificacion.user_id == uid
         ).group_by(Notificacion.tipo).all()
         for tipo, count in tipos:
             por_tipo[tipo] = count
@@ -78,7 +79,7 @@ def estadisticas_notificaciones(
         # Por prioridad
         por_prioridad = {}
         prioridades = db.query(Notificacion.prioridad, func.count(Notificacion.id)).filter(
-            Notificacion.user_id == current_user.id
+            Notificacion.user_id == uid
         ).group_by(Notificacion.prioridad).all()
         for prio, count in prioridades:
             por_prioridad[prio] = count
@@ -108,7 +109,7 @@ def obtener_notificacion(
         if not notificacion:
             raise HTTPException(status_code=404, detail="Notificación no encontrada")
         
-        if notificacion.user_id != current_user.id and current_user.rol != 'admin':
+        if str(notificacion.user_id) != str(current_user.id) and current_user.rol != 'admin':
             raise HTTPException(status_code=403, detail="No tienes permiso para ver esta notificación")
         
         # Marcar como leída automáticamente al verla
@@ -140,7 +141,7 @@ def marcar_leida(
         if not notificacion:
             raise HTTPException(status_code=404, detail="Notificación no encontrada")
         
-        if notificacion.user_id != current_user.id and current_user.rol != 'admin':
+        if str(notificacion.user_id) != str(current_user.id) and current_user.rol != 'admin':
             raise HTTPException(status_code=403, detail="No tienes permiso para modificar esta notificación")
         
         notificacion.leida = data.leida
@@ -168,12 +169,12 @@ def marcar_todas_leidas(
     """Marca todas las notificaciones del usuario como leídas."""
     try:
         db.query(Notificacion).filter(
-            Notificacion.user_id == current_user.id,
-            Notificacion.leida == False
+            Notificacion.user_id == str(current_user.id),
+            (Notificacion.leida == False) | (Notificacion.leida.is_(None))
         ).update({
             "leida": True,
             "fecha_lectura": datetime.now(timezone.utc)
-        })
+        }, synchronize_session=False)
         
         db.commit()
         
@@ -199,7 +200,7 @@ def eliminar_notificacion(
         if not notificacion:
             raise HTTPException(status_code=404, detail="Notificación no encontrada")
         
-        if notificacion.user_id != current_user.id and current_user.rol != 'admin':
+        if str(notificacion.user_id) != str(current_user.id) and current_user.rol != 'admin':
             raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta notificación")
         
         db.delete(notificacion)
@@ -356,8 +357,8 @@ def check_notificaciones_pendientes(
     """Retorna el número de notificaciones no leídas (para el badge)."""
     try:
         count = db.query(Notificacion).filter(
-            Notificacion.user_id == current_user.id,
-            Notificacion.leida == False
+            Notificacion.user_id == str(current_user.id),
+            (Notificacion.leida == False) | (Notificacion.leida.is_(None))
         ).count()
         
         return {
@@ -384,10 +385,10 @@ def limpiar_notificaciones_leidas(
         
         # Solo puede limpiar sus propias notificaciones
         deleted = db.query(Notificacion).filter(
-            Notificacion.user_id == current_user.id,
+            Notificacion.user_id == str(current_user.id),
             Notificacion.leida == True,
             Notificacion.created_at < fecha_limite
-        ).delete()
+        ).delete(synchronize_session=False)
         
         db.commit()
         

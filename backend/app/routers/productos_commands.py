@@ -115,6 +115,9 @@ def _notify_admins(
             db.query(User).filter(User.rol == "admin", User.is_active == True).all()
         )
         for admin_usr in admins:
+            # No enviar notificación al propio usuario que acaba de registrar el producto
+            if str(admin_usr.id) == str(current_user.id):
+                continue
             db.add(
                 _admin_notification(producto, admin_usr, proyecto_nombre, current_user)
             )

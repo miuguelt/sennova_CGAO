@@ -26,6 +26,7 @@ import { ReportesAPI } from '../../api/reportes';
 import { DocumentosAPI } from '../../api/documentos';
 import { UsuariosAPI } from '../../api/usuarios';
 import { NotificacionesAPI } from '../../api/notificaciones';
+import { MensajesAPI } from '../../api/mensajes';
 
 const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
   const { zIndex } = useModalStack({ isOpen: isOpen && !!user, onClose });
@@ -637,14 +638,10 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
 
       setSendingMessage(true);
       try {
-        await NotificacionesAPI.enviarMensaje({
-          user_id: user.id,
-          titulo: messageSubject,
-          mensaje: messageBody,
-          prioridad: messagePriority,
-          tipo: 'sistema',
-          entidad_tipo: 'user_message',
-          entidad_id: user.id
+        await MensajesAPI.enviar({
+          destinatario_id: user.id,
+          asunto: messageSubject,
+          contenido: messageBody
         });
 
         onNotify?.(`Mensaje enviado con éxito a ${user.nombre}`, 'success');
@@ -653,9 +650,17 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
         setMessageBody('');
         setMessagePriority('normal');
       } catch (err) {
-        console.error('Error enviando mensaje:', err);
+        console.error('Error enviando mensaje por chat, intentando canal de notificaciones:', err);
         try {
-          await NotificacionesAPI.crearSistema(user.id, messageSubject, messageBody, messagePriority);
+          await NotificacionesAPI.enviarMensaje({
+            user_id: user.id,
+            titulo: messageSubject,
+            mensaje: messageBody,
+            prioridad: messagePriority,
+            tipo: 'sistema',
+            entidad_tipo: 'user_message',
+            entidad_id: user.id
+          });
           onNotify?.(`Mensaje enviado con éxito a ${user.nombre}`, 'success');
           setShowSendMessageModal(false);
           setMessageSubject('');

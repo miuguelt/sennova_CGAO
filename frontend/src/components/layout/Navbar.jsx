@@ -33,12 +33,17 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
     checkNotificaciones();
     checkMensajes();
 
-    const onRealtimeMessage = () => {
+    const onRealtimeSync = () => {
       checkMensajes();
+      checkNotificaciones();
+      if (showNotificaciones) {
+        loadNotificaciones();
+      }
     };
 
-    window.addEventListener('sennova:mensaje_nuevo', onRealtimeMessage);
-    window.addEventListener('sennova:mensajes_leidos', onRealtimeMessage);
+    window.addEventListener('sennova:mensaje_nuevo', onRealtimeSync);
+    window.addEventListener('sennova:mensajes_leidos', onRealtimeSync);
+    window.addEventListener('sennova:notificacion_update', onRealtimeSync);
 
     const id = setInterval(() => {
       checkNotificaciones();
@@ -47,10 +52,11 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
 
     return () => {
       clearInterval(id);
-      window.removeEventListener('sennova:mensaje_nuevo', onRealtimeMessage);
-      window.removeEventListener('sennova:mensajes_leidos', onRealtimeMessage);
+      window.removeEventListener('sennova:mensaje_nuevo', onRealtimeSync);
+      window.removeEventListener('sennova:mensajes_leidos', onRealtimeSync);
+      window.removeEventListener('sennova:notificacion_update', onRealtimeSync);
     };
-  }, [currentUser]);
+  }, [currentUser, showNotificaciones]);
 
   useEffect(() => {
     const onMousedown = (e) => {

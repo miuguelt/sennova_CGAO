@@ -256,7 +256,7 @@ const getRubroValue = (p, rubroId) => {
 };
 
 // ─── Main Module ────────────────────────────────────────────────────────────
-const GrupoModule = ({ currentUser, onNotify, onNavigate }) => {
+const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActionHandled }) => {
   // Datos Maestros del Grupo
   const [grupo, setGrupo] = useState(null);
   const [stats, setStats] = useState(null);
@@ -348,6 +348,15 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate }) => {
   useEffect(() => { 
     loadData(); 
   }, []);
+
+  useEffect(() => {
+    if (initialAction?.form === 'view') {
+      if (initialAction.data?.tab) {
+        setActiveTab(initialAction.data.tab);
+      }
+      onActionHandled?.();
+    }
+  }, [initialAction, onActionHandled]);
 
   const loadData = async () => {
     setLoading(true);

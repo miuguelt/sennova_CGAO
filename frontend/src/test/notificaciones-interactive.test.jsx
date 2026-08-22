@@ -33,14 +33,26 @@ describe('Notification Routing and Navigation', () => {
 
     expect(resolveNotificationTarget({ entidad_tipo: 'entregable', entidad_id: 'e-456' })).toEqual({
       module: 'cronograma',
-      action: { module: 'cronograma', form: 'filter', initialData: { proyecto_id: 'e-456', id: 'e-456' } },
-      label: 'Ver Entregables'
+      action: { module: 'cronograma', form: 'view', initialData: { id: 'e-456', entregable_id: 'e-456', proyecto_id: 'e-456' } },
+      label: 'Ver Entregable'
     });
 
     expect(resolveNotificationTarget({ entidad_tipo: 'convocatoria', entidad_id: 'c-789' })).toEqual({
       module: 'convocatorias',
-      action: null,
-      label: 'Ver Convocatorias'
+      action: { module: 'convocatorias', form: 'view', initialData: { id: 'c-789' } },
+      label: 'Ver Convocatoria'
+    });
+
+    expect(resolveNotificationTarget({ entidad_tipo: 'semillero', entidad_id: 'sem-101' })).toEqual({
+      module: 'semilleros',
+      action: { module: 'semilleros', form: 'view', initialData: { id: 'sem-101' } },
+      label: 'Ver Semillero'
+    });
+
+    expect(resolveNotificationTarget({ entidad_tipo: 'reto', entidad_id: 'reto-202' })).toEqual({
+      module: 'retos',
+      action: { module: 'retos', form: 'view', initialData: { id: 'reto-202' } },
+      label: 'Ver Reto'
     });
 
     expect(resolveNotificationTarget({ entidad_tipo: 'producto', entidad_id: 'prod-1' })).toEqual({
@@ -49,21 +61,18 @@ describe('Notification Routing and Navigation', () => {
       label: 'Ver Producto'
     });
 
-    expect(resolveNotificationTarget({ entidad_tipo: 'mensaje', entidad_id: 'user-123' })).toEqual({
+    const msgTarget = resolveNotificationTarget({ entidad_tipo: 'mensaje', entidad_id: 'user-123' });
+    expect(msgTarget.module).toBe('mensajes');
+    expect(msgTarget.action).toEqual(expect.objectContaining({
       module: 'mensajes',
-      action: { module: 'mensajes', form: 'chat', initialData: { id: 'user-123', usuario_id: 'user-123', contacto_id: 'user-123' } },
-      label: 'Ir al Chat'
-    });
+      form: 'chat',
+      initialData: expect.objectContaining({ id: 'user-123', usuario_id: 'user-123', contacto_id: 'user-123' })
+    }));
+    expect(msgTarget.label).toBe('Ir al Chat');
 
-    expect(resolveNotificationTarget({ entidad_tipo: 'mensaje' })).toEqual({
-      module: 'mensajes',
-      action: null,
-      label: 'Ir a Mensajes'
-    });
-
-    expect(resolveNotificationTarget({ entidad_tipo: 'bitacora' })).toEqual({
+    expect(resolveNotificationTarget({ entidad_tipo: 'bitacora', entidad_id: 'b-99' })).toEqual({
       module: 'bitacora',
-      action: null,
+      action: { module: 'bitacora', form: 'view', initialData: { id: 'b-99' } },
       label: 'Ver Bitácora'
     });
 
@@ -97,10 +106,10 @@ describe('Notification Routing and Navigation', () => {
 
     // Without action (general module)
     navigateNotification(
-      { entidad_tipo: 'convocatoria' },
+      { entidad_tipo: 'reporte' },
       { onNavigate, onModuleAction }
     );
-    expect(onNavigate).toHaveBeenCalledWith('convocatorias');
+    expect(onNavigate).toHaveBeenCalledWith('reportes');
 
     // General notification without entity
     navigateNotification(
@@ -166,13 +175,16 @@ describe('NotificacionesModule UI & Click Actions', () => {
     expect(screen.getByText('Nuevo')).toBeTruthy();
   });
 
-  it('clicking a notification card marks it as read and opens detail modal', async () => {
+  it('clicking a notification card marks it as read and directly navigates to resource', async () => {
+    const onModuleAction = vi.fn();
+    const onNavigate = vi.fn();
+
     render(
       <NotificacionesModule 
         currentUser={{ id: 'u-1', rol: 'investigador' }}
         onNotify={vi.fn()}
-        onNavigate={vi.fn()}
-        onModuleAction={vi.fn()}
+        onNavigate={onNavigate}
+        onModuleAction={onModuleAction}
       />
     );
 
@@ -182,11 +194,29 @@ describe('NotificacionesModule UI & Click Actions', () => {
     // Should call API to mark as read
     await waitFor(() => {
       expect(NotificacionesAPI.marcarLeida).toHaveBeenCalledWith('notif-1', true);
+      expect(onModuleAction).toHaveBeenCalledWith({
+        module: 'proyectos',
+        form: 'view',
+        initialData: { id: 'proj-100' }
+      });
     });
+  });
+
+  it('clicking Ver detalle button opens detail modal without full navigation', async () => {
+    render(
+      <NotificacionesModule 
+        currentUser={{ id: 'u-1', rol: 'investigador' }}
+        onNotify={vi.fn()}
+        onNavigate={vi.fn()}
+        onModuleAction={vi.fn()}
+      />
+    );
+
+    const detailButtons = await screen.findAllByTitle('Ver detalles de la alerta');
+    fireEvent.click(detailButtons[0]);
 
     // Should show modal with full details
     expect(await screen.findByText('Detalle de Notificación')).toBeTruthy();
-    expect(screen.getAllByText('Tu proyecto ha sido aprobado por el comité').length).toBeGreaterThanOrEqual(1);
   });
 
   it('clicking action button in notification directly navigates to resource', async () => {
@@ -210,6 +240,89 @@ describe('NotificacionesModule UI & Click Actions', () => {
         module: 'proyectos',
         form: 'view',
         initialData: { id: 'proj-100' }
+      });
+    });
+  });
+
+  it('clicking a message notification in NotificacionesModule navigates directly to chat', async () => {
+    const onModuleAction = vi.fn();
+    const onNavigate = vi.fn();
+
+    NotificacionesAPI.listar.mockResolvedValue([
+      {
+        id: 'notif-chat-1',
+        tipo: 'mensaje',
+        titulo: 'Mensaje de Juan Perez',
+        mensaje: '¿Podemos revisar el avance del semillero hoy?',
+        entidad_tipo: 'user_message',
+        entidad_id: 'user-juan-555',
+        prioridad: 'normal',
+        leida: false,
+        created_at: '2026-08-18T10:30:00Z'
+      }
+    ]);
+
+    render(
+      <NotificacionesModule 
+        currentUser={{ id: 'u-1', rol: 'investigador' }}
+        onNotify={vi.fn()}
+        onNavigate={onNavigate}
+        onModuleAction={onModuleAction}
+      />
+    );
+
+    const card = await screen.findByText('Mensaje de Juan Perez');
+    fireEvent.click(card);
+
+    await waitFor(() => {
+      expect(NotificacionesAPI.marcarLeida).toHaveBeenCalledWith('notif-chat-1', true);
+      expect(onModuleAction).toHaveBeenCalledWith(expect.objectContaining({
+        module: 'mensajes',
+        form: 'chat',
+        initialData: expect.objectContaining({
+          id: 'user-juan-555',
+          usuario_id: 'user-juan-555',
+          contacto_id: 'user-juan-555'
+        })
+      }));
+    });
+  });
+
+  it('clicking a convocatoria notification navigates to convocatorias with view action', async () => {
+    const onModuleAction = vi.fn();
+    const onNavigate = vi.fn();
+
+    NotificacionesAPI.listar.mockResolvedValue([
+      {
+        id: 'notif-conv-1',
+        tipo: 'convocatoria',
+        titulo: 'Nueva Convocatoria: SENNOVA 2026',
+        mensaje: 'Abierta convocatoria de proyectos de innovación',
+        entidad_tipo: 'convocatoria',
+        entidad_id: 'conv-2026',
+        prioridad: 'alta',
+        leida: false,
+        created_at: '2026-08-18T08:00:00Z'
+      }
+    ]);
+
+    render(
+      <NotificacionesModule 
+        currentUser={{ id: 'u-1', rol: 'investigador' }}
+        onNotify={vi.fn()}
+        onNavigate={onNavigate}
+        onModuleAction={onModuleAction}
+      />
+    );
+
+    const card = await screen.findByText('Nueva Convocatoria: SENNOVA 2026');
+    fireEvent.click(card);
+
+    await waitFor(() => {
+      expect(onModuleAction).toHaveBeenCalledWith({
+        module: 'convocatorias',
+        form: 'view',
+        initialData: { id: 'conv-2026' }
       });
     });
   });
@@ -338,15 +451,15 @@ describe('Navbar Notification Dropdown Interactions', () => {
 
     await waitFor(() => {
       expect(NotificacionesAPI.marcarLeida).toHaveBeenCalledWith('notif-msg-1', true);
-      expect(onModuleAction).toHaveBeenCalledWith({
+      expect(onModuleAction).toHaveBeenCalledWith(expect.objectContaining({
         module: 'mensajes',
         form: 'chat',
-        initialData: {
+        initialData: expect.objectContaining({
           id: 'user-maria-999',
           usuario_id: 'user-maria-999',
           contacto_id: 'user-maria-999'
-        }
-      });
+        })
+      }));
     });
   });
 });

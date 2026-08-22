@@ -55,11 +55,40 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
   }, []);
 
   useEffect(() => {
-    if (initialAction?.data?.proyecto_id) {
-      setFilterProyecto(initialAction.data.proyecto_id);
+    if (!initialAction) return;
+
+    const actionData = initialAction.data || initialAction.initialData || {};
+    const targetId = actionData.entregable_id || actionData.id;
+    const targetProjId = actionData.proyecto_id;
+
+    if (initialAction.form === 'create') {
+      setFormData(EMPTY_FORM);
+      setIsEditing(false);
+      setShowForm(true);
+      onActionHandled?.();
+      return;
+    }
+
+    if (targetId && entregables.length > 0) {
+      const found = entregables.find(e => String(e.id) === String(targetId));
+      if (found) {
+        if (found.proyecto_id) {
+          setFilterProyecto(found.proyecto_id);
+        }
+        handleEdit(found);
+        onActionHandled?.();
+        return;
+      }
+    }
+
+    if (targetProjId) {
+      setFilterProyecto(targetProjId);
+      onActionHandled?.();
+    } else if (targetId && proyectos.some(p => String(p.id) === String(targetId))) {
+      setFilterProyecto(targetId);
       onActionHandled?.();
     }
-  }, [initialAction, onActionHandled]);
+  }, [initialAction, entregables, proyectos, onActionHandled]);
 
   const loadData = async () => {
     setLoading(true);

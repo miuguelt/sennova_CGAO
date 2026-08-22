@@ -208,5 +208,34 @@ describe('MensajeriaModule Component', () => {
       expect(onActionHandled).toHaveBeenCalled();
     });
   });
+
+  it('resolves contact by search name and opens chat when id is null', async () => {
+    const mockMarta = {
+      id: 'user-marta-99',
+      nombre: 'Dra. Marta Rodríguez',
+      email: 'marta@sena.edu.co',
+      rol: 'investigador'
+    };
+    MensajesAPI.getDestinatarios.mockResolvedValue([mockMarta]);
+    MensajesAPI.getConversacion.mockResolvedValue([]);
+
+    const onActionHandled = vi.fn();
+    render(
+      <MensajeriaModule
+        currentUser={mockCurrentUser}
+        initialAction={{
+          form: 'chat',
+          data: { id: null, search: 'Dra. Marta Rodríguez', nombre: 'Dra. Marta Rodríguez' }
+        }}
+        onActionHandled={onActionHandled}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Dra. Marta Rodríguez').length).toBeGreaterThan(0);
+      expect(screen.getByPlaceholderText(/Escribe un mensaje para Dra. Marta Rodríguez/i)).toBeInTheDocument();
+      expect(onActionHandled).toHaveBeenCalled();
+    });
+  });
 });
 

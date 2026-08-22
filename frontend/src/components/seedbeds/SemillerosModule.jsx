@@ -68,7 +68,7 @@ const StatCard = ({ label, value, icon: Icon, colorCls, bgCls }) => (
   </Card>
 );
 
-const SemillerosModule = ({ currentUser, onNotify }) => {
+const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandled }) => {
   const [semilleros, setSemilleros] = useState([]);
   const [grupos, setGrupos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -111,7 +111,8 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
         UsuariosAPI.list(),
         ProyectosAPI.list()
       ]);
-      setSemilleros(s || []);
+      const sList = s || [];
+      setSemilleros(sList);
       setGrupos(g || []);
       setUsuarios(u || []);
       setProyectos(p || []);
@@ -119,17 +120,40 @@ const SemillerosModule = ({ currentUser, onNotify }) => {
       // Keep selectedSemillero in sync with latest data
       setSelectedSemillero(prev => {
         if (!prev) return null;
-        const updated = (s || []).find(item => item.id === prev.id);
+        const updated = sList.find(item => item.id === prev.id);
         return updated ? { ...prev, ...updated } : prev;
       });
     } catch (err) {
-      onNotify?.('Error al cargar datos', 'error');
+      onNotify?.('Error al sincronizar semilleros', 'error');
     } finally {
       if (showLoading) setLoading(false);
     }
   };
 
-  useEffect(() => { loadData(true); }, []);
+  useEffect(() => {
+    loadData(true);
+  }, []);
+
+  useEffect(() => {
+    if (initialAction?.form === 'create') {
+      handleOpenCreate();
+      onActionHandled?.();
+    } else if (initialAction?.form === 'view' && (initialAction.data?.id || initialAction.initialData?.id)) {
+      const targetId = String(initialAction.data?.id || initialAction.initialData?.id);
+      const found = semilleros.find(s => String(s.id) === targetId);
+      if (found) {
+        handleOpenDetail(found);
+        onActionHandled?.();
+      } else {
+        SemillerosAPI.get(targetId).then(s => {
+          if (s) {
+            handleOpenDetail(s);
+            onActionHandled?.();
+          }
+        }).catch(() => {});
+      }
+    }
+  }, [initialAction, semilleros, onActionHandled]);
 
   const handleOpenCreate = () => {
     setFormData(EMPTY_FORM);

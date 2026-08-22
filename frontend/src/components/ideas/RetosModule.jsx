@@ -43,7 +43,7 @@ const EMPTY_FORM = {
   semillero_asignado_id: ''
 };
 
-const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
+const RetosModule = ({ currentUser, onNotify, onModuleAction, initialAction, onActionHandled }) => {
   const [retos, setRetos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -64,6 +64,29 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction }) => {
     loadRetos(); 
     loadSemilleros();
   }, []);
+
+  useEffect(() => {
+    if (initialAction?.form === 'create') {
+      handleOpenCreate();
+      onActionHandled?.();
+    } else if (initialAction?.form === 'view' && (initialAction.data?.id || initialAction.initialData?.id)) {
+      const targetId = String(initialAction.data?.id || initialAction.initialData?.id);
+      const found = retos.find(r => String(r.id) === targetId);
+      if (found) {
+        setSelectedReto(found);
+        setIsDetailOpen(true);
+        onActionHandled?.();
+      } else {
+        RetosAPI.get(targetId).then(r => {
+          if (r) {
+            setSelectedReto(r);
+            setIsDetailOpen(true);
+            onActionHandled?.();
+          }
+        }).catch(() => {});
+      }
+    }
+  }, [initialAction, retos, onActionHandled]);
 
   const loadSemilleros = async () => {
     try {

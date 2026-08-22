@@ -296,3 +296,49 @@ def test_notification_and_contacto_for_messages():
     assert contacto["rol"] == admin.rol
 
 
+def test_notification_synchronization_on_chat_read():
+    """Verifica que al marcar mensajes de chat como leídos, las notificaciones in-app se sincronicen."""
+    global current_test_user
+    from app.models import Notificacion
+
+    db = TestingSessionLocal()
+    admin = db.query(User).filter(User.email == "admin_mensajes@sena.edu.co").first()
+    investigador = db.query(User).filter(User.email == "investigador_mensajes@sena.edu.co").first()
+    db.close()
+
+    # 1. Admin envía mensaje a Investigador
+    current_test_user = admin
+    payload = {
+        "destinatario_id": str(investigador.id),
+        "asunto": "Prueba de sincronización",
+        "contenido": "Hola investigador, este mensaje debe sincronizarse"
+    }
+    resp = client.post("/mensajes", json=payload)
+    assert resp.status_code == 201
+
+    # Comprobar que la notificación del investigador está como NO leída
+    db = TestingSessionLocal()
+    notif = db.query(Notificacion).filter(
+        Notificacion.user_id == str(investigador.id),
+        Notificacion.entidad_id == str(admin.id),
+        Notificacion.tipo == "mensaje"
+    ).order_by(Notificacion.created_at.desc()).first()
+    assert notif is not None
+    assert notif.leida is False
+    db.close()
+
+    # 2. Investigador abre el chat y marca la conversación como leída
+    current_test_user = investigador
+    mark_resp = client.post(f"/mensajes/conversacion/{admin.id}/marcar-leidos")
+    assert mark_resp.status_code == 200
+
+    # 3. Verificar que la notificación en la DB ahora está sincronizada como LEÍDA
+    db = TestingSessionLocal()
+    notif_updated = db.query(Notificacion).filter(
+        Notificacion.id == notif.id
+    ).first()
+    assert notif_updated.leida is True
+    assert notif_updated.fecha_lectura is not None
+    db.close()
+
+

@@ -186,6 +186,21 @@ def marcar_leidos(db: Session, uid: str, otro_usuario_id: str) -> Tuple[int, str
         if not m.fecha_entrega:
             m.fecha_entrega = now
 
+    # Sincronizar automáticamente las notificaciones in-app asociadas a este chat
+    notificaciones_pendientes = db.query(Notificacion).filter(
+        Notificacion.user_id == uid,
+        or_(
+            Notificacion.tipo == "mensaje",
+            Notificacion.entidad_tipo.in_(["mensaje", "user_message", "chat"])
+        ),
+        Notificacion.entidad_id == otro_usuario_id,
+        or_(Notificacion.leida == False, Notificacion.leida.is_(None))  # noqa: E712
+    ).all()
+
+    for notif in notificaciones_pendientes:
+        notif.leida = True
+        notif.fecha_lectura = now
+
     db.commit()
     return len(mensajes_no_leidos), now.isoformat()
 
@@ -310,6 +325,29 @@ def eliminar_mensaje(
     adjuntos_service.liberar_archivos(db, list(msg.adjuntos or []))
 
     db.delete(msg)
+
+    if dest_id:
+        # Si no quedan mensajes no leídos del remitente hacia el destinatario, marcar/limpiar notificaciones
+        quedan_no_leidos = db.query(func.count(Mensaje.id)).filter(
+            Mensaje.remitente_id == rem_id,
+            Mensaje.destinatario_id == dest_id,
+            Mensaje.leido == False  # noqa: E712
+        ).scalar() or 0
+
+        if quedan_no_leidos == 0:
+            db.query(Notificacion).filter(
+                Notificacion.user_id == dest_id,
+                or_(
+                    Notificacion.tipo == "mensaje",
+                    Notificacion.entidad_tipo.in_(["mensaje", "user_message", "chat"])
+                ),
+                Notificacion.entidad_id == rem_id,
+                or_(Notificacion.leida == False, Notificacion.leida.is_(None))  # noqa: E712
+            ).update({
+                "leida": True,
+                "fecha_lectura": datetime.now(timezone.utc)
+            }, synchronize_session=False)
+
     db.commit()
     return rem_id, dest_id
 

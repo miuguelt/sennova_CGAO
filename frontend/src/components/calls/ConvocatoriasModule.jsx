@@ -318,7 +318,7 @@ const ConvocatoriaCard = ({
 };
 
 // ── MÓDULO PRINCIPAL DE CONVOCATORIAS ──
-const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate }) => {
+const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate, initialAction, onActionHandled }) => {
   const [convocatorias, setConvocatorias] = useState([]);
   const [proyectos, setProyectos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -365,6 +365,29 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
   useEffect(() => {
     loadData(true);
   }, []);
+
+  useEffect(() => {
+    if (initialAction?.form === 'create') {
+      handleOpenCreate();
+      onActionHandled?.();
+    } else if (initialAction?.form === 'view' && (initialAction.data?.id || initialAction.initialData?.id)) {
+      const targetId = String(initialAction.data?.id || initialAction.initialData?.id);
+      const found = convocatorias.find(c => String(c.id) === targetId);
+      if (found) {
+        setSelectedConvocatoria(found);
+        setDetailOpen(true);
+        onActionHandled?.();
+      } else {
+        ConvocatoriasAPI.get(targetId).then(c => {
+          if (c) {
+            setSelectedConvocatoria(c);
+            setDetailOpen(true);
+            onActionHandled?.();
+          }
+        }).catch(() => {});
+      }
+    }
+  }, [initialAction, convocatorias, onActionHandled]);
 
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
 

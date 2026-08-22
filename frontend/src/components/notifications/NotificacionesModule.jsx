@@ -159,11 +159,24 @@ const NotificacionesModule = ({ currentUser, onNotify, onNavigate, onModuleActio
     eliminar: { title: '¿Eliminar notificación?', description: 'Esta notificación se eliminará de forma permanente.', confirmText: 'Eliminar', variant: 'danger', action: confirmEliminar },
   };
 
-  const handleRowClick = (n) => {
+  const handleOpenDetailModal = (n, e) => {
+    if (e) e.stopPropagation();
     if (!n.leida) {
       handleMarcarLeida(n.id, true);
     }
     setSelectedNotif(n);
+  };
+
+  const handleRowClick = (n) => {
+    if (!n.leida) {
+      handleMarcarLeida(n.id, true);
+    }
+    const target = resolveNotificationTarget(n);
+    if (target?.action || target?.module) {
+      navigateNotification(n, { onNavigate, onModuleAction });
+    } else {
+      setSelectedNotif(n);
+    }
   };
 
   const handleAction = (n, e) => {
@@ -335,9 +348,14 @@ const NotificacionesModule = ({ currentUser, onNotify, onNavigate, onModuleActio
                       <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
                         <Clock size={12} /> {new Date(n.created_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}
                       </span>
-                      <span className="text-[11px] text-emerald-800 font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                      <button 
+                        type="button"
+                        onClick={(e) => handleOpenDetailModal(n, e)}
+                        className="text-[11px] text-emerald-800 hover:text-emerald-950 font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 cursor-pointer underline-offset-2 hover:underline"
+                        title="Ver detalles de la alerta"
+                      >
                         <Eye size={12} /> Ver detalle
-                      </span>
+                      </button>
                     </div>
                   </div>
                 </div>

@@ -98,6 +98,8 @@ def create_convocatoria(
             User.is_active != False
         ).all()
         for inv in investigadores:
+            if str(inv.id) == str(admin.id):
+                continue
             notif = Notificacion(
                 user_id=str(inv.id),
                 tipo='convocatoria',

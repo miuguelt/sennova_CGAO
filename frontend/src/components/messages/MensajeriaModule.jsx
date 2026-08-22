@@ -199,6 +199,9 @@ export default function MensajeriaModule({
         )
       );
       loadStats();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sennova:mensajes_leidos', { detail: { otro_usuario_id: otroUsuarioId } }));
+      }
     } catch (err) {
       console.error('Error marcando mensajes como leídos:', err);
     }
@@ -311,23 +314,31 @@ export default function MensajeriaModule({
     const actionData = initialAction?.data || initialAction?.initialData || initialContact;
     if (!actionData) return;
 
-    const targetUserId = typeof actionData === 'string'
+    let targetUserId = typeof actionData === 'string'
       ? actionData
-      : (actionData.usuario_id || actionData.contacto_id || actionData.id);
+      : (actionData.usuario_id || actionData.contacto_id || actionData.id || null);
 
-    if (!targetUserId) return;
+    const searchName = typeof actionData === 'object' ? (actionData.search || actionData.nombre || null) : null;
 
-    const actionKey = `${targetUserId}-${initialAction?.form || ''}`;
-    if (handledActionRef.current === actionKey && selectedUser?.id === targetUserId) {
+    if (!targetUserId && !searchName) return;
+
+    const actionTimestamp = typeof actionData === 'object' ? actionData.actionTimestamp : '';
+    const actionKey = `${targetUserId || searchName}-${initialAction?.form || ''}-${actionTimestamp || ''}`;
+    
+    if (
+      handledActionRef.current === actionKey &&
+      selectedUser?.id &&
+      (!targetUserId || String(selectedUser.id) === String(targetUserId))
+    ) {
       return;
     }
 
-    activeTargetRef.current = targetUserId;
+    activeTargetRef.current = targetUserId || searchName;
 
     const resolveAndSelectUser = async () => {
-      // 1. Si los datos ya vienen completos en actionData
+      // 1. Si los datos ya vienen completos con id y nombre
       if (typeof actionData === 'object' && actionData.nombre && actionData.id) {
-        if (componentMountedRef.current && activeTargetRef.current === targetUserId) {
+        if (componentMountedRef.current) {
           handledActionRef.current = actionKey;
           setSelectedUser(actionData);
           onActionHandled?.();
@@ -335,54 +346,87 @@ export default function MensajeriaModule({
         return;
       }
 
-      // 2. Si ya está cargado en conversaciones existentes
-      const foundInConversaciones = conversaciones.find(
-        (c) => String(c.otro_usuario?.id) === String(targetUserId)
-      );
-      if (foundInConversaciones?.otro_usuario) {
-        if (componentMountedRef.current && activeTargetRef.current === targetUserId) {
-          handledActionRef.current = actionKey;
-          setSelectedUser(foundInConversaciones.otro_usuario);
-          onActionHandled?.();
-        }
-        return;
-      }
-
-      // 3. Consultar a la API el contacto por ID
-      try {
-        const contactData = await MensajesAPI.getContacto(targetUserId);
-        if (componentMountedRef.current && activeTargetRef.current === targetUserId && contactData?.id) {
-          handledActionRef.current = actionKey;
-          setSelectedUser(contactData);
-          onActionHandled?.();
+      // 2. Si ya está cargado en conversaciones existentes por ID
+      if (targetUserId && conversaciones.length > 0) {
+        const foundInConversaciones = conversaciones.find(
+          (c) => String(c.otro_usuario?.id) === String(targetUserId)
+        );
+        if (foundInConversaciones?.otro_usuario) {
+          if (componentMountedRef.current) {
+            handledActionRef.current = actionKey;
+            setSelectedUser(foundInConversaciones.otro_usuario);
+            onActionHandled?.();
+          }
           return;
         }
-      } catch (err) {
-        console.warn('Fallback al consultar contacto:', err);
       }
 
-      // 4. Fallback: buscar en destinatarios
+      // 3. Si hay searchName, buscar en conversaciones existentes por nombre
+      if (searchName && conversaciones.length > 0) {
+        const term = searchName.toLowerCase().replace(/^(dr|dra|ing|mag|lic)\.?\s*/i, '').trim();
+        const foundByName = conversaciones.find((c) => {
+          const uName = (c.otro_usuario?.nombre || '').toLowerCase();
+          return uName.includes(term) || term.includes(uName);
+        });
+        if (foundByName?.otro_usuario) {
+          if (componentMountedRef.current) {
+            handledActionRef.current = actionKey;
+            setSelectedUser(foundByName.otro_usuario);
+            onActionHandled?.();
+          }
+          return;
+        }
+      }
+
+      // 4. Consultar a la API el contacto por ID
+      if (targetUserId) {
+        try {
+          const contactData = await MensajesAPI.getContacto(targetUserId);
+          if (componentMountedRef.current && contactData?.id) {
+            handledActionRef.current = actionKey;
+            setSelectedUser(contactData);
+            onActionHandled?.();
+            return;
+          }
+        } catch (err) {
+          console.warn('Fallback al consultar contacto por ID:', err);
+        }
+      }
+
+      // 5. Fallback: buscar en el directorio de destinatarios (por ID o por nombre)
       try {
         const destList = await MensajesAPI.getDestinatarios();
-        const foundInDest = destList?.find((u) => String(u.id) === String(targetUserId));
-        if (componentMountedRef.current && activeTargetRef.current === targetUserId && foundInDest) {
-          handledActionRef.current = actionKey;
-          setSelectedUser(foundInDest);
-          onActionHandled?.();
-          return;
+        if (Array.isArray(destList) && destList.length > 0) {
+          let foundInDest = null;
+          if (targetUserId) {
+            foundInDest = destList.find((u) => String(u.id) === String(targetUserId));
+          }
+          if (!foundInDest && searchName) {
+            const term = searchName.toLowerCase().replace(/^(dr|dra|ing|mag|lic)\.?\s*/i, '').trim();
+            foundInDest = destList.find((u) => {
+              const uName = (u.nombre || '').toLowerCase();
+              return uName.includes(term) || term.includes(uName);
+            });
+          }
+          if (componentMountedRef.current && foundInDest) {
+            handledActionRef.current = actionKey;
+            setSelectedUser(foundInDest);
+            onActionHandled?.();
+            return;
+          }
         }
       } catch (err) {
-        console.error('Error buscando contacto en destinatarios:', err);
+        console.error('Error buscando contacto en directorio:', err);
       }
 
-      // 5. Fallback final: crear objeto básico para permitir abrir el chat y cargar mensajes
-      if (componentMountedRef.current && activeTargetRef.current === targetUserId) {
+      // 6. Fallback final: si tenemos targetUserId, crear objeto básico para abrir chat
+      if (componentMountedRef.current && targetUserId) {
         handledActionRef.current = actionKey;
         setSelectedUser({
           id: targetUserId,
-          nombre: actionData.nombre || 'Usuario',
-          rol: actionData.rol || 'investigador',
-          email: actionData.email || '',
+          nombre: (typeof actionData === 'object' && actionData.nombre) || 'Usuario SENNOVA',
+          rol: (typeof actionData === 'object' && actionData.rol) || 'investigador',
+          email: (typeof actionData === 'object' && actionData.email) || '',
         });
         onActionHandled?.();
       }
