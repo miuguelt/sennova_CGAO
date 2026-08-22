@@ -32,6 +32,7 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 import useClickOutside from '../../hooks/useClickOutside';
 import { PDFGenerator } from '../../utils/pdfGenerator';
 import ProyectoEquipoTab from './ProyectoEquipoTab';
+import MoverProyectoSemilleroModal from './MoverProyectoSemilleroModal';
 
 // ─── Gantt Component ──────────────────────────────────────────────────────────
 const ProjectTimeline = ({ entregables = [] }) => {
@@ -193,7 +194,7 @@ const Skeleton = () => (
 );
 
 // ─── Kanban card ──────────────────────────────────────────────────────────────
-const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick, onEdit, onDelete, onLiquidar, onElaboracion, onClickMenu, isMenuOpen, menuRef, canEdit }) => (
+const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick, onEdit, onDelete, onLiquidar, onElaboracion, onMoverSemillero, onClickMenu, isMenuOpen, menuRef, canEdit }) => (
   <Card
     draggable={canEdit}
     onDragStart={onDragStart}
@@ -254,6 +255,15 @@ const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick,
             </button>
             {canEdit && (
               <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onMoverSemillero(p); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-indigo-700 hover:bg-indigo-50 transition-all group/item"
+                >
+                  <div className="p-1.5 bg-indigo-100/80 rounded-lg group-hover/item:bg-indigo-200 text-indigo-700 transition-colors">
+                    <GraduationCap size={14} />
+                  </div>
+                  Mover a Semillero
+                </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); onEdit(p); }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all group/item"
@@ -350,7 +360,15 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [formTab,           setFormTab]          = useState('basic'); // 'basic', 'tech', 'budget'
   const [dragOverProjectId, setDragOverProjectId] = useState(null);
   const [generatingFormatId, setGeneratingFormatId] = useState(null);
+  const [projectToMove,     setProjectToMove]     = useState(null);
+  const [showMoveModal,     setShowMoveModal]     = useState(false);
   const menuRef = React.useRef(null);
+
+  const handleOpenMoveSemillero = (proyecto) => {
+    setProjectToMove(proyecto);
+    setShowMoveModal(true);
+    setMenuOpenId(null);
+  };
 
   const isOwnerOrAdmin = (project) => currentUser?.rol !== 'aprendiz' && (currentUser?.rol === 'admin' || project?.owner_id === currentUser?.id);
   const teamMembers = selectedProyecto?.equipo || [];
@@ -1008,6 +1026,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                         onDelete={handleDelete}
                         onLiquidar={(target) => handleOpenLiquidation(target)}
                         onElaboracion={(target) => handleOpenElaboracionDiagnostic(target)}
+                        onMoverSemillero={handleOpenMoveSemillero}
                         onClickMenu={(id) => setMenuOpenId(menuOpenId === id ? null : id)}
                         isMenuOpen={menuOpenId === p.id}
                         menuRef={menuRef}
@@ -1116,6 +1135,12 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                           </button>
                           {isOwnerOrAdmin(p) && (
                             <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleOpenMoveSemillero(p); }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50 transition-colors"
+                              >
+                                <GraduationCap size={14} /> Mover a Semillero
+                              </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleEdit(p); }}
                                 className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors"
@@ -1321,9 +1346,20 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                     <p className="text-[10px] font-black text-slate-700 uppercase mb-1">Línea de Investigación</p>
                     <p className="text-sm font-bold text-slate-900">{selectedProyecto.linea_investigacion || 'No definida'}</p>
                   </div>
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                    <p className="text-[10px] font-black text-slate-700 uppercase mb-1">Semillero Asociado</p>
-                    <p className="text-sm font-bold text-slate-900">{selectedProyecto.semillero?.nombre || 'Independiente / No asignado'}</p>
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col justify-between">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-700 uppercase mb-1">Semillero Asociado</p>
+                      <p className="text-sm font-bold text-slate-900">{selectedProyecto.semillero_nombre || selectedProyecto.semillero?.nombre || 'Independiente / No asignado'}</p>
+                    </div>
+                    {isOwnerOrAdmin(selectedProyecto) && (
+                      <button
+                        onClick={() => handleOpenMoveSemillero(selectedProyecto)}
+                        className="mt-2 text-[10px] font-black text-indigo-700 hover:text-indigo-900 uppercase flex items-center gap-1 self-start cursor-pointer hover:underline"
+                      >
+                        <GraduationCap size={12} />
+                        <span>Cambiar / Mover Semillero</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1811,6 +1847,24 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
         description="¿Estás seguro de eliminar este proyecto? Esta acción no se puede deshacer y borrará entregables y registros asociados."
         confirmText="Eliminar Proyecto"
         variant="danger"
+      />
+
+      {/* ── Mover Proyecto a Semillero Modal ── */}
+      <MoverProyectoSemilleroModal
+        isOpen={showMoveModal && !!projectToMove}
+        onClose={() => {
+          setShowMoveModal(false);
+          setProjectToMove(null);
+        }}
+        proyecto={projectToMove}
+        semilleros={semilleros}
+        onSuccess={(updated) => {
+          if (selectedProyecto?.id === updated?.id) {
+            setSelectedProyecto(prev => ({ ...prev, ...updated }));
+          }
+          loadData();
+        }}
+        onNotify={onNotify}
       />
     </div>
   );

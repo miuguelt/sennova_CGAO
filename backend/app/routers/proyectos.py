@@ -34,8 +34,14 @@ def check_proyecto_access(proyecto: Proyecto, user: User) -> bool:
 
 
 def can_edit_proyecto(proyecto: Proyecto, user: User) -> bool:
-    """Solo admin o owner pueden editar/eliminar/liquidar un proyecto."""
-    return user.rol == "admin" or str(proyecto.owner_id) == str(user.id)
+    """Admin, owner del proyecto, o líder del semillero asignado pueden editar el proyecto."""
+    if user.rol == "admin":
+        return True
+    if str(proyecto.owner_id) == str(user.id):
+        return True
+    if proyecto.semillero and str(proyecto.semillero.owner_id) == str(user.id):
+        return True
+    return False
 
 
 def _format_proyecto_dict(

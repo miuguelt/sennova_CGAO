@@ -36,6 +36,7 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 import StatusBadge from '../ui/StatusBadge';
 import ProyectoEquipoTab from '../projects/ProyectoEquipoTab';
 import UserInsightPanel from '../users/UserInsightPanel';
+import MoverProyectoSemilleroModal from '../projects/MoverProyectoSemilleroModal';
 
 // ─── Constantes CGAO ─────────────────────────────────────────────────────────
 const CLASIFICACIONES = [
@@ -287,6 +288,9 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
   const [generatingFormatId, setGeneratingFormatId] = useState(null);
   const [showLiquidationModal, setShowLiquidationModal] = useState(false);
   const [showElaboracionModal, setShowElaboracionModal] = useState(false);
+  const [projectToMove, setProjectToMove] = useState(null);
+  const [showMoveSemilleroModal, setShowMoveSemilleroModal] = useState(false);
+  const [selectedProjectToLinkGrupo, setSelectedProjectToLinkGrupo] = useState('');
 
   // ── Modales de Semillero (CRUD Unificado) ──
   const [selectedSemillero, setSelectedSemillero] = useState(null);
@@ -2208,9 +2212,23 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                     <p className="text-[10px] font-black text-slate-400 uppercase">Línea de Investigación</p>
                     <p className="text-xs font-bold text-slate-800 mt-0.5">{selectedProyecto.linea_investigacion || 'No definida'}</p>
                   </div>
-                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100">
-                    <p className="text-[10px] font-black text-slate-400 uppercase">Semillero Vinculado</p>
-                    <p className="text-xs font-bold text-slate-800 mt-0.5">{selectedProyecto.semillero_nombre || selectedProyecto.semillero?.nombre || 'Iniciativa Directa'}</p>
+                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col justify-between">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase">Semillero Vinculado</p>
+                      <p className="text-xs font-bold text-slate-800 mt-0.5">{selectedProyecto.semillero_nombre || selectedProyecto.semillero?.nombre || 'Iniciativa Directa'}</p>
+                    </div>
+                    {currentUser?.rol !== 'aprendiz' && (
+                      <button
+                        onClick={() => {
+                          setProjectToMove(selectedProyecto);
+                          setShowMoveSemilleroModal(true);
+                        }}
+                        className="mt-2 text-[10px] font-black text-indigo-700 hover:text-indigo-900 uppercase flex items-center gap-1 self-start cursor-pointer hover:underline"
+                      >
+                        <GraduationCap size={12} />
+                        <span>Cambiar / Mover Semillero</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -2447,12 +2465,59 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
             )}
 
             {semilleroDrawerTab === 'proyectos' && (
-              <div className="space-y-3 animate-fadeIn">
-                <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                  Proyectos Adscritos al Semillero
-                </h4>
+              <div className="space-y-4 animate-fadeIn">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                    Proyectos Adscritos al Semillero ({proyectosGrupo.filter(p => String(p.semillero_id) === String(selectedSemillero.id) || p.semillero_nombre === selectedSemillero.nombre).length})
+                  </h4>
+                </div>
+
+                {currentUser?.rol !== 'aprendiz' && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <Target size={12} className="text-emerald-600" /> Vincular Proyecto del Grupo al Semillero
+                    </p>
+                    <div className="flex gap-2">
+                      <select
+                        value={selectedProjectToLinkGrupo}
+                        onChange={(e) => setSelectedProjectToLinkGrupo(e.target.value)}
+                        className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+                      >
+                        <option value="">Seleccionar proyecto...</option>
+                        {proyectosGrupo
+                          .filter(p => String(p.semillero_id) !== String(selectedSemillero.id))
+                          .map(p => (
+                            <option key={p.id} value={p.id}>
+                              {p.codigo_sgps ? `[${p.codigo_sgps}] ` : ''}{p.nombre_corto || p.nombre}
+                              {p.semillero_nombre ? ` (De: ${p.semillero_nombre})` : ' (Sin semillero)'}
+                            </option>
+                          ))}
+                      </select>
+                      <Button
+                        variant="sena"
+                        size="xs"
+                        disabled={!selectedProjectToLinkGrupo}
+                        onClick={async () => {
+                          if (!selectedProjectToLinkGrupo) return;
+                          try {
+                            await ProyectosAPI.update(selectedProjectToLinkGrupo, { semillero_id: selectedSemillero.id });
+                            onNotify?.('Proyecto vinculado al semillero con éxito', 'success');
+                            setSelectedProjectToLinkGrupo('');
+                            await loadAllGrupoData();
+                          } catch (err) {
+                            onNotify?.('Error al vincular proyecto: ' + (err.response?.data?.detail || err.message), 'error');
+                          }
+                        }}
+                        className="px-3 text-xs font-bold shrink-0"
+                      >
+                        <Plus size={12} className="mr-1" /> Vincular
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {(() => {
-                  const proys = proyectosGrupo.filter(p => p.semillero_id === selectedSemillero.id || p.semillero_nombre === selectedSemillero.nombre);
+                  const proys = proyectosGrupo.filter(p => String(p.semillero_id) === String(selectedSemillero.id) || p.semillero_nombre === selectedSemillero.nombre);
                   if (proys.length === 0) {
                     return (
                       <p className="text-xs text-slate-400 italic p-6 bg-slate-50 rounded-xl text-center">
@@ -2463,19 +2528,44 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                   return proys.map(p => (
                     <div
                       key={p.id}
-                      onClick={() => {
-                        setIsSemilleroDrawerOpen(false);
-                        handleOpenProjectDetail(p);
-                      }}
-                      className="p-3.5 bg-white border border-slate-200 hover:border-emerald-400 rounded-xl flex items-center justify-between gap-3 cursor-pointer group shadow-xs"
+                      className="p-3.5 bg-white border border-slate-200 hover:border-emerald-400 rounded-xl flex items-center justify-between gap-3 group shadow-xs"
                     >
-                      <div>
-                        <p className="text-xs font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                      <div
+                        className="flex-1 min-w-0 cursor-pointer"
+                        onClick={() => {
+                          setIsSemilleroDrawerOpen(false);
+                          handleOpenProjectDetail(p);
+                        }}
+                      >
+                        <p className="text-xs font-bold text-slate-900 group-hover:text-emerald-700 transition-colors truncate">
                           {p.nombre_corto || p.nombre}
                         </p>
                         <p className="text-[10px] text-slate-400 font-mono mt-0.5">SGPS: {p.codigo_sgps || 'S/C'} • {p.estado}</p>
                       </div>
-                      <ChevronRight size={14} className="text-slate-300 group-hover:text-emerald-600 transition-colors" />
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {currentUser?.rol !== 'aprendiz' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProjectToMove(p);
+                              setShowMoveSemilleroModal(true);
+                            }}
+                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                            title="Mover a otro semillero"
+                          >
+                            <GraduationCap size={14} />
+                            <span className="hidden sm:inline text-[10px]">Mover</span>
+                          </button>
+                        )}
+                        <ChevronRight 
+                          size={14} 
+                          className="text-slate-300 group-hover:text-emerald-600 transition-colors cursor-pointer" 
+                          onClick={() => {
+                            setIsSemilleroDrawerOpen(false);
+                            handleOpenProjectDetail(p);
+                          }}
+                        />
+                      </div>
                     </div>
                   ));
                 })()}
@@ -3477,6 +3567,24 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
         user={selectedUserInsight}
         isOpen={showUserInsight}
         onClose={() => setShowUserInsight(false)}
+        onNotify={onNotify}
+      />
+
+      {/* ── Mover Proyecto Modal ── */}
+      <MoverProyectoSemilleroModal
+        isOpen={showMoveSemilleroModal && !!projectToMove}
+        onClose={() => {
+          setShowMoveSemilleroModal(false);
+          setProjectToMove(null);
+        }}
+        proyecto={projectToMove}
+        semilleros={semilleros}
+        onSuccess={async (updated) => {
+          if (selectedProyecto?.id === updated?.id) {
+            setSelectedProyecto(prev => ({ ...prev, ...updated }));
+          }
+          await loadAllGrupoData();
+        }}
         onNotify={onNotify}
       />
     </div>

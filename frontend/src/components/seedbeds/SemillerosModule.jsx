@@ -6,7 +6,7 @@ import {
   X, Info, Target, ArrowUpRight, Loader2,
   TrendingUp, BarChart3, PieChart, Download,
   CheckCircle2, AlertCircle, Award, Shield,
-  Mail, FileText, MapPin
+  Mail, FileText, MapPin, ArrowRightLeft
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -23,6 +23,7 @@ import Modal from '../ui/Modal';
 import Drawer from '../ui/Drawer';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import SemilleroCard, { ESTADOS } from './SemilleroCard';
+import MoverProyectoSemilleroModal from '../projects/MoverProyectoSemilleroModal';
 import { SemillerosAPI } from '../../api/semilleros';
 import { GruposAPI } from '../../api/grupos';
 import { UsuariosAPI } from '../../api/usuarios';
@@ -101,6 +102,10 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
   // Confirm Dialog
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
   const [removeConfirm, setRemoveConfirm] = useState(null);
+  const [projectToMove, setProjectToMove] = useState(null);
+  const [showMoveProjectModal, setShowMoveProjectModal] = useState(false);
+  const [unlinkProjectConfirm, setUnlinkProjectConfirm] = useState(null);
+  const [selectedProjectToLink, setSelectedProjectToLink] = useState('');
 
   const loadData = async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -382,6 +387,19 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
     
     const userId = e.dataTransfer.getData('userId');
     const grupoId = e.dataTransfer.getData('grupoId');
+    const projectId = e.dataTransfer.getData('projectId');
+
+    if (projectId && (semillero || selectedSemillero)) {
+      const targetSem = semillero || selectedSemillero;
+      try {
+        await ProyectosAPI.update(projectId, { semillero_id: targetSem.id });
+        onNotify?.(`Proyecto vinculado al semillero "${targetSem.nombre}" correctamente`, 'success');
+        await loadData(false);
+      } catch (err) {
+        onNotify?.('Error al vincular proyecto: ' + (err.response?.data?.detail || err.message), 'error');
+      }
+      return;
+    }
 
     if (grupoId && semillero) {
       try {
@@ -618,7 +636,7 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
           <div
             key={s.id}
             onDragOver={(e) => { 
-              if (e.dataTransfer.types.includes('grupoId')) {
+              if (e.dataTransfer.types.includes('grupoId') || e.dataTransfer.types.includes('projectId')) {
                 e.preventDefault(); 
                 setDragOverSemilleroId(s.id); 
               }
@@ -637,7 +655,7 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
             />
             {dragOverSemilleroId === s.id && (
               <div className="mt-2 px-3 py-1.5 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest text-center rounded-lg animate-pulse">
-                Soltar para vincular al Grupo
+                Soltar para vincular al Semillero
               </div>
             )}
           </div>
@@ -954,12 +972,70 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
         )}
 
         {selectedSemillero && activeTab === 'proyectos' && (
-          <div className="space-y-8 animate-fadeIn">
-             <section>
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Target size={14} className="text-indigo-500" /> Proyectos Vinculados ({proyectos.filter(p => p.semillero_id === selectedSemillero?.id).length})
+          <div className="space-y-6 animate-fadeIn">
+            {currentUser?.rol !== 'aprendiz' && (
+              <div 
+                className={`bg-slate-50 p-5 rounded-3xl border-2 border-dashed transition-all ${dragOver ? 'border-emerald-500 bg-emerald-50 scale-[1.02]' : 'border-slate-200'}`}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => handleDrop(e, selectedSemillero)}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                    <Target size={14} className="text-emerald-600" /> Vincular / Mover Proyecto a este Semillero
+                  </p>
+                  <span className="text-[10px] text-slate-500 font-bold">
+                    {proyectos.filter(p => String(p.semillero_id) !== String(selectedSemillero.id)).length} disponibles
+                  </span>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <select 
+                    className="flex-1 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer"
+                    value={selectedProjectToLink}
+                    onChange={(e) => setSelectedProjectToLink(e.target.value)}
+                  >
+                    <option value="">Seleccionar del banco de proyectos...</option>
+                    {proyectos
+                      .filter(p => String(p.semillero_id) !== String(selectedSemillero.id))
+                      .map(p => {
+                        const actualSem = semilleros.find(s => String(s.id) === String(p.semillero_id));
+                        const origen = actualSem ? ` (De: ${actualSem.sigla || actualSem.nombre})` : ' (Sin semillero)';
+                        return (
+                          <option key={p.id} value={p.id}>
+                            {p.codigo_sgps ? `[${p.codigo_sgps}] ` : ''}{p.nombre_corto || p.nombre}{origen}
+                          </option>
+                        );
+                      })}
+                  </select>
+                  <Button
+                    variant="sena"
+                    size="sm"
+                    disabled={!selectedProjectToLink}
+                    onClick={async () => {
+                      if (!selectedProjectToLink) return;
+                      try {
+                        await ProyectosAPI.update(selectedProjectToLink, { semillero_id: selectedSemillero.id });
+                        onNotify?.('Proyecto vinculado al semillero con éxito', 'success');
+                        setSelectedProjectToLink('');
+                        await loadData(false);
+                      } catch (err) {
+                        onNotify?.('Error al vincular proyecto: ' + (err.response?.data?.detail || err.message), 'error');
+                      }
+                    }}
+                    className="h-10 px-5 text-xs font-bold shrink-0 shadow-sm"
+                  >
+                    <Plus size={14} className="mr-1.5" /> Vincular al Semillero
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <section>
+              <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Target size={14} className="text-indigo-600" /> Proyectos Vinculados ({proyectos.filter(p => String(p.semillero_id) === String(selectedSemillero?.id)).length})
               </h3>
-              {proyectos.filter(p => p.semillero_id === selectedSemillero?.id).length === 0 ? (
+              {proyectos.filter(p => String(p.semillero_id) === String(selectedSemillero?.id)).length === 0 ? (
                 <div className="p-8 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 text-center">
                   <Target size={32} className="mx-auto text-slate-300 mb-3" />
                   <p className="text-sm font-bold text-slate-600 mb-1">Sin proyectos asociados</p>
@@ -967,20 +1043,20 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3">
-                  {proyectos.filter(p => p.semillero_id === selectedSemillero?.id).map(p => (
-                    <div key={p.id} className="p-4 bg-white border border-slate-100 rounded-2xl hover:border-indigo-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-                      <div className="space-y-1">
+                  {proyectos.filter(p => String(p.semillero_id) === String(selectedSemillero?.id)).map(p => (
+                    <div key={p.id} className="p-4 bg-white border border-slate-200 rounded-2xl hover:border-indigo-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                      <div className="space-y-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
                             {p.codigo_sgps || 'S/C'}
                           </span>
                           <span className="text-[10px] font-bold text-slate-500">• Estado: {p.estado}</span>
                         </div>
-                        <p className="text-sm font-black text-slate-900">{p.nombre_corto || p.nombre}</p>
+                        <p className="text-sm font-black text-slate-900 truncate">{p.nombre_corto || p.nombre}</p>
                         <p className="text-xs text-slate-500 font-medium">Presupuesto: ${(p.presupuesto_total || 0).toLocaleString('es-CO')}</p>
                       </div>
 
-                      <div className="sm:w-48 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
+                      <div className="sm:w-44 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1 shrink-0">
                         <div className="flex justify-between items-center text-[10px] font-black">
                           <span className="text-slate-400 uppercase">Avance</span>
                           <span className="text-emerald-700">{p.avance_porcentaje || 0}%</span>
@@ -999,6 +1075,30 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
                           {p.entregables_aprobados || 0}/{p.total_entregables || 0} entregables
                         </p>
                       </div>
+
+                      {currentUser?.rol !== 'aprendiz' && (
+                        <div className="flex sm:flex-col gap-1.5 shrink-0 justify-end border-t sm:border-t-0 sm:border-l border-slate-100 pt-2 sm:pt-0 sm:pl-3">
+                          <button
+                            onClick={() => {
+                              setProjectToMove(p);
+                              setShowMoveProjectModal(true);
+                            }}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl text-[11px] font-black transition-colors"
+                            title="Mover proyecto a otro semillero"
+                          >
+                            <ArrowRightLeft size={13} />
+                            <span>Mover</span>
+                          </button>
+                          <button
+                            onClick={() => setUnlinkProjectConfirm(p)}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-rose-600 hover:bg-rose-50 rounded-xl text-[11px] font-bold transition-colors"
+                            title="Desvincular del semillero"
+                          >
+                            <Trash2 size={13} />
+                            <span>Desvincular</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1154,6 +1254,42 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
         isOpen={showUserInsight}
         onClose={() => setShowUserInsight(false)}
         onNotify={onNotify}
+      />
+
+      {/* ── Mover Proyecto Modal ── */}
+      <MoverProyectoSemilleroModal
+        isOpen={showMoveProjectModal && !!projectToMove}
+        onClose={() => {
+          setShowMoveProjectModal(false);
+          setProjectToMove(null);
+        }}
+        proyecto={projectToMove}
+        semilleros={semilleros}
+        onSuccess={async () => {
+          await loadData(false);
+        }}
+        onNotify={onNotify}
+      />
+
+      {/* ── Confirm Desvincular Proyecto Dialog ── */}
+      <ConfirmDialog
+        isOpen={!!unlinkProjectConfirm}
+        onClose={() => setUnlinkProjectConfirm(null)}
+        onConfirm={async () => {
+          if (!unlinkProjectConfirm) return;
+          try {
+            await ProyectosAPI.update(unlinkProjectConfirm.id, { semillero_id: null });
+            onNotify?.(`Proyecto "${unlinkProjectConfirm.nombre_corto || unlinkProjectConfirm.nombre}" desvinculado del semillero`, 'success');
+            setUnlinkProjectConfirm(null);
+            await loadData(false);
+          } catch (err) {
+            onNotify?.('Error al desvincular proyecto: ' + (err.response?.data?.detail || err.message), 'error');
+          }
+        }}
+        title="¿Desvincular Proyecto del Semillero?"
+        description={`¿Estás seguro de desvincular el proyecto "${unlinkProjectConfirm?.nombre_corto || unlinkProjectConfirm?.nombre}" de este semillero? Quedará como iniciativa independiente sin semillero asignado.`}
+        confirmText="Desvincular Proyecto"
+        variant="danger"
       />
     </div>
   );

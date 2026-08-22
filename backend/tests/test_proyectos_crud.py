@@ -104,5 +104,73 @@ def test_proyecto_crud_and_temporal_fields():
     assert response_budget.status_code == 200
     assert response_budget.json()["status"] == "template_generated"
 
-    # Cleanup test DB at teardown
-    app.dependency_overrides.clear()
+
+def test_proyecto_move_and_reassign_semillero():
+    # 0. Create Grupo
+    g_payload = {
+        "nombre": "Grupo de Investigación SENNOVA CGAO",
+        "codigo_gruplac": "COL0001234",
+        "clasificacion": "A1"
+    }
+    r_g = client.post("/grupos", json=g_payload)
+    assert r_g.status_code == 201, r_g.text
+    grupo_id = r_g.json()["id"]
+
+    # 1. Create Semillero 1
+    sem1_payload = {
+        "nombre": "Semillero de Robótica e IA",
+        "sigla": "SRIA",
+        "linea_investigacion": "Sistemas Inteligentes",
+        "estado": "Activo",
+        "grupo_id": grupo_id
+    }
+    r_s1 = client.post("/semilleros", json=sem1_payload)
+    assert r_s1.status_code == 201, r_s1.text
+    sem1_id = r_s1.json()["id"]
+
+    # 2. Create Semillero 2
+    sem2_payload = {
+        "nombre": "Semillero de Biotecnología y Agro",
+        "sigla": "SBA",
+        "linea_investigacion": "Biotecnología",
+        "estado": "Activo",
+        "grupo_id": grupo_id
+    }
+    r_s2 = client.post("/semilleros", json=sem2_payload)
+    assert r_s2.status_code == 201, r_s2.text
+    sem2_id = r_s2.json()["id"]
+
+    # 3. Create Project assigned to Semillero 1
+    proy_payload = {
+        "nombre": "Dron Autónomo para Monitoreo de Cultivos",
+        "nombre_corto": "DAMC",
+        "codigo_sgps": "SGPS-2026-DRON",
+        "estado": "Formulación",
+        "vigencia": 12,
+        "presupuesto_total": 30000000,
+        "semillero_id": sem1_id
+    }
+    r_p = client.post("/proyectos", json=proy_payload)
+    assert r_p.status_code == 201, r_p.text
+    proy_id = r_p.json()["id"]
+    assert r_p.json()["semillero_id"] == sem1_id
+
+    # 4. Move project to Semillero 2
+    r_move = client.put(f"/proyectos/{proy_id}", json={"semillero_id": sem2_id})
+    assert r_move.status_code == 200, r_move.text
+    assert r_move.json()["semillero_id"] == sem2_id
+
+    # 5. Verify in project detail
+    r_detail = client.get(f"/proyectos/{proy_id}")
+    assert r_detail.status_code == 200
+    assert r_detail.json()["semillero_id"] == sem2_id
+
+    # 6. Unlink project from any semillero (set semillero_id to None/null)
+    r_unlink = client.put(f"/proyectos/{proy_id}", json={"semillero_id": None})
+    assert r_unlink.status_code == 200, r_unlink.text
+    assert r_unlink.json()["semillero_id"] is None
+
+    # 7. Verify unlinked state
+    r_detail2 = client.get(f"/proyectos/{proy_id}")
+    assert r_detail2.status_code == 200
+    assert r_detail2.json()["semillero_id"] is None
