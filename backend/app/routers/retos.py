@@ -1,4 +1,3 @@
-import uuid
 from typing import List
 
 import sqlalchemy as sa

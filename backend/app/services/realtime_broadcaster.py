@@ -4,7 +4,6 @@ Maneja conexiones de streaming asíncronas (SSE) y difusión de eventos a usuari
 """
 
 import asyncio
-import json
 import logging
 from typing import Dict, Set, Any, Optional
 from datetime import datetime, timezone

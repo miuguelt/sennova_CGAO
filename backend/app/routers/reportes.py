@@ -15,7 +15,7 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy import func
 
 from app.database import get_db
-from app.auth import get_current_admin, get_current_investigador_or_instructor
+from app.auth import get_current_investigador_or_instructor
 from app.models import User, Proyecto, Grupo, Semillero, Producto
 
 # Importar librerías de Excel

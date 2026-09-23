@@ -19,7 +19,6 @@ from app.bootstrap import (
 )
 from app.config import get_settings
 from app.database import engine, Base, SessionLocal
-from app.models import User
 from app.routers import (
     auth, proyectos, grupos, semilleros, convocatorias, 
     productos, documentos, usuarios, stats, reportes, 

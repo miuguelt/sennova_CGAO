@@ -14,7 +14,7 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models import Mensaje, MensajeAdjunto, Notificacion, User
+from app.models import Mensaje, Notificacion, User
 from app.services import adjuntos_service
 
 

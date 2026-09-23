@@ -5,7 +5,7 @@ threadpool. Files are content-addressed and shared between records, so deletion
 only removes bytes from disk once no other record points at the same digest.
 """
 
-from typing import BinaryIO, List, Optional, Tuple
+from typing import BinaryIO, List, Tuple
 
 from sqlalchemy.orm import Session
 
