@@ -1,61 +1,114 @@
-name: DevBrain CI/CD - Validate & Deploy
+name: DevBrain CD - Deploy Production
 
 on:
   push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+concurrency:
+  group: cd-production-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   validate-backend:
+    name: Validate Backend Suite
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: 'pip'
-          
-      - name: Install dependencies
+          cache-dependency-path: './backend/requirements.txt'
+
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
           pip install pytest httpx
-          
-      - name: Run Backend Tests
+
+      - name: Run Pytest Suite
+        working-directory: ./backend
+        env:
+          PYTHONPATH: .
+          DEBUG: "true"
         run: |
-          # Simular test de CI con scripts
-          export PYTHONPATH=./backend
-          export DATABASE_URL="sqlite:///./sennova_test.db"
-          pytest scripts/test_crud.py || echo "Tests need adjustments for CI, bypassing for now"
+          python -m pytest tests/ -v --tb=short
 
   validate-frontend:
+    name: Validate Frontend Suite & Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Use Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
           cache: 'npm'
           cache-dependency-path: './frontend/package-lock.json'
-          
-      - name: Build Frontend
+
+      - name: Install Dependencies
         working-directory: ./frontend
         run: |
           npm ci
+
+      - name: Run Vitest Suite
+        working-directory: ./frontend
+        run: |
+          npm test
+
+      - name: Build Production Bundle
+        working-directory: ./frontend
+        run: |
           npm run build
 
   trigger-coolify:
+    name: Deploy to Production via Coolify
     needs: [validate-backend, validate-frontend]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Trigger Coolify Webhook
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
         run: |
-          # Reemplazar con el Webhook URL provisto por Coolify
-          echo "Despliegue disparado en Coolify"
-          # curl -X POST ${{ secrets.COOLIFY_WEBHOOK }}
+          if [ -z "$COOLIFY_WEBHOOK" ]; then
+            echo "⚠️ ADVERTENCIA: El secreto COOLIFY_WEBHOOK no está configurado en GitHub Secrets."
+            echo "Para habilitar el despliegue automático continuo, añade COOLIFY_WEBHOOK en Settings -> Secrets."
+            echo "Los tests pasaron al 100% exitosamente; el build es apto para producción."
+            exit 0
+          fi
+          
+          echo "🚀 Disparando webhook de despliegue en Coolify..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$COOLIFY_WEBHOOK")
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n 1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+          
+          echo "HTTP Status: $HTTP_STATUS"
+          echo "Respuesta Coolify: $BODY"
+          
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✅ Despliegue disparado exitosamente en Coolify."
+          else
+            echo "❌ Error al disparar el despliegue en Coolify (Código HTTP: $HTTP_STATUS)."
+            exit 1
+          fi
+
+      - name: Deployment Step Summary
+        if: always()
+        run: |
+          echo "### 🚀 Production Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Rama**: \`${{ github.ref }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Disparado por**: \`${{ github.actor }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Quality Gate**: Backend y Frontend aprobados al 100%." >> $GITHUB_STEP_SUMMARY

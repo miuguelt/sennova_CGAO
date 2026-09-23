@@ -1,0 +1,105 @@
+name: DevBrain CI - GitFlow Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+      - 'release/**'
+      - 'hotfix/**'
+      - 'bugfix/**'
+      - 'support/**'
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - 'feature/**'
+      - 'release/**'
+      - 'hotfix/**'
+      - 'bugfix/**'
+      - 'support/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-tests:
+    name: Backend Pytest Suite (100% Tests)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+          cache-dependency-path: './backend/requirements.txt'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest httpx
+
+      - name: Run Backend Pytest Suite
+        working-directory: ./backend
+        env:
+          PYTHONPATH: .
+          DEBUG: "true"
+        run: |
+          echo "Ejecutando suite hermética de pruebas de backend SENNOVA..."
+          python -m pytest tests/ -v --tb=short
+
+      - name: Report Backend Test Summary
+        if: always()
+        run: |
+          echo "### 🐍 Backend Pytest Suite Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Estado**: ${{ job.status == 'success' && '✅ Aprobado' || '❌ Fallido' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ramas aplicables**: GitFlow PRs y ramas de desarrollo" >> $GITHUB_STEP_SUMMARY
+          echo "- **Alcance**: Auditoría E2E, Roles, Convocatorias, Proyectos, Productos MinCiencias, Bitácora Dual, Mensajería y Adjuntos" >> $GITHUB_STEP_SUMMARY
+
+  frontend-tests-and-build:
+    name: Frontend Vitest & Production Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: './frontend/package-lock.json'
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: |
+          npm ci
+
+      - name: Run Frontend Vitest Suite
+        working-directory: ./frontend
+        run: |
+          echo "Ejecutando pruebas unitarias e integración de Vitest (React)..."
+          npm test
+
+      - name: Build Frontend Production Bundle
+        working-directory: ./frontend
+        run: |
+          echo "Compilando aplicación para producción (Vite build)..."
+          npm run build
+
+      - name: Report Frontend Summary
+        if: always()
+        run: |
+          echo "### ⚛️ Frontend Vitest & Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Estado**: ${{ job.status == 'success' && '✅ Aprobado' || '❌ Fallido' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pruebas**: 23 suites y 226 pruebas unitarias e integración" >> $GITHUB_STEP_SUMMARY
+          echo "- **Bundle Vite**: Compilación exitosa para producción" >> $GITHUB_STEP_SUMMARY

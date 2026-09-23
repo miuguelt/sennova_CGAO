@@ -21,6 +21,7 @@ vi.mock('../api/config', () => ({
 
 import { fetchAPI } from '../api/config';
 import { AuthAPI } from '../api/auth';
+import { UsuariosAPI } from '../api/usuarios';
 import { GruposAPI } from '../api/grupos';
 import { SemillerosAPI } from '../api/semilleros';
 import { AprendicesAPI } from '../api/aprendices';
@@ -62,6 +63,10 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
       fetchAPI.mockResolvedValueOnce([{ id: 'u1' }]);
       await AuthAPI.listarUsuarios();
       expect(fetchAPI).toHaveBeenCalledWith('/usuarios/');
+
+      fetchAPI.mockResolvedValueOnce({ message: 'Usuario eliminado' });
+      await UsuariosAPI.delete('u1');
+      expect(fetchAPI).toHaveBeenCalledWith('/usuarios/u1', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
@@ -87,6 +92,10 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
       fetchAPI.mockResolvedValueOnce({ total_proyectos: 5, cumplimiento: 80 });
       await GruposAPI.getStats('g1');
       expect(fetchAPI).toHaveBeenCalledWith('/grupos/g1/stats');
+
+      fetchAPI.mockResolvedValueOnce({ message: 'Grupo eliminado' });
+      await GruposAPI.delete('g1');
+      expect(fetchAPI).toHaveBeenCalledWith('/grupos/g1', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
@@ -108,6 +117,14 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
       fetchAPI.mockResolvedValueOnce([{ id: 'a1' }]);
       await AprendicesAPI.list({ estado: 'activo' });
       expect(fetchAPI).toHaveBeenCalledWith('/aprendices?estado=activo');
+
+      fetchAPI.mockResolvedValueOnce({ message: 'Aprendiz eliminado' });
+      await AprendicesAPI.delete('a1');
+      expect(fetchAPI).toHaveBeenCalledWith('/aprendices/a1', expect.objectContaining({ method: 'DELETE' }));
+
+      fetchAPI.mockResolvedValueOnce({ message: 'Semillero eliminado' });
+      await SemillerosAPI.delete('s1');
+      expect(fetchAPI).toHaveBeenCalledWith('/semilleros/s1', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
@@ -125,6 +142,10 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
       fetchAPI.mockResolvedValueOnce({ total_convocatorias: 3 });
       await ConvocatoriasAPI.getStats();
       expect(fetchAPI).toHaveBeenCalledWith('/convocatorias/stats/resumen');
+
+      fetchAPI.mockResolvedValueOnce({ message: 'Convocatoria eliminada' });
+      await ConvocatoriasAPI.delete('c1');
+      expect(fetchAPI).toHaveBeenCalledWith('/convocatorias/c1', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
@@ -150,6 +171,10 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
       fetchAPI.mockResolvedValueOnce({ can_liquidate: false, checklist: [] });
       await ProyectosAPI.checkLiquidacion('p1');
       expect(fetchAPI).toHaveBeenCalledWith('/proyectos/p1/liquidar/check');
+
+      fetchAPI.mockResolvedValueOnce({ message: 'Proyecto eliminado' });
+      await ProyectosAPI.delete('p1');
+      expect(fetchAPI).toHaveBeenCalledWith('/proyectos/p1', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
@@ -171,6 +196,10 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
       fetchAPI.mockResolvedValueOnce([{ id: 'prod1' }]);
       await ProductosAPI.misProductos();
       expect(fetchAPI).toHaveBeenCalledWith('/productos/mis-productos/list');
+
+      fetchAPI.mockResolvedValueOnce({ message: 'Producto eliminado' });
+      await ProductosAPI.delete('prod1');
+      expect(fetchAPI).toHaveBeenCalledWith('/productos/prod1', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
@@ -188,6 +217,10 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
       fetchAPI.mockResolvedValueOnce({ nuevo_estado: 'aprobado', estado: 'aprobado' });
       await EntregablesAPI.changeStatus('e1', 'aprobado', 'Revisado OK');
       expect(fetchAPI).toHaveBeenCalledWith(expect.stringContaining('/entregables/e1/cambiar-estado'), expect.objectContaining({ method: 'POST' }));
+
+      fetchAPI.mockResolvedValueOnce({ message: 'Entregable eliminado' });
+      await EntregablesAPI.delete('e1');
+      expect(fetchAPI).toHaveBeenCalledWith('/entregables/e1', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
@@ -205,6 +238,10 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
       fetchAPI.mockResolvedValueOnce({ id: 'd1' });
       await DocumentosAPI.getUserCVLac();
       expect(fetchAPI).toHaveBeenCalledWith('/documentos/user/cvlac');
+
+      fetchAPI.mockResolvedValueOnce({ message: 'Documento eliminado' });
+      await DocumentosAPI.delete('d1');
+      expect(fetchAPI).toHaveBeenCalledWith('/documentos/d1', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
@@ -222,6 +259,10 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
       fetchAPI.mockResolvedValueOnce({ id: 'b1', is_firmado_investigador: true });
       await BitacoraAPI.sign('b1', { ip: '192.168.1.10' });
       expect(fetchAPI).toHaveBeenCalledWith('/bitacora/b1/sign', expect.objectContaining({ method: 'POST' }));
+
+      fetchAPI.mockResolvedValueOnce({ message: 'Bitácora eliminada' });
+      await BitacoraAPI.delete('b1');
+      expect(fetchAPI).toHaveBeenCalledWith('/bitacora/b1', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
@@ -235,6 +276,10 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
       fetchAPI.mockResolvedValueOnce({ id: 'r1', estado: 'en_progreso' });
       await RetosAPI.actualizar('r1', { estado: 'en_progreso', semillero_asignado_id: 's1' });
       expect(fetchAPI).toHaveBeenCalledWith('/retos/r1', expect.objectContaining({ method: 'PATCH' }));
+
+      fetchAPI.mockResolvedValueOnce({ message: 'Reto eliminado' });
+      await RetosAPI.delete('r1');
+      expect(fetchAPI).toHaveBeenCalledWith('/retos/r1', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
@@ -256,6 +301,10 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
       fetchAPI.mockResolvedValueOnce({ message: 'Todas leídas' });
       await NotificacionesAPI.markAllAsRead();
       expect(fetchAPI).toHaveBeenCalledWith('/notificaciones/marcar-todas-leidas', expect.objectContaining({ method: 'POST' }));
+
+      fetchAPI.mockResolvedValueOnce({ message: 'Notificación eliminada' });
+      await NotificacionesAPI.delete('n1');
+      expect(fetchAPI).toHaveBeenCalledWith('/notificaciones/n1', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
@@ -281,6 +330,10 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
       fetchAPI.mockResolvedValueOnce([{ id: 'u2', nombre: 'Investigador' }]);
       await MensajesAPI.getDestinatarios();
       expect(fetchAPI).toHaveBeenCalledWith('/mensajes/destinatarios');
+
+      fetchAPI.mockResolvedValueOnce({ message: 'Mensaje eliminado' });
+      await MensajesAPI.delete('m1');
+      expect(fetchAPI).toHaveBeenCalledWith('/mensajes/m1', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 

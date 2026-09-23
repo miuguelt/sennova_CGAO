@@ -30,7 +30,18 @@ Write-Host ""
 $RootPath = Resolve-Path "$PSScriptRoot\.."
 $BackendPath = Join-Path $RootPath "backend"
 $FrontendPath = Join-Path $RootPath "frontend"
-$PythonExe = Join-Path $BackendPath ".venv\Scripts\python.exe"
+$CandidatePythonExes = @(
+    (Join-Path $BackendPath "venv_win\Scripts\python.exe"),
+    (Join-Path $BackendPath ".venv\Scripts\python.exe"),
+    (Join-Path $BackendPath "venv\Scripts\python.exe")
+)
+$PythonExe = $null
+foreach ($cand in $CandidatePythonExes) {
+    if (Test-Path $cand) {
+        $PythonExe = $cand
+        break
+    }
+}
 
 $BackendFailed = $false
 $FrontendFailed = $false
@@ -42,16 +53,17 @@ Write-Host "[1/3] 🔍 Ejecutando Auditoría E2E Backend de Todas las Tablas..."
 
 Push-Location $BackendPath
 try {
-    if (Test-Path $PythonExe) {
+    if ($PythonExe) {
+        Write-Host "ℹ️ Usando entorno virtual: $PythonExe" -ForegroundColor Cyan
         & $PythonExe -m pytest tests/test_e2e_all_tables_audit.py -v
         if ($LASTEXITCODE -ne 0) {
             $BackendFailed = $true
             Write-Host "❌ Fallaron las pruebas E2E de auditoría de tablas en Backend." -ForegroundColor Red
         } else {
-            Write-Host "✅ Auditoría E2E Backend superada exitosamente (17/17 módulos verificados)." -ForegroundColor Green
+            Write-Host "✅ Auditoría E2E Backend superada exitosamente." -ForegroundColor Green
         }
     } else {
-        Write-Host "⚠️ Python venv no encontrado en $PythonExe. Usando python global..." -ForegroundColor Yellow
+        Write-Host "⚠️ Python venv no encontrado. Usando python global..." -ForegroundColor Yellow
         python -m pytest tests/test_e2e_all_tables_audit.py -v
         if ($LASTEXITCODE -ne 0) { $BackendFailed = $true }
     }
@@ -67,7 +79,7 @@ if (-not $Quick) {
     Write-Host "[2/3] 🧪 Ejecutando Suite de Regresión Completa Backend (36+ tests)..." -ForegroundColor Yellow
     Push-Location $BackendPath
     try {
-        if (Test-Path $PythonExe) {
+        if ($PythonExe) {
             & $PythonExe -m pytest tests/ -q
             if ($LASTEXITCODE -ne 0) {
                 $BackendFailed = $true
@@ -75,6 +87,9 @@ if (-not $Quick) {
             } else {
                 Write-Host "✅ Suite completa de Backend 100% en verde." -ForegroundColor Green
             }
+        } else {
+            python -m pytest tests/ -q
+            if ($LASTEXITCODE -ne 0) { $BackendFailed = $true }
         }
     } finally {
         Pop-Location

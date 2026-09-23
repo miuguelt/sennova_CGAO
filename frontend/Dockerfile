@@ -35,4 +35,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
+# Coolify lo usa para saber si el contenedor esta listo. Sin healthcheck da
+# por sano el contenedor en cuanto arranca el proceso, aunque no responda.
+# wget viene en Alpine; no hace falta instalar curl.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://127.0.0.1/ || exit 1
+
 CMD ["nginx", "-g", "daemon off;"]

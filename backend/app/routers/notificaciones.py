@@ -122,6 +122,8 @@ def obtener_notificacion(
     except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
         db.rollback()
         raise db_err
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -156,6 +158,8 @@ def marcar_leida(
     except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
         db.rollback()
         raise db_err
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -182,6 +186,8 @@ def marcar_todas_leidas(
     except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
         db.rollback()
         raise db_err
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -210,6 +216,8 @@ def eliminar_notificacion(
     except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
         db.rollback()
         raise db_err
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

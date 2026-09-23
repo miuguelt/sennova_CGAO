@@ -1,121 +1,259 @@
+# ════════════════════════════════════════════════════════════════════════
+# SENNOVA CGAO — Docker Compose PRODUCCIÓN (Coolify / Contabo VPS)
+# ════════════════════════════════════════════════════════════════════════
+#
+# Diseño:
+#   Frontend  → Nginx (puerto interno 80)
+#   Backend   → Uvicorn + FastAPI (puerto interno 8000)
+#   DB        → PostgreSQL 16 (reemplaza MySQL, menor RAM en VPS barato)
+#
+# En Coolify:
+#   1. Importar este archivo como "Docker Compose" en tu proyecto.
+#   2. Configurar las variables de entorno en la UI de Coolify.
+#   3. Habilitar el dominio HTTPS desde el panel de Coolify (Traefik).
+#   4. Click "Deploy".
+#
+# Prerequisito único: el VPS debe tener Docker + Docker Compose instalado.
+# ════════════════════════════════════════════════════════════════════════
+
 services:
-  # ==========================================
-  # Backend FastAPI
-  # ==========================================
-  backend:
+
+  # ── FRONTEND (Nginx + SPA Build) ──────────────────────────────────────
+  sennova-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Unicas variables que el codigo del frontend lee (import.meta.env).
+        # Se hornean en el build: cambiarlas exige reconstruir la imagen.
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_CVLAC_BASE_URL: ${VITE_CVLAC_BASE_URL:-https://scienti.minciencias.gov.co}
+    image: sennova-frontend:${APP_VERSION:-latest}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    expose:
+      - "80"
+    depends_on:
+      sennova-backend:
+        condition: service_healthy
+    networks:
+      - sennova-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      coolify.managed: "true"
+
+  # ── BACKEND (FastAPI + Uvicorn) ────────────────────────────────────────
+  sennova-backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: sennova-backend
+    image: sennova-backend:${APP_VERSION:-latest}
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers ${UVICORN_WORKERS:-2}
+      --log-level warning
+    expose:
+      - "8000"
     environment:
-      # Database
-      DATABASE_URL: "${DATABASE_URL:-postgresql+psycopg://${DB_USER:-sennova}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-sennova}}"
-      DB_HOST: ${DB_HOST:-postgres}
+      # ── App ──
+      APP_ENV: production
+      APP_NAME: ${APP_NAME:-SENNOVA CGAO API}
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      LOG_LEVEL: ${LOG_LEVEL:-WARNING}
+      DEBUG: "false"
+      # ── Base de Datos (PostgreSQL) ──
+      DB_HOST: ${DB_HOST:-sennova-db}
       DB_PORT: "${DB_PORT:-5432}"
       DB_USER: ${DB_USER:-sennova}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PASSWORD: "${DB_PASSWORD:?Define DB_PASSWORD con minimo 12 caracteres}"
       DB_NAME: ${DB_NAME:-sennova}
-      # Security
+      DATABASE_URL: "${DATABASE_URL:-postgresql+psycopg://${DB_USER:-sennova}:${DB_PASSWORD}@sennova-db:5432/${DB_NAME:-sennova}}"
+      # ── Seguridad ──
       JWT_SECRET: "${JWT_SECRET:?Define JWT_SECRET con minimo 32 caracteres generado con secrets.token_urlsafe(48)}"
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
-      # Administrador inicial: unico dato de negocio obligatorio en el primer
-      # despliegue. Sin contrasena el arranque falla a proposito.
+      # ── CORS ──
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-https://${DOMAIN:-localhost},https://www.${DOMAIN:-localhost}}"
+      ADDITIONAL_CORS_ORIGINS: "${ADDITIONAL_CORS_ORIGINS:-}"
+      # ── URLs Públicas ──
+      FRONTEND_URL: "${FRONTEND_URL:-https://${DOMAIN:-localhost}}"
+      BACKEND_URL: "${BACKEND_URL:-https://${DOMAIN:-localhost}/api}"
+      # ── Admin Inicial ──
+      # Unico dato de negocio que debe existir antes del primer arranque. Lo crea
+      # el entrypoint (scripts/bootstrap_initial_data.py) de forma idempotente:
+      # en redespliegues no duplica el admin ni reescribe su contrasena.
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@sena.edu.co}
       INITIAL_ADMIN_PASSWORD: "${INITIAL_ADMIN_PASSWORD:?Define INITIAL_ADMIN_PASSWORD con minimo 7 caracteres}"
       INITIAL_ADMIN_NOMBRE: "${INITIAL_ADMIN_NOMBRE:-Administrador SENNOVA}"
       INITIAL_ADMIN_DOCUMENTO: "${INITIAL_ADMIN_DOCUMENTO:-admin01}"
       INITIAL_ADMIN_SEDE: "${INITIAL_ADMIN_SEDE:-CGAO}"
-      # Poblado de demostracion: destructivo, solo se ejecuta con DEBUG=true.
-      SEED_INITIAL_DATA: "${SEED_INITIAL_DATA:-false}"
-      # Storage & Uploads
-      STORAGE_DIR: "${STORAGE_DIR:-/app/storage}"
-      # App Config
-      APP_NAME: ${APP_NAME:-SENNOVA CGAO API}
-      DEBUG: "${DEBUG:-false}"
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      # CORS
-      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-https://sennova.enlinea.sbs}"
-      ADDITIONAL_CORS_ORIGINS: "${ADDITIONAL_CORS_ORIGINS:-}"
-      # Public URLs
-      FRONTEND_URL: "${FRONTEND_URL:-https://sennova.enlinea.sbs}"
-      BACKEND_URL: "${BACKEND_URL:-https://sennova.enlinea.sbs/api}"
-      # External Integrations
+      # Poblado de demostracion: destructivo. El backend lo ignora en produccion.
+      SEED_INITIAL_DATA: "false"
+      STORAGE_DIR: ${STORAGE_DIR:-/app/storage}
+      # ── CVLAC ──
       CVLAC_BASE_URL: ${CVLAC_BASE_URL:-https://scienti.minciencias.gov.co}
-      HOST: ${HOST:-0.0.0.0}
-      PORT: "${PORT:-8000}"
-      # Redis (optional)
+      # ── Redis (Caché & Real-time) ──
       REDIS_HOST: ${REDIS_HOST:-}
       REDIS_PORT: "${REDIS_PORT:-6380}"
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_DB: "${REDIS_DB:-0}"
-      # SMTP (optional)
+      # ── SMTP (Opcional) ──
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@sena.edu.co}
       SMTP_TLS: "${SMTP_TLS:-true}"
-    expose:
-      - ${PORT:-8000}
+      # ── Observabilidad ──
+      SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
-      - sennova_storage:/app/storage # Persistencia de documentos
-      - ./backend/sennova.db:/app/sennova.db # Persistencia de base de datos SQLite (si se usa)
+      - storage_data:/app/storage
+      - uploads_data:/app/uploads
+    depends_on:
+      sennova-db:
+        condition: service_healthy
     networks:
-      - coolify
-    # Healthcheck usa variable PORT para ser consistente con la configuración
+      sennova-net:
+        aliases:
+          - backend
     healthcheck:
-      test: [ "CMD", "sh", "-c", "curl -f http://localhost:${PORT:-8000}/health" ]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      retries: 5
+      start_period: 45s
 
-  # ==========================================
-  # Frontend React
-  # ==========================================
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        # En producción con proxy nginx usamos la ruta relativa /api;
-        # nginx redirige /api → http://backend:8000 (comunicación interna).
-        - VITE_API_URL=${VITE_API_URL:-/api}
-        - VITE_CVLAC_BASE_URL=${VITE_CVLAC_BASE_URL:-https://scienti.minciencias.gov.co}
-    container_name: sennova-frontend
+  # ── POSTGRESQL 16 ──────────────────────────────────────────────────────
+  sennova-db:
+    image: postgres:16-alpine
     restart: unless-stopped
-    ports:
-      - "8001:80"
-    environment:
-      # Variables en runtime para referencia (build ya está hecho)
-      - API_URL=/api
-      - BACKEND_INTERNAL_URL=http://backend:8000
-    networks:
-      - coolify
-    depends_on:
-      - backend
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: 10m
+        max-file: '3'
+    environment:
+      POSTGRES_DB: ${DB_NAME:-sennova}
+      POSTGRES_USER: ${DB_USER:-sennova}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--locale=es_CO.UTF-8 --encoding=UTF8"
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c max_connections=50
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+      -c effective_cache_size=512MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=8MB
+      -c random_page_cost=1.1
+      -c log_min_duration_statement=1000
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - sennova-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sennova} -d ${DB_NAME:-sennova}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
-# ==========================================
-# Volúmenes
-# ==========================================
-volumes:
-  sennova_storage:
-    driver: local
+  # ── BACKUP (pg_dump diario) ────────────────────────────────────────────
+  sennova-backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    entrypoint: >
+      sh -c "
+        while true; do
+          BACKUP_FILE=/backups/sennova_$$(date +%Y%m%d_%H%M%S).sql.gz
+          echo \"[backup] Iniciando dump: $$BACKUP_FILE\"
+          PGPASSWORD=$$POSTGRES_PASSWORD pg_dump -h sennova-db -U $$POSTGRES_USER $$POSTGRES_DB | gzip > $$BACKUP_FILE &&
+          echo \"[backup] ✅ Dump completo.\" ||
+          echo \"[backup] ❌ Error al hacer dump.\"
+          ls -t /backups/*.sql.gz 2>/dev/null | tail -n +8 | xargs rm -f 2>/dev/null || true
+          echo \"[backup] Próximo backup en 24h...\"
+          sleep 86400
+        done
+      "
+    environment:
+      POSTGRES_USER: ${DB_USER:-sennova}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-sennova}
+    volumes:
+      # Volumen nombrado, no ./backups. Un bind mount al checkout ata los
+      # dumps al arbol que Coolify reclona en cada despliegue: el redeploy
+      # que deberia protegerlos es justo el que los borra.
+      - backups_data:/backups
+    depends_on:
+      sennova-db:
+        condition: service_healthy
+    networks:
+      - sennova-net
 
-# ==========================================
-# Redes
-# ==========================================
+  # ── SEED DATA (Poblado masivo bajo demanda) ────────────────────────────
+  sennova-seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: sennova-backend:${APP_VERSION:-latest}
+    profiles:
+      - seed
+      - tools
+    entrypoint: ["python", "scripts/seed_database.py"]
+    environment:
+      APP_ENV: production
+      DB_HOST: ${DB_HOST:-sennova-db}
+      DB_PORT: "${DB_PORT:-5432}"
+      DB_USER: ${DB_USER:-sennova}
+      DB_PASSWORD: "${DB_PASSWORD}"
+      DB_NAME: ${DB_NAME:-sennova}
+      DATABASE_URL: "${DATABASE_URL:-postgresql+psycopg://${DB_USER:-sennova}:${DB_PASSWORD}@sennova-db:5432/${DB_NAME:-sennova}}"
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@sena.edu.co}
+      INITIAL_ADMIN_PASSWORD: "${INITIAL_ADMIN_PASSWORD}"
+      JWT_SECRET: "${JWT_SECRET}"
+    depends_on:
+      sennova-db:
+        condition: service_healthy
+    networks:
+      - sennova-net
+
+
+# ── REDES ──────────────────────────────────────────────────────────────
 networks:
-  coolify:
-    external: true
+  sennova-net:
+    driver: bridge
+    internal: false
+
+# ── VOLÚMENES PERSISTENTES ────────────────────────────────────────────
+volumes:
+  pg_data:
+    driver: local
+  storage_data:
+    driver: local
+  uploads_data:
+    driver: local
+  backups_data:
+    driver: local

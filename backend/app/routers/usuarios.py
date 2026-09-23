@@ -13,7 +13,7 @@ from sqlalchemy import func
 
 from app.auth import get_current_user, get_current_admin, get_password_hash
 from app.database import get_db
-from app.models import User, Proyecto, Grupo, Semillero, Producto, Actividad, Documento, Entregable
+from app.models import User, Proyecto, Grupo, Semillero, Producto, Actividad, Documento, Entregable, Aprendiz
 from app.schemas import UserCreate, UserUpdate, ActividadResponse
 from app.repositories.user_repository import UserRepository
 

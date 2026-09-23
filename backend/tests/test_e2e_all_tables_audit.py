@@ -39,7 +39,12 @@ os.environ["DEBUG"] = "true"
 
 from app.database import Base, get_db
 from app.main import app
-from app.models import User, Grupo, Semillero, Aprendiz, Convocatoria, Proyecto, Producto, Entregable, Documento, BitacoraEntry, Reto, Notificacion, Actividad, Mensaje, AuditLog
+from app.models import (
+    User, Grupo, Semillero, Aprendiz, Convocatoria, Proyecto, Producto,
+    Entregable, Documento, BitacoraEntry, Reto, Notificacion, Actividad,
+    Mensaje, AuditLog, MensajeAdjunto, grupo_integrantes, proyecto_equipo,
+    semillero_investigadores
+)
 from app.auth import get_password_hash, create_access_token
 
 test_engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
@@ -204,6 +209,32 @@ def test_audit_users_and_auth(client, auth_tokens):
     assert res_login.status_code == 200
     assert "access_token" in res_login.json()
 
+    # 1.7 CRUD Completo de Usuario (Creación, Consulta, Actualización y Eliminación)
+    res_crud = client.post("/usuarios", json={
+        "email": "temp_user_e2e@sena.edu.co",
+        "password": "Password123!",
+        "nombre": "Usuario Temporal E2E",
+        "rol": "investigador",
+        "sede": "CGAO Vélez"
+    }, headers=headers)
+    assert res_crud.status_code == 201
+    temp_uid = res_crud.json()["id"]
+
+    res_get_temp = client.get(f"/usuarios/{temp_uid}", headers=headers)
+    assert res_get_temp.status_code == 200
+    assert res_get_temp.json()["email"] == "temp_user_e2e@sena.edu.co"
+
+    res_up_temp = client.put(f"/usuarios/{temp_uid}", json={
+        "nombre": "Usuario Temporal E2E Actualizado"
+    }, headers=headers)
+    assert res_up_temp.status_code == 200
+    assert res_up_temp.json()["nombre"] == "Usuario Temporal E2E Actualizado"
+
+    res_del_temp = client.delete(f"/usuarios/{temp_uid}", headers=headers)
+    assert res_del_temp.status_code == 200
+    res_del_check = client.get(f"/usuarios/{temp_uid}", headers=headers)
+    assert res_del_check.status_code == 404
+
 
 # ==============================================================================
 # 2. TABLA: GRUPOS DE INVESTIGACIÓN
@@ -254,6 +285,36 @@ def test_audit_grupos(client, auth_tokens):
     stats = res_stats.json()
     assert "total_proyectos" in stats
     assert "cumplimiento" in stats
+
+    # 2.7 Actualización de Grupo (Update grupos)
+    res_up_grp = client.put(f"/grupos/{grupo_id}", json={
+        "descripcion_grupo": "Descripción actualizada de investigación e innovación agroindustrial",
+        "mision": "Misión actualizada del grupo CGAO"
+    }, headers=headers)
+    assert res_up_grp.status_code == 200
+    assert res_up_grp.json()["descripcion_grupo"] == "Descripción actualizada de investigación e innovación agroindustrial"
+
+    # 2.8 Eliminación de Integrante de Grupo (DELETE grupo_integrantes)
+    res_del_mem = client.delete(f"/grupos/{grupo_id}/integrantes/{inv_id}", headers=headers)
+    assert res_del_mem.status_code == 200
+    res_members_post = client.get(f"/grupos/{grupo_id}/integrantes", headers=headers)
+    assert not any(m["id"] == inv_id for m in res_members_post.json())
+
+    # Re-vincular para flujo posterior
+    client.post(f"/grupos/{grupo_id}/integrantes", json={"user_id": inv_id, "rol_en_grupo": "Investigador"}, headers=headers)
+
+    # 2.9 Creación y Eliminación de Grupo (DELETE grupos)
+    res_temp_grp = client.post("/grupos", json={
+        "nombre": "Grupo Temporal a Eliminar",
+        "clasificacion": "B"
+    }, headers=headers)
+    assert res_temp_grp.status_code in (200, 201)
+    temp_gid = res_temp_grp.json()["id"]
+
+    res_del_grp = client.delete(f"/grupos/{temp_gid}", headers=headers)
+    assert res_del_grp.status_code == 200
+    res_del_grp_check = client.get(f"/grupos/{temp_gid}", headers=headers)
+    assert res_del_grp_check.status_code == 404
 
 
 # ==============================================================================
@@ -329,6 +390,53 @@ def test_audit_semilleros_and_aprendices(client, auth_tokens):
     assert res_up_apr.status_code == 200
     assert res_up_apr.json()["estado"] == "egresado"
 
+    # 3.8 Actualización de Semillero (Update semilleros)
+    res_up_sem = client.put(f"/semilleros/{semillero_id}", json={
+        "descripcion": "Descripción actualizada del semillero SIIA"
+    }, headers=admin_headers)
+    assert res_up_sem.status_code == 200
+    assert res_up_sem.json()["descripcion"] == "Descripción actualizada del semillero SIIA"
+
+    # 3.9 Desvincular Investigador de Semillero (DELETE semillero_investigadores)
+    res_del_inv = client.delete(f"/semilleros/{semillero_id}/investigadores/{inst_user_id}", headers=admin_headers)
+    assert res_del_inv.status_code == 200
+
+    # Re-vincular para flujo posterior
+    client.post(f"/semilleros/{semillero_id}/investigadores", json={"user_id": inst_user_id, "rol_en_semillero": "Tutor Principal"}, headers=admin_headers)
+
+    # 3.10 Eliminación de Aprendiz (DELETE aprendices)
+    res_temp_apr = client.post(f"/semilleros/{semillero_id}/aprendices/full", json={
+        "email": "aprendiz_temp_delete@sena.edu.co",
+        "nombre": "Aprendiz Temporal Delete",
+        "password": "Password123!",
+        "documento": "1098765999",
+        "ficha": "2827192",
+        "programa_formacion": "ADSO",
+        "semillero_id": semillero_id,
+        "estado": "activo"
+    }, headers=admin_headers)
+    assert res_temp_apr.status_code in (200, 201)
+    temp_apr_id = res_temp_apr.json()["id"]
+
+    res_del_apr = client.delete(f"/aprendices/{temp_apr_id}", headers=admin_headers)
+    assert res_del_apr.status_code == 200
+    res_del_apr_check = client.get(f"/aprendices/{temp_apr_id}", headers=admin_headers)
+    assert res_del_apr_check.status_code == 404
+
+    # 3.11 Creación y Eliminación de Semillero (DELETE semilleros)
+    res_temp_sem = client.post("/semilleros", json={
+        "nombre": "Semillero Temporal Delete",
+        "sigla": "STEMP",
+        "grupo_id": grupo_id
+    }, headers=admin_headers)
+    assert res_temp_sem.status_code in (200, 201)
+    temp_sid = res_temp_sem.json()["id"]
+
+    res_del_sem = client.delete(f"/semilleros/{temp_sid}", headers=admin_headers)
+    assert res_del_sem.status_code == 200
+    res_del_sem_check = client.get(f"/semilleros/{temp_sid}", headers=admin_headers)
+    assert res_del_sem_check.status_code == 404
+
 
 # ==============================================================================
 # 4. TABLA: CONVOCATORIAS
@@ -365,6 +473,34 @@ def test_audit_convocatorias(client, auth_tokens):
     res_stats = client.get("/convocatorias/stats/resumen", headers=headers)
     assert res_stats.status_code == 200
     assert "total_convocatorias" in res_stats.json()
+
+    # 4.5 Obtener Convocatoria por ID
+    res_get_c = client.get(f"/convocatorias/{conv_id}", headers=headers)
+    assert res_get_c.status_code == 200
+    assert res_get_c.json()["id"] == conv_id
+
+    # 4.6 Actualizar Convocatoria (Update convocatorias)
+    res_up_c = client.put(f"/convocatorias/{conv_id}", json={
+        "nombre": "Convocatoria Fomento a la Innovación 2026 - Actualizada",
+        "descripcion": "Descripción actualizada de la convocatoria"
+    }, headers=headers)
+    assert res_up_c.status_code == 200
+    assert res_up_c.json()["nombre"] == "Convocatoria Fomento a la Innovación 2026 - Actualizada"
+
+    # 4.7 Creación y Eliminación de Convocatoria (DELETE convocatorias)
+    res_temp_c = client.post("/convocatorias", json={
+        "numero_oe": "OE-TEMP-DELETE",
+        "nombre": "Convocatoria Temporal Delete",
+        "año": 2026,
+        "estado": "cerrada"
+    }, headers=headers)
+    assert res_temp_c.status_code in (200, 201)
+    temp_cid = res_temp_c.json()["id"]
+
+    res_del_c = client.delete(f"/convocatorias/{temp_cid}", headers=headers)
+    assert res_del_c.status_code == 200
+    res_del_c_check = client.get(f"/convocatorias/{temp_cid}", headers=headers)
+    assert res_del_c_check.status_code == 404
 
 
 # ==============================================================================
@@ -423,6 +559,41 @@ def test_audit_proyectos_lifecycle(client, auth_tokens):
     assert "can_liquidate" in res_liq.json()
     assert "checklist" in res_liq.json()
 
+    # 5.6 Obtener y Actualizar Proyecto (Read & Update proyectos)
+    res_get_p = client.get(f"/proyectos/{proj_id}", headers=admin_headers)
+    assert res_get_p.status_code == 200
+    assert res_get_p.json()["codigo_sgps"] == "SGPS-2026-99"
+
+    res_up_p = client.put(f"/proyectos/{proj_id}", json={
+        "nombre": "Desarrollo de Sistema Inteligente de Monitoreo Bovino v2",
+        "presupuesto_total": 48000000.0
+    }, headers=admin_headers)
+    assert res_up_p.status_code == 200
+    assert res_up_p.json()["nombre"] == "Desarrollo de Sistema Inteligente de Monitoreo Bovino v2"
+
+    # 5.7 Desvincular Miembro de Equipo (DELETE proyecto_equipo)
+    res_del_eq = client.delete(f"/proyectos/{proj_id}/equipo/{inv_id}", headers=admin_headers)
+    assert res_del_eq.status_code == 200
+
+    # Re-asignar para pruebas posteriores
+    client.post(f"/proyectos/{proj_id}/equipo", json={"user_id": inv_id, "rol_en_proyecto": "Co-Investigador Líder", "horas_dedicadas": 30}, headers=admin_headers)
+
+    # 5.8 Creación y Eliminación de Proyecto (DELETE proyectos)
+    res_temp_p = client.post("/proyectos", json={
+        "codigo_sgps": "SGPS-TEMP-DEL",
+        "nombre": "Proyecto Temporal a Eliminar",
+        "estado": "Aprobado",
+        "semillero_id": semillero_id,
+        "convocatoria_id": conv_id
+    }, headers=admin_headers)
+    assert res_temp_p.status_code in (200, 201)
+    temp_pid = res_temp_p.json()["id"]
+
+    res_del_p = client.delete(f"/proyectos/{temp_pid}", headers=admin_headers)
+    assert res_del_p.status_code == 200
+    res_del_p_check = client.get(f"/proyectos/{temp_pid}", headers=admin_headers)
+    assert res_del_p_check.status_code == 404
+
 
 # ==============================================================================
 # 6. TABLA: PRODUCTOS DE INVESTIGACIÓN & MINCIENCIAS
@@ -462,6 +633,33 @@ def test_audit_productos_minciencias(client, auth_tokens):
     assert res_stats.status_code == 200
     assert "total" in res_stats.json()
     assert "verificados" in res_stats.json()
+
+    # 6.4 Obtener y Actualizar Producto (Read & Update productos)
+    res_get_prod = client.get(f"/productos/{prod_id}", headers=inv_headers)
+    assert res_get_prod.status_code == 200
+    assert res_get_prod.json()["id"] == prod_id
+
+    res_up_prod = client.put(f"/productos/{prod_id}", json={
+        "nombre": "Sensor IoT para Monitoreo Bovino v2 Actualizado",
+        "descripcion": "Descripción actualizada de producto Q1"
+    }, headers=inv_headers)
+    assert res_up_prod.status_code == 200
+    assert res_up_prod.json()["nombre"] == "Sensor IoT para Monitoreo Bovino v2 Actualizado"
+
+    # 6.5 Creación y Eliminación de Producto (DELETE productos)
+    res_temp_prod = client.post("/productos", json={
+        "tipo": "B1",
+        "categoria": "B",
+        "nombre": "Producto Temporal a Eliminar",
+        "proyecto_id": proj_id
+    }, headers=inv_headers)
+    assert res_temp_prod.status_code in (200, 201)
+    temp_prid = res_temp_prod.json()["id"]
+
+    res_del_prod = client.delete(f"/productos/{temp_prid}", headers=inv_headers)
+    assert res_del_prod.status_code == 200
+    res_del_prod_check = client.get(f"/productos/{temp_prid}", headers=inv_headers)
+    assert res_del_prod_check.status_code == 404
 
 
 # ==============================================================================
@@ -515,6 +713,33 @@ def test_audit_entregables_cronograma(client, auth_tokens):
     assert res_st3.status_code == 200
     assert res_st3.json()["estado"] == "aprobado"
 
+    # 7.6 Obtener y Actualizar Entregable (Read & Update entregables)
+    res_get_ent = client.get(f"/entregables/{ent_id}", headers=admin_headers)
+    assert res_get_ent.status_code == 200
+    assert res_get_ent.json()["id"] == ent_id
+
+    res_up_ent = client.put(f"/entregables/{ent_id}", json={
+        "titulo": "Prototipo Funcional de Circuito de Adquisición v2",
+        "descripcion": "Placa ensamblada y calibrada"
+    }, headers=admin_headers)
+    assert res_up_ent.status_code == 200
+    assert res_up_ent.json()["titulo"] == "Prototipo Funcional de Circuito de Adquisición v2"
+
+    # 7.7 Creación y Eliminación de Entregable (DELETE entregables)
+    res_temp_ent = client.post("/entregables/", json={
+        "proyecto_id": proj_id,
+        "fase": "Fase I",
+        "titulo": "Entregable Temporal a Eliminar",
+        "fecha_entrega": (date.today() + timedelta(days=5)).isoformat()
+    }, headers=admin_headers)
+    assert res_temp_ent.status_code in (200, 201)
+    temp_eid = res_temp_ent.json()["id"]
+
+    res_del_ent = client.delete(f"/entregables/{temp_eid}", headers=admin_headers)
+    assert res_del_ent.status_code == 200
+    res_del_ent_check = client.get(f"/entregables/{temp_eid}", headers=admin_headers)
+    assert res_del_ent_check.status_code == 404
+
 
 # ==============================================================================
 # 8. TABLA: DOCUMENTOS & GESTIÓN DE ARCHIVOS
@@ -548,6 +773,12 @@ def test_audit_documentos(client, auth_tokens):
     res_down = client.get(f"/documentos/{doc_id}/download", headers=headers)
     assert res_down.status_code == 200
     assert "data_base64" in res_down.json()
+
+    # 8.4 Eliminar Documento (DELETE documentos)
+    res_del_doc = client.delete(f"/documentos/{doc_id}", headers=headers)
+    assert res_del_doc.status_code == 200
+    res_del_doc_check = client.get(f"/documentos/{doc_id}/download", headers=headers)
+    assert res_del_doc_check.status_code == 404
 
 
 # ==============================================================================
@@ -592,6 +823,32 @@ def test_audit_bitacora_dual_signing(client, auth_tokens):
     assert res_bita_proj.status_code == 200
     assert len(res_bita_proj.json()) >= 1
 
+    # 9.5 Creación, Consulta, Actualización y Eliminación de Entrada de Bitácora (Full CRUD bitacora_entries)
+    res_temp_bita = client.post("/bitacora", json={
+        "proyecto_id": proj_id,
+        "titulo": "Entrada Temporal de Prueba",
+        "contenido": "Contenido transitorio de prueba",
+        "categoria": "técnica"
+    }, headers=inv_headers)
+    assert res_temp_bita.status_code in (200, 201)
+    temp_bid = res_temp_bita.json()["id"]
+
+    res_get_bit = client.get(f"/bitacora/{temp_bid}", headers=inv_headers)
+    assert res_get_bit.status_code == 200
+    assert res_get_bit.json()["id"] == temp_bid
+
+    res_up_bit = client.put(f"/bitacora/{temp_bid}", json={
+        "titulo": "Entrada Temporal Modificada con Éxito",
+        "contenido": "Contenido actualizado de prueba"
+    }, headers=inv_headers)
+    assert res_up_bit.status_code == 200
+    assert res_up_bit.json()["titulo"] == "Entrada Temporal Modificada con Éxito"
+
+    res_del_bita = client.delete(f"/bitacora/{temp_bid}", headers=inv_headers)
+    assert res_del_bita.status_code == 200
+    res_del_bita_check = client.get(f"/bitacora/{temp_bid}", headers=inv_headers)
+    assert res_del_bita_check.status_code == 404
+
 
 # ==============================================================================
 # 10. TABLA: BANCO DE RETOS DE INNOVACIÓN
@@ -621,6 +878,24 @@ def test_audit_retos(client, auth_tokens):
     assert res_patch.status_code == 200
     assert res_patch.json()["estado"] == "en_progreso"
 
+    # 10.3 Obtener Reto por ID (Read retos)
+    res_get_reto = client.get(f"/retos/{reto_id}", headers=headers)
+    assert res_get_reto.status_code == 200
+    assert res_get_reto.json()["id"] == reto_id
+
+    # 10.4 Creación y Eliminación de Reto (DELETE retos)
+    res_temp_reto = client.post("/retos", json={
+        "titulo": "Reto Temporal a Eliminar",
+        "descripcion": "Descripción de reto temporal"
+    }, headers=headers)
+    assert res_temp_reto.status_code in (200, 201)
+    temp_rid = res_temp_reto.json()["id"]
+
+    res_del_reto = client.delete(f"/retos/{temp_rid}", headers=headers)
+    assert res_del_reto.status_code == 200
+    res_del_reto_check = client.get(f"/retos/{temp_rid}", headers=headers)
+    assert res_del_reto_check.status_code == 404
+
 
 # ==============================================================================
 # 11. TABLA: NOTIFICACIONES & ALERTAS
@@ -628,6 +903,7 @@ def test_audit_retos(client, auth_tokens):
 def test_audit_notificaciones(client, auth_tokens):
     inv_headers = auth_tokens["investigador"]["headers"]
     admin_headers = auth_tokens["admin"]["headers"]
+    inv_id = auth_tokens["investigador"]["user_id"]
 
     # 11.1 Listar Notificaciones
     res = client.get("/notificaciones/", headers=inv_headers)
@@ -648,6 +924,29 @@ def test_audit_notificaciones(client, auth_tokens):
     res_badge = client.get("/notificaciones/check/pendientes", headers=inv_headers)
     assert res_badge.status_code == 200
     assert "no_leidas" in res_badge.json()
+
+    # 11.5 Crear, Obtener y Eliminar Notificación (Create, Read & DELETE notificaciones)
+    res_create_notif = client.post(
+        "/notificaciones/crear-sistema",
+        params={
+            "user_id": inv_id,
+            "titulo": "Alerta Temporal E2E",
+            "mensaje": "Mensaje transitorio para prueba de eliminación",
+            "prioridad": "normal"
+        },
+        headers=admin_headers
+    )
+    assert res_create_notif.status_code in (200, 201)
+    notif_id = str(res_create_notif.json()["notificacion_id"])
+
+    res_get_n = client.get(f"/notificaciones/{notif_id}", headers=inv_headers)
+    assert res_get_n.status_code == 200
+    assert str(res_get_n.json()["id"]) == notif_id
+
+    res_del_n = client.delete(f"/notificaciones/{notif_id}", headers=inv_headers)
+    assert res_del_n.status_code == 200
+    res_del_n_check = client.get(f"/notificaciones/{notif_id}", headers=inv_headers)
+    assert res_del_n_check.status_code == 404
 
 
 # ==============================================================================
@@ -694,6 +993,10 @@ def test_audit_mensajeria(client, auth_tokens):
     res_dir = client.get("/mensajes/destinatarios", headers=apr_headers)
     assert res_dir.status_code == 200
     assert len(res_dir.json()) >= 1
+
+    # 12.6 Eliminación de Mensaje (DELETE mensajes)
+    res_del_m = client.delete(f"/mensajes/{msg_id}", headers=admin_headers)
+    assert res_del_m.status_code == 200
 
 
 # ==============================================================================
@@ -859,3 +1162,51 @@ def test_audit_system_and_maintenance(client, auth_tokens):
     # 17.4 Limpieza de caché
     res_cache = client.post("/maintenance/clear-cache", headers=admin_headers)
     assert res_cache.status_code == 200
+
+    # 17.5 Consultar Actividades (GET /audit/actividades)
+    res_acts = client.get("/audit/actividades", headers=admin_headers)
+    assert res_acts.status_code == 200
+    assert isinstance(res_acts.json(), list)
+
+    # 17.6 Historial de Actividades por Usuario (GET /usuarios/{user_id}/historial)
+    inv_id = auth_tokens["investigador"]["user_id"]
+    res_hist = client.get(f"/usuarios/{inv_id}/historial", headers=admin_headers)
+    assert res_hist.status_code == 200
+    assert isinstance(res_hist.json(), list)
+
+    # 17.7 Limpieza de Auditoría (POST /audit/cleanup)
+    res_cleanup = client.post("/audit/cleanup?dias=365", headers=admin_headers)
+    assert res_cleanup.status_code == 200
+
+
+# ==============================================================================
+# 18. TABLA: MENSAJE_ADJUNTOS (Ciclo Completo: Subida, Descarga y Eliminación)
+# ==============================================================================
+def test_audit_mensaje_adjuntos_lifecycle(client, auth_tokens):
+    inv_headers = auth_tokens["investigador"]["headers"]
+    
+    # 18.1 Subir archivo adjunto (POST /mensajes/adjuntos)
+    dummy_png = bytes.fromhex("89504e470d0a1a0a") + b"e2e-audit-test-image" + b"\x00" * 32
+    res_subida = client.post(
+        "/mensajes/adjuntos",
+        files={"archivo": ("captura_audit.png", dummy_png, "image/png")},
+        headers=inv_headers
+    )
+    assert res_subida.status_code == 201
+    adjunto = res_subida.json()
+    adjunto_id = adjunto["id"]
+    assert adjunto["categoria"] == "imagen"
+    assert adjunto["nombre_archivo"] == "captura_audit.png"
+
+    # 18.2 Descargar/Consultar archivo adjunto (GET /mensajes/adjuntos/{id})
+    res_descarga = client.get(f"/mensajes/adjuntos/{adjunto_id}", headers=inv_headers)
+    assert res_descarga.status_code == 200
+    assert res_descarga.content == dummy_png
+
+    # 18.3 Eliminar archivo adjunto (DELETE /mensajes/adjuntos/{id})
+    res_del_adj = client.delete(f"/mensajes/adjuntos/{adjunto_id}", headers=inv_headers)
+    assert res_del_adj.status_code == 200
+
+    # 18.4 Verificar eliminación
+    res_check_del = client.get(f"/mensajes/adjuntos/{adjunto_id}", headers=inv_headers)
+    assert res_check_del.status_code == 404

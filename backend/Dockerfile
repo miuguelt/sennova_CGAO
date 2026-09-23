@@ -29,6 +29,14 @@ RUN chmod +x entrypoint.sh
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
+# Usuario no-root. Sin esto, una ejecucion remota de codigo en la app corre
+# como root dentro del contenedor: puede reescribir el codigo de la imagen y
+# atacar al resto de la red del VPS. El chown va antes de USER porque los
+# volumenes nombrados heredan la propiedad del directorio de la imagen.
+RUN useradd --system --no-create-home --shell /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
 # Puerto
 EXPOSE 8000
 
