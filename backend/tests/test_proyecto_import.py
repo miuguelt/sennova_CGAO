@@ -51,8 +51,12 @@ def make_docx(rows):
     )
     file_bytes = io.BytesIO()
     with zipfile.ZipFile(file_bytes, "w", zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr("[Content_Types].xml", "<Types/>")
-        archive.writestr("word/document.xml", document)
+        for arcname, content in (
+            ("[Content_Types].xml", "<Types/>"),
+            ("word/document.xml", document),
+        ):
+            zinfo = zipfile.ZipInfo(arcname, date_time=(2026, 1, 1, 0, 0, 0))
+            archive.writestr(zinfo, content)
     return file_bytes.getvalue()
 
 
@@ -205,10 +209,11 @@ def test_import_creates_project_and_keeps_original_docx_linked(tmp_path):
         "objetivos_especificos": ["Objetivo específico editado."],
         "descripcion": "Resumen revisado antes de guardar.",
     }
+    uploaded_bytes = sample_formulation()
     response = client.post(
         "/proyectos/importar-formulacion",
         data={"proyecto": __import__("json").dumps(payload, ensure_ascii=False)},
-        files={"file": ("formulacion.docx", sample_formulation(), "application/octet-stream")},
+        files={"file": ("formulacion.docx", uploaded_bytes, "application/octet-stream")},
     )
 
     assert response.status_code == 201, response.text
@@ -221,7 +226,7 @@ def test_import_creates_project_and_keeps_original_docx_linked(tmp_path):
         document = db.query(Documento).filter_by(entidad_tipo="proyecto", entidad_id=project["id"]).one()
         assert document.tipo == "formulacion_proyecto"
         assert document.nombre_archivo == "formulacion.docx"
-        assert Path(document.file_path).read_bytes() == sample_formulation()
+        assert Path(document.file_path).read_bytes() == uploaded_bytes
         assert Path(document.file_path).parent == Path(proyectos_router.FORMULATION_STORAGE_DIR)
     finally:
         db.close()
