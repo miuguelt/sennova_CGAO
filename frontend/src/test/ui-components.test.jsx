@@ -113,6 +113,15 @@ describe('Input', () => {
     fireEvent.change(input, { target: { value: 'John' } });
     expect(value).toBe('John');
   });
+
+  it('keeps a read-only value when no change handler is supplied', () => {
+    render(<Input label="Solo lectura" value="Protegido" />);
+    const input = screen.getByLabelText('Solo lectura');
+
+    expect(input).toHaveAttribute('readonly');
+    fireEvent.change(input, { target: { value: 'alterado' } });
+    expect(input).toHaveValue('Protegido');
+  });
 });
 
 describe('Select', () => {
@@ -141,6 +150,14 @@ describe('Select', () => {
     render(<Select label="Choose" options={options} disabled />);
     expect(screen.getByLabelText('Choose')).toBeDisabled();
   });
+
+  it('renders and ignores change events when no change handler is supplied', () => {
+    render(<Select label="Sin manejador" options={options} />);
+    const select = screen.getByLabelText('Sin manejador');
+
+    fireEvent.change(select, { target: { value: '2' } });
+    expect(select).toBeInTheDocument();
+  });
 });
 
 describe('TextArea', () => {
@@ -157,6 +174,14 @@ describe('TextArea', () => {
   it('shows error', () => {
     render(<TextArea label="Desc" error="Required" />);
     expect(screen.getByText('Required')).toBeInTheDocument();
+  });
+
+  it('renders and ignores change events when no change handler is supplied', () => {
+    render(<TextArea label="Sin manejador" />);
+    const textArea = screen.getByLabelText('Sin manejador');
+
+    fireEvent.change(textArea, { target: { value: 'texto' } });
+    expect(textArea).toBeInTheDocument();
   });
 });
 

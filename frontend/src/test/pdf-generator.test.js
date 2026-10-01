@@ -68,6 +68,24 @@ describe('PDFGenerator Suite Completa', () => {
       expect(() => PDFGenerator.generateMonthlyReport({})).not.toThrow();
       expect(jsPDF.API.save).toHaveBeenCalled();
     });
+
+    it('incluye metas de seguimiento basadas en entregables cuando no hay metas registradas', () => {
+      let generatedPdf;
+      const saveSpy = vi.spyOn(jsPDF.API, 'save').mockImplementation(function () {
+        generatedPdf = this;
+      });
+      saveSpy.mockClear();
+
+      try {
+        PDFGenerator.generateMonthlyReport({});
+
+        const generatedText = generatedPdf.output();
+        expect(generatedText).toContain('Actualizar entregables y actividades conforme al cronograma');
+        expect(generatedText).not.toContain('Actualizar bitácoras y registros de actividades en la plataforma');
+      } finally {
+        saveSpy.mockRestore();
+      }
+    });
   });
 
   describe('3. generateProjectCertificate (Certificado Integrante Proyecto)', () => {
@@ -152,54 +170,7 @@ describe('PDFGenerator Suite Completa', () => {
     });
   });
 
-  describe('5. generateBitacoraReport (Bitácora Oficial)', () => {
-    it('genera bitácora técnica oficial con múltiples entradas y hashes criptográficos', () => {
-      const mockBitacoraData = {
-        entidad: 'SENA',
-        centro: 'Centro de Gestión Agroempresarial y Oriente',
-        proyecto: {
-          nombre: 'Desarrollo de Biosensores para Monitoreo de Aguas',
-          codigo: 'SGPS-2026-771',
-          linea: 'Biotecnología'
-        },
-        periodo: 'Generado el 2026-02-20',
-        resumen_ejecucion: { total_entradas: 2, firmas_completas: 2, pendientes: 0 },
-        entradas: [
-          {
-            fecha: '2026-02-10 09:30',
-            titulo: 'Calibración de Sensores Electroquímicos',
-            categoria: 'Técnica',
-            contenido: 'Se realizó el procedimiento de calibración en laboratorio obteniendo curvas R2 > 0.99.',
-            autor: 'Carlos Ruiz',
-            estado_firma: 'COMPLETA',
-            hash_verificacion: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-            adjuntos_count: 2
-          },
-          {
-            fecha: '2026-02-15 14:00',
-            titulo: 'Pruebas de Campo en Finca Experimental',
-            categoria: 'Hallazgo',
-            contenido: 'Medición de pH y conductividad con respuesta rápida en menos de 30 segundos.',
-            autor: 'Laura Jiménez',
-            estado_firma: 'COMPLETA',
-            hash_verificacion: 'ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb',
-            adjuntos_count: 1
-          }
-        ],
-        glosario_seguridad: 'Los hashes de verificación garantizan la inmutabilidad y autenticidad del contenido.'
-      };
-
-      expect(() => PDFGenerator.generateBitacoraReport(mockBitacoraData)).not.toThrow();
-      expect(jsPDF.API.save).toHaveBeenCalled();
-    });
-
-    it('genera bitácora vacía sin fallar', () => {
-      expect(() => PDFGenerator.generateBitacoraReport({ proyecto: { nombre: 'P1' }, entradas: [] })).not.toThrow();
-      expect(jsPDF.API.save).toHaveBeenCalled();
-    });
-  });
-
-  describe('6. generateEtapaProductiva (Formato Etapa Productiva)', () => {
+  describe('5. generateEtapaProductiva (Formato Etapa Productiva)', () => {
     it('genera formato de etapa productiva con equipo de trabajo', () => {
       const mockProyecto = {
         nombre: 'Innovación en Postcosecha de Guayaba',
@@ -223,7 +194,7 @@ describe('PDFGenerator Suite Completa', () => {
     });
   });
 
-  describe('7. generateSeguimiento (Formato Seguimiento)', () => {
+  describe('6. generateSeguimiento (Formato Seguimiento)', () => {
     it('genera formato de seguimiento con cronograma de entregables', () => {
       const mockProyecto = {
         nombre: 'Automatización de Invernaderos',
@@ -244,7 +215,7 @@ describe('PDFGenerator Suite Completa', () => {
     });
   });
 
-  describe('8. generateInformeFinal (Informe Final)', () => {
+  describe('7. generateInformeFinal (Informe Final)', () => {
     it('genera informe final con resultados de cierre y entregables', () => {
       const mockProyecto = {
         nombre: 'Cierre Proyecto Robótica Agrícola',
@@ -270,7 +241,7 @@ describe('PDFGenerator Suite Completa', () => {
     });
   });
 
-  describe('9. generateProjectPDF (Ficha Técnica)', () => {
+  describe('8. generateProjectPDF (Ficha Técnica)', () => {
     it('genera ficha técnica con semillero, presupuesto y equipo', () => {
       const mockProject = {
         nombre: 'Plataforma Integrada SENNOVA CGAO para Gestión de I+D',
@@ -280,7 +251,7 @@ describe('PDFGenerator Suite Completa', () => {
         semillero: { nombre: 'Semillero Biotic' },
         presupuesto_total: 25000000,
         vigencia: 12,
-        objetivo_general: 'Diseñar e implementar un sistema integral de trazabilidad, gestión de productos MinCiencias, bitácoras técnicas y asignación presupuestal para el CGAO.',
+        objetivo_general: 'Diseñar e implementar un sistema integral para gestionar proyectos, productos MinCiencias y asignación presupuestal para el CGAO.',
         equipo: [
           { nombre: 'Ing. Carlos Ruiz', email: 'cruiz@sena.edu.co', rol: 'Investigador Principal', horas_dedicadas: 20 },
           { nombre: 'Laura Jiménez', email: 'ljimenez@sena.edu.co', rol: 'Co-Investigadora', horas_dedicadas: 10 }
@@ -292,8 +263,44 @@ describe('PDFGenerator Suite Completa', () => {
     });
 
     it('genera ficha técnica sin integrantes y sin objetivo sin fallar', () => {
-      expect(() => PDFGenerator.generateProjectPDF({})).not.toThrow();
-      expect(jsPDF.API.save).toHaveBeenCalled();
+      let generatedPdf;
+      const saveSpy = vi.spyOn(jsPDF.API, 'save').mockImplementation(function () {
+        generatedPdf = this;
+      });
+      saveSpy.mockClear();
+
+      try {
+        expect(() => PDFGenerator.generateProjectPDF({})).not.toThrow();
+        const generatedText = generatedPdf.output();
+        expect(generatedText).toContain('FICHA TÉCNICA DE REFERENCIA');
+        expect(generatedText).toContain('SIN ESTADO REGISTRADO');
+        expect(generatedText).toContain('No reemplaza el formato institucional vigente');
+      } finally {
+        saveSpy.mockRestore();
+      }
+    });
+
+    it('marca los PDF de seguimiento como modelos y advierte que no son formatos controlados', () => {
+      const generatedPdfs = [];
+      const saveSpy = vi.spyOn(jsPDF.API, 'save').mockImplementation(function () {
+        generatedPdfs.push(this.output());
+      });
+      saveSpy.mockClear();
+
+      try {
+        PDFGenerator.generateEtapaProductiva({});
+        PDFGenerator.generateSeguimiento({});
+        PDFGenerator.generateInformeFinal({});
+        PDFGenerator.generateProjectPDF({});
+
+        expect(generatedPdfs).toHaveLength(4);
+        for (const generatedPdf of generatedPdfs) {
+          expect(generatedPdf).toContain('REFERENCIA INTERNA');
+          expect(generatedPdf).toContain('No reemplaza el formato institucional vigente');
+        }
+      } finally {
+        saveSpy.mockRestore();
+      }
     });
   });
 });

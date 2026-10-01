@@ -6,6 +6,7 @@ from sqlalchemy import (
     ForeignKey, Text, Float, Table, JSON
 )
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import ARRAY as PostgresARRAY
 
 from app.database import Base, engine
 
@@ -18,11 +19,16 @@ if is_sqlite:
     # SQLite: usar String para UUID y JSON para arrays
     from sqlalchemy import String as UUIDType
     from sqlalchemy import JSON
-    def ARRAY(x):
-        return JSON
 else:
     # PostgreSQL: tipos nativos
-    from sqlalchemy.dialects.postgresql import UUID as UUIDType, ARRAY
+    from sqlalchemy.dialects.postgresql import UUID as UUIDType
+
+
+def ARRAY(item_type):
+    """Devuelve un tipo de arreglo compatible con SQLite y PostgreSQL."""
+    if is_sqlite:
+        return JSON
+    return PostgresARRAY(item_type)
 
 
 def generate_uuid():
@@ -92,7 +98,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     nombre = Column(String(255), nullable=False)
-    rol = Column(String(50), nullable=False, default='investigador')  # admin, investigador, instructor, aprendiz
+    rol = Column(String(50), nullable=False, default='investigador')  # admin, investigador, aprendiz
     
     # Perfil profesional
     rol_sennova = Column(String(100))
@@ -361,6 +367,7 @@ class Documento(Base):
     entidad_id = get_uuid_column(nullable=False)
     tipo = Column(String(50), nullable=False)  # cvlac_pdf, acta, contrato, informe
     nombre_archivo = Column(String(255))
+    descripcion = Column(Text, nullable=True)
     content_type = Column(String(100))
     data_base64 = Column(Text)  # Obsoleto, migrando a file_path
     file_path = Column(String(255))  # Nueva columna para almacenamiento en disco

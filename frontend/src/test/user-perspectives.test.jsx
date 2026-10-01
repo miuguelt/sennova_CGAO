@@ -72,17 +72,17 @@ describe('🧭 Auditoría y Pruebas de Menú por Perspectiva de Usuario', () => 
     expect(onNavigateMock).toHaveBeenCalledWith('auditoria');
   });
 
-  it('2. Perspectiva Instructor: Tiene acceso a I+D+i, Tutoría de Bitácora, Semilleros y Reportes, pero NO a Sistema/Auditoría', async () => {
-    const instructorUser = {
+  it('2. Perspectiva Investigador: Tiene acceso a proyectos, semilleros y reportes, pero NO a bitácoras ni a Sistema/Auditoría', async () => {
+    const investigatorUser = {
       id: 'usr-inst-1',
       nombre: 'Carlos Instructor',
       email: 'carlos@sena.edu.co',
-      rol: 'instructor'
+      rol: 'investigador'
     };
 
     render(
       <Navbar
-        currentUser={instructorUser}
+        currentUser={investigatorUser}
         onNavigate={onNavigateMock}
         onLogout={onLogoutMock}
         onOpenSearch={onOpenSearchMock}
@@ -91,7 +91,7 @@ describe('🧭 Auditoría y Pruebas de Menú por Perspectiva de Usuario', () => 
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText(/Instructor Investigador/i).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/Investigador SENNOVA/i).length).toBeGreaterThanOrEqual(1);
     });
 
     // Menús docentes
@@ -103,16 +103,16 @@ describe('🧭 Auditoría y Pruebas de Menú por Perspectiva de Usuario', () => 
     // NO debe tener acceso al grupo Sistema
     expect(screen.queryByText('Sistema')).not.toBeInTheDocument();
 
-    // Al abrir I+D+i, verifica Bitácora & Tutoría
+    // Al abrir I+D+i, verifica las opciones de investigación
     const idiButtons = screen.getAllByText('I+D+i');
     fireEvent.click(idiButtons[0]);
-    expect(screen.getAllByText('Bitácora & Tutoría').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Bitácora & Coinvestigación')).not.toBeInTheDocument();
     expect(screen.getAllByText('Proyectos I+D+i').length).toBeGreaterThanOrEqual(1);
 
-    // Al abrir Recursos, verifica Reportes GTH-F-074
+    // Al abrir Recursos, verifica el acceso a reportes
     const recursosButtons = screen.getAllByText('Recursos');
     fireEvent.click(recursosButtons[0]);
-    expect(screen.getAllByText('Reportes y GTH-F-074').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Reportes Científicos').length).toBeGreaterThanOrEqual(1);
   });
 
   it('3. Perspectiva Investigador SENNOVA: Tiene acceso a Proyectos, Productos Minciencias, Red y Banco de Retos', async () => {
@@ -184,10 +184,10 @@ describe('🧭 Auditoría y Pruebas de Menú por Perspectiva de Usuario', () => 
     expect(screen.queryByText('Gestión')).not.toBeInTheDocument();
     expect(screen.queryByText('Sistema')).not.toBeInTheDocument();
 
-    // Al abrir Investigación Formativa, ve 'Mis Bitácoras', 'Mis Tareas & Hitos', 'Mis Proyectos', 'Explorar Retos'
+    // Al abrir Investigación Formativa, conserva proyectos, tareas y retos.
     const invFormButtons = screen.getAllByText('Investigación Formativa');
     fireEvent.click(invFormButtons[0]);
-    expect(screen.getAllByText('Mis Bitácoras').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Mis Bitácoras')).not.toBeInTheDocument();
     expect(screen.getAllByText('Mis Tareas & Hitos').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Mis Proyectos').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Explorar Retos').length).toBeGreaterThanOrEqual(1);
@@ -197,13 +197,19 @@ describe('🧭 Auditoría y Pruebas de Menú por Perspectiva de Usuario', () => 
     fireEvent.click(formacionButtons[0]);
     expect(screen.getAllByText('Mi Semillero').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Formatos & Guías').length).toBeGreaterThanOrEqual(1);
+
+    expect(screen.queryByPlaceholderText('Búsqueda rápida...')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Buscar' })).not.toBeInTheDocument();
+    onNavigateMock.mockClear();
+    fireEvent.click(screen.getByText('SENNOVA'));
+    expect(onNavigateMock).toHaveBeenCalledWith('grupos');
   });
 
   it('5. Insignias de Mensajería y Notificaciones cargan y se muestran correctamente', async () => {
     const user = {
       id: 'usr-test-1',
       nombre: 'Prueba Notif',
-      rol: 'instructor'
+      rol: 'investigador'
     };
 
     render(

@@ -856,11 +856,11 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
     >
       <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity print:hidden animate-fadeIn" onClick={onClose} />
       
-      <NestedDetailModal />
-      <LinkModal />
-      <ResetModal />
-      <SendMessageModal />
-      <CvModal />
+      {NestedDetailModal()}
+      {LinkModal()}
+      {ResetModal()}
+      {SendMessageModal()}
+      {CvModal()}
 
       <input 
         type="file" 

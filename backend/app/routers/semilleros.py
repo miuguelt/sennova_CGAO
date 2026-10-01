@@ -15,10 +15,10 @@ router = APIRouter(prefix="/semilleros", tags=["Semilleros de Investigación"])
 
 
 
-def _make_aprendiz_dict(aprendiz: Aprendiz) -> dict:
+def _make_aprendiz_dict(aprendiz: Aprendiz, aprendiz_view: bool = False) -> dict:
     """Convierte un objeto Aprendiz a diccionario usando info_consolidada."""
     info = aprendiz.info_consolidada
-    return {
+    data = {
         "id": str(aprendiz.id),
         "user_id": str(aprendiz.user_id) if aprendiz.user_id else None,
         "nombre": info["nombre"],
@@ -32,12 +32,22 @@ def _make_aprendiz_dict(aprendiz: Aprendiz) -> dict:
         "fecha_ingreso": aprendiz.fecha_ingreso,
         "fecha_egreso": aprendiz.fecha_egreso
     }
+    if aprendiz_view:
+        data.pop("documento", None)
+        data.pop("email", None)
+        data.pop("celular", None)
+    return data
 
 
-def _make_semillero_dict(semillero: Semillero, db: Session, investigators_map: dict = None) -> dict:
+def _make_semillero_dict(
+    semillero: Semillero,
+    db: Session,
+    investigators_map: dict = None,
+    aprendiz_view: bool = False,
+) -> dict:
     """Convierte un objeto Semillero a diccionario para serialización correcta."""
     investigadores = []
-    
+
     # Si tenemos un mapa pre-cargado, lo usamos para evitar consultas N+1
     if investigators_map and str(semillero.id) in investigators_map:
         investigadores = investigators_map[str(semillero.id)]
@@ -59,6 +69,12 @@ def _make_semillero_dict(semillero: Semillero, db: Session, investigators_map: d
             }
             investigadores.append(inv_info)
 
+    if aprendiz_view:
+        investigadores = [
+            {key: value for key, value in investigador.items() if key != "email"}
+            for investigador in investigadores
+        ]
+
     grupo_data = None
     if semillero.grupo:
         grupo_data = {
@@ -68,7 +84,10 @@ def _make_semillero_dict(semillero: Semillero, db: Session, investigators_map: d
 
     aprendices_list = []
     if semillero.aprendices:
-        aprendices_list = [_make_aprendiz_dict(a) for a in semillero.aprendices]
+        aprendices_list = [
+            _make_aprendiz_dict(a, aprendiz_view=aprendiz_view)
+            for a in semillero.aprendices
+        ]
 
     sigla = semillero.sigla
     if not sigla and semillero.nombre:
@@ -115,7 +134,7 @@ def list_semilleros(
     """Listar semilleros de investigación."""
     from sqlalchemy.orm import joinedload
     from app.models import semillero_investigadores
-    
+
     query = db.query(Semillero).options(
         joinedload(Semillero.investigadores),
         joinedload(Semillero.aprendices)
@@ -125,6 +144,10 @@ def list_semilleros(
         query = query.filter(Semillero.grupo_id == str(grupo_id))
     if estado:
         query = query.filter(Semillero.estado == estado)
+    if current_user.rol == "aprendiz":
+        query = query.filter(
+            Semillero.aprendices.any(Aprendiz.user_id == str(current_user.id))
+        )
     
     semilleros = query.offset(skip).limit(limit).all()
     
@@ -150,7 +173,15 @@ def list_semilleros(
             "fecha_vinculacion": row.fecha_vinculacion.isoformat() if row.fecha_vinculacion else None
         })
     
-    return [_make_semillero_dict(s, db, investigators_map) for s in semilleros]
+    return [
+        _make_semillero_dict(
+            s,
+            db,
+            investigators_map,
+            aprendiz_view=current_user.rol == "aprendiz",
+        )
+        for s in semilleros
+    ]
 
 
 @router.get("/{semillero_id}")
@@ -166,8 +197,20 @@ def get_semillero(
     semillero = db.query(Semillero).filter(Semillero.id == sid).first()
     if not semillero:
         raise HTTPException(status_code=404, detail="Semillero no encontrado")
-    
-    return _make_semillero_dict(semillero, db)
+
+    if current_user.rol == "aprendiz":
+        pertenece = db.query(Aprendiz.id).filter(
+            Aprendiz.semillero_id == sid,
+            Aprendiz.user_id == str(current_user.id),
+        ).first()
+        if not pertenece:
+            raise HTTPException(status_code=403, detail="No tiene acceso a este semillero")
+
+    return _make_semillero_dict(
+        semillero,
+        db,
+        aprendiz_view=current_user.rol == "aprendiz",
+    )
 
 
 @router.post("", status_code=201)
@@ -322,8 +365,19 @@ def list_aprendices(
     semillero = db.query(Semillero).filter(Semillero.id == str(semillero_id)).first()
     if not semillero:
         raise HTTPException(status_code=404, detail="Semillero no encontrado")
-    
-    return [_make_aprendiz_dict(a) for a in semillero.aprendices]
+
+    if current_user.rol == "aprendiz":
+        pertenece = db.query(Aprendiz.id).filter(
+            Aprendiz.semillero_id == str(semillero_id),
+            Aprendiz.user_id == str(current_user.id),
+        ).first()
+        if not pertenece:
+            raise HTTPException(status_code=403, detail="No tiene acceso a este semillero")
+
+    return [
+        _make_aprendiz_dict(a, aprendiz_view=current_user.rol == "aprendiz")
+        for a in semillero.aprendices
+    ]
 
 
 @router.post("/{semillero_id}/aprendices", status_code=201)

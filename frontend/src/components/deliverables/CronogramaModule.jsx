@@ -323,6 +323,7 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
                         </Button>
                       )}
                       <button 
+                        aria-label={`Editar entregable ${e.titulo}`}
                         onClick={() => handleEdit(e)}
                         className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                       >

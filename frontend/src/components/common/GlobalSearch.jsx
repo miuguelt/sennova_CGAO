@@ -79,6 +79,7 @@ const GlobalSearch = ({ isOpen, onClose, onNavigate }) => {
 
   const performSearch = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await DashboardAPI.globalSearch(query);
       setResults(data.results || []);

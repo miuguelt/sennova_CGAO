@@ -52,7 +52,7 @@ const buildApiUrl = (endpoint) => {
   if (/^https?:\/\//i.test(endpoint)) return endpoint;
 
   const base = (API_URL || '/api').replace(/\/+$/, '');
-  const path = String(endpoint || '').replace(/^\/+/, '');
+  const path = normalizePath(endpoint).replace(/^\/+/, '');
 
   // Si el base es URL absoluta, usarla directamente
   if (/^https?:\/\//i.test(base)) {

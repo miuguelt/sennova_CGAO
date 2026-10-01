@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.main import app
 from app.database import Base, get_db
-from app.models import User, Grupo, Proyecto, Semillero, BitacoraEntry
+from app.models import User, Grupo, Proyecto, Semillero
 from app.auth import get_password_hash
 from db_support import db_path_for, sqlite_url_for
 
@@ -42,7 +42,7 @@ def setup_test_environment():
         email="instructor_test@sena.edu.co",
         password_hash=get_password_hash("password123"),
         nombre="Prof. Carlos Instructor",
-        rol="instructor",
+        rol="investigador",
         sede="CGAO Vélez",
         is_active=True
     )
@@ -148,7 +148,6 @@ def test_perspectiva_instructor_alcances_y_restricciones():
     Perspectiva Instructor:
     - Puede crear semilleros de investigación
     - Puede crear proyectos I+D+i
-    - Puede firmar bitácoras como tutor / docente
     - Restricción: Bloqueo 403 en endpoints de superadministrador (/audit)
     """
     client = TestClient(app)
@@ -160,8 +159,6 @@ def test_perspectiva_instructor_alcances_y_restricciones():
     grupo_id = str(grupo.id)
     apr = db.query(User).filter(User.email == "aprendiz_test@sena.edu.co").first()
     apr_id = str(apr.id)
-    proy = db.query(Proyecto).first()
-    proy_id = str(proy.id)
     db.close()
 
     # 1. Crear Semillero
@@ -180,24 +177,7 @@ def test_perspectiva_instructor_alcances_y_restricciones():
     res_vin = client.post(f"/semilleros/{sem_id}/aprendices", json={"user_id": apr_id}, headers=headers)
     assert res_vin.status_code == 201
 
-    # 3. Tutoría / Firma Docente de Bitácora
-    # Creamos una bitácora inicial
-    bit_entry = client.post("/bitacora", json={
-        "titulo": "Prueba de campo sensores suelo",
-        "contenido": "Calibración inicial de sensores en cultivo experimental.",
-        "categoria": "técnica",
-        "proyecto_id": proy_id,
-        "horas_dedicadas": 3
-    }, headers=headers)
-    assert bit_entry.status_code == 201
-    bit_id = bit_entry.json()["id"]
-
-    # Instructor firma como docente tutor
-    res_sign = client.post(f"/bitacora/{bit_id}/sign", json={}, headers=headers)
-    assert res_sign.status_code == 200
-    assert res_sign.json()["is_firmado_investigador"] is True
-
-    # 4. Restricción: Bloqueo de Auditoría (403 Forbidden)
+    # 3. Restricción: Bloqueo de Auditoría (403 Forbidden)
     res_audit = client.get("/audit/logs", headers=headers)
     assert res_audit.status_code == 403
 
@@ -206,7 +186,6 @@ def test_perspectiva_investigador_alcances_y_restricciones():
     """
     Perspectiva Investigador SENNOVA:
     - Puede crear y gestionar proyectos de investigación
-    - Puede registrar entregables y bitácoras
     - Restricción: Bloqueo 403 en endpoints de superadministrador (/audit)
     """
     client = TestClient(app)
@@ -234,8 +213,6 @@ def test_perspectiva_investigador_alcances_y_restricciones():
 def test_perspectiva_aprendiz_alcances_formativos_y_bloqueos():
     """
     Perspectiva Aprendiz Semillerista:
-    - Puede crear bitácoras personales
-    - Puede firmar su propia bitácora
     - Restricción: No puede crear proyectos (403)
     - Restricción: No puede crear semilleros (403)
     - Restricción: No puede acceder a auditoría (403)
@@ -245,36 +222,18 @@ def test_perspectiva_aprendiz_alcances_formativos_y_bloqueos():
     headers = {"Authorization": f"Bearer {token}"}
 
     db = TestingSessionLocal()
-    proy = db.query(Proyecto).first()
-    proy_id = str(proy.id)
     grupo = db.query(Grupo).first()
     grupo_id = str(grupo.id)
     db.close()
 
-    # 1. Aprendiz crea bitácora de su actividad formativa
-    res_bit = client.post("/bitacora", json={
-        "titulo": "Implementación de frontend en React",
-        "contenido": "Se desarrollaron componentes y validaciones para la interfaz de usuario.",
-        "categoria": "técnica",
-        "proyecto_id": proy_id,
-        "horas_dedicadas": 4
-    }, headers=headers)
-    assert res_bit.status_code == 201
-    bit_id = res_bit.json()["id"]
-
-    # 2. Aprendiz firma su bitácora
-    res_sign = client.post(f"/bitacora/{bit_id}/sign", json={}, headers=headers)
-    assert res_sign.status_code == 200
-    assert res_sign.json()["is_firmado_aprendiz"] is True
-
-    # 3. Restricción: Aprendiz NO puede crear proyectos (403)
+    # 1. Restricción: Aprendiz NO puede crear proyectos (403)
     res_proy_block = client.post("/proyectos", json={
         "nombre": "Proyecto No Permitido por Aprendiz",
         "linea_investigacion": "Software"
     }, headers=headers)
     assert res_proy_block.status_code == 403
 
-    # 4. Restricción: Aprendiz NO puede crear semilleros (403)
+    # 2. Restricción: Aprendiz NO puede crear semilleros (403)
     res_sem_block = client.post("/semilleros", json={
         "nombre": "Semillero No Permitido por Aprendiz",
         "linea_investigacion": "Software",
@@ -282,6 +241,6 @@ def test_perspectiva_aprendiz_alcances_formativos_y_bloqueos():
     }, headers=headers)
     assert res_sem_block.status_code == 403
 
-    # 5. Restricción: Aprendiz NO puede acceder a logs de auditoría (403)
+    # 3. Restricción: Aprendiz NO puede acceder a logs de auditoría (403)
     res_audit_block = client.get("/audit/logs", headers=headers)
     assert res_audit_block.status_code == 403

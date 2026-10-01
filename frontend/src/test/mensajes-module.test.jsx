@@ -183,7 +183,7 @@ describe('MensajeriaModule Component', () => {
       id: 'user-new-3',
       nombre: 'Pedro Docente',
       email: 'pedro@sena.edu.co',
-      rol: 'instructor'
+      rol: 'investigador'
     };
     MensajesAPI.getContacto.mockResolvedValue(mockNewContact);
     MensajesAPI.getConversacion.mockResolvedValue([]);

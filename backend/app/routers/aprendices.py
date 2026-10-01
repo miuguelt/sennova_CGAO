@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.auth import get_current_user, get_current_admin
+from app.auth import get_current_user, get_current_admin, get_current_staff
 from app.models import Aprendiz, User, Semillero
 from app.schemas import AprendizResponse, AprendizUpdate
 
@@ -17,7 +17,7 @@ def list_aprendices(
     limit: int = 100,
     semillero_id: Optional[str] = None,
     estado: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """
@@ -46,9 +46,17 @@ def get_aprendiz(
 ):
     """Obtiene el detalle de un aprendiz específico."""
     try:
-        aprendiz = db.query(Aprendiz).filter(
-            (Aprendiz.id == str(aprendiz_id)) | (Aprendiz.user_id == str(aprendiz_id))
-        ).first()
+        if current_user.rol == "aprendiz":
+            propio = db.query(Aprendiz).filter(Aprendiz.user_id == str(current_user.id)).first()
+            if not propio:
+                raise HTTPException(status_code=404, detail="Aprendiz no encontrado")
+            if str(aprendiz_id) not in {str(current_user.id), str(propio.id)}:
+                raise HTTPException(status_code=403, detail="No tiene permiso para ver este aprendiz")
+            aprendiz = propio
+        else:
+            aprendiz = db.query(Aprendiz).filter(
+                (Aprendiz.id == str(aprendiz_id)) | (Aprendiz.user_id == str(aprendiz_id))
+            ).first()
         if not aprendiz:
             raise HTTPException(status_code=404, detail="Aprendiz no encontrado")
         return aprendiz

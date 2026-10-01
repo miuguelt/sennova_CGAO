@@ -250,7 +250,7 @@ const AprendizCard = ({
           onClick={(e) => { e.stopPropagation(); onViewActivity(user); }}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider shadow-2xs"
         >
-          Perfil & Bitácoras <Activity size={12} />
+          Ver perfil <Activity size={12} />
         </button>
       </div>
     </Card>
@@ -1190,7 +1190,7 @@ const AprendicesModule = ({ onNotify, currentUser }) => {
           setToggleConfirm(null);
         }}
         title={toggleConfirm?.is_active ? '¿Desactivar Aprendiz?' : '¿Activar Aprendiz?'}
-        description={toggleConfirm?.is_active ? `¿Desactivar la cuenta de ${toggleConfirm.nombre}? No podrá acceder al sistema hasta ser reactivado.` : `¿Activar la cuenta de ${toggleConfirm.nombre}? Podrá acceder al sistema nuevamente.`}
+        description={toggleConfirm?.is_active ? `¿Desactivar la cuenta de ${toggleConfirm.nombre}? No podrá acceder al sistema hasta ser reactivado.` : `¿Activar la cuenta de ${toggleConfirm?.nombre || 'este aprendiz'}? Podrá acceder al sistema nuevamente.`}
         confirmText={toggleConfirm?.is_active ? 'Desactivar' : 'Activar'}
         variant={toggleConfirm?.is_active ? 'danger' : 'success'}
       />

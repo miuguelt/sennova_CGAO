@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
-from app.auth import get_current_user, get_current_admin
+from app.auth import get_current_user, get_current_admin, get_current_staff
 from app.database import get_db
 from app.utils import is_valid_uuid
 
@@ -14,7 +14,7 @@ from app.models import (
     User, Proyecto, Grupo, Semillero, 
     Producto, Convocatoria, Documento,
     Entregable, Actividad, Aprendiz, Reto,
-    BitacoraEntry, AuditLog,
+    AuditLog,
     semillero_investigadores, proyecto_equipo
 )
 
@@ -104,7 +104,7 @@ def get_dashboard_stats(
         if is_admin:
             aprendices_total = db.query(Aprendiz).count()
             aprendices_activos = db.query(Aprendiz).filter(Aprendiz.estado == "activo").count()
-        elif current_user.rol in ["investigador", "instructor"]:
+        elif current_user.rol == "investigador":
             # Aprendices en semilleros del investigador
             mis_semilleros_ids = [s.id for s in db.query(Semillero).filter(
                 (Semillero.owner_id == current_user.id) |
@@ -122,19 +122,6 @@ def get_dashboard_stats(
                 aprendices_total = 0
                 aprendices_activos = 0
 
-        # Bitacoras contextual
-        query_bitacoras = db.query(BitacoraEntry)
-        if not is_admin:
-            query_bitacoras = query_bitacoras.filter(
-                (BitacoraEntry.user_id == current_user.id) |
-                (BitacoraEntry.proyecto.has(Proyecto.owner_id == current_user.id)) |
-                (BitacoraEntry.proyecto.has(Proyecto.equipo.any(User.id == current_user.id)))
-            )
-
-        total_bitacoras = query_bitacoras.count()
-        firmadas_tutor = query_bitacoras.filter(BitacoraEntry.is_firmado_investigador == True).count()
-        firmadas_aprendiz = query_bitacoras.filter(BitacoraEntry.is_firmado_aprendiz == True).count()
-
         stats = {
             "proyectos": {
                 "total": query_proyectos.count(),
@@ -146,17 +133,10 @@ def get_dashboard_stats(
                 "verificados": query_productos.filter(Producto.is_verificado == True).count(),
                 "trend": calc_trend(productos_mes_actual, productos_mes_anterior)
             },
-            "investigadores": db.query(User).filter(User.rol.in_(["investigador", "instructor"]), User.is_active == True).count() if is_admin else 0,
-            "instructores": db.query(User).filter(User.rol == "instructor", User.is_active == True).count() if is_admin else 0,
+            "investigadores": db.query(User).filter(User.rol == "investigador", User.is_active == True).count() if is_admin else 0,
             "aprendices": {
                 "total": aprendices_total,
                 "activos": aprendices_activos
-            },
-            "bitacoras": {
-                "total": total_bitacoras,
-                "firmadas_tutor": firmadas_tutor,
-                "firmadas_aprendiz": firmadas_aprendiz,
-                "pendientes": total_bitacoras - min(firmadas_tutor, firmadas_aprendiz) if total_bitacoras > 0 else 0
             }
         }
         
@@ -342,7 +322,7 @@ def get_stats_resumen(
 @router.get("/analytics/evolucion")
 def get_analytics_evolucion(
     meses: int = 12,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """Retorna datos de evolución temporal para gráficos analytics."""
@@ -537,7 +517,7 @@ def get_user_impact(
             {"name": "Mentoría / Semilleros", "value": len(todos_los_semilleros)}
         ]
 
-        tipo_rol_str = "Aprendiz Investigador" if user_db.rol == 'aprendiz' else ("Instructor Investigador" if user_db.rol == 'instructor' else "Investigador SENNOVA")
+        tipo_rol_str = "Aprendiz Investigador" if user_db.rol == 'aprendiz' else "Investigador SENNOVA"
         lineas_str = ', '.join(user_db.lineas_investigacion or ['Investigación y Desarrollo'])
         resumen_perfil = f"{tipo_rol_str} adscrito al {user_db.regional or 'CGAO'}. " + \
             (f"Participa en {len(todos_los_semilleros)} semillero(s) y {len(todos_los_proyectos)} proyecto(s) de I+D+i." if todos_los_semilleros or todos_los_proyectos else "Cuenta con perfil activo en el ecosistema SENNOVA.")
@@ -593,7 +573,7 @@ def get_user_impact(
 @router.get("/semillero/{semillero_id}/impact")
 def get_semillero_stats(
     semillero_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """Estadísticas detalladas de impacto para un semillero específico basadas en datos reales."""
@@ -662,7 +642,7 @@ def get_semillero_stats(
 @router.get("/search/global")
 def global_search(
     q: str = "",
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """Búsqueda global unificada en todo el sistema."""

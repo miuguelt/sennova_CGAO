@@ -35,13 +35,6 @@ const ROLE_CONFIG = {
     color: 'blue',
     gradient: 'from-blue-600 to-indigo-700'
   },
-  instructor: {
-    label: 'Instructor',
-    badgeVariant: 'primary',
-    icon: Briefcase,
-    color: 'blue',
-    gradient: 'from-blue-600 to-indigo-700'
-  },
   aprendiz: {
     label: 'Aprendiz Semillero',
     badgeVariant: 'warning',
@@ -922,7 +915,7 @@ export default function MensajeriaModule({
               </div>
               <h3 className="text-base font-black text-slate-800">Centro de Mensajería SENNOVA</h3>
               <p className="text-xs text-slate-500 max-w-sm mt-1 mb-6 leading-relaxed">
-                Selecciona una conversación del panel lateral o inicia un nuevo chat para coordinar proyectos, bitácoras y actividades de investigación con confirmación en tiempo real.
+                Selecciona una conversación del panel lateral o inicia un nuevo chat para coordinar proyectos y actividades de investigación con confirmación en tiempo real.
               </p>
               <Button
                 onClick={openNewChatModal}

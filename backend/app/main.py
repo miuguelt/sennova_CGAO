@@ -18,15 +18,22 @@ from app.bootstrap import (
     ensure_initial_admin,
 )
 from app.config import get_settings
-from app.database import engine, Base, SessionLocal
+from app.database import (
+    engine,
+    Base,
+    SessionLocal,
+    ensure_document_description_column,
+    ensure_investigador_role,
+)
 from app.routers import (
     auth, proyectos, grupos, semilleros, convocatorias, 
     productos, documentos, usuarios, stats, reportes, 
-    entregables, notificaciones, cvlac, retos, bitacora, 
+    entregables, notificaciones, cvlac, retos,
     maintenance, audit, plantillas, aprendices, mensajes,
     mensajes_adjuntos
 )
 from app.middlewares.audit import AuditMiddleware
+from app.middlewares.request_limits import FormulationRequestSizeLimitMiddleware
 
 settings = get_settings()
 
@@ -38,6 +45,8 @@ async def lifespan(app: FastAPI):
     try:
         Base.metadata.create_all(bind=engine)
         print("✅ Base de datos verificada/creada")
+        ensure_document_description_column(engine)
+        ensure_investigador_role(engine)
 
         # Verificación segura de columnas adicionales en tablas existentes
         try:
@@ -87,7 +96,7 @@ async def lifespan(app: FastAPI):
             print(f"👤 {result.detail}")
 
             # Poblado de datos de demostración. Borra grupos, semilleros,
-            # proyectos, productos, retos, convocatorias, aprendices, bitácora y
+            # proyectos, productos, retos, convocatorias, aprendices y
             # todos los usuarios que no sean el admin, así que solo puede correr
             # en desarrollo.
             if settings.SEED_INITIAL_DATA:
@@ -153,6 +162,8 @@ if settings.DEBUG:
         additional_origins = [o.strip() for o in extra_origins.split(",") if o.strip()]
 
 ALLOWED_ORIGINS_LIST = list(set(all_origins + additional_origins))
+
+app.add_middleware(FormulationRequestSizeLimitMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -262,7 +273,6 @@ app.include_router(entregables.router)
 app.include_router(notificaciones.router)
 app.include_router(cvlac.router)
 app.include_router(retos.router)
-app.include_router(bitacora.router)
 app.include_router(maintenance.router)
 app.include_router(audit.router)
 app.include_router(plantillas.router)

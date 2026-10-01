@@ -13,6 +13,8 @@ from app.database import get_db
 from app.models import User
 
 settings = get_settings()
+STAFF_ROLES = frozenset({"admin", "investigador"})
+USER_ROLES = frozenset({"admin", "investigador", "aprendiz"})
 
 # Configuración de seguridad
 security = HTTPBearer()
@@ -126,20 +128,15 @@ async def get_current_admin(current_user: User = Depends(get_current_user)) -> U
     return current_user
 
 
-async def get_current_investigador_or_instructor(current_user: User = Depends(get_current_user)) -> User:
-    """Verifica que el usuario actual sea admin, investigador o instructor."""
-    if current_user.rol not in ["admin", "investigador", "instructor"]:
-        print(f"🔒 [AUTH ERROR] Usuario {current_user.email} intentó acceso DOCENTE/INVESTIGADOR con rol {current_user.rol}")
+async def get_current_staff(current_user: User = Depends(get_current_user)) -> User:
+    """Verifica que el usuario actual sea administrador o investigador."""
+    if current_user.rol not in STAFF_ROLES:
+        print(f"🔒 [AUTH ERROR] Usuario {current_user.email} intentó acceso de personal con rol {current_user.rol}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="STAFF_ROLE_REQUIRED"
         )
     return current_user
-
-
-get_current_staff = get_current_investigador_or_instructor
-
-
 
 
 class AuthService:
@@ -166,6 +163,13 @@ class AuthService:
     def register_user(db: Session, email: str, password: str, nombre: str, **kwargs) -> User:
         """Registra un nuevo usuario."""
         try:
+            role = kwargs.get("rol", "investigador")
+            if role not in USER_ROLES:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="El rol de usuario no está permitido.",
+                )
+
             # Verificar si ya existe
             existing = db.query(User).filter(User.email == email).first()
             if existing:
@@ -179,7 +183,7 @@ class AuthService:
                 email=email,
                 password_hash=get_password_hash(password),
                 nombre=nombre,
-                rol=kwargs.get("rol", "investigador"),
+                rol=role,
                 sede=kwargs.get("sede"),
                 is_active=True,
                 **{k: v for k, v in kwargs.items() if k not in ("rol", "sede")}

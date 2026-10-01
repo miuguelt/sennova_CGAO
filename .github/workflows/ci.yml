@@ -29,11 +29,13 @@ concurrency:
 
 jobs:
   backend-tests:
-    name: Backend Pytest Suite (100% Tests)
+    name: Backend Pytest y cobertura global de funciones
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -46,7 +48,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
-          pip install pytest httpx
+          pip install pytest httpx pytest-cov
 
       - name: Run Backend Pytest Suite
         working-directory: ./backend
@@ -55,7 +57,22 @@ jobs:
           DEBUG: "true"
         run: |
           echo "Ejecutando suite hermética de pruebas de backend SENNOVA..."
-          python -m pytest tests/ -v --tb=short
+          python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml --cov-report=json:coverage.json
+
+      - name: Enforce 100% Backend Function Coverage
+        working-directory: ./backend
+        run: |
+          python scripts/check_changed_function_coverage.py --all-functions --coverage backend/coverage.json --format python --source-root backend/app
+
+      - name: Publish Backend Coverage Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-${{ github.run_id }}
+          path: |
+            backend/coverage.xml
+            backend/coverage.json
+          if-no-files-found: warn
 
       - name: Report Backend Test Summary
         if: always()
@@ -63,14 +80,21 @@ jobs:
           echo "### 🐍 Backend Pytest Suite Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Estado**: ${{ job.status == 'success' && '✅ Aprobado' || '❌ Fallido' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Ramas aplicables**: GitFlow PRs y ramas de desarrollo" >> $GITHUB_STEP_SUMMARY
-          echo "- **Alcance**: Auditoría E2E, Roles, Convocatorias, Proyectos, Productos MinCiencias, Bitácora Dual, Mensajería y Adjuntos" >> $GITHUB_STEP_SUMMARY
+          echo "- **Alcance**: Auditoría E2E, Roles, Grupos, Convocatorias, Proyectos, Productos MinCiencias, Mensajería y Adjuntos" >> $GITHUB_STEP_SUMMARY
 
   frontend-tests-and-build:
-    name: Frontend Vitest & Production Build
+    name: Frontend Vitest, cobertura global de funciones y compilación
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python for Coverage Gate
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Use Node.js 20
         uses: actions/setup-node@v4
@@ -84,11 +108,31 @@ jobs:
         run: |
           npm ci
 
-      - name: Run Frontend Vitest Suite
+      - name: Run Frontend Vitest Suite with V8 Coverage
         working-directory: ./frontend
         run: |
-          echo "Ejecutando pruebas unitarias e integración de Vitest (React)..."
-          npm test
+          echo "Ejecutando la suite completa de Vitest y generando cobertura V8..."
+          npm run test:coverage
+
+      - name: Capture Formulation API Coverage
+        working-directory: ./frontend
+        run: |
+          npm test -- --coverage.enabled --coverage.reporter=json --coverage.reportsDirectory=./coverage/formulation-api --run src/test/proyectos-api-import.test.js
+
+      - name: Enforce 100% Frontend Function Coverage
+        run: |
+          python backend/scripts/check_changed_function_coverage.py --all-functions --coverage frontend/coverage/coverage-final.json --coverage frontend/coverage/formulation-api/coverage-final.json --format istanbul --source-root frontend/src
+
+      - name: Publish Frontend Coverage Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-${{ github.run_id }}
+          path: |
+            frontend/coverage/coverage-final.json
+            frontend/coverage/coverage-summary.json
+            frontend/coverage/formulation-api/coverage-final.json
+          if-no-files-found: warn
 
       - name: Build Frontend Production Bundle
         working-directory: ./frontend
@@ -101,5 +145,5 @@ jobs:
         run: |
           echo "### ⚛️ Frontend Vitest & Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Estado**: ${{ job.status == 'success' && '✅ Aprobado' || '❌ Fallido' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Pruebas**: 23 suites y 226 pruebas unitarias e integración" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cobertura**: Reporte V8 publicado; todas las funciones de producción deben quedar ejecutadas por pruebas" >> $GITHUB_STEP_SUMMARY
           echo "- **Bundle Vite**: Compilación exitosa para producción" >> $GITHUB_STEP_SUMMARY

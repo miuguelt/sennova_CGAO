@@ -15,7 +15,7 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy import func
 
 from app.database import get_db
-from app.auth import get_current_investigador_or_instructor
+from app.auth import get_current_staff
 from app.models import User, Proyecto, Grupo, Semillero, Producto
 
 # Importar librerías de Excel
@@ -85,7 +85,7 @@ def auto_fit_columns(ws, max_cols, min_width=12, max_width=45):
 def generar_consolidado_proyectos(
     año: Optional[int] = Query(None, description="Año de vigencia de los proyectos"),
     formato: Literal["excel", "csv"] = Query("excel", description="Formato de salida"),
-    current_user: User = Depends(get_current_investigador_or_instructor),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """
@@ -288,7 +288,7 @@ def _generar_csv_consolidado(proyectos, año_filtro):
 @router.get("/grupos-consolidado")
 def generar_consolidado_grupos(
     formato: Literal["excel", "csv"] = Query("excel"),
-    current_user: User = Depends(get_current_investigador_or_instructor),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """Genera reporte consolidado de grupos de investigación (GrupLAC)."""
@@ -427,7 +427,7 @@ def generar_consolidado_productos(
     año: Optional[int] = Query(None, description="Año de publicación"),
     verificados_only: bool = Query(False, description="Solo productos verificados"),
     formato: Literal["excel", "csv"] = Query("excel"),
-    current_user: User = Depends(get_current_investigador_or_instructor),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """Genera reporte consolidado de productos CTeI para convocatorias MinCiencias."""
@@ -581,7 +581,7 @@ def generar_consolidado_productos(
 @router.get("/semilleros-consolidado")
 def generar_consolidado_semilleros(
     formato: Literal["excel", "csv"] = Query("excel"),
-    current_user: User = Depends(get_current_investigador_or_instructor),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """Genera reporte consolidado de semilleros y aprendices vinculados."""
@@ -709,15 +709,15 @@ def generar_consolidado_semilleros(
 @router.get("/talento-consolidado")
 def generar_consolidado_talento(
     formato: Literal["excel", "csv"] = Query("excel"),
-    current_user: User = Depends(get_current_investigador_or_instructor),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
-    """Genera reporte consolidado de talento humano, investigadores e instructores."""
+    """Genera reporte consolidado del talento humano investigador."""
     if not EXCEL_AVAILABLE and formato == "excel":
         raise HTTPException(status_code=500, detail="openpyxl no está instalado")
 
     try:
-        investigadores = db.query(User).filter(User.rol.in_(['investigador', 'instructor', 'admin'])).all()
+        investigadores = db.query(User).filter(User.rol.in_(['investigador', 'admin'])).all()
         
         if formato == "excel":
             wb = Workbook()
@@ -832,7 +832,7 @@ def generar_consolidado_talento(
 
 @router.get("/estadisticas-resumen")
 def get_estadisticas_resumen(
-    current_user: User = Depends(get_current_investigador_or_instructor),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """Retorna estadísticas consolidadas para el dashboard de reportes."""
@@ -841,7 +841,7 @@ def get_estadisticas_resumen(
         total_grupos = db.query(Grupo).count()
         total_semilleros = db.query(Semillero).count()
         total_productos = db.query(Producto).count()
-        total_investigadores = db.query(User).filter(User.rol.in_(['investigador', 'instructor'])).count()
+        total_investigadores = db.query(User).filter(User.rol == 'investigador').count()
         
         proyectos_por_estado = {
             str(estado): int(count)
@@ -908,10 +908,10 @@ def get_estadisticas_resumen(
 @router.get("/investigador/{user_id}/certificado")
 def generar_certificado_investigador(
     user_id: str,
-    current_user: User = Depends(get_current_investigador_or_instructor),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
-    """Genera un certificado de participación en PDF para un investigador o instructor."""
+    """Genera un certificado de participación en PDF para un investigador."""
     if current_user.rol != "admin" and str(current_user.id) != str(user_id):
         raise HTTPException(status_code=403, detail="No autorizado para descargar este certificado")
     try:

@@ -1,6 +1,7 @@
 """Product route composition root."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from app.auth import get_current_staff
 
 from app.routers import (
     productos_commands,
@@ -9,7 +10,10 @@ from app.routers import (
     productos_verification,
 )
 
-router = APIRouter(tags=["Productos de Investigación"])
+router = APIRouter(
+    tags=["Productos de Investigación"],
+    dependencies=[Depends(get_current_staff)],
+)
 
 # Keep route groups isolated while exposing the original public prefix.
 # Static subpaths must precede /{producto_id} so they are never shadowed.

@@ -6,7 +6,6 @@ import {
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Input from '../ui/Input';
-import Select from '../ui/Select';
 import DevLoginPanel from './DevLoginPanel';
 
 const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
@@ -14,7 +13,6 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
   const [email,        setEmail]        = useState('');
   const [password,     setPassword]     = useState('');
   const [nombre,       setNombre]       = useState('');
-  const [rol,          setRol]          = useState('investigador');
   const [showPassword, setShowPassword] = useState(false);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState('');
@@ -74,7 +72,7 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
           email: cleanEmail, 
           password, 
           nombre: nombre.trim(),
-          rol: rol
+          rol: 'aprendiz'
         });
         if (!result.success) {
           setError(result.error);
@@ -130,7 +128,7 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
             <UserTypeCard 
               icon={GraduationCap} 
               title="Aprendiz" 
-              desc="Participa en semilleros y bitácoras."
+              desc="Participa en semilleros, proyectos y retos de innovación."
               colorCls="text-emerald-600"
               bgCls="bg-emerald-50"
             />
@@ -220,17 +218,9 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
                     autoComplete="name"
                     required
                   />
-                  <Select
-                    label="Tipo de Usuario"
-                    options={[
-                      { value: 'investigador', label: 'Investigador SENNOVA' },
-                      { value: 'instructor',   label: 'Instructor Investigador / Tutor' },
-                      { value: 'aprendiz',     label: 'Aprendiz (Semillero de Investigación)' }
-                    ]}
-                    value={rol}
-                    onChange={(e) => setRol(e.target.value)}
-                    required
-                  />
+                  <p className="-mt-2 text-xs leading-relaxed text-slate-600">
+                    El registro público crea cuentas de aprendiz. Para una cuenta de investigador, solicite acceso al administrador.
+                  </p>
                 </>
               )}
 

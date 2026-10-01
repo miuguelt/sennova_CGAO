@@ -102,7 +102,22 @@ def test_proyecto_crud_and_temporal_fields():
     # 4. Generate budget template
     response_budget = client.post(f"/proyectos/{proyecto_id}/generate-budget-template")
     assert response_budget.status_code == 200
-    assert response_budget.json()["status"] == "template_generated"
+    assert response_budget.json() == {"status": "template_generated", "items_count": 8}
+
+    response_budget_detail = client.get(f"/proyectos/{proyecto_id}")
+    assert response_budget_detail.status_code == 200
+    assert [
+        item["item"] for item in response_budget_detail.json()["presupuesto_detallado"]["items"]
+    ] == [
+        "Servicios personales instructores del área administrativa",
+        "Servicios personales indirectos (sin ser roles SENNOVA), operador logístico evento EDT",
+        "Materiales de formación",
+        "Mantenimiento",
+        "Equipos sistemas",
+        "Viáticos a la formación profesional",
+        "Bienestar alumnos",
+        "Ediciones e impresos",
+    ]
 
 
 def test_proyecto_move_and_reassign_semillero():

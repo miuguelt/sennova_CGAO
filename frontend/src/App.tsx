@@ -11,7 +11,6 @@ import SemillerosModule from './components/seedbeds/SemillerosModule';
 import ConvocatoriasModule from './components/calls/ConvocatoriasModule';
 import ReportesModule from './components/reports/ReportesModule';
 import ConfiguracionModule from './components/settings/ConfiguracionModule';
-import BitacoraModule from './components/projects/BitacoraModule';
 import CronogramaModule from './components/deliverables/CronogramaModule';
 import PresupuestoModule from './components/projects/PresupuestoModule';
 import RetosModule from './components/ideas/RetosModule';
@@ -26,6 +25,7 @@ import GlobalSearch from './components/common/GlobalSearch';
 import QuickActionHub from './components/common/QuickActionHub';
 import { Toaster, toast } from 'react-hot-toast';
 import { subscribeToDataRefresh } from './utils/dataRefresh';
+import { canAccessModule, canStartModuleAction, canUseGlobalSearch, resolveAccessibleModule } from './lib/roleAccess';
 
 function AppContent() {
   const { currentUser, loading, login, register, logout, updateUser, apiError } = useAuth();
@@ -50,7 +50,7 @@ function AppContent() {
       if (!(event.ctrlKey || event.metaKey)) return;
       const key = event.key.toLowerCase();
 
-      if (key === 'k') {
+      if (key === 'k' && canUseGlobalSearch(currentUser?.rol)) {
         event.preventDefault();
         setIsSearchOpen(true);
       }
@@ -63,7 +63,7 @@ function AppContent() {
 
     window.addEventListener('keydown', onKeydown);
     return () => window.removeEventListener('keydown', onKeydown);
-  }, []);
+  }, [currentUser?.rol]);
 
   if (loading) {
     return (
@@ -85,12 +85,13 @@ function AppContent() {
   }
 
   const navigateTo = (view) => {
-    setCurrentView(view);
+    setCurrentView(resolveAccessibleModule(currentUser?.rol, view));
   };
 
   const handleModuleAction = ({ module, form, initialData = null }) => {
+    if (!canStartModuleAction(currentUser?.rol, module, form)) return;
     setPendingAction({ module, form, initialData });
-    setCurrentView(module);
+    setCurrentView(resolveAccessibleModule(currentUser?.rol, module));
   };
 
   const handleActionHandled = () => {
@@ -120,35 +121,25 @@ function AppContent() {
     };
 
     const nextView = routeByUrl[result?.url] || routeByType[result?.type] || 'grupos';
-    setCurrentView(nextView);
+    navigateTo(nextView);
   };
 
   const renderView = () => {
     const props = { currentUser, onNotify, onNavigate: navigateTo, onModuleAction: handleModuleAction };
     const actionFor = (module) => (pendingAction?.module === module ? { form: pendingAction.form, data: pendingAction.initialData } : undefined);
     const rol = currentUser?.rol;
-    const isAprendiz = rol === 'aprendiz';
-    const isInvestigador = rol === 'investigador' || rol === 'instructor';
-    const isAdmin = rol === 'admin';
 
-    // RBAC Guards
-    const adminOnlyViews = ['auditoria', 'configuracion', 'cvlac-admin', 'cvlac_admin'];
-    const staffOnlyViews = ['investigadores', 'aprendices', 'presupuesto', 'convocatorias', 'reportes'];
-
-    if (adminOnlyViews.includes(currentView) && !isAdmin) {
-      return (
-        <GrupoModule {...props} />
-      );
-    }
-
-    if (staffOnlyViews.includes(currentView) && isAprendiz) {
-      return (
-        <GrupoModule {...props} />
-      );
+    if (!canAccessModule(rol, currentView)) {
+      return <DashboardModule
+        {...props}
+        onOpenSearch={canUseGlobalSearch(rol) ? () => setIsSearchOpen(true) : undefined}
+        onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })}
+        onModuleAction={handleModuleAction}
+      />;
     }
     
     switch (currentView) {
-      case 'dashboard':      return <DashboardModule {...props} onOpenSearch={() => setIsSearchOpen(true)} onNewProject={() => isAprendiz ? handleModuleAction({ module: 'bitacora', form: 'create' }) : handleModuleAction({ module: 'proyectos', form: 'create' })} onModuleAction={handleModuleAction} />;
+      case 'dashboard':      return <DashboardModule {...props} onOpenSearch={canUseGlobalSearch(rol) ? () => setIsSearchOpen(true) : undefined} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} onModuleAction={handleModuleAction} />;
       case 'perfil':         return <PerfilModule {...props} onUpdateUser={updateUser} />;
       case 'proyectos':      return <ProyectosModule {...props} initialAction={actionFor('proyectos')} onActionHandled={handleActionHandled} />;
       case 'mis-proyectos':  return <ProyectosModule {...props} initialAction={actionFor('mis-proyectos')} onActionHandled={handleActionHandled} />;
@@ -161,7 +152,6 @@ function AppContent() {
       case 'convocatorias':  return <ConvocatoriasModule {...props} initialAction={actionFor('convocatorias')} onActionHandled={handleActionHandled} />;
       case 'reportes':       return <ReportesModule {...props} />;
       case 'configuracion':  return <ConfiguracionModule {...props} onUpdateUser={updateUser} />;
-      case 'bitacora':       return <BitacoraModule {...props} initialAction={actionFor('bitacora')} onActionHandled={handleActionHandled} />;
       case 'cronograma':     return <CronogramaModule {...props} initialAction={actionFor('cronograma')} onActionHandled={handleActionHandled} />;
       case 'presupuesto':    return <PresupuestoModule {...props} initialAction={actionFor('presupuesto')} onActionHandled={handleActionHandled} />;
       case 'retos':          return <RetosModule {...props} initialAction={actionFor('retos')} onActionHandled={handleActionHandled} onModuleAction={handleModuleAction} />;
@@ -172,7 +162,7 @@ function AppContent() {
       case 'auditoria':      return <AuditoriaModule {...props} />;
       case 'documentos':     return <DocumentCenterModule {...props} />;
       case 'repositorio':    return <DocumentCenterModule {...props} />;
-      default:               return <GrupoModule {...props} />;
+      default:               return <DashboardModule {...props} />;
     }
   };
 
@@ -192,13 +182,16 @@ function AppContent() {
           {renderView()}
         </React.Fragment>
       </main>
-      <GlobalSearch
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        onNavigate={handleSearchNavigate}
-      />
+      {canUseGlobalSearch(currentUser?.rol) && (
+        <GlobalSearch
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          onNavigate={handleSearchNavigate}
+        />
+      )}
       <QuickActionHub
         isOpen={isQuickActionsOpen}
+        currentUser={currentUser}
         onClose={() => setIsQuickActionsOpen(false)}
         onAction={handleModuleAction}
       />

@@ -14,9 +14,14 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.js'],
     include: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
-    // user-insight-panel.test.jsx se excluye: aserciones obsoletas + cuelga el worker
-    // de vitest en el teardown (hang pre-existente, no relacionado con los cambios).
-    exclude: ['**/node_modules/**', '**/dist/**', 'src/test/user-insight-panel.test.jsx'],
+    exclude: ['**/node_modules/**', '**/dist/**'],
     css: false,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{js,jsx,ts,tsx}'],
+      exclude: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}', 'src/test/**'],
+      reporter: ['text', 'json', 'json-summary'],
+      reportsDirectory: './coverage',
+    },
   },
 })

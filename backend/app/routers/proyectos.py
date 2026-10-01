@@ -1,12 +1,17 @@
 from typing import Optional
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import ValidationError
 from sqlalchemy.orm import Session, joinedload
 
-from app.auth import get_current_user
+from app.auth import STAFF_ROLES, get_current_user
+from app.config import get_settings
 from app.database import get_db
-from app.models import Proyecto, User, proyecto_equipo, Entregable, Grupo, Semillero
+from app.models import Aprendiz, Documento, Proyecto, User, proyecto_equipo, Entregable, Grupo, Semillero
 from app.schemas import (
     ProyectoCreate, ProyectoUpdate, EquipoMiembro
 )
@@ -16,21 +21,22 @@ from app.services.proyectos_service import (
     evaluar_y_auto_finalizar_proyecto,
     calcular_estatus_elaboracion
 )
+from app.services.proyecto_import_service import (
+    DOCX_MIME_TYPE,
+    MAX_FORMULATION_FILE_SIZE,
+    FormulationFileError,
+    extract_formulation_draft,
+    safe_document_filename,
+)
+from app.services.project_access import can_access_project
 
 router = APIRouter(prefix="/proyectos", tags=["Proyectos"])
+FORMULATION_STORAGE_DIR = Path(get_settings().STORAGE_DIR) / "documentos"
 
 
 def check_proyecto_access(proyecto: Proyecto, user: User) -> bool:
     """Verifica si el usuario tiene acceso al proyecto."""
-    if user.rol == "admin":
-        return True
-    if proyecto.owner_id == user.id:
-        return True
-    # Verificar si es miembro del equipo
-    for member in proyecto.equipo:
-        if member.id == user.id:
-            return True
-    return False
+    return can_access_project(proyecto, user)
 
 
 def can_edit_proyecto(proyecto: Proyecto, user: User) -> bool:
@@ -44,10 +50,64 @@ def can_edit_proyecto(proyecto: Proyecto, user: User) -> bool:
     return False
 
 
+def _build_proyecto_record(proyecto_data: ProyectoCreate, current_user: User, db: Session) -> Proyecto:
+    """Construye el registro y sus relaciones sin confirmar la transacción."""
+    grupo_id = str(proyecto_data.grupo_id) if proyecto_data.grupo_id else None
+    semillero_id = str(proyecto_data.semillero_id) if proyecto_data.semillero_id else None
+    if semillero_id and not grupo_id:
+        semillero = db.query(Semillero).filter(Semillero.id == semillero_id).first()
+        if semillero and semillero.grupo_id:
+            grupo_id = str(semillero.grupo_id)
+    if not grupo_id:
+        grupo = db.query(Grupo).first()
+        if grupo:
+            grupo_id = str(grupo.id)
+
+    proyecto = Proyecto(
+        nombre=proyecto_data.nombre,
+        nombre_corto=proyecto_data.nombre_corto,
+        codigo_sgps=proyecto_data.codigo_sgps,
+        estado=proyecto_data.estado,
+        vigencia=proyecto_data.vigencia,
+        presupuesto_total=proyecto_data.presupuesto_total,
+        año=proyecto_data.año,
+        año_fin=proyecto_data.año_fin,
+        continua_siguiente_año=proyecto_data.continua_siguiente_año,
+        tipologia=proyecto_data.tipologia,
+        linea_investigacion=proyecto_data.linea_investigacion,
+        red_conocimiento=proyecto_data.red_conocimiento,
+        descripcion=proyecto_data.descripcion,
+        objetivo_general=proyecto_data.objetivo_general,
+        objetivos_especificos=proyecto_data.objetivos_especificos,
+        is_publico=proyecto_data.is_publico,
+        presupuesto_detallado=proyecto_data.presupuesto_detallado,
+        linea_programatica=proyecto_data.linea_programatica,
+        reto_origen_id=str(proyecto_data.reto_origen_id) if proyecto_data.reto_origen_id else None,
+        semillero_id=semillero_id,
+        grupo_id=grupo_id,
+        convocatoria_id=str(proyecto_data.convocatoria_id) if proyecto_data.convocatoria_id else None,
+        owner_id=str(current_user.id),
+    )
+    db.add(proyecto)
+    db.flush()
+    if proyecto_data.equipo:
+        for member_data in proyecto_data.equipo:
+            member = db.query(User).filter(User.id == str(member_data.user_id)).first()
+            if member:
+                db.execute(proyecto_equipo.insert().values(
+                    proyecto_id=str(proyecto.id),
+                    user_id=str(member.id),
+                    rol_en_proyecto=member_data.rol_en_proyecto,
+                    horas_dedicadas=member_data.horas_dedicadas,
+                ))
+    return proyecto
+
+
 def _format_proyecto_dict(
     p: Proyecto,
     equipo_map: dict = None,
-    entregables_info: dict = None
+    entregables_info: dict = None,
+    aprendiz_view: bool = False,
 ) -> dict:
     """Construye un diccionario serializable y enriquecido para un proyecto."""
     p_id_str = str(p.id)
@@ -57,18 +117,22 @@ def _format_proyecto_dict(
     if p.equipo:
         for m in p.equipo:
             info = equipo_map.get(str(m.id)) if equipo_map else None
-            equipo.append({
+            member_data = {
                 "id": str(m.id),
                 "nombre": m.nombre,
-                "email": m.email,
                 "rol": getattr(m, 'rol', None),
-                "rol_sennova": getattr(m, 'rol_sennova', None),
-                "sede": getattr(m, 'sede', None),
                 "rol_en_proyecto": info.rol_en_proyecto if info else "Miembro",
                 "horas_dedicadas": info.horas_dedicadas if info else 0,
-                "ficha": getattr(m, 'ficha', None),
-                "programa_formacion": getattr(m, 'programa_formacion', None)
-            })
+            }
+            if not aprendiz_view:
+                member_data.update({
+                    "email": m.email,
+                    "rol_sennova": getattr(m, 'rol_sennova', None),
+                    "sede": getattr(m, 'sede', None),
+                    "ficha": getattr(m, 'ficha', None),
+                    "programa_formacion": getattr(m, 'programa_formacion', None),
+                })
+            equipo.append(member_data)
 
     # 2. Resolución de Grupo y Semillero
     grupo_id_resolved = str(p.grupo_id) if p.grupo_id else (
@@ -107,7 +171,7 @@ def _format_proyecto_dict(
         "codigo_sgps": p.codigo_sgps,
         "estado": p.estado,
         "vigencia": p.vigencia,
-        "presupuesto_total": p.presupuesto_total,
+        "presupuesto_total": None if aprendiz_view else p.presupuesto_total,
         "año": p.año,
         "año_fin": p.año_fin,
         "continua_siguiente_año": p.continua_siguiente_año,
@@ -118,7 +182,7 @@ def _format_proyecto_dict(
         "objetivo_general": p.objetivo_general,
         "objetivos_especificos": p.objetivos_especificos or [],
         "is_publico": p.is_publico,
-        "presupuesto_detallado": p.presupuesto_detallado or {},
+        "presupuesto_detallado": {} if aprendiz_view else (p.presupuesto_detallado or {}),
         "linea_programatica": p.linea_programatica,
         "reto_origen_id": str(p.reto_origen_id) if p.reto_origen_id else None,
         "semillero_id": str(p.semillero_id) if p.semillero_id else None,
@@ -127,11 +191,17 @@ def _format_proyecto_dict(
         "grupo_nombre": grupo_nombre_resolved,
         "convocatoria_id": str(p.convocatoria_id) if p.convocatoria_id else None,
         "owner_id": str(p.owner_id),
-        "owner": {
-            "id": str(p.owner.id),
-            "nombre": p.owner.nombre,
-            "email": p.owner.email
-        } if p.owner else None,
+        "owner": (
+            {"id": str(p.owner.id), "nombre": p.owner.nombre}
+            if p.owner and aprendiz_view
+            else {
+                "id": str(p.owner.id),
+                "nombre": p.owner.nombre,
+                "email": p.owner.email,
+            }
+            if p.owner
+            else None
+        ),
         "equipo": equipo,
         "total_equipo": len(equipo),
         "total_productos": len(p.productos) if p.productos else 0,
@@ -163,12 +233,17 @@ def list_proyectos(
         joinedload(Proyecto.owner)
     )
     
-    if current_user.rol != "admin":
+    if current_user.rol not in STAFF_ROLES:
         # Ver proyectos donde es owner o miembro del equipo
-        query = query.filter(
+        access_filter = (
             (Proyecto.owner_id == str(current_user.id)) | 
             (Proyecto.equipo.any(User.id == current_user.id))
         )
+        if current_user.rol == "aprendiz":
+            access_filter = access_filter | Proyecto.semillero.has(
+                Semillero.aprendices.any(Aprendiz.user_id == str(current_user.id))
+            )
+        query = query.filter(access_filter)
     
     if estado:
         query = query.filter(Proyecto.estado == estado)
@@ -220,7 +295,12 @@ def list_proyectos(
         p_id_str = str(p.id)
         equipo_map = equipo_master_map.get(p_id_str, {})
         e_info = entregables_map.get(p_id_str, {"total": 0, "aprobados": 0})
-        result.append(_format_proyecto_dict(p, equipo_map=equipo_map, entregables_info=e_info))
+        result.append(_format_proyecto_dict(
+            p,
+            equipo_map=equipo_map,
+            entregables_info=e_info,
+            aprendiz_view=current_user.rol == "aprendiz",
+        ))
     
     return result
 
@@ -258,7 +338,12 @@ def get_proyecto(
         "aprobados": sum(1 for e in entregables_list if e.estado == 'aprobado')
     }
 
-    return _format_proyecto_dict(proyecto, equipo_map=equipo_map, entregables_info=e_info)
+    return _format_proyecto_dict(
+        proyecto,
+        equipo_map=equipo_map,
+        entregables_info=e_info,
+        aprendiz_view=current_user.rol == "aprendiz",
+    )
 
 
 @router.post("", status_code=201)
@@ -271,68 +356,9 @@ def create_proyecto(
     if current_user.rol == 'aprendiz':
         raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para crear proyectos")
         
-    convocatoria_id_str = str(proyecto_data.convocatoria_id) if proyecto_data.convocatoria_id else None
-    grupo_id_str = str(proyecto_data.grupo_id) if proyecto_data.grupo_id else None
-    semillero_id_str = str(proyecto_data.semillero_id) if proyecto_data.semillero_id else None
-
-    # Si se especificó semillero pero no grupo, resolver automáticamente el grupo del semillero
-    if semillero_id_str and not grupo_id_str:
-        semillero_obj = db.query(Semillero).filter(Semillero.id == semillero_id_str).first()
-        if semillero_obj and semillero_obj.grupo_id:
-            grupo_id_str = str(semillero_obj.grupo_id)
-    
-    # Si aún no hay grupo_id, asignar el primer grupo disponible
-    if not grupo_id_str:
-        first_grupo = db.query(Grupo).first()
-        if first_grupo:
-            grupo_id_str = str(first_grupo.id)
-    
-    proyecto = Proyecto(
-        nombre=proyecto_data.nombre,
-        nombre_corto=proyecto_data.nombre_corto,
-        codigo_sgps=proyecto_data.codigo_sgps,
-        estado=proyecto_data.estado,
-        vigencia=proyecto_data.vigencia,
-        presupuesto_total=proyecto_data.presupuesto_total,
-        año=proyecto_data.año,
-        año_fin=proyecto_data.año_fin,
-        continua_siguiente_año=proyecto_data.continua_siguiente_año,
-        tipologia=proyecto_data.tipologia,
-        linea_investigacion=proyecto_data.linea_investigacion,
-        red_conocimiento=proyecto_data.red_conocimiento,
-        descripcion=proyecto_data.descripcion,
-        objetivo_general=proyecto_data.objetivo_general,
-        objetivos_especificos=proyecto_data.objetivos_especificos,
-        is_publico=proyecto_data.is_publico,
-        presupuesto_detallado=proyecto_data.presupuesto_detallado,
-        linea_programatica=proyecto_data.linea_programatica,
-        reto_origen_id=str(proyecto_data.reto_origen_id) if proyecto_data.reto_origen_id else None,
-        semillero_id=semillero_id_str,
-        grupo_id=grupo_id_str,
-        convocatoria_id=convocatoria_id_str,
-        owner_id=str(current_user.id)
-    )
-    
+    proyecto = None
     try:
-        db.add(proyecto)
-        db.flush()  # Para obtener el ID
-        proyecto_id_str = str(proyecto.id)
-        
-        # Agregar equipo si se especificó
-        if proyecto_data.equipo:
-            for miembro_data in proyecto_data.equipo:
-                miembro_user_id = str(miembro_data.user_id)
-                miembro = db.query(User).filter(User.id == miembro_user_id).first()
-                if miembro:
-                    db.execute(
-                        proyecto_equipo.insert().values(
-                            proyecto_id=proyecto_id_str,
-                            user_id=str(miembro.id),
-                            rol_en_proyecto=miembro_data.rol_en_proyecto,
-                            horas_dedicadas=miembro_data.horas_dedicadas
-                        )
-                    )
-        
+        proyecto = _build_proyecto_record(proyecto_data, current_user, db)
         db.commit()
         db.refresh(proyecto)
     except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
@@ -353,6 +379,84 @@ def create_proyecto(
     )
     
     return get_proyecto(str(proyecto.id), current_user, db)
+
+
+@router.post("/analizar-formulacion")
+async def analyze_project_formulation(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """Extrae una propuesta editable de una formulación CAP DOCX."""
+    if current_user.rol not in STAFF_ROLES:
+        raise HTTPException(status_code=403, detail="Solo el personal SENNOVA puede importar formulaciones")
+    content = await file.read(MAX_FORMULATION_FILE_SIZE + 1)
+    if len(content) > MAX_FORMULATION_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="El archivo supera el límite de 10 MB.")
+    try:
+        return extract_formulation_draft(file.filename, content)
+    except FormulationFileError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.post("/importar-formulacion", status_code=201)
+async def import_project_formulation(
+    proyecto: str = Form(..., description="Datos revisados en el formulario de proyecto, en formato JSON"),
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Crea el proyecto confirmado y conserva la formulación DOCX como soporte."""
+    if current_user.rol not in STAFF_ROLES:
+        raise HTTPException(status_code=403, detail="Solo el personal SENNOVA puede importar formulaciones")
+    content = await file.read(MAX_FORMULATION_FILE_SIZE + 1)
+    if len(content) > MAX_FORMULATION_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="El archivo supera el límite de 10 MB.")
+    try:
+        extract_formulation_draft(file.filename, content)
+    except FormulationFileError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    try:
+        project_data = ProyectoCreate.model_validate_json(proyecto)
+    except ValidationError as error:
+        raise HTTPException(status_code=422, detail=error.errors()) from error
+    if not project_data.nombre.strip():
+        raise HTTPException(status_code=422, detail="El nombre del proyecto es obligatorio.")
+
+    safe_filename = safe_document_filename(file.filename)
+    file_path = None
+    try:
+        project = _build_proyecto_record(project_data, current_user, db)
+        FORMULATION_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+        document_id = str(uuid.uuid4())
+        file_path = FORMULATION_STORAGE_DIR / f"{document_id}.docx"
+        file_path.write_bytes(content)
+        db.add(Documento(
+            id=document_id,
+            entidad_tipo="proyecto",
+            entidad_id=str(project.id),
+            tipo="formulacion_proyecto",
+            nombre_archivo=safe_filename,
+            descripcion="Formulación fuente adjunta al crear el proyecto.",
+            content_type=DOCX_MIME_TYPE,
+            file_path=str(file_path).replace("\\", "/"),
+            owner_id=str(current_user.id),
+        ))
+        db.commit()
+    except Exception as error:
+        db.rollback()
+        if file_path and file_path.exists():
+            file_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail="No fue posible guardar el proyecto y su formulación.") from error
+
+    log_actividad(
+        db,
+        current_user.id,
+        "importar_formulacion_proyecto",
+        f"Creó el proyecto desde una formulación: {project.nombre}",
+        entidad_tipo="proyecto",
+        entidad_id=str(project.id),
+    )
+    return get_proyecto(str(project.id), current_user, db)
 
 
 @router.put("/{proyecto_id}")
@@ -623,7 +727,7 @@ def generate_budget_template(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Genera una estructura base de presupuesto según la tipología del proyecto."""
+    """Carga rubros de referencia observados en un ejemplar aportado de GIC-F-037."""
     proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
@@ -631,21 +735,18 @@ def generate_budget_template(
     if not check_proyecto_access(proyecto, current_user):
         raise HTTPException(status_code=403, detail="Sin acceso")
 
-    # Plantillas base de rubros SENNOVA
+    # Rubros observados en el ejemplar GIC-F-037 cargado en la carpeta del proyecto.
+    # La vigencia debe confirmarse con la Coordinación SENNOVA antes de radicar.
     rubros_base = [
-        {"categoria": "Talento Humano", "item": "Investigador Principal", "valor": 0, "descripcion": "Honorarios o descarga horaria"},
-        {"categoria": "Materiales", "item": "Insumos de Laboratorio", "valor": 0, "descripcion": "Materiales consumibles"},
-        {"categoria": "Equipos", "item": "Adquisición de Equipos", "valor": 0, "descripcion": "Maquinaria o hardware especializado"},
-        {"categoria": "Software", "item": "Licencias de Software", "valor": 0, "descripcion": "Suscripciones o licencias perpetuas"},
-        {"categoria": "Servicios", "item": "Servicios Tecnológicos", "valor": 0, "descripcion": "Pruebas externas o asesorías"},
-        {"categoria": "Viajes", "item": "Viáticos y Salidas de Campo", "valor": 0, "descripcion": "Transporte y estadía"},
+        {"categoria": "Servicios personales", "item": "Servicios personales instructores del área administrativa", "valor": 0, "descripcion": "Rubro observado en el ejemplar GIC-F-037 cargado."},
+        {"categoria": "Servicios personales", "item": "Servicios personales indirectos (sin ser roles SENNOVA), operador logístico evento EDT", "valor": 0, "descripcion": "Rubro observado en el ejemplar GIC-F-037 cargado."},
+        {"categoria": "Materiales de formación", "item": "Materiales de formación", "valor": 0, "descripcion": "Rubro observado en el ejemplar GIC-F-037 cargado."},
+        {"categoria": "Mantenimiento", "item": "Mantenimiento", "valor": 0, "descripcion": "Rubro observado en el ejemplar GIC-F-037 cargado."},
+        {"categoria": "Equipos de sistemas", "item": "Equipos sistemas", "valor": 0, "descripcion": "Rubro observado en el ejemplar GIC-F-037 cargado."},
+        {"categoria": "Viáticos a la formación profesional", "item": "Viáticos a la formación profesional", "valor": 0, "descripcion": "Rubro observado en el ejemplar GIC-F-037 cargado."},
+        {"categoria": "Otros", "item": "Bienestar alumnos", "valor": 0, "descripcion": "Rubro observado en el ejemplar GIC-F-037 cargado."},
+        {"categoria": "Ediciones e impresos", "item": "Ediciones e impresos", "valor": 0, "descripcion": "Rubro observado en el ejemplar GIC-F-037 cargado."},
     ]
-    
-    # Ajustar según tipología
-    if proyecto.tipologia == "Innovación":
-        rubros_base.append({"categoria": "Propiedad Intelectual", "item": "Registro de Patente/Marca", "valor": 0, "descripcion": "Costos notariales y de registro"})
-    elif proyecto.tipologia == "Modernización":
-        rubros_base.append({"categoria": "Infraestructura", "item": "Adecuaciones Locativas", "valor": 0, "descripcion": "Mejoras al ambiente de formación"})
 
     try:
         proyecto.presupuesto_detallado = {"items": rubros_base, "total_estimado": 0}

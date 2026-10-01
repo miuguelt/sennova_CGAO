@@ -23,12 +23,13 @@ const UserCard = ({ user, onEdit, onDelete, onToggleActive, onViewActivity }) =>
   useClickOutside(menuRef, () => setShowMenu(false));
 
   return (
-    <Card 
+    <Card
       className="p-5 flex flex-col gap-4 group hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/10 transition-all cursor-pointer relative"
       onClick={() => onViewActivity(user)}
     >
       <div className="absolute top-4 right-4 z-10">
-        <button 
+        <button
+          aria-label={`Más opciones de ${user.nombre}`}
           onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
           className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"
         >
@@ -55,11 +56,11 @@ const UserCard = ({ user, onEdit, onDelete, onToggleActive, onViewActivity }) =>
           {user.nombre.charAt(0)}
         </div>
         <div className="flex gap-2 mr-6">
-          <Badge 
-            variant={user.rol === 'admin' ? 'danger' : user.rol === 'instructor' ? 'info' : 'success'} 
+          <Badge
+            variant={user.rol === 'admin' ? 'danger' : 'success'}
             className="font-black text-[9px] uppercase tracking-wider"
           >
-            {user.rol === 'admin' ? 'ADMIN' : user.rol === 'instructor' ? 'INSTRUCTOR' : 'INVESTIGADOR'}
+            {user.rol === 'admin' ? 'ADMIN' : 'INVESTIGADOR'}
           </Badge>
           {!user.is_active && <Badge variant="default" className="text-[9px] font-black uppercase">Inactivo</Badge>}
         </div>
@@ -89,9 +90,9 @@ const UserCard = ({ user, onEdit, onDelete, onToggleActive, onViewActivity }) =>
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Impacto: {user.impacto || 0}%</span>
         </div>
         {user.cv_lac_url && (
-          <a 
-            href={user.cv_lac_url} 
-            target="_blank" 
+          <a
+            href={user.cv_lac_url}
+            target="_blank"
             rel="noopener noreferrer"
             className="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg hover:bg-emerald-50 transition-all"
             onClick={(e) => e.stopPropagation()}
@@ -110,14 +111,14 @@ const InvestigadoresModule = ({ onNotify }) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState({ rol: '', is_active: '' });
-  
+
   // Modales
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
@@ -228,7 +229,7 @@ const InvestigadoresModule = ({ onNotify }) => {
 
   return (
     <div className="space-y-8 animate-fadeIn pb-20">
-      
+
       {/* ── Welcome & Stats ── */}
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="lg:w-2/3 bg-white/40 backdrop-blur-md p-10 rounded-3xl border border-white shadow-sm flex flex-col justify-center relative overflow-hidden">
@@ -236,7 +237,7 @@ const InvestigadoresModule = ({ onNotify }) => {
           <div className="relative z-10">
             <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none mb-4">Talento SENNOVA</h1>
             <p className="text-slate-500 font-medium max-w-lg leading-relaxed">
-              Gestione el capital intelectual del Centro. Supervise perfiles de investigadores e instructores de semillero, asigne roles y audite su impacto formativo y científico.
+              Gestione el capital intelectual del Centro. Supervise los perfiles de investigadores, asigne roles y audite su impacto formativo y científico.
             </p>
             <div className="flex flex-wrap gap-3 mt-8">
               <Button variant="sena" className="h-12 px-8 shadow-xl shadow-emerald-500/30" onClick={handleOpenCreate}>
@@ -248,7 +249,7 @@ const InvestigadoresModule = ({ onNotify }) => {
             </div>
           </div>
         </div>
-        
+
         <div className="lg:w-1/3 grid grid-cols-2 gap-4">
           <Card className="p-8 bg-gradient-to-br from-emerald-600 to-emerald-800 text-white flex flex-col justify-between border-0 shadow-xl shadow-emerald-500/20">
             <Users size={32} className="opacity-50" />
@@ -272,25 +273,24 @@ const InvestigadoresModule = ({ onNotify }) => {
         <div className="flex items-center gap-4 flex-1">
           <div className="relative flex-1 max-w-md">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Filtrar por nombre, email o especialidad..." 
+            <input
+              type="text"
+              placeholder="Filtrar por nombre, email o especialidad..."
               className="w-full pl-10 pr-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all text-sm font-medium"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <select 
+          <select
             className="px-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
             value={filter.rol}
             onChange={(e) => setFilter({...filter, rol: e.target.value})}
           >
             <option value="">Todos los Roles</option>
             <option value="investigador">Investigadores SENNOVA</option>
-            <option value="instructor">Instructores</option>
             <option value="admin">Administradores</option>
           </select>
-          <select 
+          <select
             className="px-4 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
             value={filter.is_active}
             onChange={(e) => setFilter({...filter, is_active: e.target.value})}
@@ -341,20 +341,20 @@ const InvestigadoresModule = ({ onNotify }) => {
             <Input label="Nombre Completo" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} required />
             <Input label="Correo Institucional" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <Select 
-              label="Rol en Plataforma" 
-              options={[['investigador', 'Investigador SENNOVA'], ['instructor', 'Instructor Investigador'], ['admin', 'Administrador']].map(([value, label]) => ({ value, label }))} 
-              value={formData.rol} 
-              onChange={e => setFormData({...formData, rol: e.target.value})} 
+            <Select
+              label="Rol en Plataforma"
+              options={[['investigador', 'Investigador SENNOVA'], ['admin', 'Administrador']].map(([value, label]) => ({ value, label }))}
+              value={formData.rol}
+              onChange={e => setFormData({...formData, rol: e.target.value})}
             />
-            <Input 
-              label={isEditing ? "Contraseña (dejar vacío para mantener)" : "Contraseña Temporal"} 
-              type="password" 
-              value={formData.password} 
-              onChange={e => setFormData({...formData, password: e.target.value})} 
-              required={!isEditing} 
+            <Input
+              label={isEditing ? "Contraseña (dejar vacío para mantener)" : "Contraseña Temporal"}
+              type="password"
+              value={formData.password}
+              onChange={e => setFormData({...formData, password: e.target.value})}
+              required={!isEditing}
             />
           </div>
 
@@ -364,11 +364,11 @@ const InvestigadoresModule = ({ onNotify }) => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <Select 
-              label="Nivel Académico" 
-              options={['Técnico', 'Tecnólogo', 'Profesional', 'Especialización', 'Maestría', 'Doctorado'].map(v => ({ value: v, label: v }))} 
-              value={formData.nivel_academico} 
-              onChange={e => setFormData({...formData, nivel_academico: e.target.value})} 
+            <Select
+              label="Nivel Académico"
+              options={['Técnico', 'Tecnólogo', 'Profesional', 'Especialización', 'Maestría', 'Doctorado'].map(v => ({ value: v, label: v }))}
+              value={formData.nivel_academico}
+              onChange={e => setFormData({...formData, nivel_academico: e.target.value})}
             />
             <Input label="URL Perfil CVLAC" placeholder="https://scienti.minciencias.gov.co/..." value={formData.cv_lac_url} onChange={e => setFormData({...formData, cv_lac_url: e.target.value})} />
           </div>
@@ -389,11 +389,10 @@ const InvestigadoresModule = ({ onNotify }) => {
         }
       >
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { cls: 'bg-rose-50 border-rose-100', vCls: 'text-rose-700', lCls: 'text-rose-600', tCls: 'text-rose-500', rol: 'admin', label: 'Administradores', desc: 'Control total y gobernanza.' },
               { cls: 'bg-emerald-50 border-emerald-100', vCls: 'text-emerald-700', lCls: 'text-emerald-600', tCls: 'text-emerald-500', rol: 'investigador', label: 'Investigadores', desc: 'Liderazgo de proyectos I+D+i.' },
-              { cls: 'bg-sky-50 border-sky-100', vCls: 'text-sky-700', lCls: 'text-sky-600', tCls: 'text-sky-500', rol: 'instructor', label: 'Instructores', desc: 'Coordinación de semilleros.' },
             ].map(r => (
               <div key={r.rol} className={`${r.cls} p-5 rounded-3xl border`}>
                 <p className={`text-3xl font-black ${r.vCls}`}>{users.filter(u => u.rol === r.rol).length}</p>
@@ -449,7 +448,11 @@ const InvestigadoresModule = ({ onNotify }) => {
           setToggleConfirm(null);
         }}
         title={toggleConfirm?.is_active ? '¿Desactivar Cuenta?' : '¿Activar Cuenta?'}
-        description={toggleConfirm?.is_active ? `¿Desactivar la cuenta de ${toggleConfirm.nombre}? No podrá iniciar sesión hasta ser reactivada.` : `¿Activar la cuenta de ${toggleConfirm.nombre}? Podrá iniciar sesión nuevamente.`}
+        description={toggleConfirm?.is_active
+          ? `¿Desactivar la cuenta de ${toggleConfirm.nombre}? No podrá iniciar sesión hasta ser reactivada.`
+          : toggleConfirm
+            ? `¿Activar la cuenta de ${toggleConfirm.nombre}? Podrá iniciar sesión nuevamente.`
+            : ''}
         confirmText={toggleConfirm?.is_active ? 'Desactivar' : 'Activar'}
         variant={toggleConfirm?.is_active ? 'danger' : 'success'}
       />

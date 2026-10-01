@@ -7,7 +7,7 @@ const SUGERENCIAS = [
   '¡Hola! ¿Cómo estás?',
   '¿Me confirmas el avance del entregable?',
   'Quedo atento a tus comentarios.',
-  'Excelente trabajo con la bitácora.',
+  'Excelente trabajo con el avance del proyecto.',
 ];
 
 /**

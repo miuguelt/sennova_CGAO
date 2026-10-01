@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from app.config import get_settings
 
@@ -51,3 +51,31 @@ def safe_commit(db: Session):
         except Exception:
             pass
         raise
+
+
+def ensure_document_description_column(target_engine=engine):
+    """Añade la columna opcional de descripción a instalaciones existentes."""
+    inspector = inspect(target_engine)
+    if "documentos" not in inspector.get_table_names():
+        return False
+    columns = {column["name"] for column in inspector.get_columns("documentos")}
+    if "descripcion" in columns:
+        return False
+    with target_engine.begin() as connection:
+        connection.execute(text("ALTER TABLE documentos ADD COLUMN descripcion TEXT"))
+    return True
+
+
+def ensure_investigador_role(target_engine=engine):
+    """Unifica en investigador los registros que usaban el rol eliminado."""
+    inspector = inspect(target_engine)
+    if "users" not in inspector.get_table_names():
+        return 0
+    columns = {column["name"] for column in inspector.get_columns("users")}
+    if "rol" not in columns:
+        return 0
+    with target_engine.begin() as connection:
+        result = connection.execute(
+            text("UPDATE users SET rol = 'investigador' WHERE rol = 'instructor'")
+        )
+    return result.rowcount or 0

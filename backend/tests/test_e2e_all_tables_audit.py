@@ -10,14 +10,15 @@ Valida el ciclo de vida completo de cada entidad en la base de datos de extremo 
 7. Productos Minciencias (CRUD, Verificación, Tipologías)
 8. Entregables & Cronograma (CRUD, Fases, Estados, Plantillas)
 9. Documentos & Archivos (Upload, Download, CVLaC)
-10. Bitácora Técnica (CRUD, Firma Dual, Adjuntos)
-11. Banco de Retos (CRUD, Asignación)
-12. Notificaciones In-App (CRUD, Estados, CVLaC alerts)
-13. Mensajería Interna (Directos, Anuncios, Conversaciones)
-14. Plantillas y Certificados (Cronograma, PDF, Reportes)
-15. Reportes Consolidados (Excel, CSV, Estadísticas)
-16. Auditoría y Trazabilidad (AuditLogs, Actividades)
-17. Sistema y Mantenimiento (Health, Backup, Cache)
+10. Banco de Retos (CRUD, Asignación)
+11. Notificaciones In-App (CRUD, Estados, CVLaC alerts)
+12. Mensajería Interna (Directos, Anuncios, Conversaciones)
+13. CVLaC e importación de productos
+14. Reportes Consolidados (Excel, CSV, Estadísticas)
+15. Plantillas y Certificados (Cronograma, PDF, Reportes)
+16. Estadísticas y tablero
+17. Auditoría y mantenimiento
+18. Adjuntos de mensajería
 """
 
 import os
@@ -41,11 +42,12 @@ from app.database import Base, get_db
 from app.main import app
 from app.models import (
     User, Grupo, Semillero, Aprendiz, Convocatoria, Proyecto, Producto,
-    Entregable, Documento, BitacoraEntry, Reto, Notificacion, Actividad,
+    Entregable, Documento, Reto, Notificacion, Actividad,
     Mensaje, AuditLog, MensajeAdjunto, grupo_integrantes, proyecto_equipo,
     semillero_investigadores
 )
 from app.auth import get_password_hash, create_access_token
+import app.routers.documentos as documentos_router
 
 test_engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
@@ -89,7 +91,7 @@ def setup_audit_db():
         email="instructor_audit@sena.edu.co",
         password_hash=get_password_hash("Inst123!"),
         nombre="Ing. Carlos Instructor",
-        rol="instructor",
+        rol="investigador",
         rol_sennova="Tutor de Semillero",
         sede="CGAO Vélez",
         regional="Santander",
@@ -744,10 +746,22 @@ def test_audit_entregables_cronograma(client, auth_tokens):
 # ==============================================================================
 # 8. TABLA: DOCUMENTOS & GESTIÓN DE ARCHIVOS
 # ==============================================================================
-def test_audit_documentos(client, auth_tokens):
+def test_audit_documentos(client, auth_tokens, tmp_path, monkeypatch):
+    monkeypatch.setattr(documentos_router, "STORAGE_DIR", tmp_path)
     headers = auth_tokens["admin"]["headers"]
-    res_proj = client.get("/proyectos", headers=headers)
-    proj_id = res_proj.json()[0]["id"]
+    existing_projects = client.get("/proyectos", headers=headers).json()
+    created_project_id = None
+    if existing_projects:
+        proj_id = existing_projects[0]["id"]
+    else:
+        res_proj = client.post(
+            "/proyectos",
+            json={"nombre": "Proyecto de prueba de documentos", "estado": "En ejecución"},
+            headers=headers,
+        )
+        assert res_proj.status_code == 201, res_proj.text
+        proj_id = res_proj.json()["id"]
+        created_project_id = proj_id
 
     # 8.1 Cargar Documento (Base64 JSON)
     dummy_pdf_content = b"%PDF-1.4 dummy test content for sennova"
@@ -758,11 +772,13 @@ def test_audit_documentos(client, auth_tokens):
         "entidad_id": proj_id,
         "tipo": "informe_final",
         "nombre_archivo": "informe_final_bovismart_2026.pdf",
-        "data_base64": dummy_b64
+        "data_base64": dummy_b64,
+        "descripcion": "GIC-F-037, acta de inicio, versión por confirmar",
     }, headers=headers)
     assert res_doc.status_code in (200, 201)
     doc = res_doc.json()
     doc_id = doc["id"]
+    assert doc["descripcion"] == "GIC-F-037, acta de inicio, versión por confirmar"
 
     # 8.2 Listar Documentos
     res_list = client.get(f"/documentos?entidad_id={proj_id}", headers=headers)
@@ -773,81 +789,63 @@ def test_audit_documentos(client, auth_tokens):
     res_down = client.get(f"/documentos/{doc_id}/download", headers=headers)
     assert res_down.status_code == 200
     assert "data_base64" in res_down.json()
+    assert res_down.json()["descripcion"] == "GIC-F-037, acta de inicio, versión por confirmar"
+
+    # 8.3.1 Cargar archivo multipart con descripción y recuperar metadatos.
+    upload_description = "GIC-F-037, acta de inicio, versión por confirmar"
+    res_upload = client.post(
+        "/documentos/upload",
+        data={
+            "entidad_tipo": "proyecto",
+            "entidad_id": proj_id,
+            "tipo": "acta",
+            "descripcion": upload_description,
+        },
+        files={"file": ("acta_inicio.pdf", dummy_pdf_content, "application/pdf")},
+        headers=headers,
+    )
+    assert res_upload.status_code == 201, res_upload.text
+    uploaded_document_id = res_upload.json()["id"]
+    assert res_upload.json()["descripcion"] == upload_description
+    assert client.get(f"/documentos/{uploaded_document_id}/download", headers=headers).json()["descripcion"] == upload_description
+
+    xlsx_upload = client.post(
+        "/documentos/upload",
+        data={"entidad_tipo": "proyecto", "entidad_id": proj_id, "tipo": "acta"},
+        files={
+            "file": (
+                "GIC-F-032.xlsx",
+                b"PK\x03\x04 referencia de hoja de calculo",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+        headers=headers,
+    )
+    assert xlsx_upload.status_code == 201, xlsx_upload.text
+    assert xlsx_upload.json()["nombre_archivo"] == "GIC-F-032.xlsx"
+
+    pptx_upload = client.post(
+        "/documentos/upload",
+        data={"entidad_tipo": "proyecto", "entidad_id": proj_id, "tipo": "evidencia"},
+        files={
+            "file": (
+                "propuesta.pptx",
+                b"PK\x03\x04 referencia de presentacion",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            )
+        },
+        headers=headers,
+    )
+    assert pptx_upload.status_code == 201, pptx_upload.text
+    assert pptx_upload.json()["nombre_archivo"] == "propuesta.pptx"
 
     # 8.4 Eliminar Documento (DELETE documentos)
     res_del_doc = client.delete(f"/documentos/{doc_id}", headers=headers)
     assert res_del_doc.status_code == 200
     res_del_doc_check = client.get(f"/documentos/{doc_id}/download", headers=headers)
     assert res_del_doc_check.status_code == 404
-
-
-# ==============================================================================
-# 9. TABLA: BITÁCORA TÉCNICA (Firma Dual de Investigador y Aprendiz)
-# ==============================================================================
-def test_audit_bitacora_dual_signing(client, auth_tokens):
-    inv_headers = auth_tokens["investigador"]["headers"]
-    apr_headers = auth_tokens["aprendiz"]["headers"]
-    admin_headers = auth_tokens["admin"]["headers"]
-
-    res_proj = client.get("/proyectos", headers=admin_headers)
-    proj_id = res_proj.json()[0]["id"]
-
-    # 9.1 Crear Entrada de Bitácora
-    res_bita = client.post("/bitacora", json={
-        "proyecto_id": proj_id,
-        "titulo": "Sesión de Trabajo #1: Calibración de Sensores de Temperatura",
-        "contenido": "Se configuraron los microcontroladores ESP32 y se validó la comunicación MQTT.",
-        "categoria": "técnica",
-        "fecha": datetime.now(timezone.utc).isoformat()
-    }, headers=inv_headers)
-    assert res_bita.status_code in (200, 201)
-    bitacora = res_bita.json()
-    bita_id = bitacora["id"]
-
-    # 9.2 Firma de Investigador
-    res_sign_inv = client.post(f"/bitacora/{bita_id}/sign", json={
-        "evidence": {"ip": "192.168.1.10", "device": "Workstation Investigador"}
-    }, headers=inv_headers)
-    assert res_sign_inv.status_code == 200
-    assert res_sign_inv.json()["is_firmado_investigador"] is True
-
-    # 9.3 Firma de Aprendiz
-    res_sign_apr = client.post(f"/bitacora/{bita_id}/sign", json={
-        "evidence": {"ip": "192.168.1.20", "device": "Laptop Aprendiz ADSO"}
-    }, headers=apr_headers)
-    assert res_sign_apr.status_code == 200
-    assert res_sign_apr.json()["is_firmado_aprendiz"] is True
-
-    # 9.4 Listar Bitácora por Proyecto
-    res_bita_proj = client.get(f"/bitacora/proyecto/{proj_id}", headers=inv_headers)
-    assert res_bita_proj.status_code == 200
-    assert len(res_bita_proj.json()) >= 1
-
-    # 9.5 Creación, Consulta, Actualización y Eliminación de Entrada de Bitácora (Full CRUD bitacora_entries)
-    res_temp_bita = client.post("/bitacora", json={
-        "proyecto_id": proj_id,
-        "titulo": "Entrada Temporal de Prueba",
-        "contenido": "Contenido transitorio de prueba",
-        "categoria": "técnica"
-    }, headers=inv_headers)
-    assert res_temp_bita.status_code in (200, 201)
-    temp_bid = res_temp_bita.json()["id"]
-
-    res_get_bit = client.get(f"/bitacora/{temp_bid}", headers=inv_headers)
-    assert res_get_bit.status_code == 200
-    assert res_get_bit.json()["id"] == temp_bid
-
-    res_up_bit = client.put(f"/bitacora/{temp_bid}", json={
-        "titulo": "Entrada Temporal Modificada con Éxito",
-        "contenido": "Contenido actualizado de prueba"
-    }, headers=inv_headers)
-    assert res_up_bit.status_code == 200
-    assert res_up_bit.json()["titulo"] == "Entrada Temporal Modificada con Éxito"
-
-    res_del_bita = client.delete(f"/bitacora/{temp_bid}", headers=inv_headers)
-    assert res_del_bita.status_code == 200
-    res_del_bita_check = client.get(f"/bitacora/{temp_bid}", headers=inv_headers)
-    assert res_del_bita_check.status_code == 404
+    if created_project_id:
+        assert client.delete(f"/proyectos/{created_project_id}", headers=headers).status_code == 200
 
 
 # ==============================================================================
@@ -1097,11 +1095,6 @@ def test_audit_plantillas(client, auth_tokens):
     # 15.2 Reporte Mensual de Avance
     res_rep = client.get(f"/plantillas/usuarios/{inv_id}/reporte-mensual?mes=6&año=2026", headers=inv_headers)
     assert res_rep.status_code == 200
-
-    # 15.3 Bitácora Oficial
-    res_bit_oficial = client.get(f"/plantillas/proyectos/{proj_id}/bitacora-oficial", headers=inv_headers)
-    assert res_bit_oficial.status_code == 200
-    assert "entradas" in res_bit_oficial.json()
 
 
 # ==============================================================================

@@ -3,7 +3,7 @@ import {
   DollarSign, PieChart, Plus, Trash2, Edit2, 
   ChevronRight, Save, X, Briefcase, Package, 
   Cpu, Globe, Truck, Wrench, Zap, Loader2,
-  TrendingUp, BarChart3, AlertCircle, CheckCircle2
+  TrendingUp, BarChart3, AlertCircle, CheckCircle2, Users, FileText
 } from 'lucide-react';
 import { ProyectosAPI } from '../../api/proyectos';
 import Button from '../ui/Button';
@@ -23,6 +23,13 @@ const CATEGORIAS = [
   { value: 'Servicios',       icon: Globe,     color: 'text-rose-600', bg: 'bg-rose-50' },
   { value: 'Viajes',          icon: Truck,     color: 'text-slate-600', bg: 'bg-slate-50' },
   { value: 'Otros',           icon: Wrench,    color: 'text-slate-600', bg: 'bg-slate-50' },
+  { value: 'Servicios personales', icon: Briefcase, color: 'text-blue-700', bg: 'bg-blue-50' },
+  { value: 'Materiales de formación', icon: Package, color: 'text-emerald-700', bg: 'bg-emerald-50' },
+  { value: 'Mantenimiento', icon: Wrench, color: 'text-amber-700', bg: 'bg-amber-50' },
+  { value: 'Equipos de sistemas', icon: Cpu, color: 'text-indigo-700', bg: 'bg-indigo-50' },
+  { value: 'Viáticos a la formación profesional', icon: Truck, color: 'text-slate-700', bg: 'bg-slate-100' },
+  { value: 'Bienestar alumnos', icon: Users, color: 'text-pink-700', bg: 'bg-pink-50' },
+  { value: 'Ediciones e impresos', icon: FileText, color: 'text-cyan-700', bg: 'bg-cyan-50' },
 ];
 
 const getCatInfo = (cat) => CATEGORIAS.find(c => c.value === cat) || CATEGORIAS[6];
@@ -82,7 +89,7 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
     setLoading(true);
     try {
       await ProyectosAPI.generarPresupuesto(selectedProjectId);
-      onNotify?.('Plantilla generada exitosamente', 'success');
+      onNotify?.('Rubros de referencia cargados. Revise la vigencia y los valores antes de radicar.', 'success');
       setTemplateConfirm(false);
       loadProyectoDetail();
     } catch (err) {
@@ -158,13 +165,13 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
           </div>
           <div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">Presupuesto y Finanzas</h1>
-            <p className="text-sm text-slate-500 font-medium">Gestión de recursos y rubros institucionales</p>
+            <p className="text-sm text-slate-500 font-medium">Gestión de rubros y montos estimados del proyecto</p>
           </div>
         </div>
         <div className="flex gap-2">
           {items.length === 0 && !loading && selectedProjectId && (
             <Button onClick={handleGenerateTemplate} variant="outline">
-              <Zap size={18} className="mr-2" /> Auto-Generar Rubros
+            <Zap size={18} className="mr-2" /> Cargar rubros de referencia
             </Button>
           )}
           <Button 
@@ -256,6 +263,9 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
 
         {/* Items List */}
         <div className="lg:col-span-2 space-y-4">
+          <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-950">
+            La lista inicial usa rubros observados en el ejemplar GIC-F-037 cargado en la carpeta del proyecto. Confirme la versión vigente y los conceptos aplicables con la Coordinación SENNOVA antes de radicar.
+          </div>
           {loading ? (
             <div className="py-20 text-center">
               <Loader2 size={40} className="animate-spin text-emerald-600 mx-auto mb-4" />
@@ -295,10 +305,10 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
               </div>
               <h3 className="text-slate-900 font-bold text-lg">Sin Rubros Definidos</h3>
               <p className="text-slate-500 text-sm mt-1 max-w-xs mx-auto">
-                No se ha registrado el presupuesto detallado para este proyecto. Puedes usar la plantilla automática para empezar.
+                No se ha registrado el presupuesto detallado para este proyecto. Puedes cargar rubros de referencia y ajustar los conceptos según el formato institucional vigente.
               </p>
               <Button onClick={handleGenerateTemplate} variant="outline" className="mt-6">
-                <Zap size={18} className="mr-2" /> Generar Plantilla SENNOVA
+                <Zap size={18} className="mr-2" /> Cargar rubros de referencia
               </Button>
             </div>
           )}
@@ -372,9 +382,9 @@ const PresupuestoModule = ({ currentUser, onNotify, initialAction, onActionHandl
         isOpen={templateConfirm}
         onClose={() => setTemplateConfirm(false)}
         onConfirm={confirmGenerateTemplate}
-        title="¿Generar plantilla base?"
-        description="Se generará la plantilla base de presupuesto según la tipología del proyecto. Esto sobrescribirá cualquier dato actual."
-        confirmText="Generar Plantilla"
+        title="¿Cargar rubros de referencia?"
+        description="Se cargarán ocho rubros observados en el ejemplar GIC-F-037 de la carpeta del proyecto. Confirme la versión y los conceptos con la Coordinación SENNOVA. Esta acción reemplazará el detalle actual."
+        confirmText="Cargar rubros"
         variant="warning"
       />
     </div>

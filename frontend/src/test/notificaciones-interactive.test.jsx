@@ -71,9 +71,9 @@ describe('Notification Routing and Navigation', () => {
     expect(msgTarget.label).toBe('Ir al Chat');
 
     expect(resolveNotificationTarget({ entidad_tipo: 'bitacora', entidad_id: 'b-99' })).toEqual({
-      module: 'bitacora',
-      action: { module: 'bitacora', form: 'view', initialData: { id: 'b-99' } },
-      label: 'Ver Bitácora'
+      module: 'proyectos',
+      action: null,
+      label: 'Ver proyectos'
     });
 
     expect(resolveNotificationTarget({ tipo: 'cvlac' })).toEqual({
@@ -117,6 +117,14 @@ describe('Notification Routing and Navigation', () => {
       { onNavigate, onModuleAction }
     );
     expect(onNavigate).toHaveBeenCalledWith('notificaciones');
+
+    onNavigate.mockClear();
+    navigateNotification(
+      { entidad_tipo: 'bitacora', entidad_id: 'b-99' },
+      { onNavigate, onModuleAction }
+    );
+    expect(onNavigate).toHaveBeenCalledWith('proyectos');
+    expect(onModuleAction).not.toHaveBeenCalledWith(expect.objectContaining({ module: 'bitacora' }));
   });
 });
 

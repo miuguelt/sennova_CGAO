@@ -5,14 +5,18 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.auth import get_current_user, get_current_admin
+from app.auth import get_current_user, get_current_admin, get_current_staff
 from app.database import get_db, safe_commit
 from app.models import Convocatoria, User, Proyecto, Notificacion
 from app.schemas import ConvocatoriaCreate, ConvocatoriaUpdate, ConvocatoriaResponse
 from app.utils import log_actividad
 from app.services import EmailService
 
-router = APIRouter(prefix="/convocatorias", tags=["Convocatorias MINCIENCIAS / SENNOVA"])
+router = APIRouter(
+    prefix="/convocatorias",
+    tags=["Convocatorias MINCIENCIAS / SENNOVA"],
+    dependencies=[Depends(get_current_staff)],
+)
 
 
 def _attach_project_count(convocatorias: List[Convocatoria], db: Session):
@@ -94,7 +98,7 @@ def create_convocatoria(
     # Notificar a todos los investigadores activos
     try:
         investigadores = db.query(User).filter(
-            User.rol.in_(['investigador', 'instructor']),
+            User.rol == 'investigador',
             User.is_active != False
         ).all()
         for inv in investigadores:

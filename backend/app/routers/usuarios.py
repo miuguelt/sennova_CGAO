@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.auth import get_current_user, get_current_admin, get_password_hash
+from app.auth import get_current_user, get_current_admin, get_current_staff, get_password_hash
 from app.database import get_db
 from app.models import User, Proyecto, Grupo, Semillero, Producto, Actividad, Documento, Entregable, Aprendiz
 from app.schemas import UserCreate, UserUpdate, ActividadResponse
@@ -73,7 +73,7 @@ def list_usuarios(
     rol: Optional[str] = None,
     is_active: Optional[bool] = None,
     search: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """Listar todos los usuarios (solo admin, o investigador si filtra por aprendices)."""
@@ -265,7 +265,7 @@ def update_usuario(
 @router.delete("/{user_id}")
 def delete_usuario(
     user_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """Eliminar un usuario (admin elimina cualquiera, investigador elimina aprendices)."""
@@ -339,7 +339,7 @@ def reset_password(
 @router.post("/{user_id}/toggle-active")
 def toggle_user_active(
     user_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """Activar/desactivar usuario (admin cualquiera, investigador aprendices)."""
@@ -382,7 +382,7 @@ def toggle_user_active(
 
 @router.get("/stats/resumen")
 def get_usuarios_stats(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """Estadísticas de usuarios (Acceso investigadores)."""

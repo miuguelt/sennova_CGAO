@@ -376,6 +376,15 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction, initialAction, onA
                     <Edit2 size={16} className="mr-1.5" /> Editar Reto
                   </Button>
                 )}
+                {(currentUser?.rol === 'admin' || currentUser?.id === selectedReto.owner_id) && (
+                  <Button
+                    variant="danger"
+                    className="flex-1 justify-center order-3"
+                    onClick={(e) => handleDelete(selectedReto.id, e)}
+                  >
+                    <Trash2 size={16} className="mr-1.5" /> Eliminar Reto
+                  </Button>
+                )}
                 <Button variant="primary" className="bg-slate-900 hover:bg-black justify-center" onClick={() => window.print()}>
                   <ExternalLink size={16} className="mr-1.5" /> PDF
                 </Button>

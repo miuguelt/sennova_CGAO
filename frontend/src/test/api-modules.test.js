@@ -70,29 +70,6 @@ describe('API Modules', () => {
     });
   });
 
-  describe('BitacoraAPI', () => {
-    it('listarPorProyecto calls correct endpoint', async () => {
-      const { BitacoraAPI } = await getFreshImport('../api/bitacora');
-      mockFetchAPI.mockResolvedValue([]);
-      await BitacoraAPI.listarPorProyecto('proj-1');
-      expect(mockFetchAPI).toHaveBeenCalledWith('/bitacora/proyecto/proj-1');
-    });
-
-    it('crear calls fetchAPI with POST', async () => {
-      const { BitacoraAPI } = await getFreshImport('../api/bitacora');
-      mockFetchAPI.mockResolvedValue({});
-      await BitacoraAPI.crear({ contenido: 'test' });
-      expect(mockFetchAPI).toHaveBeenCalledWith('/bitacora', expect.objectContaining({ method: 'POST' }));
-    });
-
-    it('delete calls fetchAPI with DELETE', async () => {
-      const { BitacoraAPI } = await getFreshImport('../api/bitacora');
-      mockFetchAPI.mockResolvedValue({});
-      await BitacoraAPI.delete('entry-1');
-      expect(mockFetchAPI).toHaveBeenCalledWith('/bitacora/entry-1', expect.objectContaining({ method: 'DELETE' }));
-    });
-  });
-
   describe('ConvocatoriasAPI', () => {
     it('list calls fetchAPI', async () => {
       const { ConvocatoriasAPI } = await getFreshImport('../api/convocatorias');
@@ -225,6 +202,36 @@ describe('API Modules', () => {
     });
   });
 
+  describe('GruposAPI', () => {
+    it('cubre consulta, CRUD, equipo, indicadores y archivo operativo', async () => {
+      const { GruposAPI } = await getFreshImport('../api/grupos');
+      mockFetchAPI.mockResolvedValue([]);
+
+      await GruposAPI.list({ clasificacion: 'A' });
+      await GruposAPI.getAll();
+      await GruposAPI.get('g-1');
+      await GruposAPI.create({ nombre: 'GIDTA' });
+      await GruposAPI.update('g-1', { nombre: 'GIDTA actualizado' });
+      await GruposAPI.delete('g-1');
+      await GruposAPI.getMembers('g-1');
+      mockFetchAPI.mockResolvedValueOnce({ integrantes: [{ id: 'u-1' }] });
+      expect(await GruposAPI.getMembers('g-1')).toEqual([{ id: 'u-1' }]);
+      await GruposAPI.addMember('g-1', { user_id: 'u-1', rol: 'Líder' });
+      await GruposAPI.removeMember('g-1', 'u-1');
+      await GruposAPI.getStats('g-1');
+      await GruposAPI.getProyectos('g-1');
+      await GruposAPI.uploadPlanOperativo('g-1', new File(['plan'], 'plan.pdf'));
+
+      expect(mockFetchAPI).toHaveBeenCalledWith('/grupos?clasificacion=A');
+      expect(mockFetchAPI).toHaveBeenCalledWith('/grupos', expect.objectContaining({ method: 'POST' }));
+      expect(mockFetchAPI).toHaveBeenCalledWith('/grupos/g-1/integrantes/u-1', { method: 'DELETE' });
+      expect(mockFetchAPI).toHaveBeenLastCalledWith('/grupos/g-1/plan-operativo', expect.objectContaining({ method: 'POST', body: expect.any(FormData) }));
+      expect(GruposAPI.downloadPlanOperativoUrl('g-1')).toBe('/api/grupos/g-1/plan-operativo');
+      expect(GruposAPI.getConsolidadoReporteUrl('csv')).toBe('/api/reportes/grupos-consolidado?formato=csv');
+      expect(mockFetchAPI).toHaveBeenCalledTimes(13);
+    });
+  });
+
   describe('SemillerosAPI', () => {
     it('list calls fetchAPI', async () => {
       const { SemillerosAPI } = await getFreshImport('../api/semilleros');
@@ -238,6 +245,31 @@ describe('API Modules', () => {
       mockFetchAPI.mockResolvedValue([]);
       await SemillerosAPI.listAprendices('sem-1');
       expect(mockFetchAPI).toHaveBeenCalledWith('/semilleros/sem-1/aprendices');
+    });
+
+    it('cubre administración de semilleros, aprendices e investigadores', async () => {
+      const { SemillerosAPI } = await getFreshImport('../api/semilleros');
+      mockFetchAPI.mockResolvedValue({ ok: true });
+
+      await SemillerosAPI.list({ estado: 'activo' });
+      await SemillerosAPI.get('sem-1');
+      await SemillerosAPI.create({ nombre: 'AgroTech' });
+      await SemillerosAPI.update('sem-1', { nombre: 'AgroTech actualizado' });
+      await SemillerosAPI.delete('sem-1');
+      await SemillerosAPI.addAprendiz('sem-1', { user_id: 'apr-1' });
+      await SemillerosAPI.addAprendizFull('sem-1', { nombre: 'Aprendiz Uno' });
+      await SemillerosAPI.createAprendizFull('sem-1', { nombre: 'Aprendiz Dos' });
+      await SemillerosAPI.updateAprendiz('sem-1', 'apr-1', { ficha: '123' });
+      await SemillerosAPI.deleteAprendiz('sem-1', 'apr-1');
+      await SemillerosAPI.addInvestigador('sem-1', { user_id: 'inv-1' });
+      await SemillerosAPI.removeInvestigador('sem-1', 'inv-1');
+      await SemillerosAPI.getStats('sem-1');
+
+      expect(mockFetchAPI).toHaveBeenCalledWith('/semilleros?estado=activo');
+      expect(mockFetchAPI).toHaveBeenCalledWith('/semilleros/sem-1/aprendices/full', expect.objectContaining({ method: 'POST' }));
+      expect(mockFetchAPI).toHaveBeenCalledWith('/semilleros/sem-1/investigadores/inv-1', { method: 'DELETE' });
+      expect(mockFetchAPI).toHaveBeenCalledWith('/stats/semillero/sem-1/impact');
+      expect(mockFetchAPI).toHaveBeenCalledTimes(13);
     });
   });
 
@@ -254,6 +286,32 @@ describe('API Modules', () => {
       mockFetchAPI.mockResolvedValue({});
       await NotificacionesAPI.marcarTodasLeidas();
       expect(mockFetchAPI).toHaveBeenCalledWith('/notificaciones/marcar-todas-leidas', expect.objectContaining({ method: 'POST' }));
+    });
+
+    it('cubre consultas, acciones administrativas y alias de notificaciones', async () => {
+      const { NotificacionesAPI } = await getFreshImport('../api/notificaciones');
+      mockFetchAPI.mockResolvedValue({ ok: true });
+
+      await NotificacionesAPI.obtener('n-1');
+      await NotificacionesAPI.marcarLeida('n-1', false);
+      await NotificacionesAPI.limpiarLeidas(45);
+      await NotificacionesAPI.alertarCVLACDesactualizados();
+      await NotificacionesAPI.getCVLACPendientes();
+      await NotificacionesAPI.enviarMensaje({ user_id: 'u-1', mensaje: 'Hola' });
+      await NotificacionesAPI.crearSistema('u-1', 'Aviso', 'Mensaje', 'alta', 'proyecto', 'p-1');
+      await NotificacionesAPI.crearSistema('u-2', 'Aviso', 'General');
+      await NotificacionesAPI.list(false, 7);
+      await NotificacionesAPI.get('n-2');
+      await NotificacionesAPI.delete('n-2');
+      await NotificacionesAPI.markAsRead('n-2', false);
+      await NotificacionesAPI.markAllAsRead();
+      await NotificacionesAPI.cleanRead(60);
+      await NotificacionesAPI.sendMessage({ user_id: 'u-2', mensaje: 'Seguimiento' });
+
+      expect(mockFetchAPI).toHaveBeenCalledWith('/notificaciones/n-1/marcar-leida', expect.objectContaining({ body: JSON.stringify({ leida: false }) }));
+      expect(mockFetchAPI).toHaveBeenCalledWith(expect.stringContaining('entidad_tipo=proyecto&entidad_id=p-1'), expect.objectContaining({ method: 'POST' }));
+      expect(mockFetchAPI).toHaveBeenCalledWith('/notificaciones/limpiar-leidas?dias_retencion=60', expect.objectContaining({ method: 'POST' }));
+      expect(mockFetchAPI).toHaveBeenCalledTimes(15);
     });
   });
 

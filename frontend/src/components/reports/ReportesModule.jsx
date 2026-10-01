@@ -8,8 +8,8 @@ import {
   Table as TableIcon, Download, Info, Globe, Printer,
   ArrowDownRight, Target, BarChart, Briefcase, Trophy
 } from 'lucide-react';
-import { 
-  BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
+import {
+  BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area,
   LineChart, Line, Legend
 } from 'recharts';
@@ -23,48 +23,48 @@ import Select from '../ui/Select';
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 const CATALOG = [
-  { 
-    id: 'proyectos', 
-    title: 'Consolidado Proyectos',  
-    desc: 'Métricas integrales de ejecución, equipo de investigación y presupuesto ejecutado.',          
-    icon: FolderOpen,    
-    color: 'text-emerald-600', 
+  {
+    id: 'proyectos',
+    title: 'Consolidado Proyectos',
+    desc: 'Métricas integrales de ejecución, equipo de investigación y presupuesto ejecutado.',
+    icon: FolderOpen,
+    color: 'text-emerald-600',
     bg: 'bg-emerald-100',
     impact: 'Estratégico'
   },
-  { 
-    id: 'grupos',    
-    title: 'Ranking de Grupos',       
-    desc: 'Clasificación Minciencias, impacto institucional y red de colaboración científica.',    
-    icon: Layers,        
-    color: 'text-blue-600',     
+  {
+    id: 'grupos',
+    title: 'Ranking de Grupos',
+    desc: 'Clasificación Minciencias, impacto institucional y red de colaboración científica.',
+    icon: Layers,
+    color: 'text-blue-600',
     bg: 'bg-blue-100',
     impact: 'Institucional'
   },
-  { 
-    id: 'productos', 
-    title: 'Producción Científica',   
-    desc: 'Inventario de activos de conocimiento, productos verificados y propiedad intelectual.',       
-    icon: Award,         
-    color: 'text-amber-600',   
+  {
+    id: 'productos',
+    title: 'Producción Científica',
+    desc: 'Inventario de activos de conocimiento, productos verificados y propiedad intelectual.',
+    icon: Award,
+    color: 'text-amber-600',
     bg: 'bg-amber-100',
     impact: 'Propiedad Intelectual'
   },
-  { 
+  {
     id: 'semilleros',
-    title: 'Impacto Semilleros',      
-    desc: 'Población de aprendices, planes de formación y semilleristas en formación técnica.',        
-    icon: GraduationCap, 
-    color: 'text-indigo-600', 
+    title: 'Impacto Semilleros',
+    desc: 'Población de aprendices, planes de formación y semilleristas en formación técnica.',
+    icon: GraduationCap,
+    color: 'text-indigo-600',
     bg: 'bg-indigo-100',
     impact: 'Formación'
   },
-  { 
+  {
     id: 'talento',
-    title: 'Talento Humano CTeI',      
-    desc: 'Directorio consolidado de investigadores, instructores, nivel académico y estado.',        
-    icon: Users, 
-    color: 'text-purple-600', 
+    title: 'Talento Humano CTeI',
+    desc: 'Directorio consolidado de investigadores, nivel académico y estado.',
+    icon: Users,
+    color: 'text-purple-600',
     bg: 'bg-purple-100',
     impact: 'Talento Humano'
   },
@@ -73,22 +73,6 @@ const CATALOG = [
 const COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
 // ─── Components ─────────────────────────────────────────────────────────────
-
-const StatCard = ({ title, value, label, icon: Icon, colorCls, bgCls }) => (
-  <Card className="p-6 border-0 shadow-sm ring-1 ring-slate-200/60 overflow-hidden relative group transition-all hover:shadow-md hover:ring-indigo-300">
-    <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-10 transition-transform group-hover:scale-110 ${bgCls}`} />
-    <div className="flex items-start justify-between mb-6 relative z-10">
-      <div className={`p-3 rounded-2xl ${bgCls} ${colorCls} shadow-sm group-hover:scale-110 transition-transform`}>
-        <Icon size={22} />
-      </div>
-      <Badge variant="default" className="font-black text-[10px] uppercase tracking-widest bg-white/80 border-slate-200">{label}</Badge>
-    </div>
-    <div className="relative z-10">
-      <h3 className="text-3xl font-black text-slate-900 leading-none mb-2 tabular-nums">{value}</h3>
-      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{title}</p>
-    </div>
-  </Card>
-);
 
 const MetricCard = ({ label, value, trend, icon: Icon, colorCls }) => (
   <Card className="p-6 border border-slate-200 shadow-sm overflow-hidden relative group bg-white">
@@ -212,16 +196,16 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
             <p className="text-sm text-slate-500 font-medium">Consolidación de indicadores de impacto nacional SENNOVA</p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
            <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
-            <button 
+            <button
               onClick={() => setActiveTab('analytics')}
               className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'analytics' ? 'bg-white text-emerald-800 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-900 font-bold'}`}
             >
               <PieIcon size={14} className="inline mr-2" /> Analítica
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('catalog')}
               className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'catalog' ? 'bg-white text-indigo-800 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-900 font-bold'}`}
             >
@@ -295,7 +279,7 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
                   <ReBarChart data={presupuestoChartData} layout="vertical">
                     <XAxis type="number" hide />
                     <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: '#334155'}} />
-                    <Tooltip cursor={{fill: 'transparent'}} formatter={(v) => `$${v.toLocaleString('es-CO')}`} />
+                    <Tooltip cursor={{fill: 'transparent'}} formatter={formatCurrency} />
                     <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={40}>
                       {presupuestoChartData.map((e, i) => <Cell key={i} fill={COLORS[(i+2)%COLORS.length]} />)}
                     </Bar>
@@ -357,7 +341,7 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
                     <h4 className="font-black text-slate-900 text-lg mb-2">{rep.title}</h4>
                     <p className="text-xs text-slate-500 font-medium leading-relaxed mb-8 flex-1">{rep.desc}</p>
                     <div className="flex gap-2">
-                      <Select 
+                      <Select
                         className="flex-1 text-[10px] font-black uppercase"
                         options={[{ value: 'excel', label: 'EXCEL' }, { value: 'csv', label: 'CSV' }]}
                         value={formato}
@@ -410,5 +394,7 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
     </div>
   );
 };
+
+export const formatCurrency = (value) => `$${value.toLocaleString('es-CO')}`;
 
 export default ReportesModule;

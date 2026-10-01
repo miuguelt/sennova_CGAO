@@ -231,7 +231,7 @@ def seed_database(verbose: bool = True):
             {
                 "email": "c.lopez@sena.edu.co",
                 "nombre": "Mag. Clara López",
-                "rol": "instructor",
+                "rol": "investigador",
                 "rol_sennova": "Instructor Investigador",
                 "nivel_academico": "Maestría en Desarrollo Rural",
                 "documento": "1098000003",
@@ -325,7 +325,7 @@ def seed_database(verbose: bool = True):
 
 
         # Generar usuarios adicionales hasta superar los 30 usuarios
-        roles_distribucion = ["investigador", "instructor", "aprendiz", "investigador", "aprendiz"]
+        roles_distribucion = ["investigador", "investigador", "aprendiz", "investigador", "aprendiz"]
         for i in range(len(test_users_specs), 32):
             primer_nombre, apellidos = NOMBRES_COLOMBIANOS[i % len(NOMBRES_COLOMBIANOS)]
             rol = roles_distribucion[i % len(roles_distribucion)]
@@ -366,7 +366,7 @@ def seed_database(verbose: bool = True):
 
         db.flush()
         admin_user = next(u for u in usuarios_creados if u.rol == "admin")
-        investigadores = [u for u in usuarios_creados if u.rol in ("investigador", "instructor")]
+        investigadores = [u for u in usuarios_creados if u.rol == "investigador"]
         aprendices_usuarios = [u for u in usuarios_creados if u.rol == "aprendiz"]
 
         if verbose:
@@ -450,7 +450,7 @@ def seed_database(verbose: bool = True):
                     db.execute(grupo_integrantes.insert().values(
                         grupo_id=grupo.id,
                         user_id=m.id,
-                        rol_en_grupo="Líder" if m.rol == "admin" else ("Investigador" if m.rol in ("investigador", "instructor") else "Aprendiz Semillero"),
+                    rol_en_grupo="Líder" if m.rol == "admin" else ("Investigador" if m.rol == "investigador" else "Aprendiz Semillero"),
                         fecha_vinculacion=date(2023, random.randint(1, 12), random.randint(1, 28))
                     ))
                     integraciones_count += 1

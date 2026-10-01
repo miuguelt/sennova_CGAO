@@ -32,6 +32,8 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 import useClickOutside from '../../hooks/useClickOutside';
 import { PDFGenerator } from '../../utils/pdfGenerator';
 import ProyectoEquipoTab from './ProyectoEquipoTab';
+import ProjectFormulationImport from './ProjectFormulationImport';
+import ProjectSourceDocuments from './ProjectSourceDocuments';
 import MoverProyectoSemilleroModal from './MoverProyectoSemilleroModal';
 
 // ─── Gantt Component ──────────────────────────────────────────────────────────
@@ -150,6 +152,16 @@ const normalizeEstado = (estado) => {
   return 'Aprobado';
 };
 
+const normalizeEntityReference = (value = '') => value
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLocaleLowerCase()
+  .replace(/[^a-z0-9]/g, '');
+
+const isEmptyFormField = (value) => value == null ||
+  (typeof value === 'string' && value.trim() === '') ||
+  (Array.isArray(value) && value.length === 0);
+
 const EMPTY_FORM = {
   nombre: '', nombre_corto: '', codigo_sgps: '', estado: 'Aprobado',
   vigencia: 12, presupuesto_total: 0, tipologia: 'Innovación',
@@ -170,14 +182,14 @@ const TIPOLOGIA_OPTIONS = [
   { value: 'Modernización',  label: 'Modernización' },
 ];
 
-const FORMATOS_OFICIALES = [
-  { id: 'etapa_productiva', nombre: 'Formato Planeación Etapa Productiva', codigo: 'F-01-SENN' },
-  { id: 'seguimiento', nombre: 'Formato de Seguimiento Técnico', codigo: 'F-02-SENN' },
-  { id: 'informe_final', nombre: 'Informe Final de Proyecto', codigo: 'F-03-SENN' },
-  { id: 'bitacora', nombre: 'Bitácora Técnica Oficial', codigo: 'F-04-SENN' },
+const REPORTES_GESTION = [
+  { id: 'etapa_productiva', nombre: 'Reporte de etapa productiva' },
+  { id: 'seguimiento', nombre: 'Reporte de seguimiento del proyecto' },
+  { id: 'informe_final', nombre: 'Reporte de cierre del proyecto' },
 ];
 
 const controlValue = (eventOrValue) => eventOrValue?.target ? eventOrValue.target.value : eventOrValue;
+export const formatBudgetCurrency = (value) => `$${value.toLocaleString('es-CO')}`;
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 const Skeleton = () => (
@@ -348,6 +360,8 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [statusFilter,     setStatusFilter]     = useState('');
   const [selectedYear,     setSelectedYear]     = useState(new Date().getFullYear());
   const [formData,         setFormData]         = useState(EMPTY_FORM);
+  const [formulationFile,  setFormulationFile]  = useState(null);
+  const [isSavingProject,  setIsSavingProject]  = useState(false);
   const [activeTab,        setActiveTab]        = useState('summary');
   const [menuOpenId,       setMenuOpenId]       = useState(null);
   const [isEditing,        setIsEditing]        = useState(false);
@@ -398,6 +412,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   // Manejar acción inicial (ej: abrir formulario de creación o ver detalle de un proyecto)
   useEffect(() => {
     if (initialAction?.form === 'create') {
+      setFormulationFile(null);
       setFormData({
         ...EMPTY_FORM,
         ...(initialAction.data || {})
@@ -428,11 +443,11 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     try {
       const [p, u, r, s, c, g] = await Promise.all([
         ProyectosAPI.list(),
-        UsersAPI.list(),
+        currentUser?.rol === 'aprendiz' ? Promise.resolve([]) : UsersAPI.list(),
         RetosAPI.list(),
         SemillerosAPI.list(),
-        ConvocatoriasAPI.list(),
-        GruposAPI.list()
+        currentUser?.rol === 'aprendiz' ? Promise.resolve([]) : ConvocatoriasAPI.list(),
+        currentUser?.rol === 'aprendiz' ? Promise.resolve([]) : GruposAPI.list()
       ]);
       const pList = Array.isArray(p) ? p : [];
       setProyectos(pList);
@@ -454,20 +469,6 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     }
   };
 
-  const handleCreate = async () => {
-    try {
-      await ProyectosAPI.create(formData);
-      setShowForm(false);
-      setFormData(EMPTY_FORM);
-      loadData();
-      onNotify?.('Proyecto creado con éxito.', 'success');
-    } catch (err) {
-      const detail = err.response?.data?.detail || err.message;
-      const errorMsg = typeof detail === 'object' ? JSON.stringify(detail) : detail;
-      onNotify?.('Error al crear proyecto: ' + errorMsg, 'error');
-    }
-  };
-
   const handleOpenDetail = (proyecto) => {
     setSelectedProyecto(proyecto);
     setIsDetailOpen(true);
@@ -475,6 +476,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   };
 
   const handleEdit = (proyecto) => {
+    setFormulationFile(null);
     setFormData({
       id: proyecto.id,
       nombre: proyecto.nombre || '',
@@ -525,6 +527,8 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   };
 
   const handleSave = async () => {
+    if (isSavingProject) return;
+    setIsSavingProject(true);
     try {
       const sanitizedData = {
         ...formData,
@@ -542,12 +546,16 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       if (isEditing) {
         await ProyectosAPI.update(formData.id, sanitizedData);
         onNotify?.('Proyecto actualizado con éxito.', 'success');
+      } else if (formulationFile) {
+        await ProyectosAPI.importFormulation(sanitizedData, formulationFile);
+        onNotify?.('Proyecto creado desde la formulación y archivo original adjuntado.', 'success');
       } else {
         await ProyectosAPI.create(sanitizedData);
         onNotify?.('Proyecto creado con éxito.', 'success');
       }
       setShowForm(false);
       setIsEditing(false);
+      setFormulationFile(null);
       setFormData(EMPTY_FORM);
       loadData();
     } catch (err) {
@@ -560,6 +568,8 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
           handleOpenLiquidation(targetProy);
         }
       }
+    } finally {
+      setIsSavingProject(false);
     }
   };
 
@@ -589,31 +599,6 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       loadData();
     } catch (err) {
       onNotify?.('Error al eliminar miembro: ' + err.message, 'error');
-    }
-  };
-
-  const handleDragUserStart = (e, user) => {
-    e.dataTransfer.setData('userId', user.id);
-    e.dataTransfer.setData('source', 'talent-pool');
-  };
-
-  const handleTeamDrop = async (e) => {
-    e.preventDefault();
-    setDragOverTeam(false);
-    const source = e.dataTransfer.getData('source');
-    if (source !== 'talent-pool') return;
-    
-    const userId = e.dataTransfer.getData('userId');
-    if (!userId || !selectedProyecto) return;
-    
-    try {
-      await ProyectosAPI.addEquipo(selectedProyecto.id, userId, 'Investigador', 20);
-      onNotify?.('Miembro vinculado exitosamente', 'success');
-      const pActualizado = await ProyectosAPI.get(selectedProyecto.id);
-      setSelectedProyecto(pActualizado);
-      loadData();
-    } catch (err) {
-      onNotify?.('Error al vincular: ' + err.message, 'error');
     }
   };
 
@@ -667,20 +652,15 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       switch (formatId) {
         case 'etapa_productiva':
           PDFGenerator.generateEtapaProductiva(selectedProyecto);
-          onNotify?.('Formato Etapa Productiva generado exitosamente', 'success');
+          onNotify?.('Reporte de etapa productiva generado', 'success');
           break;
         case 'seguimiento':
           PDFGenerator.generateSeguimiento(selectedProyecto);
-          onNotify?.('Formato de Seguimiento generado exitosamente', 'success');
+          onNotify?.('Reporte de seguimiento generado', 'success');
           break;
         case 'informe_final':
           PDFGenerator.generateInformeFinal(selectedProyecto);
-          onNotify?.('Informe Final generado exitosamente', 'success');
-          break;
-        case 'bitacora':
-          const bitacoraData = await PlantillasAPI.getBitacoraOficial(selectedProyecto.id);
-          PDFGenerator.generateBitacoraReport(bitacoraData);
-          onNotify?.('Bitácora Oficial generada exitosamente', 'success');
+          onNotify?.('Reporte de cierre generado', 'success');
           break;
         default:
           onNotify?.('Formato no soportado', 'error');
@@ -768,7 +748,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     
     if (retoId) {
       // Logic for dropping a RETO into a PROJECT
-      const targetProjectId = e.currentTarget.dataset.projectid;
+      const targetProjectId = e.target.closest?.('[data-projectid]')?.dataset.projectid || e.currentTarget.dataset.projectid;
       if (targetProjectId) {
         try {
           const proy = proyectos.find(p => String(p.id) === targetProjectId);
@@ -807,7 +787,32 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
   const patch = (field) => (eventOrValue) => setFormData(prev => ({ ...prev, [field]: controlValue(eventOrValue) }));
 
+  const handleFormulationAnalysis = (analysis) => {
+    const suggestions = analysis?.suggested_fields || {};
+    const groupName = normalizeEntityReference(analysis?.referencias_detectadas?.grupo || '');
+    const semilleroName = normalizeEntityReference(analysis?.referencias_detectadas?.semillero || '');
+    const group = groupName
+      ? grupos.find(item => normalizeEntityReference(item.nombre || '') === groupName)
+      : null;
+    const semillero = semilleroName
+      ? semilleros.find(item => [item.nombre, item.sigla]
+        .some(value => value && normalizeEntityReference(value) === semilleroName))
+      : null;
+    setFormData(prev => {
+      const unfilledSuggestions = Object.fromEntries(
+        Object.entries(suggestions).filter(([field]) => isEmptyFormField(prev[field])),
+      );
+      return {
+        ...prev,
+        ...unfilledSuggestions,
+        ...(group && !prev.grupo_id ? { grupo_id: group.id } : {}),
+        ...(semillero && !prev.semillero_id ? { semillero_id: semillero.id } : {}),
+      };
+    });
+  };
+
   const openCreateForm = () => {
+    setFormulationFile(null);
     setFormData(EMPTY_FORM);
     setIsEditing(false);
     setFormTab('basic');
@@ -1296,7 +1301,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                                 </Pie>
                                 <ReTooltip 
                                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold' }}
-                                  formatter={(value) => `$${value.toLocaleString('es-CO')}`}
+                                  formatter={formatBudgetCurrency}
                                 />
                               </PieChart>
                             </ResponsiveContainer>
@@ -1338,6 +1343,16 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                     >
                       <FileText size={12} className="mr-1.5" /> Ficha Técnica PDF
                     </Button>
+                    {isOwnerOrAdmin(selectedProyecto) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-[10px] font-black uppercase tracking-widest"
+                        onClick={handleGenerateCertificates}
+                      >
+                        <Award size={12} className="mr-1.5" /> Certificados del Equipo
+                      </Button>
+                    )}
                   </div>
                 </section>
 
@@ -1403,15 +1418,21 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                 <div>
                   <h3 className="text-xs font-black text-slate-900 mb-1 flex items-center gap-2">
                     <FileText size={16} className="text-emerald-600" />
-                    Formatos Oficiales SENNOVA
+                    Reportes de gestión del proyecto
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Descargue las plantillas oficiales pre-diligenciadas con la información institucional del proyecto.
+                    Genere reportes PDF con la información registrada en la plataforma.
                   </p>
                 </div>
 
+                <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-950">
+                  Estos reportes ayudan al seguimiento y no reemplazan los formatos institucionales vigentes. La carpeta de referencia incluye un ejemplar de GIC-F-037. Confirme la versión controlada con la Coordinación SENNOVA y cárguela en la bóveda de evidencias antes de radicar.
+                </div>
+
+                <ProjectSourceDocuments projectId={selectedProyecto.id} />
+
                 <div className="space-y-3">
-                  {FORMATOS_OFICIALES.map(p => (
+                  {REPORTES_GESTION.map(p => (
                     <div key={p.id} className="p-4 rounded-2xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/20 transition-all flex items-center justify-between">
                       <div className="flex items-center gap-3.5">
                         <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-xl">
@@ -1419,8 +1440,8 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                         </div>
                         <div>
                           <h4 className="text-xs font-bold text-slate-900">{p.nombre}</h4>
-                          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md mt-0.5 inline-block">
-                            {p.codigo}
+                          <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md mt-0.5 inline-block">
+                            PDF de apoyo
                           </span>
                         </div>
                       </div>
@@ -1438,8 +1459,8 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                     </div>
                   ))}
                 </div>
-                <p className="text-[9px] text-slate-400 font-bold uppercase mt-4 italic text-center">
-                  * Los formatos se autocompletan con la información del proyecto y los investigadores.
+                <p className="text-xs text-slate-500 mt-4">
+                  Para conservar el formato oficial, cargue a la bóveda el archivo vigente entregado por la institución.
                 </p>
               </div>
             )}
@@ -1450,29 +1471,40 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       {/* ── Create / Edit Form Modal (Estandarizado en Pila) ── */}
       <Modal
         isOpen={showForm}
-        onClose={() => { setShowForm(false); setIsEditing(false); setFormData(EMPTY_FORM); }}
+        onClose={() => { setShowForm(false); setIsEditing(false); setFormulationFile(null); setFormData(EMPTY_FORM); }}
+        closeOnEsc={!isSavingProject}
+        closeOnBackdrop={!isSavingProject}
+        showCloseButton={!isSavingProject}
         size="2xl"
         variant="emerald"
         icon={isEditing ? Edit2 : Plus}
         title={isEditing ? 'Editar Proyecto' : 'Iniciar Proyecto'}
         subtitle={isEditing ? `Actualizando ${formData.codigo_sgps || 'Proyecto'}` : 'Formulación técnica'}
-        tabs={[
-          { id: 'basic', label: 'Básicos', icon: FileText },
-          { id: 'tech', label: 'Técnicos', icon: Target },
-          { id: 'budget', label: 'Finanzas', icon: DollarSign },
-        ]}
-        activeTab={formTab}
-        onTabChange={setFormTab}
         footer={
           <>
-            <Button variant="secondary" onClick={() => { setShowForm(false); setIsEditing(false); setFormData(EMPTY_FORM); }} className="w-full sm:w-auto justify-center">Cancelar</Button>
-            <Button variant="sena" onClick={handleSave} disabled={!formData.nombre?.trim()} className="w-full sm:w-auto justify-center shadow-lg shadow-emerald-200">
-              {isEditing ? 'Guardar Cambios' : 'Crear Proyecto'}
+            <Button variant="secondary" onClick={() => { setShowForm(false); setIsEditing(false); setFormulationFile(null); setFormData(EMPTY_FORM); }} disabled={isSavingProject} className="w-full sm:w-auto justify-center">Cancelar</Button>
+            <Button variant="sena" onClick={handleSave} disabled={!formData.nombre?.trim() || isSavingProject} className="w-full sm:w-auto justify-center shadow-lg shadow-emerald-200">
+              {isSavingProject ? <><Loader2 size={14} className="mr-2 animate-spin" /> Guardando…</> : (isEditing ? 'Guardar Cambios' : 'Crear Proyecto')}
             </Button>
           </>
         }
       >
         <div className="space-y-6">
+          <ScrollableTabs
+            tabs={[
+              { id: 'basic', label: 'Básicos', icon: FileText },
+              { id: 'tech', label: 'Técnicos', icon: Target },
+              { id: 'budget', label: 'Finanzas', icon: DollarSign },
+            ]}
+            activeTab={formTab}
+            onTabChange={setFormTab}
+            variant="sena"
+            size="sm"
+            ariaLabel="Secciones del formulario de proyecto"
+          />
+          {!isEditing && formTab === 'basic' && (
+            <ProjectFormulationImport onAnalysis={handleFormulationAnalysis} onFileChange={setFormulationFile} />
+          )}
           {formTab === 'basic' && (
             <section className="space-y-5 animate-fadeIn">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

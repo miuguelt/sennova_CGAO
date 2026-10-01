@@ -2,7 +2,6 @@ from app.repositories.base_repository import BaseRepository
 from app.repositories.actividad_repository import ActividadRepository
 from app.repositories.aprendiz_repository import AprendizRepository
 from app.repositories.audit_log_repository import AuditLogRepository
-from app.repositories.bitacora_entry_repository import BitacoraEntryRepository
 from app.repositories.convocatoria_repository import ConvocatoriaRepository
 from app.repositories.documento_repository import DocumentoRepository
 from app.repositories.entregable_repository import EntregableRepository

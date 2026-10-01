@@ -1,21 +1,22 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  FolderPlus, UserPlus, Award, Calendar, FilePlus,
-  Zap, X, Command, ChevronRight, LayoutGrid, Book,
+  FolderOpen, FolderPlus, UserPlus, Award, Calendar, FilePlus,
+  Zap, X, Command, ChevronRight, LayoutGrid,
 } from 'lucide-react';
 import { useModalStack } from '../../hooks/useModalStack';
+import { canUseQuickAction } from '../../lib/roleAccess';
 
 const ACTIONS = [
+  { id: 'my-projects', label: 'Ver mis proyectos', desc: 'Consultar proyectos y avances del equipo', Icon: FolderOpen, iconCls: 'bg-indigo-50 text-indigo-600', module: 'proyectos' },
   { id: 'new-project', label: 'Nuevo Proyecto',       desc: 'Iniciar formulación SGPS',          Icon: FolderPlus, iconCls: 'bg-blue-50 text-blue-600',    module: 'proyectos',      form: 'create' },
   { id: 'new-product', label: 'Reportar Producto',     desc: 'Artículos, software o prototipos',  Icon: Award,      iconCls: 'bg-amber-50 text-amber-600',   module: 'productos',      form: 'create' },
-  { id: 'new-log',     label: 'Registrar Bitácora',   desc: 'Diario de campo y avances',         Icon: Book,       iconCls: 'bg-indigo-50 text-indigo-600', module: 'bitacora',      form: 'create' },
   { id: 'new-user',    label: 'Invitar Investigador',  desc: 'Añadir talento al centro',          Icon: UserPlus,   iconCls: 'bg-emerald-50 text-emerald-700',module: 'investigadores', form: 'create' },
   { id: 'new-call',    label: 'Crear Convocatoria',    desc: 'Abrir nueva línea de fomento',      Icon: Calendar,   iconCls: 'bg-rose-50 text-rose-600',     module: 'convocatorias',  form: 'create' },
   { id: 'upload-doc',  label: 'Subir Documento',       desc: 'Actas, contratos o guías',          Icon: FilePlus,   iconCls: 'bg-violet-50 text-violet-600', module: 'documentos',     form: 'upload' },
   { id: 'sync-cvlac',  label: 'Sincronizar CVLaC',     desc: 'Actualizar producción científica',  Icon: LayoutGrid, iconCls: 'bg-orange-50 text-orange-600', module: 'perfil',         form: 'cvlac' },
 ];
 
-const QuickActionHub = ({ isOpen, onClose, onAction }) => {
+const QuickActionHub = ({ isOpen, currentUser, onClose, onAction }) => {
   const firstBtnRef = useRef(null);
 
   const { zIndex, isTop } = useModalStack({
@@ -40,6 +41,7 @@ const QuickActionHub = ({ isOpen, onClose, onAction }) => {
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+  const visibleActions = ACTIONS.filter(({ id }) => canUseQuickAction(currentUser?.rol, id));
 
   return (
     <div
@@ -81,7 +83,7 @@ const QuickActionHub = ({ isOpen, onClose, onAction }) => {
 
         {/* Action grid */}
         <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[65vh] overflow-y-auto custom-scrollbar pb-8 sm:pb-4">
-          {ACTIONS.map(({ id, label, desc, Icon, iconCls, module: mod, form }, idx) => (
+          {visibleActions.map(({ id, label, desc, Icon, iconCls, module: mod, form }, idx) => (
             <button
               key={id}
               ref={idx === 0 ? firstBtnRef : undefined}

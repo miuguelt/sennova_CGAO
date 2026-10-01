@@ -14,7 +14,7 @@ from app.database import safe_commit
 
 
 def evaluar_requisitos_liquidacion(proyecto: Proyecto, db: Session) -> Dict[str, Any]:
-    """Verifica los 6 Requisitos Institucionales SENNOVA para liquidar un proyecto."""
+    """Verifica los 5 requisitos institucionales SENNOVA para liquidar un proyecto."""
     entregables = db.query(Entregable).filter(Entregable.proyecto_id == str(proyecto.id)).all()
     total_entregables = len(entregables)
     aprobados = sum(1 for e in entregables if e.estado == "aprobado")
@@ -31,11 +31,6 @@ def evaluar_requisitos_liquidacion(proyecto: Proyecto, db: Session) -> Dict[str,
     ).first()
     ok_informe = bool(informe_doc or proyecto.informe_final_path)
     
-    bitacoras = proyecto.bitacora or []
-    firmas_completas = (
-        all(getattr(b, 'is_firmado_investigador', False) and getattr(b, 'is_firmado_aprendiz', False) for b in bitacoras)
-        if bitacoras else (bool(proyecto.formato_bitacora_path) or True)
-    )
     ok_presupuesto = (proyecto.presupuesto_total or 0) > 0
     ok_sgps = bool(proyecto.codigo_sgps and str(proyecto.codigo_sgps).strip())
     
@@ -43,7 +38,6 @@ def evaluar_requisitos_liquidacion(proyecto: Proyecto, db: Session) -> Dict[str,
         {"id": "entregables", "label": f"Entregables Aprobados ({aprobados}/{total_entregables})", "status": ok_entregables, "detalles": f"{aprobados} de {total_entregables} aprobados"},
         {"id": "productos", "label": f"Productos Verificados ({len(productos_verificados)}/{min_productos})", "status": ok_productos, "detalles": f"Mínimo {min_productos} producto(s)"},
         {"id": "informe", "label": "Informe Final Técnico Cargado", "status": ok_informe, "detalles": "PDF adjunto"},
-        {"id": "bitacoras", "label": "Bitácoras Firmadas", "status": firmas_completas, "detalles": "Firmas registradas"},
         {"id": "presupuesto", "label": "Presupuesto Asignado", "status": ok_presupuesto, "detalles": f"${proyecto.presupuesto_total or 0:,.0f}"},
         {"id": "sgps", "label": "Código SGPS Registrado", "status": ok_sgps, "detalles": f"{proyecto.codigo_sgps or 'Pendiente'}"}
     ]

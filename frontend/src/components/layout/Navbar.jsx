@@ -10,6 +10,7 @@ import { NotificacionesAPI } from '@/api/notificaciones';
 import { MensajesAPI } from '@/api/mensajes';
 import { navigateNotification, resolveNotificationTarget } from '@/utils/notificationNavigation';
 import Badge from '../ui/Badge';
+import { canUseGlobalSearch, filterMenuGroups, getHomeModule } from '@/lib/roleAccess';
 
 const PRIORIDAD_CLASS = {
   urgente: 'bg-rose-100 text-rose-700',
@@ -142,7 +143,6 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
       case 'convocatoria': return Calendar;
       case 'producto': return Award;
       case 'mensaje': return MessageSquare;
-      case 'bitacora': return Book;
       case 'perfil':
       case 'cvlac': return User;
       case 'semillero':
@@ -173,7 +173,6 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
           label: 'Investigación',
           items: [
             { id: 'proyectos',     label: 'Proyectos I+D+i',       icon: FolderOpen },
-            { id: 'bitacora',      label: 'Bitácoras Técnicas',    icon: Book },
             { id: 'cronograma',    label: 'Cronograma Entregables', icon: Calendar },
             { id: 'productos',     label: 'Productos Minciencias', icon: Award },
             { id: 'retos',         label: 'Banco de Retos',        icon: Lightbulb },
@@ -185,7 +184,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
           items: [
             { id: 'grupos',         label: 'Grupo de Innovación CGAO', icon: Layers },
             { id: 'semilleros',     label: 'Semilleros de Investigación', icon: GraduationCap },
-            { id: 'investigadores', label: 'Investigadores / Instructores', icon: Users },
+            { id: 'investigadores', label: 'Investigadores', icon: Users },
             { id: 'aprendices',     label: 'Aprendices Semilleristas', icon: GraduationCap },
           ]
         },
@@ -213,7 +212,6 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
         {
           label: 'Investigación Formativa',
           items: [
-            { id: 'bitacora',      label: 'Mis Bitácoras',    icon: Book },
             { id: 'cronograma',    label: 'Mis Tareas & Hitos', icon: Calendar },
             { id: 'proyectos',     label: 'Mis Proyectos',    icon: FolderOpen },
             { id: 'retos',         label: 'Explorar Retos',   icon: Lightbulb },
@@ -224,45 +222,6 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
           items: [
             { id: 'semilleros',  label: 'Mi Semillero',     icon: GraduationCap },
             { id: 'repositorio', label: 'Formatos & Guías', icon: Book },
-          ]
-        }
-      ];
-    }
-
-    if (rol === 'instructor') {
-      return [
-        {
-          label: 'Principal',
-          items: [
-            { id: 'dashboard', label: 'Mi Dashboard', icon: BarChart3 },
-            { id: 'perfil',    label: 'Mi Perfil',    icon: User },
-          ]
-        },
-        {
-          label: 'I+D+i',
-          items: [
-            { id: 'proyectos',     label: 'Proyectos I+D+i',       icon: FolderOpen },
-            { id: 'productos',     label: 'Productos Minciencias', icon: Award },
-            { id: 'bitacora',      label: 'Bitácora & Tutoría',    icon: Book },
-            { id: 'cronograma',    label: 'Cronograma Entregables', icon: Calendar },
-            { id: 'retos',         label: 'Banco de Retos',        icon: Lightbulb },
-            { id: 'convocatorias', label: 'Convocatorias',         icon: Calendar },
-          ]
-        },
-        {
-          label: 'Red Científica',
-          items: [
-            { id: 'grupos',         label: 'Grupo CGAO',           icon: Layers },
-            { id: 'semilleros',     label: 'Semilleros Tutorados', icon: GraduationCap },
-            { id: 'investigadores', label: 'Red de Docentes',      icon: Users },
-            { id: 'aprendices',     label: 'Mis Aprendices',       icon: GraduationCap },
-          ]
-        },
-        {
-          label: 'Recursos',
-          items: [
-            { id: 'repositorio',   label: 'Repositorio & Formatos', icon: Book },
-            { id: 'reportes',      label: 'Reportes y GTH-F-074',   icon: FileText },
           ]
         }
       ];
@@ -282,7 +241,6 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
         items: [
           { id: 'proyectos',     label: 'Proyectos I+D+i',         icon: FolderOpen },
           { id: 'productos',     label: 'Productos Minciencias',   icon: Award },
-          { id: 'bitacora',      label: 'Bitácora & Coinvestigación', icon: Book },
           { id: 'cronograma',    label: 'Cronograma Entregables',  icon: Calendar },
           { id: 'retos',         label: 'Banco de Retos',          icon: Lightbulb },
           { id: 'convocatorias', label: 'Convocatorias',           icon: Calendar },
@@ -307,16 +265,17 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
     ];
   };
 
-  const menuGroups = getMenuGroups();
+  const menuGroups = filterMenuGroups(currentUser?.rol, getMenuGroups());
+  const homeModule = getHomeModule(currentUser?.rol);
 
   const bottomNavItems = currentUser?.rol === 'aprendiz' ? [
-    { id: 'grupos', label: 'Inicio', icon: Home },
-    { id: 'bitacora', label: 'Bitácoras', icon: Book },
+    { id: homeModule, label: 'Inicio', icon: Home },
+    { id: 'proyectos', label: 'Proyectos', icon: FolderOpen },
     { id: 'mensajes', label: 'Mensajes', icon: MessageSquare, badge: mensajesPendientes },
     { id: 'notificaciones', label: 'Notif.', icon: Bell, badge: notificacionesPendientes },
     { id: 'menu', label: 'Más', icon: Menu, isToggle: true },
   ] : [
-    { id: 'grupos', label: 'Inicio', icon: Home },
+    { id: homeModule, label: 'Inicio', icon: Home },
     { id: 'proyectos', label: 'Proyectos', icon: Briefcase },
     { id: 'mensajes', label: 'Mensajes', icon: MessageSquare, badge: mensajesPendientes },
     { id: 'notificaciones', label: 'Notif.', icon: Bell, badge: notificacionesPendientes },
@@ -328,7 +287,6 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
   const getRoleLabel = () => {
     switch (currentUser?.rol) {
       case 'admin': return 'Líder SENNOVA';
-      case 'instructor': return 'Instructor Investigador';
       case 'aprendiz': return 'Aprendiz Semillerista';
       default: return 'Investigador SENNOVA';
     }
@@ -343,8 +301,8 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
               {/* Brand Logo */}
               <div 
                 className="flex items-center gap-3 cursor-pointer group" 
-                onClick={() => onNavigate('grupos')}
-                title="Ir al Grupo de Investigación CGAO (Inicio)"
+                onClick={() => onNavigate(homeModule)}
+                title="Ir al inicio"
               >
                 <div className="w-10 h-10 bg-gradient-to-br from-[#39A900] to-[#2d8000] rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-600/20 group-hover:scale-105 group-hover:shadow-lg transition-all duration-200">
                   <Lightbulb size={20} className="text-white" />
@@ -433,7 +391,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
 
             {/* Right Tools & User Info */}
             <div className="flex items-center gap-3">
-              <div className="hidden xl:block relative w-60 group">
+              {canUseGlobalSearch(currentUser?.rol) && <div className="hidden xl:block relative w-60 group">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-700 transition-colors" />
                 <input 
                   type="text" 
@@ -443,16 +401,16 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
                   className="w-full pl-9 pr-12 py-2 bg-slate-100 border border-slate-200 focus:bg-white focus:border-emerald-500 rounded-xl text-xs font-bold text-slate-800 cursor-pointer transition-all outline-none" 
                 />
                 <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-white text-slate-600 rounded-md text-[10px] font-black border border-slate-300 shadow-2xs">⌘K</kbd>
-              </div>
+              </div>}
 
               <div className="flex items-center gap-1 sm:gap-2">
-                <button 
+                {canUseGlobalSearch(currentUser?.rol) && <button
                   onClick={onOpenSearch} 
                   className="xl:hidden p-2.5 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                   title="Buscar" aria-label="Buscar"
                 >
                   <Search size={20} aria-hidden="true" />
-                </button>
+                </button>}
                 
                 {/* Botón de Mensajes con Badge */}
                 <button

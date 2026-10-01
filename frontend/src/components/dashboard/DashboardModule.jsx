@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, Briefcase, FileText, GraduationCap, 
+import {
+  Users, Briefcase, FileText, GraduationCap,
   Trophy, TrendingUp, Calendar, ArrowRight,
-  Plus, Search, Filter, Activity, Zap, 
-  Clock, AlertCircle, CheckCircle2, User, 
+  Plus, Search, Filter, Activity, Zap,
+  Clock, AlertCircle, CheckCircle2, User,
   ChevronRight, Sparkles, Target, BarChart3, ArrowUpRight,
   FolderOpen, Award, BookOpen, Shield, Settings,
-  Layers, Lightbulb, Book, HelpCircle, FileSpreadsheet,
+  Layers, Lightbulb, HelpCircle, FileSpreadsheet,
   Check, Lock, ExternalLink
 } from 'lucide-react';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, 
-  Tooltip as ReTooltip, ResponsiveContainer, 
-  BarChart, Bar, Cell, PieChart, Pie 
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip as ReTooltip, ResponsiveContainer,
+  BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -23,7 +23,7 @@ import { PDFGenerator } from '../../utils/pdfGenerator';
 import UserInsightPanel from '../users/UserInsightPanel';
 
 const StatCard = ({ title, value, icon: Icon, color, trend, subtitle, onClick }) => (
-  <Card 
+  <Card
     className={`p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300 border border-slate-200 shadow-sm bg-white ${onClick ? 'cursor-pointer' : ''}`}
     onClick={onClick}
   >
@@ -54,8 +54,6 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
     productos: { total: 0, verificados: 0 },
     aprendices: { total: 0, activos: 0 },
     investigadores: 0,
-    instructores: 0,
-    bitacoras: { total: 0, firmadas_tutor: 0, firmadas_aprendiz: 0, pendientes: 0 },
     tareas_criticas: { proximas: [], vencidas: [] },
     historial_reciente: []
   });
@@ -79,7 +77,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
     try {
       const [statsData, evoData] = await Promise.all([
         DashboardAPI.getStats().catch(() => null),
-        DashboardAPI.getAnalyticsEvolucion(12).catch(() => [])
+        isAprendiz ? Promise.resolve([]) : DashboardAPI.getAnalyticsEvolucion(12).catch(() => [])
       ]);
       if (statsData) setStats(statsData);
       if (Array.isArray(evoData)) setEvolution(evoData);
@@ -121,27 +119,27 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
               Hola, {currentUser?.nombre || 'Aprendiz'} 👋
             </h1>
             <p className="text-emerald-100/90 text-sm sm:text-base font-medium max-w-xl leading-relaxed">
-              {currentUser?.programa_formacion 
-                ? `${currentUser.programa_formacion} • Ficha ${currentUser?.ficha || 'SENA'}` 
-                : 'Bienvenido a tu panel de semillerista. Registra tus bitácoras de campo, consulta tus entregables y participa en los retos de innovación regional.'}
+              {currentUser?.programa_formacion
+                ? `${currentUser.programa_formacion} • Ficha ${currentUser?.ficha || 'SENA'}`
+                : 'Bienvenido a tu panel de semillerista. Consulta tus proyectos y entregables, y participa en los retos de innovación regional.'}
             </p>
             <div className="flex flex-wrap gap-3 pt-2">
-              <Button 
-                variant="sena" 
+              <Button
+                variant="sena"
                 className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-900/30"
-                onClick={() => onModuleAction?.({ module: 'bitacora', form: 'create' })}
+                onClick={() => onModuleAction?.({ module: 'proyectos' })}
               >
-                <Plus size={18} className="mr-2" /> Nueva Bitácora de Campo
+                <FolderOpen size={18} className="mr-2" /> Ver mis proyectos
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="bg-white/10 border-white/20 text-white hover:bg-white hover:text-emerald-900 font-bold"
                 onClick={() => onModuleAction?.({ module: 'cronograma' })}
               >
                 <Calendar size={18} className="mr-2" /> Mis Tareas y Entregables
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="bg-white/10 border-white/20 text-white hover:bg-white hover:text-emerald-900 font-bold"
                 onClick={() => onModuleAction?.({ module: 'retos' })}
               >
@@ -160,57 +158,44 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
               <p className="text-3xl font-black text-emerald-300">{stats.proyectos?.total || userImpact?.proyectos_count || 0}</p>
               <p className="text-[10px] font-bold text-emerald-200 uppercase tracking-wider mt-1">Proyectos</p>
             </div>
-            <div className="h-10 w-px bg-white/20" />
-            <div className="text-center px-3">
-              <p className="text-3xl font-black text-amber-300">{stats.bitacoras?.total || 0}</p>
-              <p className="text-[10px] font-bold text-emerald-200 uppercase tracking-wider mt-1">Bitácoras</p>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Métricas Formativas del Aprendiz */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Semillero Vinculado" 
-          value={userImpact?.semilleros_count || 1} 
-          icon={GraduationCap} 
-          color="bg-emerald-600" 
-          subtitle="SITEC / CGAO Vélez" 
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <StatCard
+          title="Semillero Vinculado"
+          value={userImpact?.semilleros_count || 1}
+          icon={GraduationCap}
+          color="bg-emerald-600"
+          subtitle="SITEC / CGAO Vélez"
           onClick={() => onModuleAction?.({ module: 'semilleros' })}
         />
-        <StatCard 
-          title="Proyectos Asignados" 
-          value={stats.proyectos?.total || userImpact?.proyectos_count || 0} 
-          icon={FolderOpen} 
-          color="bg-indigo-600" 
-          subtitle="Proyectos I+D+i en equipo" 
+        <StatCard
+          title="Proyectos Asignados"
+          value={stats.proyectos?.total || userImpact?.proyectos_count || 0}
+          icon={FolderOpen}
+          color="bg-indigo-600"
+          subtitle="Proyectos I+D+i en equipo"
           onClick={() => onModuleAction?.({ module: 'proyectos' })}
         />
-        <StatCard 
-          title="Bitácoras Registradas" 
-          value={stats.bitacoras?.total || 0} 
-          icon={Book} 
-          color="bg-amber-600" 
-          subtitle={`${stats.bitacoras?.firmadas_aprendiz || 0} firmadas por ti`} 
-          onClick={() => onModuleAction?.({ module: 'bitacora' })}
-        />
-        <StatCard 
-          title="Cumplimiento de Tareas" 
-          value={`${userImpact?.cumplimiento || 100}%`} 
-          icon={Target} 
-          color="bg-teal-600" 
-          subtitle="Entregables al día" 
+        <StatCard
+          title="Cumplimiento de Tareas"
+          value={`${userImpact?.cumplimiento || 100}%`}
+          icon={Target}
+          color="bg-teal-600"
+          subtitle="Entregables al día"
           onClick={() => onModuleAction?.({ module: 'cronograma' })}
         />
       </div>
 
       {/* Contenido Principal Formativo */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* Columna Izquierda: Entregables y Bitácoras */}
+
+        {/* Columna Izquierda: Entregables y proyectos */}
         <div className="lg:col-span-8 space-y-8">
-          
+
           {/* Tareas y Entregables Próximos */}
           <Card className="p-8 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
             <div className="flex items-center justify-between mb-6">
@@ -218,9 +203,9 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 <h3 className="font-black text-slate-900 text-lg">Mis Compromisos & Entregables</h3>
                 <p className="text-xs text-slate-600 font-bold uppercase tracking-widest mt-1">Actividades asignadas en tu semillero y proyecto</p>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-xs border-slate-300 text-slate-800"
                 onClick={() => onModuleAction?.({ module: 'cronograma' })}
               >
@@ -255,55 +240,32 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             </div>
           </Card>
 
-          {/* Estado de Bitácoras de Campo */}
+          {/* Acceso a proyectos asignados */}
           <Card className="p-8 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="font-black text-slate-900 text-lg">Diario Técnico & Bitácoras</h3>
-                <p className="text-xs text-slate-600 font-bold uppercase tracking-widest mt-1">Registro de avances técnicos y evidencias prácticas</p>
+                <h3 className="font-black text-slate-900 text-lg">Mis proyectos de investigación</h3>
+                <p className="text-xs text-slate-600 font-bold uppercase tracking-widest mt-1">Consulta los proyectos asociados a tu semillero</p>
               </div>
-              <Button 
-                variant="sena" 
-                size="sm" 
-                className="text-xs"
-                onClick={() => onModuleAction?.({ module: 'bitacora', form: 'create' })}
-              >
-                <Plus size={14} className="mr-1" /> Nueva Entrada
+              <Button variant="sena" size="sm" className="text-xs" onClick={() => onModuleAction?.({ module: 'proyectos' })}>
+                <FolderOpen size={14} className="mr-1" /> Ver proyectos
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center">
-                <p className="text-[10px] font-black text-slate-600 uppercase">Total Entradas</p>
-                <p className="text-2xl font-black text-slate-900 mt-1">{stats.bitacoras?.total || 0}</p>
-              </div>
-              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-center">
-                <p className="text-[10px] font-black text-emerald-800 uppercase">Firmadas por Tutor</p>
-                <p className="text-2xl font-black text-emerald-800 mt-1">{stats.bitacoras?.firmadas_tutor || 0}</p>
-              </div>
-              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-200 text-center">
-                <p className="text-[10px] font-black text-indigo-800 uppercase">Firmadas por Ti</p>
-                <p className="text-2xl font-black text-indigo-800 mt-1">{stats.bitacoras?.firmadas_aprendiz || 0}</p>
-              </div>
-            </div>
-
-            <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-200 flex items-start gap-4">
+            <div className="p-5 bg-indigo-50 rounded-2xl border border-indigo-200 flex items-start gap-4">
               <div className="p-2 bg-indigo-100 text-indigo-800 rounded-xl mt-0.5 font-bold">
-                <BookOpen size={18} />
+                <FolderOpen size={18} />
               </div>
-              <div className="flex-1 text-xs text-indigo-950 leading-relaxed font-medium">
-                <p className="font-bold mb-0.5">Firma Digital SENNOVA</p>
-                <p className="text-indigo-900">
-                  Recuerda firmar tus entradas de bitácora tras registrarlas. El tutor e investigador asignado validará técnicamente tus evidencias para tu informe de etapa productiva.
-                </p>
-              </div>
+              <p className="flex-1 text-sm text-indigo-950 leading-relaxed font-medium">
+                Revisa la información de tus proyectos, el equipo vinculado y los avances disponibles para tu semillero.
+              </p>
             </div>
           </Card>
         </div>
 
         {/* Columna Derecha: Ficha Académica & Retos */}
         <div className="lg:col-span-4 space-y-8">
-          
+
           {/* Ficha Académica del Aprendiz */}
           <Card className="p-8 bg-slate-900 text-white border-0 shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl -mr-16 -mt-16" />
@@ -340,8 +302,8 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
               </div>
 
               <div className="pt-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-center bg-slate-800/90 hover:bg-slate-700 border-slate-700 text-white text-xs font-bold shadow-sm"
                   onClick={() => onModuleAction?.({ module: 'perfil' })}
                 >
@@ -362,8 +324,8 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             <p className="text-xs text-slate-600 leading-relaxed mb-6 font-medium">
               Explora las problemáticas regionales del sector agropecuario, turístico y tecnológico para desarrollar soluciones con tu semillero.
             </p>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-between text-xs font-bold border-amber-300 text-amber-900 hover:bg-amber-50"
               onClick={() => onModuleAction?.({ module: 'retos' })}
             >
@@ -378,23 +340,23 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
               <FileSpreadsheet size={16} className="text-indigo-600" /> Formatos de Etapa Productiva
             </h3>
             <div className="space-y-3">
-              <button 
+              <button
                 onClick={() => onModuleAction?.({ module: 'repositorio' })}
                 className="w-full p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 rounded-xl text-left transition-all flex items-center justify-between group"
               >
                 <div>
-                  <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Guía de Bitácoras SENA</p>
-                  <p className="text-[10px] text-slate-600 font-medium">Instrucciones y criterios de evaluación</p>
+                  <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Formatos de etapa productiva</p>
+                  <p className="text-[10px] text-slate-600 font-medium">Consulta modelos de planeación y seguimiento</p>
                 </div>
                 <ChevronRight size={14} className="text-slate-500 group-hover:text-indigo-700" />
               </button>
-              <button 
+              <button
                 onClick={() => onModuleAction?.({ module: 'repositorio' })}
                 className="w-full p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 rounded-xl text-left transition-all flex items-center justify-between group"
               >
                 <div>
-                  <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Plantillas de Certificación</p>
-                  <p className="text-[10px] text-slate-600 font-medium">Descarga de formatos oficiales CGAO</p>
+                  <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Documentos del centro</p>
+                  <p className="text-[10px] text-slate-600 font-medium">Consulta documentos institucionales y modelos de referencia</p>
                 </div>
                 <ChevronRight size={14} className="text-slate-500 group-hover:text-indigo-700" />
               </button>
@@ -429,9 +391,9 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             Supervisión global de convocatorias, productos Minciencias, proyectos en ejecución y talento científico del Centro de Gestión Agroempresarial y del Oriente.
           </p>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-3 relative z-10">
-          <Button 
+          <Button
             variant="outline"
             onClick={onOpenSearch}
             className="px-5 bg-white hover:bg-slate-50 border-slate-300 text-slate-800"
@@ -440,7 +402,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             <span>Buscar</span>
             <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 bg-slate-200 text-[10px] rounded-md ml-3 text-slate-700 font-mono">Ctrl K</kbd>
           </Button>
-          <Button 
+          <Button
             variant="indigo"
             onClick={() => onModuleAction?.({ module: 'reportes' })}
             className="px-5"
@@ -448,9 +410,9 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             <FileText size={16} className="mr-2" />
             <span>Reportes CGAO</span>
           </Button>
-          <Button 
-            variant="sena" 
-            className="px-6 shadow-xl shadow-emerald-600/20" 
+          <Button
+            variant="sena"
+            className="px-6 shadow-xl shadow-emerald-600/20"
             onClick={onNewProject}
           >
             <Plus size={18} className="mr-2" strokeWidth={3} /> Nuevo Proyecto
@@ -460,37 +422,37 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
 
       {/* KPIs Globales del Centro CGAO */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Proyectos Totales Centro" 
-          value={stats.proyectos?.total || 0} 
-          icon={Briefcase} 
-          color="bg-emerald-600" 
-          trend={stats.proyectos?.trend} 
+        <StatCard
+          title="Proyectos Totales Centro"
+          value={stats.proyectos?.total || 0}
+          icon={Briefcase}
+          color="bg-emerald-600"
+          trend={stats.proyectos?.trend}
           subtitle={`${stats.proyectos?.activos || 0} en ejecución activa`}
           onClick={() => onModuleAction?.({ module: 'proyectos' })}
         />
-        <StatCard 
-          title="Productos Minciencias" 
-          value={stats.productos?.total || 0} 
-          icon={Trophy} 
-          color="bg-indigo-600" 
-          trend={stats.productos?.trend} 
+        <StatCard
+          title="Productos Minciencias"
+          value={stats.productos?.total || 0}
+          icon={Trophy}
+          color="bg-indigo-600"
+          trend={stats.productos?.trend}
           subtitle={`${stats.productos?.verificados || 0} verificados`}
           onClick={() => onModuleAction?.({ module: 'productos' })}
         />
-        <StatCard 
-          title="Investigadores & Docentes" 
-          value={stats.investigadores || 0} 
-          icon={Users} 
-          color="bg-amber-600" 
-          subtitle={`${stats.instructores || 0} instructores`}
+        <StatCard
+          title="Investigadores"
+          value={stats.investigadores || 0}
+          icon={Users}
+          color="bg-amber-600"
+          subtitle="Personal investigador del Centro"
           onClick={() => onModuleAction?.({ module: 'investigadores' })}
         />
-        <StatCard 
-          title="Aprendices en Semilleros" 
-          value={stats.aprendices?.total || 0} 
-          icon={GraduationCap} 
-          color="bg-rose-600" 
+        <StatCard
+          title="Aprendices en Semilleros"
+          value={stats.aprendices?.total || 0}
+          icon={GraduationCap}
+          color="bg-rose-600"
           subtitle={`${stats.aprendices?.activos || 0} activos`}
           onClick={() => onModuleAction?.({ module: 'aprendices' })}
         />
@@ -498,9 +460,9 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
 
       {/* Gráfico y Paneles Institucionales */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
+
         <div className="lg:col-span-8 space-y-8">
-          
+
           {/* Gráfico de Evolución Global */}
           <Card className="p-8 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
             <div className="flex items-center justify-between mb-8">
@@ -519,7 +481,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 </div>
               </div>
             </div>
-            
+
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={evolution}>
@@ -600,7 +562,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
 
         {/* Columna Derecha: Acciones Institucionales & Auditoría en Vivo */}
         <div className="lg:col-span-4 space-y-8">
-          
+
           {/* Accesos de Control de Centro */}
           <Card className="p-8 bg-slate-900 text-white border-0 shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl -mr-16 -mt-16" />
@@ -616,29 +578,29 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
               </div>
 
               <div className="space-y-3">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-start bg-slate-800/90 hover:bg-slate-700 text-white border-slate-700 text-xs font-bold shadow-sm"
                   onClick={() => onModuleAction?.({ module: 'cvlac-admin' })}
                 >
                   <FileText size={16} className="mr-3 text-emerald-400" /> Control y Monitoreo CvLAC
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-start bg-slate-800/90 hover:bg-slate-700 text-white border-slate-700 text-xs font-bold shadow-sm"
                   onClick={() => onModuleAction?.({ module: 'auditoria' })}
                 >
                   <Activity size={16} className="mr-3 text-indigo-400" /> Registro de Auditoría en Vivo
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-start bg-slate-800/90 hover:bg-slate-700 text-white border-slate-700 text-xs font-bold shadow-sm"
                   onClick={() => onModuleAction?.({ module: 'reportes' })}
                 >
                   <FileSpreadsheet size={16} className="mr-3 text-amber-400" /> Consolidado SIGP & GTH-F-074
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-start bg-slate-800/90 hover:bg-slate-700 text-white border-slate-700 text-xs font-bold shadow-sm"
                   onClick={() => onModuleAction?.({ module: 'configuracion' })}
                 >
@@ -704,9 +666,9 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             Tienes <span className="text-indigo-700 font-bold">{stats?.tareas_criticas?.proximas?.length || 0} entregables</span> programados para esta etapa. Sigue impulsando la ciencia en el CGAO.
           </p>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-3 relative z-10">
-          <Button 
+          <Button
             variant="outline"
             onClick={onOpenSearch}
             className="px-5 bg-white hover:bg-slate-50 border-slate-300 text-slate-800"
@@ -715,7 +677,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             <span>Búsqueda</span>
             <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 bg-slate-200 text-[10px] rounded-md ml-3 text-slate-700 font-mono">Ctrl K</kbd>
           </Button>
-          <Button 
+          <Button
             variant="indigo"
             onClick={handleGenerateMonthlyReport}
             className="px-5"
@@ -723,9 +685,9 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             <FileText size={16} className="mr-2" />
             <span>Reporte GTH-F-074</span>
           </Button>
-          <Button 
-            variant="sena" 
-            className="px-6 shadow-xl shadow-emerald-600/20" 
+          <Button
+            variant="sena"
+            className="px-6 shadow-xl shadow-emerald-600/20"
             onClick={onNewProject}
           >
             <Plus size={18} className="mr-2" strokeWidth={3} /> Nuevo Proyecto
@@ -745,7 +707,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 </div>
                 <h3 className="text-xl font-black tracking-tight text-white">Recomendaciones Estratégicas AI</h3>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(userImpact.cumplimiento < 90 || stats.tareas_criticas?.vencidas?.length > 0) && (
                   <div className="p-4 bg-white/10 border border-white/15 rounded-2xl flex gap-4 items-start hover:bg-white/15 transition-colors">
@@ -758,7 +720,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                     </div>
                   </div>
                 )}
-                
+
                 <div className="p-4 bg-white/10 border border-white/15 rounded-2xl flex gap-4 items-start hover:bg-white/15 transition-colors">
                   <div className="p-2 bg-emerald-500/20 text-emerald-300 rounded-lg"><Target size={18} /></div>
                   <div>
@@ -772,9 +734,9 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 <div className="p-4 bg-white/10 border border-white/15 rounded-2xl flex gap-4 items-start hover:bg-white/15 transition-colors">
                   <div className="p-2 bg-indigo-500/20 text-indigo-300 rounded-lg"><Users size={18} /></div>
                   <div>
-                    <p className="text-sm font-bold text-white">Tutoría de Aprendices</p>
+                      <p className="text-sm font-bold text-white">Acompañamiento de Semilleros</p>
                     <p className="text-[10px] text-slate-300 mt-1 leading-relaxed">
-                      Revisa y valida digitalmente las bitácoras de campo pendientes de tus semilleristas.
+                      Consulta los proyectos, entregables y productos asociados a tus semilleristas.
                     </p>
                   </div>
                 </div>
@@ -790,7 +752,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 </div>
               </div>
             </div>
-            
+
             <div className="p-8 lg:w-1/3 bg-white/5 border-l border-white/10 flex flex-col justify-center items-center text-center space-y-4">
               <div className="relative">
                 <svg className="w-24 h-24 transform -rotate-90">
@@ -803,10 +765,10 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 <p className="text-sm font-bold text-white">Nivel de Desempeño</p>
                 <p className="text-[10px] text-emerald-400 font-black uppercase tracking-tighter mt-1">Impacto Investigativo</p>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20 w-full text-xs font-bold shadow-sm" 
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20 w-full text-xs font-bold shadow-sm"
                 onClick={() => onModuleAction?.({ module: 'proyectos' })}
               >
                 Ver Mis Proyectos
@@ -818,36 +780,36 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Mis Proyectos I+D+i" 
-          value={stats.proyectos?.activos || stats.proyectos?.total || 0} 
-          icon={Briefcase} 
-          color="bg-indigo-600" 
-          trend={stats.proyectos?.trend} 
+        <StatCard
+          title="Mis Proyectos I+D+i"
+          value={stats.proyectos?.activos || stats.proyectos?.total || 0}
+          icon={Briefcase}
+          color="bg-indigo-600"
+          trend={stats.proyectos?.trend}
           onClick={() => onModuleAction?.({ module: 'proyectos' })}
         />
-        <StatCard 
-          title="Mis Productos Minciencias" 
-          value={stats.productos?.total || 0} 
-          icon={Trophy} 
-          color="bg-emerald-600" 
-          trend={stats.productos?.trend} 
+        <StatCard
+          title="Mis Productos Minciencias"
+          value={stats.productos?.total || 0}
+          icon={Trophy}
+          color="bg-emerald-600"
+          trend={stats.productos?.trend}
           onClick={() => onModuleAction?.({ module: 'productos' })}
         />
-        <StatCard 
-          title="Cumplimiento Técnico" 
-          value={`${userImpact?.cumplimiento || 100}%`} 
-          icon={Target} 
-          color="bg-amber-600" 
-          subtitle="Metas logradas en cronograma" 
+        <StatCard
+          title="Cumplimiento Técnico"
+          value={`${userImpact?.cumplimiento || 100}%`}
+          icon={Target}
+          color="bg-amber-600"
+          subtitle="Metas logradas en cronograma"
           onClick={() => onModuleAction?.({ module: 'cronograma' })}
         />
-        <StatCard 
-          title="Aprendices Tutelados" 
-          value={stats.aprendices?.total || userImpact?.aprendices_count || 0} 
-          icon={GraduationCap} 
-          color="bg-rose-600" 
-          subtitle="En mis semilleros" 
+        <StatCard
+          title="Aprendices Tutelados"
+          value={stats.aprendices?.total || userImpact?.aprendices_count || 0}
+          icon={GraduationCap}
+          color="bg-rose-600"
+          subtitle="En mis semilleros"
           onClick={() => onModuleAction?.({ module: 'aprendices' })}
         />
       </div>
@@ -855,7 +817,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-8">
-          
+
           <Card className="p-8 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
             <div className="flex items-center justify-between mb-8">
               <div>
@@ -873,7 +835,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 </div>
               </div>
             </div>
-            
+
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={evolution}>
@@ -942,7 +904,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
 
         {/* Columna Derecha: Impacto 360 & Próximos Vencimientos */}
         <div className="lg:col-span-4 space-y-8">
-          <Card 
+          <Card
             className="p-8 border-0 shadow-sm overflow-hidden bg-slate-900 text-white cursor-pointer hover:shadow-2xl hover:shadow-emerald-500/10 transition-all group"
             onClick={() => { setSelectedUser(currentUser); setShowInsight(true); }}
           >
@@ -1009,7 +971,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
   return (
     <div className="space-y-8 pb-20 animate-fadeIn">
       {isAprendiz ? <ApprenticeDashboard /> : isAdmin ? <AdminDashboard /> : <ResearcherDashboard />}
-      
+
       <UserInsightPanel
         user={selectedUser}
         isOpen={showInsight}

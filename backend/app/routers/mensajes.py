@@ -44,13 +44,18 @@ KEEPALIVE_SECONDS = 20.0
 @router.get("/stream")
 async def stream_mensajes(
     request: Request,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Canal Server-Sent Events (SSE) para comunicación asíncrona en tiempo real.
     Transmite mensajes entrantes, confirmaciones de entrega y lectura al instante.
     """
     uid = str(current_user.id)
+    # `get_current_user` consulta la base de datos y FastAPI conserva su sesión
+    # hasta que termina la respuesta. En una respuesta SSE eso puede tardar
+    # horas; cerrar aquí libera la conexión antes de iniciar la transmisión.
+    db.close()
     queue = await broadcaster.connect(uid)
 
     # Al conectarse, marcar como entregados los mensajes acumulados y avisar a

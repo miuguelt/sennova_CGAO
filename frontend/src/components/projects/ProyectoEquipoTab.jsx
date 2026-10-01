@@ -174,7 +174,7 @@ export default function ProyectoEquipoTab({
             <div className="max-w-sm mx-auto">
               <p className="text-sm font-bold text-slate-800">No hay investigadores asignados</p>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Vincula investigadores, instructores o aprendices para conformar el equipo de trabajo de este proyecto.
+                Vincula investigadores o aprendices para conformar el equipo de trabajo de este proyecto.
               </p>
             </div>
             {canManage && (

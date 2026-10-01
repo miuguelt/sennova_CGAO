@@ -36,9 +36,21 @@ const formatDate = (d) => {
 };
 
 /**
- * Utilidad para generar documentos PDF oficiales de SENNOVA
+ * Utilidad para generar PDF de referencia para seguimiento interno de SENNOVA
  * Alineada con el modelo de base de datos PostgreSQL / SQLite y la API de Plantillas
  */
+const addReferenceNotice = (doc) => {
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(...COLORS.white);
+  doc.text(
+    'REFERENCIA INTERNA. No reemplaza el formato institucional vigente ni certifica aprobación.',
+    105,
+    37,
+    { align: 'center' },
+  );
+};
+
 export const PDFGenerator = {
   
   /**
@@ -239,7 +251,7 @@ export const PDFGenerator = {
     doc.setTextColor(51, 65, 85);
     const metas = Array.isArray(data.metas_proximo_mes) && data.metas_proximo_mes.length > 0
       ? data.metas_proximo_mes
-      : ['Continuar ejecución técnica de los proyectos asignados', 'Actualizar bitácoras y registros de actividades en la plataforma', 'Consolidar entregables y productos para MinCiencias'];
+      : ['Continuar ejecución técnica de los proyectos asignados', 'Actualizar entregables y actividades conforme al cronograma', 'Consolidar productos para MinCiencias'];
 
     metas.forEach((meta, index) => {
       doc.text(`• ${meta}`, 25, finalY + 20 + (index * 6));
@@ -476,142 +488,7 @@ export const PDFGenerator = {
   },
 
   /**
-   * 5. Genera el reporte oficial de bitácora técnica
-   */
-  generateBitacoraReport: (data = {}) => {
-    const doc = new jsPDF();
-    const proyecto = data.proyecto || data || {};
-    const entidad = data.entidad || 'SERVICIO NACIONAL DE APRENDIZAJE - SENA';
-    const centro = data.centro || 'CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE - CGAO';
-    const periodo = data.periodo || `Generado el ${new Date().toLocaleDateString('es-CO')}`;
-    
-    const rawEntradas = Array.isArray(data.entradas) ? data.entradas : (Array.isArray(data.bitacoras) ? data.bitacoras : []);
-    const entradas = rawEntradas;
-
-    const resumen = data.resumen_ejecucion || {
-      total_entradas: entradas.length,
-      firmas_completas: entradas.filter(e => e.is_firmado_investigador && e.is_firmado_aprendiz).length,
-      pendientes: entradas.filter(e => !e.is_firmado_investigador || !e.is_firmado_aprendiz).length
-    };
-
-    // Encabezado
-    doc.setFillColor(...COLORS.indigoDark);
-    doc.rect(0, 0, 210, 42, 'F');
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.setTextColor(...COLORS.white);
-    doc.text('BITÁCORA TÉCNICA DE INVESTIGACIÓN', 105, 18, { align: 'center' });
-    doc.setFontSize(9);
-    doc.text(entidad, 105, 26, { align: 'center' });
-    doc.text(centro, 105, 32, { align: 'center' });
-
-    // Info del Proyecto
-    doc.setTextColor(...COLORS.navyDark);
-    doc.setFontSize(11);
-    doc.text('DETALLES DEL PROYECTO', 20, 52);
-    doc.setDrawColor(...COLORS.borderGray);
-    doc.line(20, 54, 190, 54);
-
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Nombre: ${proyecto.nombre || 'Sin definir'}`, 20, 62);
-    doc.text(`Código SGPS: ${proyecto.codigo || proyecto.codigo_sgps || 'N/A'}`, 20, 68);
-    doc.text(`Línea: ${proyecto.linea || proyecto.linea_programatica || proyecto.linea_investigacion || 'No definida'}`, 20, 74);
-    doc.text(`Periodo: ${periodo}`, 20, 80);
-
-    // Resumen de Ejecución
-    doc.setFillColor(...COLORS.bgLight);
-    doc.rect(130, 58, 65, 26, 'F');
-    doc.setDrawColor(...COLORS.borderGray);
-    doc.rect(130, 58, 65, 26, 'S');
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('ESTADO DE BITÁCORA', 135, 65);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Total Entradas: ${resumen.total_entradas ?? 0}`, 135, 71);
-    doc.text(`Firmas Completas: ${resumen.firmas_completas ?? 0}`, 135, 76);
-    doc.text(`Pendientes: ${resumen.pendientes ?? 0}`, 135, 81);
-
-    // Tabla de Entradas
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('HISTORIAL DE ACTIVIDADES Y HALLAZGOS', 20, 96);
-
-    const bodyTable = entradas.length > 0 ? entradas.map(e => [
-      e.fecha ? formatDate(e.fecha) : 'N/A', 
-      `${(e.titulo || 'Sin título').toUpperCase()}\n(${e.categoria || 'Técnica'})`, 
-      e.autor || e.user?.nombre || 'Investigador',
-      e.estado_firma || (e.is_firmado_investigador ? 'FIRMADO' : 'PENDIENTE')
-    ]) : [['-', 'Sin entradas registradas en la bitácora técnica', '-', 'N/A']];
-
-    doc.autoTable({
-      startY: 100,
-      head: [['Fecha', 'Título / Categoría', 'Autor', 'Firma']],
-      body: bodyTable,
-      headStyles: { fillColor: COLORS.indigoDark },
-      styles: { fontSize: 8 },
-      columnStyles: {
-        1: { cellWidth: 75 }
-      }
-    });
-
-    // Detalle de cada entrada (con saltos de página inteligentes)
-    let currentY = (doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY : 120) + 14;
-
-    if (entradas.length > 0) {
-      entradas.forEach((e, index) => {
-        if (currentY > 230) {
-          doc.addPage();
-          currentY = 25;
-        }
-
-        doc.setFillColor(241, 245, 249);
-        doc.rect(20, currentY, 170, 7, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(...COLORS.navyDark);
-        doc.text(`ENTRADA #${index + 1}: ${e.titulo || 'Sin título'} (${e.categoria || 'General'})`, 24, currentY + 5);
-        
-        currentY += 12;
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
-        doc.setTextColor(51, 65, 85);
-        const splitText = doc.splitTextToSize(e.contenido || 'Sin contenido registrado.', 160);
-        doc.text(splitText, 24, currentY);
-        
-        currentY += (splitText.length * 4.5) + 4;
-        
-        doc.setFontSize(7);
-        doc.setTextColor(...COLORS.textMuted);
-        doc.text(`Hash de Integridad: ${e.hash_verificacion || 'N/A'} • Autor: ${e.autor || e.user?.nombre || 'Investigador'} • Adjuntos: ${e.adjuntos_count ?? (e.adjuntos?.length || 0)}`, 24, currentY);
-        currentY += 10;
-      });
-    }
-
-    // Glosario y Seguridad en página final si es necesario
-    if (currentY > 220) {
-      doc.addPage();
-      currentY = 25;
-    } else {
-      currentY += 6;
-    }
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(...COLORS.navyDark);
-    doc.text('SEGURIDAD Y TRAZABILIDAD CRIPTOGRÁFICA', 20, currentY);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(...COLORS.textMuted);
-    const glosario = data.glosario_seguridad || 'Los hashes de verificación garantizan la integridad, inmutabilidad y autenticidad del contenido técnico registrado conforme a los lineamientos SENNOVA.';
-    doc.text(doc.splitTextToSize(glosario, 170), 20, currentY + 6);
-
-    doc.save(`Bitacora_Oficial_${sanitizeFileName(proyecto.codigo || proyecto.codigo_sgps || 'Proyecto')}.pdf`);
-  },
-
-  /**
-   * 6. Genera el Formato de Etapa Productiva
+   * 5. Genera el Formato de Etapa Productiva
    */
   generateEtapaProductiva: (proyecto = {}) => {
     const doc = new jsPDF();
@@ -622,10 +499,11 @@ export const PDFGenerator = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.setTextColor(...COLORS.white);
-    doc.text('FORMATO ETAPA PRODUCTIVA', 105, 18, { align: 'center' });
+    doc.text('MODELO DE REFERENCIA - ETAPA PRODUCTIVA', 105, 18, { align: 'center' });
     doc.setFontSize(9);
     doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE - REGIONAL SANTANDER', 105, 26, { align: 'center' });
     doc.text('SISTEMA DE INVESTIGACIÓN, INNOVACIÓN Y DESARROLLO TECNOLÓGICO - SENNOVA', 105, 31, { align: 'center' });
+    addReferenceNotice(doc);
 
     // Info del Proyecto
     doc.setTextColor(...COLORS.navyDark);
@@ -694,7 +572,7 @@ export const PDFGenerator = {
   },
 
   /**
-   * 7. Genera el Formato de Seguimiento de Proyecto
+   * 6. Genera el Formato de Seguimiento de Proyecto
    */
   generateSeguimiento: (proyecto = {}) => {
     const doc = new jsPDF();
@@ -705,10 +583,11 @@ export const PDFGenerator = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.setTextColor(...COLORS.white);
-    doc.text('FORMATO DE SEGUIMIENTO TÉCNICO', 105, 18, { align: 'center' });
+    doc.text('MODELO DE SEGUIMIENTO TÉCNICO', 105, 18, { align: 'center' });
     doc.setFontSize(9);
     doc.text('SISTEMA DE INVESTIGACIÓN, INNOVACIÓN Y DESARROLLO TECNOLÓGICO - SENNOVA', 105, 26, { align: 'center' });
     doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE - REGIONAL SANTANDER', 105, 31, { align: 'center' });
+    addReferenceNotice(doc);
 
     // Info
     doc.setTextColor(...COLORS.navyDark);
@@ -758,7 +637,7 @@ export const PDFGenerator = {
   },
 
   /**
-   * 8. Genera el Informe Final del Proyecto
+   * 7. Genera el Informe Final del Proyecto
    */
   generateInformeFinal: (proyecto = {}) => {
     const doc = new jsPDF();
@@ -769,10 +648,11 @@ export const PDFGenerator = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.setTextColor(...COLORS.white);
-    doc.text('INFORME FINAL DE PROYECTO SENNOVA', 105, 18, { align: 'center' });
+    doc.text('INFORME FINAL DE REFERENCIA', 105, 18, { align: 'center' });
     doc.setFontSize(9);
     doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE - REGIONAL SANTANDER', 105, 26, { align: 'center' });
     doc.text('SISTEMA DE INVESTIGACIÓN, INNOVACIÓN Y DESARROLLO TECNOLÓGICO', 105, 31, { align: 'center' });
+    addReferenceNotice(doc);
 
     // Info
     doc.setTextColor(...COLORS.navyDark);
@@ -826,7 +706,7 @@ export const PDFGenerator = {
   },
 
   /**
-   * 9. Genera la Ficha Técnica oficial del Proyecto
+   * 8. Genera una ficha técnica de referencia del proyecto
    */
   generateProjectPDF: (proyecto = {}, teamMembers = []) => {
     const doc = new jsPDF();
@@ -837,10 +717,11 @@ export const PDFGenerator = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.setTextColor(...COLORS.white);
-    doc.text('FICHA TÉCNICA DE PROYECTO', 105, 18, { align: 'center' });
+    doc.text('FICHA TÉCNICA DE REFERENCIA', 105, 18, { align: 'center' });
     doc.setFontSize(9);
     doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE - REGIONAL SANTANDER', 105, 26, { align: 'center' });
     doc.text('SISTEMA DE INVESTIGACIÓN, INNOVACIÓN Y DESARROLLO TECNOLÓGICO - SENNOVA', 105, 31, { align: 'center' });
+    addReferenceNotice(doc);
 
     // Información básica
     doc.setTextColor(...COLORS.navyDark);
@@ -863,7 +744,7 @@ export const PDFGenerator = {
     doc.setFont('helvetica', 'bold');
     doc.text('Estado:', 120, 72);
     doc.setFont('helvetica', 'normal');
-    doc.text((proyecto.estado || 'Aprobado').toUpperCase(), 140, 72);
+    doc.text((proyecto.estado || 'Sin estado registrado').toUpperCase(), 140, 72);
 
     doc.setFont('helvetica', 'bold');
     doc.text('Línea:', 20, 80);

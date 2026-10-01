@@ -25,7 +25,4 @@ export const PlantillasAPI = {
   getCertificadosMasivos: (proyectoId) => 
     fetchAPI(`/plantillas/proyectos/${proyectoId}/certificados-masivos`),
 
-  // Bitácora
-  getBitacoraOficial: (proyectoId) => 
-    fetchAPI(`/plantillas/proyectos/${proyectoId}/bitacora-oficial`),
 };

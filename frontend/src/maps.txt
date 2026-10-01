@@ -51,8 +51,6 @@ components\products\ProductosModule.jsx:520:                      options={proye
 components\profile\PerfilModule.jsx:184:                options={['', 'Investigador Experto', 'Instructor Investigador', 'Responsable de Proyecto'].map(e => ({ value: e, label: e || 'Selecciona...' }))}
 components\profile\PerfilModule.jsx:191:                options={['', 'Técnico', 'Tecnólogo', 'Pregrado', 'Especialización', 'Maestría', 'Doctorado'].map(e => ({ value: e, label: e || 'Selecciona...' }))}
 components\profile\PerfilModule.jsx:337:              {(user.lineas_investigacion || []).map((linea, idx) => (
-components\projects\BitacoraModule.jsx:144:          {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre_corto || p.nombre}</option>)}
-components\projects\BitacoraModule.jsx:159:          entries.map(entry => {
 components\projects\ProyectosModule.jsx:35:        {fases.map((fase, idx) => {
 components\projects\ProyectosModule.jsx:59:                  items.map(item => (
 components\projects\ProyectosModule.jsx:140:    {STATES.map(s => (

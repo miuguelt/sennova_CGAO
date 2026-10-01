@@ -4,7 +4,7 @@ import Button from '../ui/Button';
 import { SystemAPI } from '../../api/system';
 
 const SystemStatusCards = ({ onNotify }) => {
-  const [health, setHealth] = useState(null);
+  const [health, setHealth] = useState(undefined);
 
   useEffect(() => {
     SystemAPI.getHealth()
@@ -44,7 +44,7 @@ const SystemStatusCards = ({ onNotify }) => {
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full animate-pulse ${health?.status === 'healthy' ? 'bg-emerald-400' : 'bg-rose-500'}`} />
             <span className={`text-lg font-black tracking-tight ${health?.status === 'healthy' ? 'text-white' : 'text-rose-300'}`}>
-              {health === null ? 'VERIFICANDO' : health?.status === 'healthy' ? 'ONLINE' : 'NO DISPONIBLE'}
+              {health === undefined ? 'VERIFICANDO' : health?.status === 'healthy' ? 'ONLINE' : 'NO DISPONIBLE'}
             </span>
           </div>
         </div>

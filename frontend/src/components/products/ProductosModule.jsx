@@ -453,6 +453,15 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               <option value="">Todas las Tipologías</option>
               {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
+            <select
+              aria-label="Filtrar productos por proyecto"
+              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 focus:ring-2 focus:ring-emerald-500 outline-none"
+              value={proyectoFilter}
+              onChange={e => setProyectoFilter(e.target.value)}
+            >
+              <option value="">Todos los proyectos</option>
+              {proyectos.map(project => <option key={project.id} value={project.id}>{project.nombre_corto || project.nombre}</option>)}
+            </select>
             <Button 
               variant="ghost" 
               size="sm" 
@@ -513,6 +522,7 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                   <Button 
                     variant="ghost"
                     size="icon"
+                    aria-label={`Más opciones del producto ${p.nombre}`}
                     onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === p.id ? null : p.id); }}
                     className="h-8 w-8 bg-white/80 backdrop-blur-md border border-slate-100"
                   >

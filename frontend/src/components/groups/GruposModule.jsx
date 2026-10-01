@@ -384,6 +384,7 @@ const GruposModule = ({ currentUser, onNotify }) => {
                     {currentUser?.rol === 'admin' && (
                       <div className="relative" onClick={(e) => e.stopPropagation()}>
                         <button
+                          aria-label={`Más opciones del grupo ${grupo.nombre}`}
                           onClick={() => setMenuOpenId(menuOpenId === grupo.id ? null : grupo.id)}
                           className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
                         >

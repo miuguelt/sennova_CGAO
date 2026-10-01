@@ -30,7 +30,6 @@ import { ProyectosAPI } from '../api/proyectos';
 import { ProductosAPI } from '../api/productos';
 import { EntregablesAPI } from '../api/entregables';
 import { DocumentosAPI } from '../api/documentos';
-import { BitacoraAPI } from '../api/bitacora';
 import { RetosAPI } from '../api/retos';
 import { NotificacionesAPI } from '../api/notificaciones';
 import { MensajesAPI } from '../api/mensajes';
@@ -245,27 +244,6 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
     });
   });
 
-  // 9. Bitácora Técnica
-  describe('9. Bitácora Técnica API', () => {
-    it('ejecuta CRUD, firma dual y listado por proyecto', async () => {
-      fetchAPI.mockResolvedValueOnce({ id: 'b1', titulo: 'Sesión #1' });
-      await BitacoraAPI.create({ proyecto_id: 'p1', titulo: 'Sesión #1', contenido: 'Pruebas' });
-      expect(fetchAPI).toHaveBeenCalledWith('/bitacora', expect.objectContaining({ method: 'POST' }));
-
-      fetchAPI.mockResolvedValueOnce([{ id: 'b1' }]);
-      await BitacoraAPI.list('p1');
-      expect(fetchAPI).toHaveBeenCalledWith('/bitacora/proyecto/p1');
-
-      fetchAPI.mockResolvedValueOnce({ id: 'b1', is_firmado_investigador: true });
-      await BitacoraAPI.sign('b1', { ip: '192.168.1.10' });
-      expect(fetchAPI).toHaveBeenCalledWith('/bitacora/b1/sign', expect.objectContaining({ method: 'POST' }));
-
-      fetchAPI.mockResolvedValueOnce({ message: 'Bitácora eliminada' });
-      await BitacoraAPI.delete('b1');
-      expect(fetchAPI).toHaveBeenCalledWith('/bitacora/b1', expect.objectContaining({ method: 'DELETE' }));
-    });
-  });
-
   // 10. Retos de Innovación
   describe('10. Banco de Retos API', () => {
     it('ejecuta CRUD y patch de asignación', async () => {
@@ -365,7 +343,7 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
 
   // 15. Plantillas Inteligentes
   describe('15. Plantillas API', () => {
-    it('ejecuta generarCronograma, getDatosCertificado y getBitacoraOficial', async () => {
+    it('ejecuta generarCronograma y getDatosCertificado', async () => {
       fetchAPI.mockResolvedValueOnce({ status: 'success', entregables_creados: 6 });
       await PlantillasAPI.generarCronograma('p1');
       expect(fetchAPI).toHaveBeenCalledWith('/plantillas/proyectos/p1/cronograma-sennova', expect.objectContaining({ method: 'POST' }));
@@ -374,9 +352,6 @@ describe('🔬 Auditoría Exhaustiva E2E de Clientes API Frontend y Tablas', () 
       await PlantillasAPI.getDatosCertificado('s1', 'a1');
       expect(fetchAPI).toHaveBeenCalledWith('/plantillas/semilleros/s1/certificado-aprendiz/a1');
 
-      fetchAPI.mockResolvedValueOnce({ entradas: [] });
-      await PlantillasAPI.getBitacoraOficial('p1');
-      expect(fetchAPI).toHaveBeenCalledWith('/plantillas/proyectos/p1/bitacora-oficial');
     });
   });
 

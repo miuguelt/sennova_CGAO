@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Edit, Trash2, UserPlus } from 'lucide-react';
+import { Users, Edit, Trash2, UserPlus, GraduationCap, Shield } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
@@ -12,7 +12,16 @@ const ESTADOS = [
 
 export { ESTADOS };
 
-const SemilleroCard = ({ semillero, onEdit, onDelete, onDetail, onAddAprendiz, canManage = true }) => (
+const SemilleroCard = ({
+  semillero,
+  onEdit,
+  onDelete,
+  onDetail,
+  onAddAprendiz,
+  onAddInvestigador,
+  canManage = true,
+  canManageMembers = canManage,
+}) => (
   <Card
     className="group hover:shadow-xl hover:border-emerald-400 transition-all duration-300 border-l-4 border-l-emerald-500 cursor-pointer bg-white flex flex-col justify-between border-slate-200"
     onClick={() => onDetail(semillero)}
@@ -71,10 +80,14 @@ const SemilleroCard = ({ semillero, onEdit, onDelete, onDetail, onAddAprendiz, c
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 shadow-xs">
-          <p className="text-[9px] font-black text-slate-700 uppercase tracking-tighter">Aprendices</p>
-          <p className="text-base font-black text-slate-900">{semillero.total_aprendices || 0}</p>
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="bg-indigo-50 p-2.5 rounded-xl border border-indigo-100 shadow-xs">
+          <p className="text-[9px] font-black text-indigo-800 uppercase tracking-tighter">Aprendices</p>
+          <p className="text-base font-black text-indigo-900">{semillero.total_aprendices || 0}</p>
+        </div>
+        <div className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-100 shadow-xs">
+          <p className="text-[9px] font-black text-emerald-800 uppercase tracking-tighter">Investigadores</p>
+          <p className="text-base font-black text-emerald-900">{semillero.total_investigadores || 0}</p>
         </div>
         <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 shadow-xs">
           <p className="text-[9px] font-black text-slate-700 uppercase tracking-tighter">Dedicación</p>
@@ -82,10 +95,10 @@ const SemilleroCard = ({ semillero, onEdit, onDelete, onDetail, onAddAprendiz, c
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+      <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
         <div className="flex -space-x-2">
           {Array(Math.min(3, semillero.total_aprendices || 0)).fill(0).map((_, i) => (
-            <div key={i} className="w-7 h-7 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-emerald-700">
+            <div key={i} className="w-7 h-7 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-indigo-700">
               A{i + 1}
             </div>
           ))}
@@ -95,15 +108,27 @@ const SemilleroCard = ({ semillero, onEdit, onDelete, onDetail, onAddAprendiz, c
             </div>
           )}
         </div>
-        {canManage ? (
-          <Button
-            variant="primary"
-            size="sm"
-            className="h-8 text-[10px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700"
-            onClick={(e) => { e.stopPropagation(); onAddAprendiz(semillero); }}
-          >
-            <UserPlus size={13} className="mr-1.5" /> Vincular
-          </Button>
+        {canManageMembers ? (
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-11 px-2 text-[9px] leading-tight font-black uppercase tracking-wide text-indigo-800 border-indigo-200 hover:bg-indigo-50"
+              aria-label={`Vincular aprendiz a ${semillero.nombre}`}
+              onClick={(e) => { e.stopPropagation(); onAddAprendiz(semillero); }}
+            >
+              <GraduationCap size={14} className="mr-1 shrink-0" /> Agregar aprendiz
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-11 px-2 text-[9px] leading-tight font-black uppercase tracking-wide text-emerald-800 border-emerald-200 hover:bg-emerald-50"
+              aria-label={`Vincular investigador a ${semillero.nombre}`}
+              onClick={(e) => { e.stopPropagation(); onAddInvestigador(semillero); }}
+            >
+              <Shield size={14} className="mr-1 shrink-0" /> Agregar investigador
+            </Button>
+          </div>
         ) : (
           <Button
             variant="outline"

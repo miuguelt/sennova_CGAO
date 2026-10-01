@@ -1,9 +1,9 @@
 /**
- * Catálogo y Definición de Formatos Oficiales SENNOVA CGAO
+ * Catálogo interno de modelos de referencia SENNOVA CGAO
  * Centro de Gestión Agroempresarial y del Oriente - SENA Regional Santander
  */
 
-export const SENNOVA_FORMATS = [
+const FORMATOS_REFERENCIA = [
   {
     id: 'GTH-F-074',
     codigo: 'GTH-F-074 (V04)',
@@ -13,7 +13,7 @@ export const SENNOVA_FORMATS = [
     color: 'emerald',
     extension: 'docx',
     version: '4.0',
-    descripcion: 'Formato institucional único para reportar el avance mensual de actividades, horas dedicadas, compromisos contractuales e hitos técnicos en proyectos I+D+i.',
+    descripcion: 'Modelo interno para organizar el reporte mensual de actividades y avances técnicos.',
     aplicaA: 'Investigadores, Instructores y Contratistas SENNOVA',
     requisitos: ['Bitácora de actividades', 'Soportes de entregables', 'Firma digital o manuscrita'],
     isSmartTemplate: true,
@@ -21,7 +21,7 @@ export const SENNOVA_FORMATS = [
     templateContent: `SERVICIO NACIONAL DE APRENDIZAJE SENA
 SISTEMA INTEGRADO DE GESTIÓN Y AUTOCONTROL
 PROCESO: GESTIÓN DE TALENTO HUMANO / SENNOVA
-FORMATO ÚNICO DE INFORME MENSUAL DE ACTIVIDADES E INFORME TÉCNICO
+MODELO INTERNO DE REFERENCIA: INFORME MENSUAL DE ACTIVIDADES E INFORME TÉCNICO
 CÓDIGO: GTH-F-074 | VERSIÓN: 04
 
 1. INFORMACIÓN GENERAL
@@ -59,7 +59,7 @@ Investigador / Contratista                     CGAO - SENA Regional Santander`
     color: 'blue',
     extension: 'docx',
     version: '3.0',
-    descripcion: 'Formato obligatorio para concertación de plan de trabajo, seguimiento de bitácoras y evaluación de competencias de aprendices en semilleros de investigación.',
+    descripcion: 'Modelo interno para organizar la planeación y el seguimiento de etapa productiva.',
     aplicaA: 'Líderes de Semillero, Tutores y Aprendices',
     requisitos: ['Ficha de caracterización', 'Plan de concertación', 'Bitácoras quincenales'],
     isSmartTemplate: true,
@@ -100,7 +100,7 @@ Instructor Tutor / Investigador               Aprendiz Semillerista CGAO`
     color: 'indigo',
     extension: 'docx',
     version: '2025.1',
-    descripcion: 'Estructura oficial para la formulación de proyectos I+D+i: Marco lógico, árbol de problemas, objetivos, metodología, cadena de valor y presupuesto desagregado.',
+    descripcion: 'Estructura interna de referencia para organizar componentes de formulación de proyectos I+D+i.',
     aplicaA: 'Investigadores Principales y Coinvestigadores',
     requisitos: ['Alineación con líneas CGAO', 'Presupuesto detallado', 'Cronograma de entregables'],
     isSmartTemplate: false,
@@ -237,17 +237,17 @@ DESARROLLO DE LA REUNIÓN Y COMPROMISOS:
   {
     id: 'PPT-CGAO-CTEI',
     codigo: 'PPT-CGAO-CTeI',
-    titulo: 'Plantilla Oficial de Diapositivas y Ponencias CGAO',
+    titulo: 'Estructura de presentación y ponencias CGAO (referencia interna)',
     categoria: 'divulgacion',
     categoriaLabel: 'Divulgación & Apropiación Social',
     color: 'purple',
     extension: 'pptx',
     version: '2025',
-    descripcion: 'Estructura visual estandarizada con paleta de colores institucional SENA / SENNOVA, logos oficiales del CGAO Vélez y secciones de sustentación de proyectos.',
+    descripcion: 'Estructura interna de referencia para presentaciones de proyectos; no incluye una plantilla institucional controlada.',
     aplicaA: 'Ponentes, Investigadores y Semilleristas en eventos CTeI',
-    requisitos: ['Uso obligatorio de logos oficiales', 'Estructura I+D+i'],
+    requisitos: ['Confirmar lineamientos de identidad visual vigentes', 'Estructura I+D+i de referencia'],
     isSmartTemplate: false,
-    templateContent: `PLANTILLA OFICIAL DE PRESENTACIÓN - SENNOVA CGAO VÉLEZ
+    templateContent: `MODELO INTERNO DE ESTRUCTURA PARA PRESENTACIÓN - SENNOVA CGAO VÉLEZ
 
 Estructura de Diapositivas Recomendada:
 1. Portada Institucional (Logo SENA, SENNOVA, CGAO Vélez, Título, Autores, Semillero/Grupo).
@@ -366,66 +366,83 @@ GUÍA RÁPIDA DE TIPOLOGÍAS Y EVIDENCIAS VÁLIDAS PARA SENNOVA CGAO
   }
 ];
 
-/**
- * Función para descargar cualquier plantilla oficial como archivo de texto / Word (.doc/.docx compatible)
- */
-export const downloadFormatTemplate = (formato) => {
-  const isDoc = formato.extension === 'docx' || formato.extension === 'doc';
-  const isXls = formato.extension === 'xlsx' || formato.extension === 'xls';
-  
-  let mimeType = 'text/plain;charset=utf-8';
-  let fileContent = formato.templateContent;
+export const SENNOVA_FORMATS = FORMATOS_REFERENCIA.map((formato) => ({
+  ...formato,
+  extensionReferencia: formato.extension,
+  extension: 'html',
+  versionReferencia: formato.version,
+  version: null,
+  validacionInstitucional: 'Pendiente de validación institucional',
+  descripcion: 'Modelo de referencia generado por la plataforma. No se ha contrastado con la versión vigente del repositorio documental institucional.',
+  aplicaA: 'Aplicabilidad por confirmar con la Coordinación SENNOVA.',
+  requisitos: [],
+}));
 
-  if (isDoc) {
-    mimeType = 'application/msword';
-    fileContent = `<!DOCTYPE html>
+/**
+ * Construye un archivo HTML de referencia. El catálogo no contiene plantillas
+ * institucionales controladas en formato DOCX, XLSX, PPTX o PDF.
+ */
+export const buildFormatDownloadArtifact = (formato) => {
+  const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character]);
+  const identifier = [formato.id, formato.codigo]
+    .filter(Boolean)
+    .join('_')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toLowerCase() || 'modelo_referencia';
+  const version = formato.versionReferencia ?? formato.version;
+  const versionLine = version
+    ? `<p>Versión declarada en el modelo, pendiente de validar: ${escapeHtml(version)}</p>`
+    : '';
+  const legalNotice = formato.categoria === 'legal'
+    ? '<p class="notice"><strong>Borrador sin revisión jurídica.</strong> No lo firme ni lo use para ceder derechos hasta que lo revise el área jurídica y confirme que corresponde al proyecto y al formato institucional vigente.</p>'
+    : '';
+  const content = `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
-<title>${formato.titulo}</title>
+<title>${escapeHtml(formato.titulo)}</title>
 <style>
-  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.5; margin: 40px; }
-  h1 { font-size: 16pt; color: #047857; text-align: center; margin-bottom: 5px; }
-  h2 { font-size: 13pt; color: #1e293b; border-bottom: 2px solid #047857; padding-bottom: 4px; margin-top: 20px; }
-  .header-box { border: 2px solid #047857; padding: 15px; background-color: #f8fafc; margin-bottom: 25px; text-align: center; }
-  .meta-tag { font-size: 9pt; color: #64748b; font-weight: bold; }
-  pre { background: #f1f5f9; padding: 15px; border-radius: 8px; white-space: pre-wrap; font-family: Calibri, Arial, sans-serif; }
+  body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.5; margin: 2rem; color: #17212b; }
+  .notice { border: 1px solid #b7791f; padding: 1rem; background: #fffaf0; }
+  pre { white-space: pre-wrap; font: inherit; }
 </style>
 </head>
 <body>
-  <div class="header-box">
-    <h1>SERVICIO NACIONAL DE APRENDIZAJE - SENA</h1>
-    <p style="margin: 2px; font-weight: bold;">CENTRO DE GESTIÓN AGROEMPRESARIAL Y DEL ORIENTE - CGAO VÉLEZ</p>
-    <p style="margin: 2px; color: #047857; font-weight: bold;">SISTEMA DE INVESTIGACIÓN, INNOVACIÓN Y DESARROLLO TECNOLÓGICO - SENNOVA</p>
-    <p class="meta-tag">CÓDIGO OFICIAL: ${formato.codigo} | VERSIÓN: ${formato.version || '1.0'}</p>
-  </div>
-  <h2>${formato.titulo.toUpperCase()}</h2>
-  <pre>${formato.templateContent}</pre>
+  <p class="notice"><strong>Modelo de referencia sin validación institucional.</strong> Su vigencia está pendiente de confirmación. Confirme el código y la versión con la Coordinación SENNOVA antes de usar este contenido para radicar o reportar.</p>
+  ${legalNotice}
+  <h1>${escapeHtml(formato.titulo)}</h1>
+  <p>Identificador de referencia sin validar: ${escapeHtml(formato.codigo)}</p>
+  ${versionLine}
+  <pre>${escapeHtml(formato.templateContent)}</pre>
 </body>
 </html>`;
-  } else if (isXls) {
-    mimeType = 'application/vnd.ms-excel';
-    fileContent = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body>
-  <table>
-    <tr><th colspan="4" style="background:#047857;color:white;font-size:14pt;">SENA CGAO VÉLEZ - SENNOVA</th></tr>
-    <tr><th colspan="4" style="background:#f1f5f9;color:#334155;">FORMATO OFICIAL: ${formato.titulo} (${formato.codigo})</th></tr>
-    <tr><td></td></tr>
-    ${formato.templateContent.split('\n').map(line => `<tr><td colspan="4">${line}</td></tr>`).join('')}
-  </table>
-</body>
-</html>`;
-  }
 
-  const blob = new Blob([fileContent], { type: mimeType });
-  const url = window.URL.createObjectURL(blob);
+  return {
+    fileName: `${identifier}.html`,
+    mimeType: 'text/html;charset=utf-8',
+    content,
+  };
+};
+
+export const downloadFormatTemplate = (formato) => {
+  const artifact = buildFormatDownloadArtifact(formato);
+  const blob = new Blob([artifact.content], { type: artifact.mimeType });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.setAttribute('download', `${formato.id}_${formato.codigo.replace(/[^a-zA-Z0-9]/g, '_')}.${formato.extension}`);
+  link.setAttribute('download', artifact.fileName);
   document.body.appendChild(link);
   link.click();
   link.remove();
-  window.URL.revokeObjectURL(url);
+  URL.revokeObjectURL(url);
 };

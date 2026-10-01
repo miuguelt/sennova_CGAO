@@ -12,14 +12,16 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Response
 from fastapi.responses import FileResponse
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.auth import get_current_user
+from app.auth import STAFF_ROLES, get_current_user
 from app.database import get_db
-from app.models import Documento, User, Proyecto
+from app.models import Aprendiz, Documento, User, Proyecto, Semillero
 from app.schemas import DocumentoResponse, DocumentoCreate
 from app.utils import log_actividad
+from app.services.project_access import can_access_project
 from app.services.proyectos_service import evaluar_y_auto_finalizar_proyecto
 
 router = APIRouter(prefix="/documentos", tags=["Documentos"])
@@ -28,6 +30,18 @@ router = APIRouter(prefix="/documentos", tags=["Documentos"])
 settings = get_settings()
 STORAGE_DIR = Path(settings.STORAGE_DIR) / "documentos" if hasattr(settings, "STORAGE_DIR") else Path("storage/documentos")
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _can_access_document(documento: Documento, user: User, db: Session) -> bool:
+    """Resuelve el permiso del adjunto con la misma política de su entidad."""
+    if user.rol == "admin" or str(documento.owner_id) == str(user.id):
+        return True
+    if documento.entidad_tipo in {"general", "formato", "plantilla"}:
+        return True
+    if documento.entidad_tipo != "proyecto":
+        return False
+    project = db.query(Proyecto).filter(Proyecto.id == str(documento.entidad_id)).first()
+    return bool(project and can_access_project(project, user))
 
 
 @router.get("/{documento_id}/view")
@@ -41,16 +55,8 @@ def view_documento(
     if not doc:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
     
-    # Verificar permisos (admin o owner)
-    if current_user.rol != "admin" and doc.owner_id != current_user.id:
-        if doc.entidad_tipo == "proyecto":
-            proyecto = db.query(Proyecto).filter(Proyecto.id == doc.entidad_id).first()
-            if not (proyecto and any(m.id == current_user.id for m in proyecto.equipo)):
-                raise HTTPException(status_code=403, detail="Sin acceso")
-        elif doc.entidad_tipo in ["general", "formato", "plantilla"]:
-            pass
-        else:
-            raise HTTPException(status_code=403, detail="Sin acceso")
+    if not _can_access_document(doc, current_user, db):
+        raise HTTPException(status_code=403, detail="Sin acceso")
     
     # Registrar actividad de visualización
     log_actividad(
@@ -90,6 +96,9 @@ ALLOWED_CONTENT_TYPES = [
     "application/pdf",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "image/jpeg",
     "image/png",
     "image/jpg",
@@ -124,13 +133,27 @@ def list_documentos(
     if tipo:
         query = query.filter(Documento.tipo == tipo)
     
-    # Si no es admin, solo ver sus propios documentos o documentos públicos de proyectos y generales
     if current_user.rol != "admin":
-        query = query.filter(
-            (Documento.owner_id == current_user.id) |
-            (Documento.entidad_tipo == "proyecto") |
-            (Documento.entidad_tipo.in_(["general", "formato", "plantilla"]))
-        )
+        if current_user.rol in STAFF_ROLES:
+            allowed_projects = db.query(Proyecto.id)
+        else:
+            project_access = (Proyecto.owner_id == str(current_user.id)) | Proyecto.equipo.any(
+                User.id == str(current_user.id)
+            )
+            if current_user.rol == "aprendiz":
+                project_access = project_access | Proyecto.semillero.has(
+                    Semillero.aprendices.any(Aprendiz.user_id == str(current_user.id))
+                )
+            allowed_projects = db.query(Proyecto.id).filter(project_access)
+
+        query = query.filter(or_(
+            Documento.owner_id == str(current_user.id),
+            Documento.entidad_tipo.in_(["general", "formato", "plantilla"]),
+            and_(
+                Documento.entidad_tipo == "proyecto",
+                Documento.entidad_id.in_(allowed_projects),
+            ),
+        ))
     
     documentos = query.order_by(Documento.created_at.desc()).all()
     return documentos
@@ -147,14 +170,7 @@ def get_documento(
     if not doc:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
     
-    # Solo admin o owner pueden ver
-    if current_user.rol != "admin" and doc.owner_id != current_user.id:
-        # Permitir si es documento de proyecto donde el user es miembro
-        if doc.entidad_tipo == "proyecto":
-            from app.models import Proyecto
-            proyecto = db.query(Proyecto).filter(Proyecto.id == doc.entidad_id).first()
-            if proyecto and any(m.id == current_user.id for m in proyecto.equipo):
-                return doc
+    if not _can_access_document(doc, current_user, db):
         raise HTTPException(status_code=403, detail="Sin acceso a este documento")
     
     return doc
@@ -168,6 +184,8 @@ def create_documento_base64(
     db: Session = Depends(get_db)
 ):
     """Crea o registra un documento mediante base64 (JSON)."""
+    if data.tipo == "evidencia_bitacora":
+        raise HTTPException(status_code=422, detail="El tipo de adjunto de bitácora ya no está disponible. Seleccione otro tipo de documento.")
     if current_user.rol == "aprendiz":
         raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para subir documentos")
 
@@ -189,6 +207,7 @@ def create_documento_base64(
         entidad_id=str(data.entidad_id),
         tipo=data.tipo,
         nombre_archivo=data.nombre_archivo,
+        descripcion=data.descripcion,
         file_path=str(file_path) if file_path else None,
         data_base64=data.data_base64 if not file_path else None,
         content_type="application/pdf" if data.nombre_archivo.endswith(".pdf") else "application/octet-stream",
@@ -217,11 +236,14 @@ async def upload_documento(
     entidad_tipo: Optional[str] = Form("general", description="Tipo: proyecto, producto, user, general, formato"),
     entidad_id: Optional[str] = Form(None),
     tipo: Optional[str] = Form("evidencia", description="Tipo: cvlac_pdf, acta, contrato, informe, evidencia, soporte_minciencias, otro"),
+    descripcion: Optional[str] = Form(None, description="Descripción de la evidencia o referencia documental"),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Subir un nuevo documento (max 10MB) al sistema de archivos."""
+    if tipo == "evidencia_bitacora":
+        raise HTTPException(status_code=422, detail="El tipo de adjunto de bitácora ya no está disponible. Seleccione otro tipo de documento.")
     if current_user.rol == "aprendiz":
         raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para subir documentos")
     content_type = validate_file(file)
@@ -249,6 +271,7 @@ async def upload_documento(
         entidad_id=resolved_entidad_id,
         tipo=resolved_tipo,
         nombre_archivo=file.filename,
+        descripcion=descripcion.strip() if descripcion and descripcion.strip() else None,
         content_type=content_type,
         file_path=str(file_path).replace("\\", "/"),
         owner_id=str(current_user.id)
@@ -291,19 +314,8 @@ def download_documento(
     if not doc:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
     
-    # Verificar permisos
-    if current_user.rol != "admin" and doc.owner_id != current_user.id:
-        if doc.entidad_tipo == "proyecto":
-            from app.models import Proyecto
-            proyecto = db.query(Proyecto).filter(Proyecto.id == doc.entidad_id).first()
-            if proyecto and any(m.id == current_user.id for m in proyecto.equipo):
-                pass
-            else:
-                raise HTTPException(status_code=403, detail="Sin acceso")
-        elif doc.entidad_tipo in ["general", "formato", "plantilla"]:
-            pass
-        else:
-            raise HTTPException(status_code=403, detail="Sin acceso")
+    if not _can_access_document(doc, current_user, db):
+        raise HTTPException(status_code=403, detail="Sin acceso")
     
     data_b64 = None
     target_path = None
@@ -322,6 +334,7 @@ def download_documento(
     return {
         "id": doc.id,
         "nombre_archivo": doc.nombre_archivo,
+        "descripcion": doc.descripcion,
         "content_type": doc.content_type,
         "data_base64": data_b64,
         "created_at": doc.created_at
@@ -423,14 +436,7 @@ def get_proyecto_documentos(
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     
-    # Verificar acceso
-    has_access = (
-        current_user.rol == "admin" or
-        str(proyecto.owner_id) == str(current_user.id) or
-        any(str(m.id) == str(current_user.id) for m in proyecto.equipo)
-    )
-    
-    if not has_access:
+    if not can_access_project(proyecto, current_user):
         raise HTTPException(status_code=403, detail="Sin acceso al proyecto")
     
     documentos = db.query(Documento).filter(

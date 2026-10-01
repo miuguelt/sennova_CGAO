@@ -437,7 +437,8 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
   };
 
   const { saving, save: guardarConvocatoria } = useAsyncSave(doSubmit, {
-    onSuccess: () => { setShowForm(false); loadData(); }
+    onSuccess: () => { setShowForm(false); loadData(); },
+    onError: (message) => onNotify?.(message, 'error')
   });
 
   // Vincular Proyecto a Convocatoria (Drop or Action)

@@ -46,7 +46,7 @@ def setup_db():
         email="inst_stats@sena.edu.co",
         password_hash=get_password_hash("123456"),
         nombre="Laura Instructora",
-        rol="instructor",
+        rol="investigador",
         sede="CGAO",
         is_active=True
     )
@@ -127,7 +127,7 @@ def setup_db():
     )
     db.add(entregable)
 
-    # Bitacora
+    # Registro histórico de bitácora
     bitacora = BitacoraEntry(
         proyecto_id=str(proyecto.id),
         user_id=str(aprendiz.id),
@@ -185,10 +185,15 @@ def test_dashboard_stats_all_roles():
         res = client.get("/stats/dashboard", headers=headers)
         assert res.status_code == 200, f"Failed for {email}: {res.status_code} - {res.text}"
         data = res.json()
+        db = TestingSessionLocal()
+        try:
+            assert db.query(BitacoraEntry).count() == 1
+        finally:
+            db.close()
         assert "proyectos" in data
         assert "productos" in data
         assert "aprendices" in data
-        assert "bitacoras" in data
+        assert "bitacoras" not in data
         assert "tareas_criticas" in data
         assert "historial_reciente" in data
         assert "proyectos_por_estado" in data

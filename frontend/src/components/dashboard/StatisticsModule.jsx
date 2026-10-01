@@ -310,7 +310,7 @@ const StatisticsModule = ({ onNotify }) => {
         <div className="space-y-1">
           <p className="text-sm font-black text-amber-900">Nota sobre la veracidad de los datos</p>
           <p className="text-xs text-amber-800 leading-relaxed font-medium">
-            Las estadísticas presentadas se calculan en tiempo real basándose en los registros de bitácora, entregables aprobados y productos cargados al sistema. Para reportes oficiales de contraloría, por favor exporte el documento PDF firmado.
+            Las estadísticas presentadas se calculan en tiempo real con los datos de proyectos, entregables aprobados y productos cargados al sistema. Consulte los reportes disponibles para revisar el avance institucional.
           </p>
         </div>
       </div>

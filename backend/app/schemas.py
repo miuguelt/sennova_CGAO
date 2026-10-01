@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from typing import Optional, List
+from typing import Literal, Optional, List
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -35,6 +35,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
+    rol: Literal["admin", "investigador", "aprendiz"] = "investigador"
 
 
 class UserUpdate(BaseModel):
@@ -447,6 +448,7 @@ class DocumentoBase(BaseModel):
     entidad_id: UUID
     tipo: str  # cvlac_pdf, acta, contrato, informe
     nombre_archivo: str
+    descripcion: Optional[str] = None
 
 
 class DocumentoCreate(DocumentoBase):

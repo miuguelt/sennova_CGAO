@@ -110,6 +110,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
       const formData = new FormData();
       formData.append('file', uploadFile);
       formData.append('tipo', uploadTipo);
+      formData.append('descripcion', uploadDescription.trim());
       
       if (uploadEntidadTipo === 'proyecto' && uploadEntidadId) {
         formData.append('entidad_tipo', 'proyecto');
@@ -126,6 +127,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
       setUploadFile(null);
       setUploadTipo('evidencia');
       setUploadEntidadId('');
+      setUploadDescription('');
       setIsUploadModalOpen(false);
       
       // Recargar lista y cambiar a la pestaña de bóveda
@@ -185,22 +187,17 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
     }
   };
 
-  // Generador de plantillas inteligentes oficiales
+  // Generador de reportes internos con datos del sistema
   const handleGenerateSmartDoc = async (type, targetProjectId = null) => {
     const projId = targetProjectId || selectedSmartProjectId || proyectos[0]?.id;
     setIsGeneratingSmart(true);
-    onNotify?.('Generando documento oficial con datos de la BD...', 'info');
+    onNotify?.('Generando reporte interno con datos del sistema...', 'info');
 
     try {
       if (type === 'monthly_report') {
         const data = await PlantillasAPI.getReporteMensual(currentUser?.id);
         PDFGenerator.generateMonthlyReport(data);
-        onNotify?.('Informe mensual GTH-F-074 generado con éxito', 'success');
-      } else if (type === 'bitacora_oficial') {
-        if (!projId) throw new Error('Seleccione un proyecto para consolidar su bitácora');
-        const data = await PlantillasAPI.getBitacoraOficial(projId);
-        PDFGenerator.generateBitacoraReport(data);
-        onNotify?.('Bitácora técnica oficial generada con éxito', 'success');
+        onNotify?.('Reporte mensual interno generado con éxito', 'success');
       } else if (type === 'presupuesto_detalle') {
         if (!projId) throw new Error('Seleccione un proyecto para exportar el presupuesto');
         const data = await PlantillasAPI.getReportePresupuesto(projId);
@@ -242,7 +239,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
     }
   };
 
-  // Filtros de formatos institucionales
+  // Filtros del catálogo de modelos de referencia
   const filteredFormats = useMemo(() => {
     return SENNOVA_FORMATS.filter(fmt => {
       const matchSearch = fmt.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -257,6 +254,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
   const filteredDocs = useMemo(() => {
     return documents.filter(doc => {
       const matchSearch = (doc.nombre_archivo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (doc.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (doc.tipo || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchType = filterType === 'all' || doc.tipo === filterType;
       const matchProj = filterProject === 'all' || doc.entidad_id === filterProject;
@@ -316,7 +314,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
               Repositorio & Formatos SENNOVA
             </h1>
             <p className="text-slate-300 text-sm sm:text-base font-normal max-w-2xl leading-relaxed">
-              Descarga formatos oficiales SENA/SENNOVA, gestiona evidencias de proyectos de investigación aplicada y consulta las guías de tipologías Minciencias.
+              Consulte modelos de referencia, gestione evidencias de proyectos y revise las guías de tipologías Minciencias.
             </p>
           </div>
 
@@ -324,7 +322,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
           <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-4 px-6 py-3.5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 shadow-inner">
               <div className="text-center">
-                <p className="text-[10px] font-black text-emerald-300 uppercase tracking-widest">Plantillas</p>
+                <p className="text-[10px] font-black text-emerald-300 uppercase tracking-widest">Modelos</p>
                 <p className="text-2xl font-black text-white">{stats.totalFormats}</p>
               </div>
               <div className="w-px h-8 bg-white/15" />
@@ -373,7 +371,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
           }`}
         >
           <BookOpen size={16} />
-          <span>Formatos & Plantillas Oficiales</span>
+          <span>Modelos de referencia</span>
           <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${activeTab === 'formatos' ? 'bg-emerald-500 text-white' : 'bg-slate-300 text-slate-700'}`}>
             {SENNOVA_FORMATS.length}
           </span>
@@ -408,7 +406,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
-          PESTAÑA 1: FORMATOS & PLANTILLAS SENNOVA CGAO
+          PESTAÑA 1: MODELOS DE REFERENCIA SENNOVA CGAO
       ─────────────────────────────────────────────────────────────── */}
       {activeTab === 'formatos' && (
         <div className="space-y-6">
@@ -451,7 +449,11 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
             </div>
           </div>
 
-          {/* Grid de Formatos Institucionales */}
+          <div role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            <strong>Modelos internos pendientes de validación.</strong> Las descargas de esta pestaña son archivos HTML de referencia; no son plantillas institucionales controladas y no reemplazan los documentos vigentes para radicación.
+          </div>
+
+          {/* Grid de modelos de referencia */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredFormats.map(fmt => (
               <Card 
@@ -469,7 +471,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
                       }`}>
                         .{fmt.extension}
                       </span>
-                      <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                      <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200" title="Identificador de referencia no validado">
                         {fmt.codigo}
                       </span>
                     </div>
@@ -478,8 +480,8 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
                     </Badge>
                   </div>
 
-                  <p className="text-xs font-black text-emerald-700 tracking-wider mb-1">
-                    {fmt.codigo}
+                  <p className="text-[11px] font-semibold text-amber-800 mb-1">
+                    Identificador de referencia por validar: {fmt.codigo}
                   </p>
                   <h3 className="text-base font-bold text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-2">
                     {fmt.titulo}
@@ -513,14 +515,14 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
                       className="flex-1 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-sm"
                     >
                       <Download size={14} />
-                      <span>Descargar Formato</span>
+                      <span>Descargar modelo HTML</span>
                     </Button>
 
                     <Button 
                       variant="outline" 
                       onClick={() => setPreviewFormat(fmt)}
                       className="p-2.5 text-slate-600 hover:text-slate-900 border-slate-200 rounded-xl"
-                      title="Ver estructura y contenido del formato"
+                      title="Ver estructura del modelo de referencia"
                     >
                       <Eye size={15} />
                     </Button>
@@ -533,7 +535,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
                       className="w-full text-center text-xs font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 py-2 rounded-xl border border-emerald-200/70 transition-colors flex items-center justify-center gap-1.5"
                     >
                       <Sparkles size={13} className="text-amber-500" />
-                      <span>Generar con datos del sistema</span>
+                      <span>Generar reporte PDF de apoyo</span>
                     </button>
                   )}
                 </div>
@@ -643,6 +645,11 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
                         <p className="text-sm font-bold text-slate-900 line-clamp-2" title={doc.nombre_archivo}>
                           {doc.nombre_archivo}
                         </p>
+                        {doc.descripcion && (
+                          <p className="text-xs text-slate-600 line-clamp-2" title={doc.descripcion}>
+                            {doc.descripcion}
+                          </p>
+                        )}
 
                         <div className="flex items-center gap-1.5 pt-1">
                           <span className="text-[10px] font-bold text-slate-600 uppercase">
@@ -701,6 +708,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
                               <FileIcon type={doc.content_type || doc.nombre_archivo} size={20} />
                               <div>
                                 <p className="text-xs font-bold text-slate-900">{doc.nombre_archivo}</p>
+                                {doc.descripcion && <p className="text-[11px] text-slate-600">{doc.descripcion}</p>}
                                 <span className="text-[10px] text-slate-600 font-semibold">ID: {doc.id.slice(0, 8)}...</span>
                               </div>
                             </div>
@@ -965,7 +973,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
           {/* File Picker */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Archivo / Evidencia (PDF, DOCX, XLSX, PNG, JPG - Máx 10MB) *
+              Archivo / Evidencia (PDF, Word, Excel, PowerPoint, PNG, JPG - Máx 10MB) *
             </label>
             <div className="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-6 text-center bg-slate-50/50 cursor-pointer transition-colors">
               <input 
@@ -973,7 +981,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
                 id="vault-file-input"
                 className="hidden" 
                 onChange={(e) => setUploadFile(e.target.files[0])}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.pptx,.png,.jpg,.jpeg"
               />
               <label htmlFor="vault-file-input" className="cursor-pointer space-y-2 block">
                 <Upload size={28} className="mx-auto text-slate-400" />
@@ -1094,7 +1102,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
           isOpen={Boolean(previewFormat)}
           onClose={() => setPreviewFormat(null)}
           title={previewFormat.titulo}
-          subtitle={`Código Oficial: ${previewFormat.codigo} | Versión ${previewFormat.version || '1.0'}`}
+          subtitle={`Identificador de referencia por validar: ${previewFormat.codigo}${previewFormat.versionReferencia ? ` | Versión declarada en el modelo: ${previewFormat.versionReferencia}` : ''}`}
           icon={FileText}
           variant="sena"
           size="xl"
@@ -1102,7 +1110,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
           <div className="space-y-4">
             <div className="flex items-center justify-between bg-slate-100 p-3 rounded-xl">
               <span className="text-xs font-bold text-slate-700">
-                Estructura y Campos del Documento
+                Contenido del modelo de referencia
               </span>
               <div className="flex gap-2">
                 <Button 
@@ -1112,7 +1120,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
                   className="text-xs flex items-center gap-1.5 bg-white"
                 >
                   {copiedId === previewFormat.id ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-                  <span>{copiedId === previewFormat.id ? 'Copiado' : 'Copiar Texto'}</span>
+                  <span>{copiedId === previewFormat.id ? 'Copiado' : 'Copiar contenido'}</span>
                 </Button>
                 <Button 
                   size="sm" 
@@ -1121,7 +1129,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
                   className="text-xs flex items-center gap-1.5"
                 >
                   <Download size={14} />
-                  <span>Descargar Plantilla</span>
+                  <span>Descargar modelo HTML</span>
                 </Button>
               </div>
             </div>
@@ -1133,7 +1141,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
             <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200/60 flex items-start gap-3">
               <Info size={18} className="text-emerald-700 shrink-0 mt-0.5" />
               <div className="text-xs text-emerald-900 leading-relaxed">
-                <strong>Instrucciones:</strong> Este formato puede ser descargado y editado en Microsoft Word o LibreOffice. Al guardarlo para subirlo a la bóveda de evidencias, se recomienda exportarlo en formato <strong>PDF</strong> para preservar las firmas y la validez institucional.
+                <strong>Uso:</strong> La descarga es un archivo HTML editable. No tiene la estructura del formato institucional controlado; confirme el documento y la versión vigentes con la Coordinación SENNOVA antes de radicarlo.
               </div>
             </div>
           </div>
@@ -1219,7 +1227,6 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { id: 'monthly_report', label: 'Informe Mensual GTH-F-074', desc: 'Con actividades del usuario autenticado' },
-                { id: 'bitacora_oficial', label: 'Bitácora Técnica Consolidada', desc: 'Con firmas y hashes de integridad' },
                 { id: 'presupuesto_detalle', label: 'Informe Financiero de Proyecto', desc: 'Desglose por rubros SENNOVA' },
                 { id: 'ficha_proyecto', label: 'Ficha Técnica Oficial de Proyecto', desc: 'Objetivos, equipo y vigencia' }
               ].map(item => (

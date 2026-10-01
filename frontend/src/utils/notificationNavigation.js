@@ -169,7 +169,7 @@ export const resolveNotificationTarget = (notification) => {
     };
   }
 
-  // 9. Bitácoras
+  // Las notificaciones históricas de bitácora se conservan, pero se dirigen a proyectos.
   if (
     entidadTipo === 'bitacora' ||
     entidadTipo === 'bitacoras' ||
@@ -179,9 +179,9 @@ export const resolveNotificationTarget = (notification) => {
     titulo.includes('bitacora')
   ) {
     return {
-      module: 'bitacora',
-      action: entidadId ? { module: 'bitacora', form: 'view', initialData: { id: entidadId } } : null,
-      label: entidadId ? 'Ver Bitácora' : 'Ir a Bitácoras'
+      module: 'proyectos',
+      action: null,
+      label: 'Ver proyectos'
     };
   }
 

@@ -32,6 +32,7 @@ import { PlantillasAPI } from '../../api/plantillas';
 import { PDFGenerator } from '../../utils/pdfGenerator';
 import UserInsightPanel from '../users/UserInsightPanel';
 import useClickOutside from '../../hooks/useClickOutside';
+import { getVisibleSemilleroMembers } from '../../lib/roleAccess';
 
 const ROLES_SEMILLERO = [
   { value: 'Investigador Principal', label: 'Investigador Principal' },
@@ -112,8 +113,8 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
     try {
       const [s, g, u, p] = await Promise.all([
         SemillerosAPI.list(), 
-        GruposAPI.list(),
-        UsuariosAPI.list(),
+        currentUser?.rol === 'aprendiz' ? Promise.resolve([]) : GruposAPI.list(),
+        currentUser?.rol === 'aprendiz' ? Promise.resolve([]) : UsuariosAPI.list(),
         ProyectosAPI.list()
       ]);
       const sList = s || [];
@@ -224,14 +225,7 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
   const handleDownloadFormato = (tipo) => {
     if (!selectedSemillero) return;
     try {
-      if (tipo === 'bitacora') {
-        PDFGenerator.generateSeguimiento({
-          nombre_corto: selectedSemillero.nombre,
-          codigo_sgps: selectedSemillero.sigla || selectedSemillero.codigo || 'S-2026',
-          entregables: []
-        });
-        onNotify?.('Formato de bitácora generado', 'success');
-      } else if (tipo === 'etapa_productiva') {
+      if (tipo === 'etapa_productiva') {
         PDFGenerator.generateEtapaProductiva({
           nombre: selectedSemillero.nombre,
           codigo_sgps: selectedSemillero.sigla || selectedSemillero.codigo || 'S-2026',
@@ -267,9 +261,15 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
         SemillerosAPI.listAprendices(s.id).catch(() => []),
         SemillerosAPI.get(s.id).catch(() => ({}))
       ]);
+      const visibleMembers = getVisibleSemilleroMembers(
+        currentUser?.rol,
+        currentUser?.id,
+        mems || [],
+        semData?.investigadores || [],
+      );
       setSemilleroStats(stats);
-      setAprendices(mems || []);
-      setInvestigadores(semData?.investigadores || []);
+      setAprendices(visibleMembers.apprentices);
+      setInvestigadores(visibleMembers.investigators);
       if (semData && semData.id) {
         setSelectedSemillero(prev => ({ ...prev, ...semData }));
       }
@@ -286,10 +286,14 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
         SemillerosAPI.listAprendices(semilleroId).catch(() => []),
         SemillerosAPI.get(semilleroId).catch(() => null)
       ]);
-      setAprendices(data || []);
-      if (semData && semData.investigadores) {
-        setInvestigadores(semData.investigadores || []);
-      }
+      const visibleMembers = getVisibleSemilleroMembers(
+        currentUser?.rol,
+        currentUser?.id,
+        data || [],
+        semData?.investigadores || investigadores,
+      );
+      setAprendices(visibleMembers.apprentices);
+      setInvestigadores(visibleMembers.investigators);
       if (semData && semData.id) {
         setSelectedSemillero(prev => prev && prev.id === semData.id ? { ...prev, ...semData } : prev);
       }
@@ -484,6 +488,12 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
     { id: 'proyectos', label: 'Proyectos', icon: Target, count: proyectos.filter(p => p.semillero_id === selectedSemillero?.id).length },
     { id: 'formatos', label: 'Formatos', icon: FileText }
   ];
+  const canManageSelectedMembers = currentUser?.rol === 'admin'
+    || (Boolean(currentUser?.id) && String(selectedSemillero?.owner_id) === String(currentUser.id));
+  const isApprenticeTab = activeTab === 'aprendices';
+  const availableMemberUsers = usuarios
+    .filter(u => !aprendices.some(a => a.user_id === u.id) && !investigadores.some(inv => inv.id === u.id))
+    .filter(u => isApprenticeTab ? u.rol === 'aprendiz' : u.rol !== 'aprendiz');
 
   if (loading && semilleros.length === 0) {
     return (
@@ -651,7 +661,9 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
               onDelete={handleDelete}
               onDetail={handleOpenDetail}
               onAddAprendiz={handleOpenAprendices}
+              onAddInvestigador={handleOpenInvestigadores}
               canManage={currentUser?.rol !== 'aprendiz'}
+              canManageMembers={currentUser?.rol === 'admin' || (Boolean(currentUser?.id) && String(s.owner_id) === String(currentUser.id))}
             />
             {dragOverSemilleroId === s.id && (
               <div className="mt-2 px-3 py-1.5 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest text-center rounded-lg animate-pulse">
@@ -816,22 +828,26 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
 
         {selectedSemillero && (activeTab === 'investigadores' || activeTab === 'aprendices') && (
           <div className="space-y-8 animate-fadeIn">
-            {currentUser?.rol !== 'aprendiz' && (
+            {canManageSelectedMembers && (
               <div 
-                className={`bg-slate-50 p-6 rounded-3xl border-2 border-dashed transition-all ${dragOver ? 'border-emerald-500 bg-emerald-50 scale-[1.02]' : 'border-slate-100'}`}
+                className={`p-6 rounded-3xl border-2 border-dashed transition-all ${isApprenticeTab ? 'bg-indigo-50/60' : 'bg-emerald-50/60'} ${dragOver ? (isApprenticeTab ? 'border-indigo-500 scale-[1.02]' : 'border-emerald-500 scale-[1.02]') : (isApprenticeTab ? 'border-indigo-200' : 'border-emerald-200')}`}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleDrop}
               >
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <UserPlus size={14} className={activeTab === 'aprendices' ? 'text-indigo-600' : 'text-emerald-600'} /> Vincular {activeTab === 'aprendices' ? 'Aprendiz' : 'Investigador'}
-                  </p>
+                  <div>
+                    <p className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${isApprenticeTab ? 'text-indigo-900' : 'text-emerald-900'}`}>
+                      {isApprenticeTab ? <GraduationCap size={16} /> : <Shield size={16} />} Vincular {isApprenticeTab ? 'aprendiz' : 'investigador'} existente
+                    </p>
+                    <p className="mt-1 text-xs text-slate-600">Selecciona una persona del directorio CGAO.</p>
+                  </div>
                 </div>
                 
                 <div className="flex gap-3">
                   <select 
-                    className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer"
+                    aria-label={`Directorio de ${isApprenticeTab ? 'aprendices' : 'investigadores'} disponibles`}
+                    className={`flex-1 px-4 py-3 bg-white border rounded-xl text-xs font-bold outline-none transition-all cursor-pointer ${isApprenticeTab ? 'border-indigo-200 focus:ring-2 focus:ring-indigo-500' : 'border-emerald-200 focus:ring-2 focus:ring-emerald-500'}`}
                     defaultValue=""
                     onChange={async (e) => {
                       const selectedUserId = e.target.value;
@@ -851,13 +867,12 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
                       }
                     }}
                   >
-                    <option value="">Seleccionar del directorio CGAO...</option>
-                    {usuarios
-                      .filter(u => !aprendices.some(a => a.user_id === u.id) && !investigadores.some(inv => inv.id === u.id))
-                      .filter(u => activeTab === 'aprendices' ? u.rol === 'aprendiz' : u.rol !== 'aprendiz')
-                      .map(u => (
-                        <option key={u.id} value={u.id}>{u.nombre}</option>
-                      ))}
+                    <option value="">Seleccionar {isApprenticeTab ? 'aprendiz' : 'investigador'} disponible...</option>
+                    {availableMemberUsers.length === 0 ? (
+                      <option value="" disabled>No hay {isApprenticeTab ? 'aprendices' : 'investigadores'} disponibles</option>
+                    ) : availableMemberUsers.map(u => (
+                      <option key={u.id} value={u.id}>{u.nombre}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -877,8 +892,8 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
                     {aprendices.map(a => (
                       <div
                         key={a.id}
-                        onClick={() => handleOpenAprendizDetail(a)}
-                        className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl hover:border-indigo-300 hover:bg-indigo-50/30 cursor-pointer transition-all shadow-sm"
+                        onClick={currentUser?.rol === 'aprendiz' ? undefined : () => handleOpenAprendizDetail(a)}
+                        className={`group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl transition-all shadow-sm ${currentUser?.rol === 'aprendiz' ? 'cursor-default' : 'hover:border-indigo-300 hover:bg-indigo-50/30 cursor-pointer'}`}
                       >
                         <div className="flex items-center gap-4 min-w-0">
                           <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black shrink-0 group-hover:scale-105 transition-transform">
@@ -887,13 +902,13 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
                           <div className="min-w-0">
                             <p className="text-sm font-black text-slate-900 group-hover:text-indigo-700 transition-colors flex items-center gap-1.5 truncate">
                               {a.nombre}
-                              <ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-all shrink-0" />
+                              {currentUser?.rol !== 'aprendiz' && <ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-all shrink-0" />}
                             </p>
                             <p className="text-[10px] text-slate-500 font-bold uppercase truncate">{a.programa || 'Sin programa'} • Ficha: {a.ficha || 'N/A'}</p>
                           </div>
                         </div>
                         <div className="flex gap-2 shrink-0">
-                          <button
+                          {(currentUser?.rol !== 'aprendiz' || String(a.user_id) === String(currentUser?.id)) && <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleGenerateCertificate(a);
@@ -902,8 +917,8 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
                             title="Generar Certificado"
                           >
                             <Award size={18} />
-                          </button>
-                          {currentUser?.rol !== 'aprendiz' && (
+                          </button>}
+                          {canManageSelectedMembers && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -935,8 +950,8 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
                     {investigadores.map(inv => (
                       <div
                         key={inv.id}
-                        onClick={() => handleOpenAprendizDetail({ ...inv, rol: 'investigador' })}
-                        className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl hover:border-emerald-300 hover:bg-emerald-50/30 cursor-pointer transition-all shadow-sm"
+                        onClick={currentUser?.rol === 'aprendiz' ? undefined : () => handleOpenAprendizDetail({ ...inv, rol: 'investigador' })}
+                        className={`group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl transition-all shadow-sm ${currentUser?.rol === 'aprendiz' ? 'cursor-default' : 'hover:border-emerald-300 hover:bg-emerald-50/30 cursor-pointer'}`}
                       >
                         <div className="flex items-center gap-4 min-w-0">
                           <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black shrink-0 group-hover:scale-105 transition-transform">
@@ -945,12 +960,12 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
                           <div className="min-w-0">
                             <p className="text-sm font-black text-slate-900 group-hover:text-emerald-700 transition-colors flex items-center gap-1.5 truncate">
                               {inv.nombre}
-                              <ChevronRight size={14} className="text-slate-300 group-hover:text-emerald-500 opacity-0 group-hover:opacity-100 transition-all shrink-0" />
+                              {currentUser?.rol !== 'aprendiz' && <ChevronRight size={14} className="text-slate-300 group-hover:text-emerald-500 opacity-0 group-hover:opacity-100 transition-all shrink-0" />}
                             </p>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase truncate">{inv.rol_en_semillero} • {inv.email}</p>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase truncate">{inv.rol_en_semillero}{currentUser?.rol !== 'aprendiz' && ` • ${inv.email}`}</p>
                           </div>
                         </div>
-                        {currentUser?.rol !== 'aprendiz' && (
+                        {canManageSelectedMembers && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1113,9 +1128,11 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <FileText size={14} className="text-rose-500" /> Formatos Etapa Productiva / D2
               </h3>
+              <p role="note" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+                Los PDF se generan como modelos de referencia desde la plataforma. Confirme el formato institucional vigente antes de presentarlos o radicarlos.
+              </p>
               <div className="grid grid-cols-1 gap-3">
                 {[
-                  { title: 'Bitácora de Seguimiento', type: 'bitacora' },
                   { title: 'Formato Planeación Etapa Productiva', type: 'etapa_productiva' },
                   { title: 'Informe Final de Proyecto', type: 'informe_final' }
                 ].map((f, i) => (
@@ -1130,7 +1147,7 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
                       </div>
                       <div>
                         <p className="text-sm font-bold text-slate-800">{f.title}</p>
-                        <p className="text-[10px] text-slate-500 uppercase">Plantilla Oficial SENA</p>
+                        <p className="text-[10px] text-slate-500 uppercase">PDF de referencia de la plataforma</p>
                       </div>
                     </div>
                     <Button 

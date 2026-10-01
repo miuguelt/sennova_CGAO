@@ -74,11 +74,10 @@ const TIPOLOGIAS_PRODUCTO = [
   { value: 'Informe Técnico', label: 'Informe Técnico Final' },
 ];
 
-const FORMATOS_OFICIALES = [
-  { id: 'etapa_productiva', nombre: 'Formato Planeación Etapa Productiva', codigo: 'F-01-SENN' },
-  { id: 'seguimiento',      nombre: 'Formato de Seguimiento Técnico',      codigo: 'F-02-SENN' },
-  { id: 'informe_final',    nombre: 'Informe Final de Proyecto',           codigo: 'F-03-SENN' },
-  { id: 'bitacora',         nombre: 'Bitácora Técnica Oficial',            codigo: 'F-04-SENN' },
+const MODELOS_REFERENCIA = [
+  { id: 'etapa_productiva', nombre: 'Planeación de etapa productiva' },
+  { id: 'seguimiento',      nombre: 'Seguimiento técnico' },
+  { id: 'informe_final',    nombre: 'Informe final de proyecto' },
 ];
 
 const EMPTY_PROJECT_FORM = {
@@ -268,7 +267,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
   const [productosGrupo, setProductosGrupo] = useState([]);
   const [aprendicesGrupo, setAprendicesGrupo] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('stats');
+  const [activeTab, setActiveTab] = useState('gruplac');
 
   // Filtros
   const [proySearchTerm, setProySearchTerm] = useState('');
@@ -349,6 +348,12 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
   const [savingGrupo, setSavingGrupo] = useState(false);
   const [uploadingPlan, setUploadingPlan] = useState(false);
 
+  const canManageRecord = (record) => currentUser?.rol === 'admin'
+    || Boolean(record?.owner_id && currentUser?.id && String(record.owner_id) === String(currentUser.id));
+  const canManageGroup = canManageRecord(grupo);
+  const canManageProject = canManageRecord(selectedProyecto);
+  const canManageSemillero = canManageRecord(selectedSemillero);
+
   useEffect(() => { 
     loadData(); 
   }, []);
@@ -364,6 +369,21 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
 
   const loadData = async () => {
     setLoading(true);
+    if (currentUser?.rol === 'aprendiz') {
+      try {
+        const [sems, proys] = await Promise.all([
+          SemillerosAPI.list().catch(() => []),
+          ProyectosAPI.list().catch(() => []),
+        ]);
+        setSemilleros(sems || []);
+        setProyectosGrupo(proys || []);
+      } catch (err) {
+        onNotify?.('No se pudo cargar tu información formativa: ' + err.message, 'error');
+      }
+      setLoading(false);
+      return;
+    }
+
     try {
       const [grupos, sems, users, prods, aprs] = await Promise.all([
         GruposAPI.list().catch(() => []),
@@ -377,7 +397,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
       setGrupo(g);
       setSemilleros(sems || []);
       setTodosUsuarios(users || []);
-      setInvestigadores((users || []).filter(u => u.rol === 'investigador' || u.rol === 'admin' || u.rol === 'instructor'));
+      setInvestigadores((users || []).filter(u => u.rol === 'investigador' || u.rol === 'admin'));
       setProductosGrupo(prods || []);
       setAprendicesGrupo(aprs || []);
 
@@ -529,13 +549,6 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
           // fallback to target
         }
         PDFGenerator.generateInformeFinal(fullTarget);
-      } else if (formatId === 'bitacora') {
-        try {
-          const data = await PlantillasAPI.getBitacoraOficial(target.id);
-          PDFGenerator.generateBitacoraReport(data);
-        } catch {
-          PDFGenerator.generateBitacoraReport({ proyecto: target, entradas: [] });
-        }
       } else if (formatId === 'presupuesto') {
         try {
           const data = await PlantillasAPI.getReportePresupuesto(target.id);
@@ -544,7 +557,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
           PDFGenerator.generateBudgetReport({ proyecto: target });
         }
       }
-      onNotify?.('Formato oficial generado exitosamente', 'success');
+      onNotify?.('PDF de referencia generado correctamente', 'success');
     } catch (err) {
       onNotify?.('Error al generar formato: ' + err.message, 'error');
     } finally {
@@ -958,6 +971,64 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
     );
   }
 
+  if (currentUser?.rol === 'aprendiz') {
+    return (
+      <main className="space-y-6 pb-12" aria-label="Mi espacio de aprendizaje">
+        <section className="rounded-3xl bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-900 p-6 sm:p-8 text-white shadow-lg">
+          <p className="text-xs font-black uppercase tracking-widest text-emerald-200">SENNOVA · Formación</p>
+          <h1 className="mt-2 text-2xl sm:text-3xl font-black">Mi espacio de aprendizaje</h1>
+          <p className="mt-2 max-w-2xl text-sm text-emerald-50">
+            Consulta tus semilleros y proyectos formativos vinculados a tu usuario.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button onClick={() => onNavigate?.('semilleros')} variant="secondary">Ver mis semilleros</Button>
+            <Button onClick={() => onNavigate?.('mis-proyectos')} variant="secondary">Ver mis proyectos</Button>
+          </div>
+        </section>
+
+        <section className="space-y-3" aria-labelledby="aprendiz-semillero-title">
+          <h2 id="aprendiz-semillero-title" className="text-lg font-black text-slate-900">Mis semilleros</h2>
+          {semilleros.length ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {semilleros.map((semillero) => (
+                <article key={semillero.id} className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
+                  <h3 className="font-bold text-slate-900">{semillero.nombre}</h3>
+                  <p className="mt-1 text-xs text-slate-600">{semillero.linea_investigacion || 'Línea de investigación no definida'}</p>
+                  <p className="mt-3 text-xs font-semibold text-emerald-800">
+                    {semillero.horas_dedicadas || 0} horas formativas · {semillero.estado || 'Activo'}
+                  </p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">
+              Aún no tienes un semillero vinculado. Consulta con tu instructor para continuar.
+            </p>
+          )}
+        </section>
+
+        <section className="space-y-3" aria-labelledby="aprendiz-proyectos-title">
+          <h2 id="aprendiz-proyectos-title" className="text-lg font-black text-slate-900">Mis proyectos formativos</h2>
+          {proyectosGrupo.length ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {proyectosGrupo.map((proyecto) => (
+                <article key={proyecto.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="font-bold text-slate-900">{proyecto.nombre_corto || proyecto.nombre}</h3>
+                  <p className="mt-1 text-xs text-slate-600">{proyecto.semillero_nombre || 'Proyecto vinculado a tu formación'}</p>
+                  <p className="mt-3 text-xs font-semibold text-indigo-800">Estado: {proyecto.estado || 'En desarrollo'}</p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">
+              No tienes proyectos formativos vinculados en este momento.
+            </p>
+          )}
+        </section>
+      </main>
+    );
+  }
+
   const exportExcelUrl = GruposAPI.getConsolidadoReporteUrl('excel');
 
   return (
@@ -1050,7 +1121,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                 <FileSpreadsheet size={14} /> Consolidado Excel
               </button>
               <button onClick={() => window.print()} className="p-2 bg-white/15 hover:bg-white/25 backdrop-blur-md rounded-xl border border-white/20 text-white transition-all shadow-xs" title="Imprimir Ficha Resumen"><Printer size={16} /></button>
-              {currentUser?.rol === 'admin' && (
+              {canManageGroup && (
                 <Button onClick={handleEditGrupo} className="bg-white hover:bg-emerald-50 text-emerald-900 border-0 font-bold text-xs shadow-md" variant="outline"><Edit2 size={14} className="mr-1.5" /> Editar Perfil</Button>
               )}
             </div>
@@ -1119,10 +1190,10 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                   </p>
                   <p className="text-xs text-slate-300 font-medium">
                     {currentUser?.rol === 'admin' 
-                      ? 'Consulta alertas de vencimiento, bitácoras pendientes de validación y auditoría en tiempo real.'
+                      ? 'Consulta alertas de vencimiento, entregables pendientes y auditoría en tiempo real.'
                       : currentUser?.rol === 'aprendiz'
-                      ? 'Registra tus bitácoras de campo, consulta entregables asignados y revisa tu ficha académica.'
-                      : 'Gestiona tus entregables programados, firma bitácoras de tutoría y revisa recomendaciones AI.'}
+                      ? 'Consulta tus proyectos y entregables asignados, y revisa tu ficha académica.'
+                      : 'Gestiona tus entregables programados y revisa recomendaciones de investigación.'}
                   </p>
                 </div>
               </div>
@@ -1668,7 +1739,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          {currentUser?.rol !== 'aprendiz' && (
+                          {canManageRecord(sem) && (
                             <button
                               onClick={(e) => handleOpenEditSemillero(sem, e)}
                               className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
@@ -1741,7 +1812,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                   Ejes temáticos declarados y reconocidos institucionalmente para el desarrollo de proyectos I+D+i.
                 </p>
               </div>
-              {currentUser?.rol === 'admin' && (
+              {canManageGroup && (
                 <Button onClick={() => setShowAddLineaModal(true)} size="sm" variant="sena" className="text-xs">
                   <Plus size={13} className="mr-1.5" /> Nueva Línea
                 </Button>
@@ -1781,7 +1852,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
               <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                 <Target size={32} className="mx-auto text-slate-300 mb-2" />
                 <p className="text-xs font-bold text-slate-600">Sin líneas de investigación configuradas</p>
-                {currentUser?.rol === 'admin' && (
+                {canManageGroup && (
                   <Button onClick={() => setShowAddLineaModal(true)} size="sm" variant="sena" className="mt-3 text-xs">
                     + Configurar Primera Línea
                   </Button>
@@ -1803,7 +1874,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                   Datos formales registrados en la base de datos de SENNOVA.
                 </p>
               </div>
-              {currentUser?.rol === 'admin' && (
+              {canManageGroup && (
                 <Button onClick={handleEditGrupo} size="sm" variant="sena" className="text-xs">
                   <Edit2 size={14} className="mr-1.5" /> Editar Ficha
                 </Button>
@@ -1904,7 +1975,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                     </a>
                   )}
 
-                  {currentUser?.rol === 'admin' && (
+                  {currentUser?.rol !== 'aprendiz' && (
                     <label className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer">
                       {uploadingPlan ? (
                         <>
@@ -1927,7 +1998,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                 </div>
               </div>
 
-              {/* Formatos Oficiales SENNOVA */}
+              {/* Modelos de referencia */}
               <div className="p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white hover:border-indigo-300 transition-colors flex flex-col justify-between">
                 <div>
                   <div className="flex items-center gap-4 mb-4">
@@ -1935,17 +2006,20 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                       <BookOpen size={24} />
                     </div>
                     <div>
-                      <h3 className="text-sm font-black text-slate-900">Formatos Oficiales SENNOVA</h3>
-                      <p className="text-xs text-slate-500 font-medium">Plantillas oficiales pre-diligenciadas</p>
+                      <h3 className="text-sm font-black text-slate-900">Modelos de referencia SENNOVA</h3>
+                      <p className="text-xs text-slate-500 font-medium">PDF generados con datos del registro</p>
                     </div>
                   </div>
 
+                  <p role="note" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+                    Estos PDF se generan como modelos de referencia. Confirme el formato institucional vigente con la Coordinación SENNOVA antes de presentarlos o radicarlos.
+                  </p>
                   <div className="space-y-2 mb-4">
-                    {FORMATOS_OFICIALES.map(f => (
+                    {MODELOS_REFERENCIA.map(f => (
                       <div key={f.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
                         <div>
                           <p className="text-xs font-bold text-slate-800">{f.nombre}</p>
-                          <span className="text-[10px] text-emerald-700 font-mono font-bold">{f.codigo}</span>
+                          <span className="text-[10px] text-slate-500">Modelo interno de referencia</span>
                         </div>
                         <Button
                           size="xs"
@@ -2036,7 +2110,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                 <div className="flex items-center gap-2">
                   <Users size={16} className="text-slate-600" />
                   <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                    Directorio de Investigadores del Grupo ({investigadores.length})
+                    Grupo de investigadores CGAO ({investigadores.length})
                   </h3>
                 </div>
                 <span className="text-[11px] text-slate-400 font-medium">Haz clic en cualquier investigador para ver perfil y editar CvLAC</span>
@@ -2111,7 +2185,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
               >
                 <ShieldCheck size={13} className="mr-1 text-emerald-600" /> Liquidación
               </Button>
-              {currentUser?.rol !== 'aprendiz' && (
+              {canManageProject && (
                 <Button
                   variant="sena"
                   size="sm"
@@ -2134,7 +2208,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
         onTabChange={setProjectDrawerTab}
         footer={
           <div className="flex items-center justify-between w-full">
-            {currentUser?.rol === 'admin' ? (
+            {canManageProject ? (
               <Button 
                 variant="outline" 
                 className="text-rose-600 hover:bg-rose-50 border-rose-200 text-xs"
@@ -2189,13 +2263,6 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                       <p className="text-xs text-slate-500 mt-1">Vigencia: {selectedProyecto.vigencia || 12} meses • Año: {selectedProyecto.año || 2026}</p>
                       <div className="flex gap-2 mt-4">
                         <Button
-                          variant="outline"
-                          size="xs"
-                          onClick={() => handleGenerateFormat('bitacora', selectedProyecto)}
-                        >
-                          <FileText size={12} className="mr-1" /> Bitácora Técnica
-                        </Button>
-                        <Button
                           variant="sena"
                           size="xs"
                           onClick={() => PDFGenerator.generateProjectPDF(selectedProyecto, selectedProyecto.equipo || [])}
@@ -2217,7 +2284,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                       <p className="text-[10px] font-black text-slate-400 uppercase">Semillero Vinculado</p>
                       <p className="text-xs font-bold text-slate-800 mt-0.5">{selectedProyecto.semillero_nombre || selectedProyecto.semillero?.nombre || 'Iniciativa Directa'}</p>
                     </div>
-                    {currentUser?.rol !== 'aprendiz' && (
+                    {canManageProject && (
                       <button
                         onClick={() => {
                           setProjectToMove(selectedProyecto);
@@ -2268,16 +2335,19 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
             {projectDrawerTab === 'formats' && (
               <div className="space-y-4 animate-fadeIn">
                 <div>
-                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-1">Formatos Oficiales SENNOVA</h4>
-                  <p className="text-xs text-slate-500">Descarga directa de plantillas pre-diligenciadas con los datos del proyecto.</p>
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-1">Modelos de referencia SENNOVA</h4>
+                  <p className="text-xs text-slate-500">PDF generados con los datos registrados para facilitar el seguimiento.</p>
                 </div>
 
+                <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+                  Estos PDF se generan como modelos de referencia. Confirme el formato institucional vigente con la Coordinación SENNOVA antes de presentarlos o radicarlos.
+                </p>
                 <div className="space-y-2.5">
-                  {FORMATOS_OFICIALES.map(f => (
+                  {MODELOS_REFERENCIA.map(f => (
                     <div key={f.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
                       <div>
                         <p className="text-xs font-bold text-slate-800">{f.nombre}</p>
-                        <span className="text-[10px] font-mono font-bold text-emerald-700">{f.codigo}</span>
+                        <span className="text-[10px] text-slate-500">Modelo interno de referencia</span>
                       </div>
                       <Button
                         size="xs"
@@ -2315,7 +2385,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
           )
         }
         headerActions={
-          selectedSemillero && currentUser?.rol !== 'aprendiz' && (
+          selectedSemillero && canManageSemillero && (
             <Button
               variant="sena"
               size="sm"
@@ -2336,7 +2406,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
         onTabChange={setSemilleroDrawerTab}
         footer={
           <div className="flex items-center justify-between w-full">
-            {currentUser?.rol === 'admin' ? (
+            {canManageSemillero ? (
               <Button
                 variant="outline"
                 className="text-rose-600 hover:bg-rose-50 border-rose-200 text-xs"
@@ -2398,7 +2468,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                   <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
                     Aprendices en Formación ({semilleroAprendices.length})
                   </h4>
-                  {currentUser?.rol !== 'aprendiz' && (
+                  {canManageSemillero && (
                     <Button
                       size="xs"
                       variant="sena"
@@ -2435,7 +2505,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                           <Badge variant="success" className="text-[9px] uppercase">
                             {apr.estado || 'Activo'}
                           </Badge>
-                          {currentUser?.rol !== 'aprendiz' && (
+                          {canManageSemillero && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -2454,7 +2524,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                 ) : (
                   <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
                     <p className="text-xs text-slate-500">Sin aprendices vinculados a este semillero actualmente.</p>
-                    {currentUser?.rol !== 'aprendiz' && (
+                    {canManageSemillero && (
                       <Button size="xs" variant="sena" className="mt-2" onClick={() => setShowVincularAprendizModal(true)}>
                         + Vincular Primer Aprendiz
                       </Button>
@@ -2472,7 +2542,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                   </h4>
                 </div>
 
-                {currentUser?.rol !== 'aprendiz' && (
+                {canManageSemillero && (
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                     <p className="text-[10px] font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                       <Target size={12} className="text-emerald-600" /> Vincular Proyecto del Grupo al Semillero
@@ -2503,7 +2573,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                             await ProyectosAPI.update(selectedProjectToLinkGrupo, { semillero_id: selectedSemillero.id });
                             onNotify?.('Proyecto vinculado al semillero con éxito', 'success');
                             setSelectedProjectToLinkGrupo('');
-                            await loadAllGrupoData();
+                            await loadData();
                           } catch (err) {
                             onNotify?.('Error al vincular proyecto: ' + (err.response?.data?.detail || err.message), 'error');
                           }
@@ -2543,7 +2613,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                         <p className="text-[10px] text-slate-400 font-mono mt-0.5">SGPS: {p.codigo_sgps || 'S/C'} • {p.estado}</p>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {currentUser?.rol !== 'aprendiz' && (
+                        {canManageRecord(p) && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -2605,7 +2675,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
         subtitle="Línea Temática de Investigación CGAO"
         footer={
           <div className="flex items-center justify-between w-full">
-            {currentUser?.rol === 'admin' ? (
+            {canManageGroup ? (
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -2729,7 +2799,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
               </>
             ) : (
               <>
-                {currentUser?.rol === 'admin' ? (
+                {currentUser?.rol === 'admin' || String(selectedInvestigador?.id) === String(currentUser?.id) ? (
                   <Button variant="sena" size="sm" onClick={() => setIsEditingInvestigador(true)}>
                     <Edit2 size={13} className="mr-1.5" /> Editar Datos CvLAC
                   </Button>
@@ -3019,7 +3089,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                         <ExternalLink size={14} />
                       </a>
                     )}
-                    {currentUser?.rol !== 'aprendiz' && (
+                    {canManageRecord(prod) && (
                       <>
                         <button
                           onClick={() => handleOpenEditProducto(prod)}
@@ -3583,7 +3653,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
           if (selectedProyecto?.id === updated?.id) {
             setSelectedProyecto(prev => ({ ...prev, ...updated }));
           }
-          await loadAllGrupoData();
+          await loadData();
         }}
         onNotify={onNotify}
       />

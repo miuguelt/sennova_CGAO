@@ -3,7 +3,7 @@ import {
   Bell, CheckCircle2, Clock, Trash2, 
   Search, Info, ExternalLink,
   ChevronRight, Calendar, Loader2, Mail,
-  FolderOpen, Award, MessageSquare, Book, User,
+  FolderOpen, Award, MessageSquare, User,
   Layers, GraduationCap, Lightbulb, FileText, CheckCheck,
   RefreshCw, Sparkles, Eye, X
 } from 'lucide-react';
@@ -30,7 +30,6 @@ const getTipoIcon = (tipo) => {
     case 'convocatoria': return Calendar;
     case 'producto': return Award;
     case 'mensaje': return MessageSquare;
-    case 'bitacora': return Book;
     case 'perfil':
     case 'cvlac': return User;
     case 'semillero':

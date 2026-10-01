@@ -53,6 +53,9 @@ def fix_schema():
         "mensajes": [
             ("entregado", "BOOLEAN DEFAULT FALSE"),
             ("fecha_entrega", "TIMESTAMP")
+        ],
+        "documentos": [
+            ("descripcion", "TEXT")
         ]
     }
     

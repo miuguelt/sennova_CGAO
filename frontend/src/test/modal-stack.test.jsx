@@ -107,6 +107,16 @@ describe('ModalStackManager (SSoT LIFO)', () => {
 
     unsubscribe();
   });
+
+  it('supports unregistering a modal through the handle returned by push', () => {
+    const registration = modalStack.push({ id: 'modal-with-handle', onClose: vi.fn() });
+
+    expect(modalStack.getTop().id).toBe('modal-with-handle');
+    registration.unregister();
+
+    expect(modalStack.getDepth()).toBe(0);
+    expect(document.body.style.overflow).toBe('');
+  });
 });
 
 describe('Standardized UI Components in Stack', () => {
@@ -246,5 +256,69 @@ describe('Standardized UI Components in Stack', () => {
 
     expect(onCloseModal).toHaveBeenCalledTimes(1);
     expect(onCloseDrawer).not.toHaveBeenCalled();
+  });
+
+  it('mantiene el foco dentro del Modal y lo cierra al pulsar el fondo', () => {
+    const onClose = vi.fn();
+    const { unmount } = render(
+      <Modal isOpen onClose={onClose} title="Foco" footer={<button>Guardar</button>}>
+        <button>Primero</button>
+      </Modal>,
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Foco' });
+    const buttons = [...dialog.querySelectorAll('button')];
+    buttons.forEach((button) => Object.defineProperty(button, 'offsetParent', { configurable: true, value: document.body }));
+    const first = buttons[0];
+    const last = buttons.at(-1);
+
+    last.focus();
+    const forwardTab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    document.dispatchEvent(forwardTab);
+    expect(forwardTab.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+
+    first.focus();
+    const backwardTab = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
+    document.dispatchEvent(backwardTab);
+    expect(backwardTab.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(last);
+
+    fireEvent.click(dialog.firstElementChild);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
+  it('mantiene el foco dentro del Drawer y cierra al hacer clic en el fondo', () => {
+    const onClose = vi.fn();
+    render(
+      <Drawer isOpen onClose={onClose} title="Panel de foco" footer={<button>Guardar panel</button>}>
+        <button>Primer elemento</button>
+      </Drawer>,
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Panel de foco' });
+    const buttons = [...dialog.querySelectorAll('button')];
+    buttons.forEach((button) => Object.defineProperty(button, 'offsetParent', { configurable: true, value: document.body }));
+    const first = buttons[0];
+    const last = buttons.at(-1);
+
+    last.focus();
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    document.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+
+    fireEvent.click(dialog.firstElementChild);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('mantiene abierto el diálogo mientras confirma una acción', () => {
+    const onClose = vi.fn();
+    const onConfirm = vi.fn();
+    render(<ConfirmDialog isOpen loading onClose={onClose} onConfirm={onConfirm} title="Procesando" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar ventana modal' }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Procesando...' })).toBeDisabled();
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 });

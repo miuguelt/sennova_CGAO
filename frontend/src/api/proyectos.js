@@ -16,6 +16,25 @@ export const ProyectosAPI = {
     body: JSON.stringify(data),
   }),
 
+  analyzeFormulation: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return fetchAPI('/proyectos/analizar-formulacion', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  importFormulation: (projectData, file) => {
+    const formData = new FormData();
+    formData.append('proyecto', JSON.stringify(projectData));
+    formData.append('file', file);
+    return fetchAPI('/proyectos/importar-formulacion', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
   update: (id, data) => fetchAPI(`/proyectos/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),

@@ -1,4 +1,3 @@
-from uuid import UUID
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -48,11 +47,11 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    """Registrar un nuevo usuario (investigador, instructor o aprendiz)."""
-    if user_data.rol not in ["investigador", "instructor", "aprendiz"]:
+    """Registrar públicamente un aprendiz."""
+    if user_data.rol != "aprendiz":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Rol no permitido para registro público"
+            detail="El registro público solo está habilitado para aprendices. Solicite al administrador una cuenta de personal."
         )
     
     user = AuthService.register_user(
@@ -150,7 +149,7 @@ def get_user(
     db: Session = Depends(get_db)
 ):
     """Obtener detalle de un usuario (solo admin)."""
-    user = db.query(User).filter(User.id == UUID(user_id)).first()
+    user = db.query(User).filter(User.id == str(user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return user
@@ -181,7 +180,7 @@ def update_user(
     db: Session = Depends(get_db)
 ):
     """Actualizar cualquier usuario (solo admin)."""
-    user = db.query(User).filter(User.id == UUID(user_id)).first()
+    user = db.query(User).filter(User.id == str(user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     
@@ -201,7 +200,7 @@ def delete_user(
     db: Session = Depends(get_db)
 ):
     """Desactivar usuario (solo admin)."""
-    user = db.query(User).filter(User.id == UUID(user_id)).first()
+    user = db.query(User).filter(User.id == str(user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     

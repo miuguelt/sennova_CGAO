@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-from app.auth import get_current_user
+from app.auth import get_current_user, get_current_staff
 from app.database import get_db
 from app.models import User, Producto
 from app.utils import log_actividad
@@ -14,7 +14,8 @@ router = APIRouter(prefix="/cvlac", tags=["CVLaC Integration"])
 def import_cvlac(
     url: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _staff: User = Depends(get_current_staff),
 ):
     """
     Sincroniza y registra la referencia CVLaC (Scienti MinCiencias) para el usuario.
@@ -79,7 +80,8 @@ def validar_cvlac_url(url: str):
 @router.post("/subir-pdf")
 def subir_cvlac_pdf(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _staff: User = Depends(get_current_staff),
 ):
     """
     Endpoint para subir el PDF del CVLaC.
@@ -103,7 +105,8 @@ def importar_productos_cvlac(
     user_id: str = Query(...),
     payload: dict = Body(...),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _staff: User = Depends(get_current_staff),
 ):
     """
     Importa una lista de productos extraídos de CVLaC para el usuario especificado.
@@ -185,7 +188,7 @@ def get_usuarios_sin_cvlac(
     if current_user.rol != "admin":
         raise HTTPException(status_code=403, detail="ADMIN_ROLE_REQUIRED")
     usuarios = db.query(User).filter(
-        User.rol.in_(["investigador", "instructor"]),
+        User.rol == "investigador",
         User.estado_cv_lac == "No actualizado"
     ).all()
     return usuarios
@@ -213,14 +216,14 @@ def get_user_cvlac_status(
 
 @router.get("/resumen-sistema")
 def get_cvlac_resumen(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """
     Obtiene un resumen global del estado de CVLaC en el sistema.
-    Accesible para administradores, investigadores e instructores.
+    Accesible para administradores e investigadores.
     """
-    roles_cvlac = ["investigador", "instructor"]
+    roles_cvlac = ["investigador"]
     total_usuarios = db.query(User).filter(User.rol.in_(roles_cvlac)).count()
     actualizados = db.query(User).filter(
         User.rol.in_(roles_cvlac), 

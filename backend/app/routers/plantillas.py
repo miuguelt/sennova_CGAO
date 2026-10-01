@@ -7,7 +7,7 @@ from app.auth import get_current_user, get_current_admin
 from app.database import get_db
 from app.models import (
     Proyecto, User, Semillero, Aprendiz, Entregable, 
-    Actividad, BitacoraEntry
+    Actividad
 )
 from app.utils import log_actividad
 
@@ -109,6 +109,8 @@ def generar_datos_certificado(
         
         if not semillero or not aprendiz:
             raise HTTPException(status_code=404, detail="Semillero o Aprendiz no encontrado")
+        if current_user.rol == "aprendiz" and str(aprendiz.user_id) != str(current_user.id):
+            raise HTTPException(status_code=403, detail="Solo puede consultar su propio certificado")
         
         info = aprendiz.info_consolidada
         fecha_ing_str = aprendiz.fecha_ingreso.strftime('%Y-%m-%d') if aprendiz.fecha_ingreso else date.today().strftime('%Y-%m-%d')
@@ -146,7 +148,6 @@ def generar_datos_certificado(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.get("/usuarios/{user_id}/reporte-mensual")
 def generar_datos_reporte_mensual(
@@ -221,7 +222,7 @@ def generar_certificados_masivos(
         proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
         if not proyecto:
             raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-        
+
         # Importar la tabla de asociación
         from app.models import proyecto_equipo
         
@@ -288,6 +289,9 @@ def generar_detalle_presupuesto(
         proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
         if not proyecto:
             raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+
+        if current_user.rol == "aprendiz":
+            raise HTTPException(status_code=403, detail="El detalle presupuestal es exclusivo de los roles de gestión")
         
         # Datos base
         base_json = proyecto.presupuesto_detallado or {}
@@ -341,60 +345,6 @@ def generar_detalle_presupuesto(
                 "nivel_ejecucion": nivel_ejecucion
             },
             "fecha_corte": date.today().strftime('%Y-%m-%d')
-        }
-    except sa.exc.OperationalError as db_err:
-        raise db_err
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/proyectos/{proyecto_id}/bitacora-oficial")
-def generar_bitacora_oficial(
-    proyecto_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Consolida toda la bitácora técnica de un proyecto para exportación oficial.
-    """
-    try:
-        proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
-        if not proyecto:
-            raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-        
-        entradas = db.query(BitacoraEntry).filter(
-            BitacoraEntry.proyecto_id == str(proyecto.id)
-        ).order_by(BitacoraEntry.fecha.asc()).all()
-        
-        return {
-            "entidad": "SERVICIO NACIONAL DE APRENDIZAJE - SENA",
-            "centro": "CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE",
-            "proyecto": {
-                "nombre": proyecto.nombre,
-                "codigo": proyecto.codigo_sgps,
-                "linea": proyecto.linea_programatica
-            },
-            "periodo": f"Generado el {date.today().strftime('%Y-%m-%d')}",
-            "resumen_ejecucion": {
-                "total_entradas": len(entradas),
-                "firmas_completas": len([e for e in entradas if e.is_firmado_investigador and e.is_firmado_aprendiz]),
-                "pendientes": len([e for e in entradas if not e.is_firmado_investigador or not e.is_firmado_aprendiz])
-            },
-            "entradas": [
-                {
-                    "fecha": e.fecha.strftime('%Y-%m-%d %H:%M'),
-                    "titulo": e.titulo,
-                    "categoria": e.categoria,
-                    "contenido": e.contenido,
-                    "autor": e.user.nombre if e.user else "Investigador",
-                    "estado_firma": "COMPLETA" if (e.is_firmado_investigador and e.is_firmado_aprendiz) else "PENDIENTE",
-                    "hash_verificacion": e.signature_metadata.get("investigador", {}).get("integrity_hash", "N/A") if e.signature_metadata else "N/A",
-                    "adjuntos_count": len(e.adjuntos) if e.adjuntos else 0
-                } for e in entradas
-            ],
-            "glosario_seguridad": "Los hashes de verificación garantizan que el contenido no ha sido modificado tras la firma digital."
         }
     except sa.exc.OperationalError as db_err:
         raise db_err

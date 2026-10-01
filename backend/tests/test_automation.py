@@ -2,13 +2,13 @@
 """
 🧪 Test de Automatización — SENNOVA
 ====================================
-Valida el flujo de SENNOVA (Auth, Proyectos, Cronograma, Productos, Presupuesto, Bitácora y Aprendices).
+Valida el flujo de SENNOVA (Auth, Proyectos, Cronograma, Productos, Presupuesto y Aprendices).
 
 Se ejecuta siempre contra una base SQLite efímera mediante TestClient. La versión
 anterior probaba primero ``GET /health`` contra el servidor real y, si respondía,
 mandaba todo el flujo por HTTP: con el backend levantado eso escribía en la base
 operativa de PostgreSQL, y cada corrida dejaba allí un proyecto, un semillero,
-una bitácora y sus entregables y productos, sin limpiar nada. Además, cuando el
+sus entregables y productos, sin limpiar nada. Además, cuando el
 servidor no respondía la prueba se saltaba en silencio, así que nunca podía
 fallar. Ahora no hay red: el aislamiento no depende del estado del entorno.
 """
@@ -136,38 +136,6 @@ def test_sennova_automation_flow(client, headers):
     )
     assert res_pres.status_code == 200, f"Error generando presupuesto: {res_pres.text}"
     assert "items_count" in res_pres.json(), "Respuesta de presupuesto sin contador de rubros"
-
-    # 5. Bitácora Multimedia
-    bitacora_data = {
-        "titulo": "Entrada de Test Multimedia",
-        "contenido": "Contenido de prueba con adjuntos",
-        "categoria": "técnica",
-        "proyecto_id": proyecto_id,
-        "adjuntos": [
-            {
-                "nombre": "imagen1.jpg",
-                "url": "https://picsum.photos/800/600",
-                "type": "image/jpeg",
-                "size": 1024,
-            },
-            {
-                "nombre": "imagen2.jpg",
-                "url": "https://picsum.photos/800/601",
-                "type": "image/jpeg",
-                "size": 2048,
-            },
-        ],
-    }
-    res_bit = client.post("/bitacora", json=bitacora_data, headers=headers)
-    assert res_bit.status_code == 201, f"Error en bitácora multimedia: {res_bit.text}"
-    bit_id = res_bit.json().get("id")
-    assert bit_id is not None
-
-    # Verificar que los adjuntos persistieron
-    res_bit_get = client.get(f"/bitacora/{bit_id}", headers=headers)
-    assert res_bit_get.status_code == 200
-    assert len(res_bit_get.json().get("adjuntos", [])) == 2
-
 
 def test_vinculacion_aprendiz_semillero(client, headers):
     """Vincula un aprendiz a un semillero y comprueba que el nombre se auto-pobla."""
