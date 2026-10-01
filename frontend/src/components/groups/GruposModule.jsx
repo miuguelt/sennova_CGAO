@@ -106,7 +106,6 @@ const GruposModule = ({ currentUser, onNotify }) => {
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState(EMPTY_FORM);
-  const [memberForm, setMemberForm] = useState({ user_id: '', rol: 'Investigador' });
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [grupoSemilleros, setGrupoSemilleros] = useState([]);
   const [semilleros, setSemilleros] = useState([]);
@@ -242,20 +241,6 @@ const GruposModule = ({ currentUser, onNotify }) => {
       console.error(err);
     } finally {
       setLoadingSemilleros(false);
-    }
-  };
-
-  const handleAddMember = async () => {
-    if (!memberForm.user_id) return;
-    try {
-      await GruposAPI.addMember(selectedGrupo.id, memberForm);
-      onNotify?.('Integrante vinculado correctamente', 'success');
-      setMemberForm({ user_id: '', rol: 'Investigador' });
-      const data = await GruposAPI.getMembers(selectedGrupo.id);
-      setIntegrantes(data || []);
-      await loadData(false);
-    } catch (err) {
-      onNotify?.('Error al vincular: ' + err.message, 'error');
     }
   };
 

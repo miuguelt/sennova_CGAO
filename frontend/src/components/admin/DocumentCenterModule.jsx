@@ -205,7 +205,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
         onNotify?.('Reporte financiero y presupuesto generado con éxito', 'success');
       } else if (type === 'etapa_productiva') {
         if (!projId) throw new Error('Seleccione un proyecto');
-        let proj = proyectosMap[projId] || proyectos.find(p => p.id === projId) || proyectos[0];
+        let proj = proyectosMap[projId] || proyectos[0];
         try {
           const fullProj = await ProyectosAPI.get(proj.id);
           if (fullProj && fullProj.id) proj = fullProj;
@@ -216,7 +216,7 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
         onNotify?.('Formato de etapa productiva generado', 'success');
       } else if (type === 'ficha_proyecto') {
         if (!projId) throw new Error('Seleccione un proyecto');
-        let proj = proyectosMap[projId] || proyectos.find(p => p.id === projId) || proyectos[0];
+        let proj = proyectosMap[projId] || proyectos[0];
         let team = [];
         try {
           const [fullProj, teamData] = await Promise.all([

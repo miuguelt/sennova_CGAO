@@ -27,7 +27,18 @@ vi.mock('../utils/pdfGenerator', () => ({ PDFGenerator: {
   generateEtapaProductiva: vi.fn(), generateSeguimiento: vi.fn(), generateInformeFinal: vi.fn(),
   generateBudgetReport: vi.fn(), generateProjectPDF: vi.fn(), generateCertificate: vi.fn(),
 } }));
-vi.mock('../components/projects/MoverProyectoSemilleroModal', () => ({ default: () => null }));
+vi.mock('../components/projects/MoverProyectoSemilleroModal', () => ({ default: ({ isOpen, onClose, onSuccess, proyecto }) => (
+  isOpen ? (
+    <div role="dialog" aria-label="Mover Proyecto a Semillero">
+      <p>{proyecto?.nombre}</p>
+      <button onClick={onClose}>Cancelar movimiento</button>
+      <button onClick={() => {
+        onSuccess({ id: proyecto?.id, semillero_id: 's-2', semillero_nombre: 'Semillero de destino' });
+        onClose();
+      }}>Confirmar Traslado</button>
+    </div>
+  ) : null
+)}));
 vi.mock('../components/users/UserInsightPanel', () => ({ default: ({ user, isOpen, onClose }) => (
   user && isOpen ? <section role="dialog" aria-label="Resumen 360"><h2>Resumen 360</h2><p>{user.nombre}</p><p>{user.email}</p><button onClick={onClose}>Cerrar resumen</button></section> : null
 ) }));
@@ -39,6 +50,7 @@ import { ProyectosAPI } from '../api/proyectos';
 import { ProductosAPI } from '../api/productos';
 import { AprendicesAPI } from '../api/aprendices';
 import { PlantillasAPI } from '../api/plantillas';
+import { ReportesAPI } from '../api/reportes';
 import { PDFGenerator } from '../utils/pdfGenerator';
 
 const grupo = {
@@ -137,6 +149,26 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     expect(within(insight).getByText('aprendiz.sin.cuenta@soy.sena.edu.co')).toBeVisible();
   });
 
+  it('permite vincular al primer aprendiz cuando el semillero está vacío', async () => {
+    SemillerosAPI.listAprendices.mockResolvedValue([]);
+    render(<GrupoModule currentUser={admin} onNotify={vi.fn()} />);
+    await screen.findByText('GIDTA');
+    fireEvent.click(document.getElementById('tab-semilleros'));
+    fireEvent.click(screen.getByText('Semillero Agro').closest('.cursor-pointer'));
+    const drawer = await screen.findByRole('dialog', { name: 'Semillero Agro' });
+    fireEvent.click(within(drawer).getByRole('tab', { name: /Aprendices Vinculados/i }));
+    expect(within(drawer).getByText('Sin aprendices vinculados a este semillero actualmente.')).toBeVisible();
+    fireEvent.click(within(drawer).getByRole('button', { name: '+ Vincular Primer Aprendiz' }));
+    const linkDialog = await screen.findByRole('dialog', { name: 'Vincular Aprendiz al Semillero' });
+    fireEvent.click(within(linkDialog).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog', { name: 'Vincular Aprendiz al Semillero' })).not.toBeInTheDocument();
+    fireEvent.click(within(drawer).getByRole('button', { name: '+ Vincular Primer Aprendiz' }));
+    const reopenedLinkDialog = await screen.findByRole('dialog', { name: 'Vincular Aprendiz al Semillero' });
+    fireEvent.click(within(reopenedLinkDialog).getByRole('button', { name: 'Cerrar ventana modal' }));
+    expect(screen.queryByRole('dialog', { name: 'Vincular Aprendiz al Semillero' })).not.toBeInTheDocument();
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Cerrar panel' }));
+  });
+
   it('gestiona el equipo del proyecto y genera su ficha técnica desde el drawer', async () => {
     const notify = vi.fn();
     render(<GrupoModule currentUser={admin} onNotify={notify} />);
@@ -197,7 +229,10 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
 
     fireEvent.click(within(getDrawer()).getByTitle('Desvincular del semillero'));
     const removeAprendiz = await screen.findByRole('dialog', { name: '¿Desvincular Aprendiz del Semillero?' });
-    fireEvent.click(within(removeAprendiz).getByRole('button', { name: 'Desvincular' }));
+    fireEvent.click(within(removeAprendiz).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog', { name: '¿Desvincular Aprendiz del Semillero?' })).not.toBeInTheDocument();
+    fireEvent.click(within(getDrawer()).getByTitle('Desvincular del semillero'));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: '¿Desvincular Aprendiz del Semillero?' })).getByRole('button', { name: 'Desvincular' }));
     await waitFor(() => expect(SemillerosAPI.deleteAprendiz).toHaveBeenCalledWith('s-1', aprendiz.id));
     expect(notify).toHaveBeenCalledWith('Aprendiz desvinculado del semillero', 'success');
 
@@ -207,6 +242,18 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     fireEvent.click(within(getDrawer()).getByRole('button', { name: 'Vincular' }));
     await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith(projectWithoutSemillero.id, { semillero_id: semillero.id }));
     expect(notify).toHaveBeenCalledWith('Proyecto vinculado al semillero con éxito', 'success');
+    fireEvent.click(within(getDrawer()).getByText('Pectina'));
+    const linkedProjectDrawer = await screen.findByRole('dialog', { name: /Pectina/ });
+    fireEvent.click(within(linkedProjectDrawer).getByRole('button', { name: 'Cerrar panel' }));
+    fireEvent.click(screen.getByText('Semillero Agro').closest('.cursor-pointer'));
+    await screen.findByRole('dialog', { name: 'Semillero Agro' });
+    fireEvent.click(within(getDrawer()).getByRole('tab', { name: 'Proyectos Asociados' }));
+    const projectRow = within(getDrawer()).getByText('Pectina').closest('.group');
+    fireEvent.click(projectRow.querySelector('svg.lucide-chevron-right'));
+    expect(await screen.findByRole('dialog', { name: /Pectina/ })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar panel' }));
+    fireEvent.click(screen.getByText('Semillero Agro').closest('.cursor-pointer'));
+    await screen.findByRole('dialog', { name: 'Semillero Agro' });
 
     fireEvent.click(within(getDrawer()).getByRole('tab', { name: 'Tutores' }));
     expect(within(getDrawer()).getByText('Tutor Principal de Semillero')).toBeVisible();
@@ -218,7 +265,9 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
 
     fireEvent.click(within(getDrawer()).getByRole('button', { name: 'Eliminar Semillero' }));
     const deleteDialog = screen.getByRole('dialog', { name: '¿Eliminar Semillero de Investigación?' });
-    fireEvent.click(within(deleteDialog).getByRole('button', { name: 'Eliminar Semillero' }));
+    fireEvent.click(within(deleteDialog).getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(within(getDrawer()).getByRole('button', { name: 'Eliminar Semillero' }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: '¿Eliminar Semillero de Investigación?' })).getByRole('button', { name: 'Eliminar Semillero' }));
     await waitFor(() => expect(SemillerosAPI.delete).toHaveBeenCalledWith('s-1'));
     expect(notify).toHaveBeenCalledWith('Semillero eliminado correctamente', 'success');
   });
@@ -232,22 +281,35 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     fireEvent.click(screen.getByText(/marta@sena\.edu\.co.*•/));
     expect(await screen.findByRole('dialog', { name: 'Marta Líder' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Editar Datos CvLAC' }));
+    fireEvent.change(screen.getByLabelText(/Nombre Completo/i), { target: { value: 'Cambio sin guardar' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(UsuariosAPI.update).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Marta Líder' })).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Datos CvLAC' }));
     fireEvent.change(screen.getByLabelText(/Nombre Completo/i), { target: { value: 'Marta Líder Actualizada' } });
+    fireEvent.change(screen.getByLabelText(/Correo Electrónico/i), { target: { value: 'marta.actualizada@sena.edu.co' } });
     fireEvent.change(screen.getByLabelText(/Rol SENNOVA/i), { target: { value: 'Coordinadora de Investigación' } });
     fireEvent.change(screen.getByLabelText(/Horas Asignadas Semanales/i), { target: { value: '24' } });
+    fireEvent.change(screen.getByLabelText(/URL CvLAC Scienti Minciencias/i), { target: { value: 'https://scienti.example/marta' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar Cambios' }));
     await waitFor(() => expect(UsuariosAPI.update).toHaveBeenCalledWith('u-owner', expect.objectContaining({
-      nombre: 'Marta Líder Actualizada', rol_sennova: 'Coordinadora de Investigación', horas_asignadas: 24,
+      nombre: 'Marta Líder Actualizada', email: 'marta.actualizada@sena.edu.co',
+      rol_sennova: 'Coordinadora de Investigación', horas_asignadas: 24, cv_lac_url: 'https://scienti.example/marta',
     })));
     expect(notify).toHaveBeenCalledWith('Datos del investigador actualizados correctamente', 'success');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Marta Líder Actualizada' })).getByRole('button', { name: 'Cerrar ventana modal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar Investigador' }));
+    const registrationDialog = await screen.findByRole('dialog', { name: 'Registrar Nuevo Investigador' });
+    fireEvent.click(within(registrationDialog).getByRole('button', { name: 'Cerrar ventana modal' }));
     fireEvent.click(screen.getByRole('button', { name: 'Registrar Investigador' }));
     fireEvent.change(await screen.findByLabelText(/Nombre Completo/i), { target: { value: 'Nuevo Investigador' } });
     fireEvent.change(screen.getByLabelText(/Correo Electrónico/i), { target: { value: 'nuevo@sena.edu.co' } });
+    fireEvent.change(screen.getByLabelText(/Rol SENNOVA/i), { target: { value: 'Investigador Asociado' } });
     fireEvent.click(screen.getByRole('button', { name: 'Registrar' }));
     await waitFor(() => expect(UsuariosAPI.create).toHaveBeenCalledWith(expect.objectContaining({
-      nombre: 'Nuevo Investigador', email: 'nuevo@sena.edu.co', rol: 'investigador',
+      nombre: 'Nuevo Investigador', email: 'nuevo@sena.edu.co', rol: 'investigador', rol_sennova: 'Investigador Asociado',
     })));
     expect(notify).toHaveBeenCalledWith('Investigador registrado exitosamente en el sistema', 'success');
   });
@@ -268,9 +330,19 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     await waitFor(() => expect(ProductosAPI.update).toHaveBeenCalledWith('prod-1', expect.objectContaining({ titulo: 'Artículo Agro actualizado' })));
     expect(notify).toHaveBeenCalledWith('Producto de investigación actualizado', 'success');
 
+    fireEvent.click(within(getCatalog()).getByRole('button', { name: /Registrar Nuevo Producto/ }));
+    const cancelProductDialog = await screen.findByRole('dialog', { name: 'Registrar Producto de Investigación' });
+    fireEvent.click(within(cancelProductDialog).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog', { name: 'Registrar Producto de Investigación' })).not.toBeInTheDocument();
+
     fireEvent.click(within(getCatalog()).getByTitle('Eliminar producto'));
     const deleteProduct = screen.getByRole('dialog', { name: '¿Eliminar Producto I+D?' });
-    fireEvent.click(within(deleteProduct).getByRole('button', { name: 'Eliminar Producto' }));
+    fireEvent.click(within(deleteProduct).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog', { name: '¿Eliminar Producto I+D?' })).not.toBeInTheDocument();
+    expect(ProductosAPI.delete).not.toHaveBeenCalled();
+    fireEvent.click(within(getCatalog()).getByTitle('Eliminar producto'));
+    const reopenedDeleteProduct = await screen.findByRole('dialog', { name: '¿Eliminar Producto I+D?' });
+    fireEvent.click(within(reopenedDeleteProduct).getByRole('button', { name: 'Eliminar Producto' }));
     await waitFor(() => expect(ProductosAPI.delete).toHaveBeenCalledWith('prod-1'));
     expect(notify).toHaveBeenCalledWith('Producto eliminado correctamente', 'success');
 
@@ -279,6 +351,10 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     const learners = await screen.findByRole('dialog', { name: 'Directorio de Aprendices Semilleristas' });
     fireEvent.change(within(learners).getByPlaceholderText(/Buscar aprendiz por nombre/i), { target: { value: 'Ana' } });
     expect(within(learners).getByText('Ana Aprendiz')).toBeVisible();
+    fireEvent.click(within(learners).getByText('Ana Aprendiz'));
+    const learnerInsight = await screen.findByRole('dialog', { name: 'Resumen 360' });
+    expect(within(learnerInsight).getByText('ana@soy.sena.edu.co')).toBeVisible();
+    fireEvent.click(within(learnerInsight).getByRole('button', { name: 'Cerrar resumen' }));
     PlantillasAPI.getDatosCertificado.mockRejectedValueOnce(new Error('plantilla no disponible'));
     fireEvent.click(within(learners).getByRole('button', { name: 'Certificado PDF' }));
     await waitFor(() => expect(PDFGenerator.generateCertificate).toHaveBeenCalledWith(expect.objectContaining({
@@ -466,5 +542,405 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
 
     await waitFor(() => expect(GruposAPI.update).toHaveBeenCalledWith(grupo.id, expect.objectContaining({ nombre: 'GIDTA actualizado' })));
     expect(notify).toHaveBeenCalledWith('Grupo institucional actualizado', 'success');
+  });
+
+  it('crea, edita y elimina proyectos desde el listado y su expediente', async () => {
+    const notify = vi.fn();
+    render(<GrupoModule currentUser={admin} onNotify={notify} />);
+    await screen.findByText('GIDTA');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+
+    fireEvent.change(screen.getByPlaceholderText(/Buscar proyectos por nombre/i), { target: { value: 'sin resultados' } });
+    expect(screen.getByText('No se encontraron proyectos vinculados')).toBeVisible();
+    fireEvent.change(screen.getByPlaceholderText(/Buscar proyectos por nombre/i), { target: { value: '' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo Proyecto' }));
+    const createDialog = await screen.findByRole('dialog', { name: 'Nuevo Proyecto de Investigación' });
+    fireEvent.change(within(createDialog).getByLabelText(/Nombre Completo del Proyecto/), { target: { value: 'Proyecto de agricultura de precisión' } });
+    fireEvent.change(within(createDialog).getByLabelText('Nombre Corto / Sigla'), { target: { value: 'AgroPrecisión' } });
+    fireEvent.change(within(createDialog).getByLabelText('Código SGPS'), { target: { value: 'SGPS-2026-09' } });
+    fireEvent.change(within(createDialog).getByLabelText('Estado'), { target: { value: 'En ejecución' } });
+    fireEvent.change(within(createDialog).getByLabelText('Tipología'), { target: { value: 'Investigación' } });
+    fireEvent.change(within(createDialog).getByLabelText('Presupuesto Total (COP)'), { target: { value: '2500000' } });
+    fireEvent.change(within(createDialog).getByLabelText('Línea de Investigación'), { target: { value: 'Desarrollo de Software' } });
+    fireEvent.change(within(createDialog).getByLabelText('Semillero Asociado'), { target: { value: 's-1' } });
+    fireEvent.change(within(createDialog).getByLabelText('Objetivo General'), { target: { value: 'Optimizar la producción' } });
+    fireEvent.change(within(createDialog).getByLabelText('Descripción / Resumen Ejecutivo'), { target: { value: 'Proyecto de prueba de campo' } });
+    fireEvent.click(within(createDialog).getByRole('button', { name: 'Crear Proyecto' }));
+    await waitFor(() => expect(ProyectosAPI.create).toHaveBeenCalledWith(expect.objectContaining({
+      nombre: 'Proyecto de agricultura de precisión', nombre_corto: 'AgroPrecisión', codigo_sgps: 'SGPS-2026-09',
+      estado: 'En ejecución', tipologia: 'Investigación', presupuesto_total: 2500000, vigencia: 12,
+      linea_investigacion: 'Desarrollo de Software', semillero_id: 's-1', grupo_id: 'g-1',
+      objetivo_general: 'Optimizar la producción', descripcion: 'Proyecto de prueba de campo',
+    })));
+    expect(notify).toHaveBeenCalledWith('Proyecto creado y vinculado al grupo exitosamente', 'success');
+
+    fireEvent.click(screen.getByText('Pectina').closest('.cursor-pointer'));
+    const projectDrawer = await screen.findByRole('dialog', { name: /Pectina/ });
+    fireEvent.click(within(projectDrawer).getByRole('button', { name: 'Editar' }));
+    const editDialog = await screen.findByRole('dialog', { name: 'Editar Proyecto de Investigación' });
+    fireEvent.change(within(editDialog).getByLabelText('Presupuesto Total (COP)'), { target: { value: '1800000' } });
+    fireEvent.change(within(editDialog).getByLabelText('Objetivo General'), { target: { value: 'Aumentar el rendimiento de pectina' } });
+    fireEvent.click(within(editDialog).getByRole('button', { name: 'Actualizar Proyecto' }));
+    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-1', expect.objectContaining({
+      presupuesto_total: 1800000, objetivo_general: 'Aumentar el rendimiento de pectina', grupo_id: 'g-1',
+    })));
+    expect(notify).toHaveBeenCalledWith('Proyecto actualizado exitosamente', 'success');
+
+    const refreshedDrawer = await screen.findByRole('dialog', { name: /Pectina/ });
+    fireEvent.click(within(refreshedDrawer).getByRole('button', { name: 'Eliminar Proyecto' }));
+    const deleteDialog = await screen.findByRole('dialog', { name: '¿Eliminar Proyecto de Investigación?' });
+    fireEvent.click(within(deleteDialog).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog', { name: '¿Eliminar Proyecto de Investigación?' })).not.toBeInTheDocument();
+
+    fireEvent.click(within(refreshedDrawer).getByRole('button', { name: 'Cerrar panel' }));
+    expect(screen.queryByRole('dialog', { name: /Pectina/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Pectina').closest('.cursor-pointer'));
+    const reopenedDrawer = await screen.findByRole('dialog', { name: /Pectina/ });
+    fireEvent.click(within(reopenedDrawer).getByRole('button', { name: 'Eliminar Proyecto' }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: '¿Eliminar Proyecto de Investigación?' })).getByRole('button', { name: 'Eliminar Proyecto' }));
+    await waitFor(() => expect(ProyectosAPI.delete).toHaveBeenCalledWith('p-1'));
+    expect(notify).toHaveBeenCalledWith('Proyecto eliminado correctamente', 'success');
+    expect(screen.queryByRole('dialog', { name: /Pectina/ })).not.toBeInTheDocument();
+  });
+
+  it('registra un semillero y un producto con los datos diligenciados en sus formularios', async () => {
+    const notify = vi.fn();
+    render(<GrupoModule currentUser={admin} onNotify={notify} />);
+    await screen.findByText('GIDTA');
+
+    fireEvent.click(document.getElementById('tab-semilleros'));
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo Semillero' }));
+    const semilleroDialog = await screen.findByRole('dialog', { name: 'Nuevo Semillero de Investigación' });
+    fireEvent.change(within(semilleroDialog).getByLabelText(/Nombre del Semillero/), { target: { value: 'Robótica Rural' } });
+    fireEvent.change(within(semilleroDialog).getByLabelText('Sigla o Acrónimo'), { target: { value: 'ROR' } });
+    fireEvent.change(within(semilleroDialog).getByLabelText('Código Interno'), { target: { value: 'ROR-2026' } });
+    fireEvent.change(within(semilleroDialog).getByLabelText('Línea de Investigación'), { target: { value: 'Desarrollo de Software' } });
+    fireEvent.change(within(semilleroDialog).getByLabelText('Líder / Tutor'), { target: { value: 'Marta Líder' } });
+    fireEvent.change(within(semilleroDialog).getByLabelText('Horas Formativas Semanales'), { target: { value: '18' } });
+    fireEvent.change(within(semilleroDialog).getByLabelText('Estado'), { target: { value: 'inactivo' } });
+    fireEvent.change(within(semilleroDialog).getByLabelText('Descripción del Semillero'), { target: { value: 'Prototipos para el sector rural' } });
+    fireEvent.click(within(semilleroDialog).getByRole('button', { name: 'Crear Semillero' }));
+    await waitFor(() => expect(SemillerosAPI.create).toHaveBeenCalledWith(expect.objectContaining({
+      nombre: 'Robótica Rural', sigla: 'ROR', codigo: 'ROR-2026', linea_investigacion: 'Desarrollo de Software',
+      lider_nombre: 'Marta Líder', lider: 'Marta Líder', horas_dedicadas: 18, estado: 'inactivo',
+      descripcion: 'Prototipos para el sector rural', grupo_id: 'g-1',
+    })));
+    expect(notify).toHaveBeenCalledWith('Semillero creado exitosamente en el grupo', 'success');
+
+    fireEvent.click(screen.getByTitle('Abrir catálogo de productos'));
+    const catalog = await screen.findByRole('dialog', { name: /Catálogo de Productos/ });
+    fireEvent.click(within(catalog).getByRole('button', { name: /Registrar Nuevo Producto/ }));
+    const productDialog = await screen.findByRole('dialog', { name: 'Registrar Producto de Investigación' });
+    fireEvent.change(within(productDialog).getByLabelText(/Título del Producto/), { target: { value: 'Sensor de humedad abierto' } });
+    fireEvent.change(within(productDialog).getByLabelText('Tipología'), { target: { value: 'Software / Aplicativo' } });
+    fireEvent.change(within(productDialog).getByLabelText('Categoría Minciencias'), { target: { value: 'B' } });
+    fireEvent.change(within(productDialog).getByLabelText('Proyecto Asociado'), { target: { value: 'p-1' } });
+    fireEvent.change(within(productDialog).getByLabelText('Año de Publicación'), { target: { value: '2024' } });
+    fireEvent.change(within(productDialog).getByLabelText('Autores (separados por coma)'), { target: { value: 'Marta Líder, Ana Aprendiz' } });
+    fireEvent.change(within(productDialog).getByLabelText('URL de Soporte / DOI / Repositorio'), { target: { value: 'https://example.org/sensor' } });
+    fireEvent.click(within(productDialog).getByRole('button', { name: 'Registrar Producto' }));
+    await waitFor(() => expect(ProductosAPI.create).toHaveBeenCalledWith(expect.objectContaining({
+      titulo: 'Sensor de humedad abierto', tipologia: 'Software / Aplicativo', categoria_minciencias: 'B',
+      proyecto_id: 'p-1', año: 2024, autores: 'Marta Líder, Ana Aprendiz', url_soporte: 'https://example.org/sensor',
+    })));
+    expect(notify).toHaveBeenCalledWith('Producto I+D registrado exitosamente', 'success');
+  });
+
+  it('administra las líneas de investigación y navega a sus semilleros y proyectos', async () => {
+    const notify = vi.fn();
+    let storedGroup = { ...grupo };
+    GruposAPI.list.mockImplementation(async () => [storedGroup]);
+    GruposAPI.update.mockImplementation(async (_id, payload) => { storedGroup = { ...payload }; });
+    render(<GrupoModule currentUser={admin} onNotify={notify} initialAction={{ form: 'view', data: { tab: 'lineas' } }} />);
+    await screen.findByRole('heading', { name: 'Líneas de Investigación del Grupo CGAO' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva Línea' }));
+    const addDialog = await screen.findByRole('dialog', { name: 'Nueva Línea de Investigación' });
+    fireEvent.change(within(addDialog).getByLabelText(/Nombre de la Línea de Investigación/), { target: { value: 'Biotecnología' } });
+    fireEvent.click(within(addDialog).getByRole('button', { name: 'Agregar Línea' }));
+    await waitFor(() => expect(GruposAPI.update).toHaveBeenCalledWith('g-1', expect.objectContaining({
+      lineas_investigacion: ['Agroindustria', 'Desarrollo de Software', 'Biotecnología'],
+    })));
+    expect(notify).toHaveBeenCalledWith('Línea de investigación agregada exitosamente', 'success');
+
+    fireEvent.click(screen.getByText('Agroindustria').closest('.cursor-pointer'));
+    const detail = await screen.findByRole('dialog', { name: 'Agroindustria' });
+    expect(within(detail).getByText('Semillero Agro')).toBeVisible();
+    expect(within(detail).getByText('Pectina')).toBeVisible();
+    fireEvent.click(within(detail).getByRole('button', { name: 'Cerrar ventana modal' }));
+    fireEvent.click(screen.getByText('Agroindustria').closest('.cursor-pointer'));
+    const detailForSemillero = await screen.findByRole('dialog', { name: 'Agroindustria' });
+    fireEvent.click(within(detailForSemillero).getByText('Semillero Agro'));
+    expect(await screen.findByRole('dialog', { name: 'Semillero Agro' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar panel' }));
+
+    fireEvent.click(screen.getByText('Agroindustria').closest('.cursor-pointer'));
+    const detailAgain = await screen.findByRole('dialog', { name: 'Agroindustria' });
+    fireEvent.click(within(detailAgain).getByText('Pectina'));
+    expect(await screen.findByRole('dialog', { name: /Pectina/ })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar panel' }));
+
+    fireEvent.click(screen.getByText('Agroindustria').closest('.cursor-pointer'));
+    const lineDetail = await screen.findByRole('dialog', { name: 'Agroindustria' });
+    fireEvent.click(within(lineDetail).getByRole('button', { name: 'Renombrar' }));
+    const cancelEditDialog = await screen.findByRole('dialog', { name: 'Renombrar Línea de Investigación' });
+    fireEvent.click(within(cancelEditDialog).getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(within(lineDetail).getByRole('button', { name: 'Renombrar' }));
+    const closeEditDialog = await screen.findByRole('dialog', { name: 'Renombrar Línea de Investigación' });
+    fireEvent.click(within(closeEditDialog).getByRole('button', { name: 'Cerrar ventana modal' }));
+    fireEvent.click(within(lineDetail).getByRole('button', { name: 'Renombrar' }));
+    const editDialog = await screen.findByRole('dialog', { name: 'Renombrar Línea de Investigación' });
+    fireEvent.change(within(editDialog).getByLabelText(/Nuevo Nombre de la Línea/), { target: { value: 'Agroindustria Sostenible' } });
+    fireEvent.click(within(editDialog).getByRole('button', { name: 'Guardar Cambios' }));
+    await waitFor(() => expect(storedGroup.lineas_investigacion).toContain('Agroindustria Sostenible'));
+    expect(notify).toHaveBeenCalledWith('Línea de investigación actualizada', 'success');
+
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Agroindustria Sostenible' })).getByRole('button', { name: 'Cerrar' }));
+    fireEvent.click(screen.getByText('Agroindustria Sostenible').closest('.cursor-pointer'));
+    const renamedDetail = await screen.findByRole('dialog', { name: 'Agroindustria Sostenible' });
+    fireEvent.click(within(renamedDetail).getByRole('button', { name: 'Eliminar' }));
+    const deleteDialog = await screen.findByRole('dialog', { name: '¿Eliminar Línea de Investigación?' });
+    fireEvent.click(within(deleteDialog).getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(within(renamedDetail).getByRole('button', { name: 'Eliminar' }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: '¿Eliminar Línea de Investigación?' })).getByRole('button', { name: 'Eliminar Línea' }));
+    await waitFor(() => expect(storedGroup.lineas_investigacion).not.toContain('Agroindustria Sostenible'));
+    expect(notify).toHaveBeenCalledWith('Línea de investigación eliminada', 'success');
+  });
+
+  it('sube un plan operativo y genera los formatos de referencia del grupo', async () => {
+    const notify = vi.fn();
+    const onNavigate = vi.fn();
+    const file = new File(['plan anual'], 'plan-2026.pdf', { type: 'application/pdf' });
+    render(<GrupoModule currentUser={admin} onNotify={notify} onNavigate={onNavigate} initialAction={{ form: 'view', data: { tab: 'plan' } }} />);
+    expect(await screen.findByRole('heading', { name: 'Plan Operativo & Documentación SENNOVA' })).toBeVisible();
+    const uploadInput = screen.getByText('Subir Plan Operativo').closest('label').querySelector('input[type="file"]');
+    fireEvent.change(uploadInput, { target: { files: [file] } });
+    await waitFor(() => expect(GruposAPI.uploadPlanOperativo).toHaveBeenCalledWith('g-1', file));
+    expect(notify).toHaveBeenCalledWith('Plan operativo subido exitosamente', 'success');
+
+    for (const button of screen.getAllByRole('button', { name: 'Generar PDF' })) fireEvent.click(button);
+    await waitFor(() => {
+      expect(PDFGenerator.generateEtapaProductiva).toHaveBeenCalledWith(proyecto);
+      expect(PDFGenerator.generateSeguimiento).toHaveBeenCalledWith(proyecto);
+      expect(PDFGenerator.generateInformeFinal).toHaveBeenCalledWith(proyecto);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Ir al Repositorio Documental Completo' }));
+    expect(onNavigate).toHaveBeenCalledWith('repositorio');
+  });
+
+  it('calcula rubros presupuestales desde los conceptos y muestra hitos con entregables', async () => {
+    const projectWithBudgetAndMilestones = {
+      ...proyecto,
+      presupuesto_detallado: { items: [
+        { categoria: 'Talento humano investigador', valor: '300000' },
+        { categoria: 'Materiales e insumos', valor: 150000 },
+        { categoria: 'Viajes y transporte', valor: 50000 },
+        { categoria: 'Servicios de software', valor: 25000 },
+        { categoria: 'Equipos de laboratorio', valor: 75000 },
+      ] },
+      entregables: [
+        { id: 'e-1', nombre: 'Protocolo de campo', estado: 'aprobado', fecha_limite: '2026-01-15' },
+        { id: 'e-2', nombre: 'Informe de avance', estado: 'en_revision' },
+      ],
+    };
+    GruposAPI.getProyectos.mockResolvedValue([projectWithBudgetAndMilestones]);
+    GruposAPI.getStats.mockResolvedValue({ avance_promedio: 70, presupuesto_total: 0, presupuesto_ejecutado: 0, total_productos: 1 });
+    ProyectosAPI.list.mockResolvedValue([projectWithBudgetAndMilestones]);
+    ProyectosAPI.get.mockResolvedValue(projectWithBudgetAndMilestones);
+    render(<GrupoModule currentUser={admin} onNotify={vi.fn()} />);
+    await screen.findByText('GIDTA');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    expect(screen.getAllByText('$1.200.000')).not.toHaveLength(0);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'finalizado' } });
+    expect(screen.getByText('No se encontraron proyectos vinculados')).toBeVisible();
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'en ejecución' } });
+    fireEvent.click(screen.getByText('Pectina').closest('.cursor-pointer'));
+    const drawer = await screen.findByRole('dialog', { name: /Pectina/ });
+    expect(within(drawer).getByText('$300.000 (25.0%)')).toBeVisible();
+    expect(within(drawer).getByText('$150.000 (12.5%)')).toBeVisible();
+    fireEvent.click(within(drawer).getByRole('tab', { name: 'Línea de Tiempo' }));
+    expect(within(drawer).getByText('Protocolo de campo')).toBeVisible();
+    expect(within(drawer).getByText('Informe de avance')).toBeVisible();
+    fireEvent.click(within(drawer).getByRole('tab', { name: 'Resumen & Presupuesto' }));
+    fireEvent.click(within(drawer).getByRole('button', { name: /Cambiar \/ Mover Semillero/i }));
+    const moveDialog = await screen.findByRole('dialog', { name: 'Mover Proyecto a Semillero' });
+    expect(within(moveDialog).getByText('Proyecto de Pectina')).toBeVisible();
+    const projectQueriesBeforeMove = GruposAPI.getProyectos.mock.calls.length;
+    fireEvent.click(within(moveDialog).getByRole('button', { name: 'Confirmar Traslado' }));
+    await waitFor(() => expect(GruposAPI.getProyectos.mock.calls.length).toBeGreaterThan(projectQueriesBeforeMove));
+    expect(await screen.findByText('Semillero de destino')).toBeVisible();
+    fireEvent.click(within(screen.getByRole('dialog', { name: /Pectina/ })).getByRole('button', { name: 'Cerrar' }));
+    expect(screen.queryByRole('dialog', { name: /Pectina/ })).not.toBeInTheDocument();
+  });
+
+  it('ejecuta las acciones del encabezado, exporta el consolidado y guarda la ficha institucional', async () => {
+    const notify = vi.fn();
+    const onNavigate = vi.fn();
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    render(<GrupoModule currentUser={admin} onNotify={notify} onNavigate={onNavigate} />);
+    await screen.findByText('GIDTA');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dashboard General' }));
+    expect(onNavigate).toHaveBeenCalledWith('dashboard');
+    fireEvent.click(screen.getByTitle('Imprimir Ficha Resumen'));
+    expect(print).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByTitle('Descargar consolidado Excel del grupo'));
+    await waitFor(() => expect(ReportesAPI.descargarConsolidadoGrupos).toHaveBeenCalledWith('excel'));
+    expect(notify).toHaveBeenCalledWith('Consolidado Excel de grupos generado exitosamente', 'success');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Perfil' }));
+    const closeDialog = await screen.findByRole('dialog', { name: 'Editar Perfil Institucional del Grupo' });
+    fireEvent.click(within(closeDialog).getByRole('button', { name: 'Cerrar ventana modal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Perfil' }));
+    const cancelDialog = await screen.findByRole('dialog', { name: 'Editar Perfil Institucional del Grupo' });
+    fireEvent.click(within(cancelDialog).getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Perfil' }));
+    const editDialog = await screen.findByRole('dialog', { name: 'Editar Perfil Institucional del Grupo' });
+    fireEvent.change(within(editDialog).getByLabelText(/Sigla o Nombre Corto/), { target: { value: 'GIDTA Renovado' } });
+    fireEvent.change(within(editDialog).getByLabelText(/Código GrupLAC/), { target: { value: 'COL009999' } });
+    fireEvent.change(within(editDialog).getByLabelText(/Nombre Institucional Completo/), { target: { value: 'Grupo Renovado CGAO' } });
+    fireEvent.change(within(editDialog).getByLabelText(/Director\(a\) del Grupo/), { target: { value: 'Nueva Directora' } });
+    fireEvent.change(within(editDialog).getByLabelText(/Email Institucional Director/), { target: { value: 'directora@sena.edu.co' } });
+    fireEvent.change(within(editDialog).getByLabelText(/Clasificación Minciencias/), { target: { value: 'A1' } });
+    fireEvent.change(within(editDialog).getByLabelText(/Convocatoria Minciencias/), { target: { value: 'Convocatoria 2026' } });
+    fireEvent.change(within(editDialog).getByLabelText(/URL GrupLAC/), { target: { value: 'https://gruplac.example/renovado' } });
+    fireEvent.change(within(editDialog).getByLabelText(/Líneas de Investigación/), { target: { value: 'Agroindustria, Robótica' } });
+    fireEvent.change(within(editDialog).getByLabelText(/Descripción del Grupo/), { target: { value: 'Descripción institucional actualizada' } });
+    fireEvent.change(within(editDialog).getByLabelText(/Misión Institucional/), { target: { value: 'Investigar para el territorio' } });
+    fireEvent.change(within(editDialog).getByLabelText(/Visión Institucional/), { target: { value: 'Ser referentes regionales' } });
+    fireEvent.click(within(editDialog).getByRole('button', { name: 'Guardar Cambios' }));
+    await waitFor(() => expect(GruposAPI.update).toHaveBeenCalledWith('g-1', expect.objectContaining({
+      nombre: 'GIDTA Renovado', codigo_gruplac: 'COL009999', nombre_completo: 'Grupo Renovado CGAO',
+      director_nombre: 'Nueva Directora', director_email: 'directora@sena.edu.co', clasificacion: 'A1',
+      convocatoria_activa: 'Convocatoria 2026', gruplac_url: 'https://gruplac.example/renovado',
+      lineas_investigacion: ['Agroindustria', 'Robótica'], descripcion_grupo: 'Descripción institucional actualizada',
+      mision: 'Investigar para el territorio', vision: 'Ser referentes regionales',
+    })));
+    expect(notify).toHaveBeenCalledWith('Información del grupo actualizada correctamente', 'success');
+  });
+
+  it('permite navegar con las tarjetas KPI del encabezado y del tablero estadístico', async () => {
+    const onNavigate = vi.fn();
+    render(<GrupoModule currentUser={admin} onNotify={vi.fn()} onNavigate={onNavigate} />);
+    await screen.findByText('GIDTA');
+
+    fireEvent.click(screen.getByTitle('Ver semilleros'));
+    expect(screen.getByRole('heading', { name: 'Semilleros de Investigación Adscritos' })).toBeVisible();
+    fireEvent.click(screen.getByRole('tab', { name: 'Estadísticas e Indicadores' }));
+
+    fireEvent.click(screen.getByTitle('Abrir directorio de aprendices'));
+    const apprenticeDirectory = await screen.findByRole('dialog', { name: 'Directorio de Aprendices Semilleristas' });
+    fireEvent.change(within(apprenticeDirectory).getByRole('combobox'), { target: { value: 's-1' } });
+    expect(within(apprenticeDirectory).getByText('Ana Aprendiz')).toBeVisible();
+    fireEvent.click(within(apprenticeDirectory).getByRole('button', { name: 'Cerrar ventana modal' }));
+
+    fireEvent.click(screen.getByTitle('Ver investigadores CvLAC'));
+    expect(screen.getByRole('tab', { name: 'Control GrupLAC / CvLAC' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(screen.getByRole('tab', { name: 'Estadísticas e Indicadores' }));
+    fireEvent.click(screen.getByTitle('Abrir catálogo de productos'));
+    const productCatalog = await screen.findByRole('dialog', { name: /Catálogo de Productos/ });
+    fireEvent.click(within(productCatalog).getByRole('button', { name: 'Cerrar ventana modal' }));
+
+    fireEvent.click(screen.getByTitle('Ver proyectos y avance'));
+    expect(screen.getByRole('heading', { name: /Proyectos de Investigación & Avance Institucional/ })).toBeVisible();
+    fireEvent.click(screen.getByRole('tab', { name: 'Estadísticas e Indicadores' }));
+    fireEvent.click(screen.getByTitle('Ver líneas temáticas'));
+    expect(screen.getByRole('heading', { name: 'Líneas de Investigación del Grupo CGAO' })).toBeVisible();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Estadísticas e Indicadores' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ir al Dashboard Operativo' }));
+    expect(onNavigate).toHaveBeenCalledWith('dashboard');
+  });
+
+  it('permite acceder al catálogo, proyectos, aprendices y semilleros desde las tarjetas estadísticas', async () => {
+    render(<GrupoModule currentUser={admin} onNotify={vi.fn()} />);
+    await screen.findByText('GIDTA');
+    fireEvent.click(screen.getByRole('tab', { name: 'Estadísticas e Indicadores' }));
+
+    fireEvent.click(screen.getByText('Producción Minciencias').closest('.cursor-pointer'));
+    const catalog = await screen.findByRole('dialog', { name: /Catálogo de Productos/ });
+    fireEvent.click(within(catalog).getByRole('button', { name: 'Cerrar ventana modal' }));
+
+    fireEvent.click(screen.getByText('Proyectos I+D+i').closest('.cursor-pointer'));
+    expect(screen.getByRole('heading', { name: /Proyectos de Investigación & Avance Institucional/ })).toBeVisible();
+    fireEvent.click(screen.getByRole('tab', { name: 'Estadísticas e Indicadores' }));
+
+    fireEvent.click(screen.getByText('Aprendices Semilleristas').closest('.cursor-pointer'));
+    const learners = await screen.findByRole('dialog', { name: 'Directorio de Aprendices Semilleristas' });
+    expect(within(learners).getByText('Ana Aprendiz')).toBeVisible();
+    fireEvent.click(within(learners).getByRole('button', { name: 'Cerrar ventana modal' }));
+
+    fireEvent.click(screen.getByText('Dedicación Formativa').closest('.cursor-pointer'));
+    expect(screen.getByRole('heading', { name: 'Semilleros de Investigación Adscritos' })).toBeVisible();
+    fireEvent.click(screen.getByRole('tab', { name: 'Estadísticas e Indicadores' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gestionar Productos' }));
+    const managedCatalog = await screen.findByRole('dialog', { name: /Catálogo de Productos/ });
+    fireEvent.click(within(managedCatalog).getByRole('button', { name: 'Cerrar ventana modal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver Proyectos' }));
+    expect(screen.getByRole('heading', { name: /Proyectos de Investigación & Avance Institucional/ })).toBeVisible();
+    fireEvent.click(screen.getByRole('tab', { name: 'Estadísticas e Indicadores' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver Directorio Completo CvLAC' }));
+    expect(screen.getByRole('tab', { name: 'Control GrupLAC / CvLAC' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('tolera fallos de consultas auxiliares y crea registros desde los estados vacíos', async () => {
+    const notify = vi.fn();
+    GruposAPI.list.mockResolvedValue([{ ...grupo, lineas_investigacion: ' , , ' }]);
+    SemillerosAPI.list.mockRejectedValue(new Error('semilleros fuera de línea'));
+    UsuariosAPI.list.mockRejectedValue(new Error('usuarios fuera de línea'));
+    ProductosAPI.list.mockRejectedValue(new Error('productos fuera de línea'));
+    AprendicesAPI.list.mockRejectedValue(new Error('aprendices fuera de línea'));
+    GruposAPI.getStats.mockRejectedValue(new Error('estadísticas fuera de línea'));
+    GruposAPI.getProyectos.mockRejectedValue(new Error('proyectos fuera de línea'));
+    render(<GrupoModule currentUser={admin} onNotify={notify} initialAction={{ form: 'view', data: { tab: 'lineas' } }} />);
+    expect(await screen.findByRole('heading', { name: 'Líneas de Investigación del Grupo CGAO' })).toBeVisible();
+    expect(screen.getByText('Sin líneas de investigación configuradas')).toBeVisible();
+    expect(notify).not.toHaveBeenCalledWith(expect.stringContaining('fuera de línea'), 'error');
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Configurar Primera Línea' }));
+    const addLineaDialog = await screen.findByRole('dialog', { name: 'Nueva Línea de Investigación' });
+    fireEvent.click(within(addLineaDialog).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog', { name: 'Nueva Línea de Investigación' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '+ Configurar Primera Línea' }));
+    const addLineaDialogAgain = await screen.findByRole('dialog', { name: 'Nueva Línea de Investigación' });
+    fireEvent.click(within(addLineaDialogAgain).getByRole('button', { name: 'Cerrar ventana modal' }));
+    expect(screen.queryByRole('dialog', { name: 'Nueva Línea de Investigación' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '+ Configurar Primera Línea' }));
+    const addFirstLinea = await screen.findByRole('dialog', { name: 'Nueva Línea de Investigación' });
+    fireEvent.change(within(addFirstLinea).getByLabelText(/Nombre de la Línea de Investigación/), { target: { value: 'Agroindustria' } });
+    fireEvent.click(within(addFirstLinea).getByRole('button', { name: 'Agregar Línea' }));
+    await waitFor(() => expect(GruposAPI.update).toHaveBeenCalledWith('g-1', expect.objectContaining({ lineas_investigacion: ['Agroindustria'] })));
+    expect(notify).toHaveBeenCalledWith('Línea de investigación agregada exitosamente', 'success');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Estadísticas e Indicadores' }));
+    expect(screen.getByText('Sin productos registrados todavía')).toBeVisible();
+    expect(screen.getByText('Sin proyectos registrados')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: '+ Registrar Primer Producto' }));
+    const productForm = await screen.findByRole('dialog', { name: 'Registrar Producto de Investigación' });
+    fireEvent.click(within(productForm).getByRole('button', { name: 'Cerrar ventana modal' }));
+    expect(screen.queryByRole('dialog', { name: 'Registrar Producto de Investigación' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Crear Primer Proyecto' }));
+    const projectForm = await screen.findByRole('dialog', { name: 'Nuevo Proyecto de Investigación' });
+    fireEvent.click(within(projectForm).getByRole('button', { name: 'Cerrar ventana modal' }));
+    expect(screen.queryByRole('dialog', { name: 'Nuevo Proyecto de Investigación' })).not.toBeInTheDocument();
+
+    fireEvent.click(document.getElementById('tab-semilleros'));
+    fireEvent.change(screen.getByPlaceholderText(/Buscar por nombre, sigla o tutor/i), { target: { value: 'sin registros' } });
+    expect(screen.getByText('No se encontraron semilleros')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo Semillero' }));
+    const semilleroForm = await screen.findByRole('dialog', { name: 'Nuevo Semillero de Investigación' });
+    fireEvent.click(within(semilleroForm).getByRole('button', { name: 'Cerrar ventana modal' }));
+    expect(screen.queryByRole('dialog', { name: 'Nuevo Semillero de Investigación' })).not.toBeInTheDocument();
+  });
+
+  it('mantiene el módulo utilizable cuando no se puede consultar el grupo institucional', async () => {
+    GruposAPI.list.mockRejectedValueOnce(new Error('grupo temporalmente no disponible'));
+    render(<GrupoModule currentUser={admin} onNotify={vi.fn()} />);
+    expect(await screen.findByText('En Proceso de Medición')).toBeVisible();
+    expect(screen.getByText(/Código Minciencias:/).parentElement).toHaveTextContent('COL000000');
+    expect(GruposAPI.list).toHaveBeenCalledOnce();
   });
 });

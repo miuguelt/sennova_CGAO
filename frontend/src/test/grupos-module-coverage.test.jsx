@@ -14,8 +14,8 @@ vi.mock('../components/ui/Modal', () => ({
   ) : null,
 }));
 vi.mock('../components/ui/Drawer', () => ({
-  default: ({ isOpen, title, tabs = [], onTabChange, headerActions, children, footer }) => isOpen ? (
-    <aside role="dialog" aria-label={title}><h2>{title}</h2>{headerActions}<nav>{tabs.map(tab => <button key={tab.id} onClick={() => onTabChange(tab.id)}>{tab.label}</button>)}</nav>{children}{footer}</aside>
+  default: ({ isOpen, title, tabs = [], onTabChange, onClose, headerActions, children, footer }) => isOpen ? (
+    <aside role="dialog" aria-label={title}><h2>{title}</h2>{headerActions}<button onClick={onClose} aria-label="Cerrar desde Drawer">Cerrar</button><nav>{tabs.map(tab => <button key={tab.id} onClick={() => onTabChange(tab.id)}>{tab.label}</button>)}</nav>{children}{footer}</aside>
   ) : null,
 }));
 vi.mock('../components/ui/ConfirmDialog', () => ({
@@ -158,5 +158,166 @@ describe('gestión de grupos de investigación', () => {
     expect(await screen.findByRole('dialog', { name: 'GIDTA' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Estadísticas e Impacto' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Actualizar Datos' })).not.toBeInTheDocument();
+  });
+
+  it('mantiene abierto el formulario de edición desde el expediente, permite volver de paso y lo cierra al guardar', async () => {
+    const onNotify = vi.fn();
+    render(<GruposModule currentUser={{ id: 'admin', rol: 'admin' }} onNotify={onNotify} />);
+    await screen.findByRole('heading', { name: 'GIDTA' });
+    fireEvent.click(screen.getByRole('heading', { name: 'GIDTA' }));
+    await screen.findByRole('dialog', { name: 'GIDTA' });
+
+    fireEvent.click(screen.getByTitle('Editar Grupo'));
+    expect(screen.getByRole('dialog', { name: 'Actualizar Grupo' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(screen.getByText(/Paso 2 de 3/)).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Anterior' }));
+    expect(screen.getByText(/Paso 1 de 3/)).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar Información' }));
+
+    await waitFor(() => expect(GruposAPI.update).toHaveBeenCalledWith('g-1', expect.objectContaining({ nombre: 'GIDTA' })));
+    expect(onNotify).toHaveBeenCalledWith('Grupo institucional actualizado', 'success');
+    expect(screen.getByRole('dialog', { name: 'GIDTA' })).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar Datos' }));
+    expect(screen.getByRole('dialog', { name: 'Actualizar Grupo' })).toBeVisible();
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Actualizar Grupo' })).getByRole('button', { name: 'Cerrar modal' }));
+    expect(screen.queryByRole('dialog', { name: 'Actualizar Grupo' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar desde Drawer' }));
+    expect(screen.queryByRole('dialog', { name: 'GIDTA' })).not.toBeInTheDocument();
+  });
+
+  it('maneja respuestas fallidas de catálogos y muestra estados vacíos en expediente y equipo', async () => {
+    const onNotify = vi.fn();
+    SemillerosAPI.list.mockRejectedValueOnce(new Error('fallo al cargar semilleros'));
+    render(<GruposModule currentUser={{ id: 'admin', rol: 'admin' }} onNotify={onNotify} />);
+    expect(await screen.findByRole('heading', { name: 'GIDTA' })).toBeVisible();
+    expect(screen.getByText('Semilleros Adscritos').parentElement).toHaveTextContent('0');
+
+    GruposAPI.getMembers.mockRejectedValueOnce(new Error('fallo de integrantes'));
+    SemillerosAPI.list.mockRejectedValueOnce(new Error('fallo de semilleros del expediente'));
+    GruposAPI.getStats.mockRejectedValueOnce(new Error('fallo de estadísticas'));
+    fireEvent.click(screen.getByRole('heading', { name: 'GIDTA' }));
+    await screen.findByRole('dialog', { name: 'GIDTA' });
+    fireEvent.click(screen.getByRole('button', { name: 'Estadísticas e Impacto' }));
+    expect(await screen.findByText('Sin productos Minciencias registrados para este grupo')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Equipo' }));
+    expect(await screen.findByText('Sin miembros asignados a este grupo')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Semilleros' }));
+    expect(await screen.findByText('Sin semilleros vinculados a este grupo')).toBeVisible();
+
+    GruposAPI.getMembers.mockRejectedValueOnce(new Error('fallo al abrir gestión'));
+    fireEvent.click(screen.getByRole('button', { name: 'Equipo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gestionar' }));
+    expect(await screen.findByRole('dialog', { name: 'Equipo de Investigación' })).toBeVisible();
+    expect(onNotify).toHaveBeenCalledWith('Error al cargar integrantes: fallo al abrir gestión', 'error');
+    expect(await screen.findByText('Sin investigadores vinculados')).toBeVisible();
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Equipo de Investigación' })).getByRole('button', { name: 'Cerrar modal' }));
+    expect(screen.queryByRole('dialog', { name: 'Equipo de Investigación' })).not.toBeInTheDocument();
+  });
+
+  it('permite soltar talento del pool y refleja las acciones de pestañas y resaltado del área', async () => {
+    const onNotify = vi.fn();
+    GruposAPI.getMembers.mockResolvedValue([]);
+    render(<GruposModule currentUser={{ id: 'admin', rol: 'admin' }} onNotify={onNotify} />);
+    await screen.findByRole('heading', { name: 'GIDTA' });
+    fireEvent.click(screen.getByRole('button', { name: 'Más opciones del grupo GIDTA' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gestionar Equipo' }));
+    const management = await screen.findByRole('dialog', { name: 'Equipo de Investigación' });
+    const dropArea = screen.getByText('Vincular Integrante').parentElement.parentElement.parentElement;
+
+    fireEvent.dragOver(dropArea);
+    expect(dropArea).toHaveClass('border-emerald-500');
+    fireEvent.dragLeave(dropArea);
+    expect(dropArea).toHaveClass('border-slate-100');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Talent Pool' }));
+    expect(screen.getByText('Lina Investigadora')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Aprendices' }));
+    expect(screen.getByText('Luis Aprendiz')).toBeVisible();
+    const data = new Map();
+    const dataTransfer = {
+      setData: vi.fn((key, value) => data.set(key, value)),
+      getData: vi.fn(key => data.get(key) || ''),
+    };
+    fireEvent.dragStart(screen.getByText('Luis Aprendiz'), { dataTransfer });
+    expect(dataTransfer.setData).toHaveBeenCalledWith('userId', 'apr-2');
+    fireEvent.dragOver(dropArea);
+    fireEvent.drop(dropArea, { dataTransfer });
+
+    await waitFor(() => expect(GruposAPI.addMember).toHaveBeenCalledWith('g-1', { user_id: 'apr-2', rol: 'Aprendiz' }));
+    expect(onNotify).toHaveBeenCalledWith('Talento vinculado al grupo exitosamente', 'success');
+    expect(dataTransfer.getData).toHaveBeenCalledWith('userId');
+
+    GruposAPI.addMember.mockRejectedValueOnce(new Error('falló el vínculo por arrastre'));
+    fireEvent.dragStart(screen.getByText('Luis Aprendiz'), { dataTransfer });
+    fireEvent.dragOver(dropArea);
+    fireEvent.drop(dropArea, { dataTransfer });
+    await waitFor(() => expect(onNotify).toHaveBeenCalledWith('Error al vincular talento: falló el vínculo por arrastre', 'error'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar Directorio' }));
+    expect(screen.queryByText('Talento Disponible')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Talent Pool' }));
+    const closePoolButton = screen.getByText('Talento Disponible').parentElement.parentElement.querySelector('button');
+    fireEvent.click(closePoolButton);
+    expect(screen.queryByText('Talento Disponible')).not.toBeInTheDocument();
+    fireEvent.click(within(management).getByRole('button', { name: 'Cerrar Gestión' }));
+    expect(screen.queryByRole('dialog', { name: 'Equipo de Investigación' })).not.toBeInTheDocument();
+  });
+
+  it('cierra confirmaciones de borrado y retiro sin ejecutar las operaciones', async () => {
+    render(<GruposModule currentUser={{ id: 'admin', rol: 'admin' }} />);
+    await screen.findByRole('heading', { name: 'GIDTA' });
+    fireEvent.click(screen.getByRole('button', { name: 'Más opciones del grupo GIDTA' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar Grupo' }));
+    fireEvent.click(within(screen.getByRole('alertdialog', { name: '¿Eliminar Grupo de Investigación?' })).getByRole('button', { name: 'Cancelar confirmación' }));
+    expect(screen.queryByRole('alertdialog', { name: '¿Eliminar Grupo de Investigación?' })).not.toBeInTheDocument();
+    expect(GruposAPI.delete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar Grupo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, Eliminar Grupo' }));
+    await waitFor(() => expect(GruposAPI.delete).toHaveBeenCalledWith('g-1'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gestionar Equipo' }));
+    await screen.findByRole('dialog', { name: 'Equipo de Investigación' });
+    fireEvent.click(screen.getAllByTitle('Desvincular')[0]);
+    fireEvent.click(within(screen.getByRole('alertdialog', { name: '¿Desvincular Integrante?' })).getByRole('button', { name: 'Cancelar confirmación' }));
+    expect(screen.queryByRole('alertdialog', { name: '¿Desvincular Integrante?' })).not.toBeInTheDocument();
+    expect(GruposAPI.removeMember).not.toHaveBeenCalled();
+  });
+
+  it('impide que el enlace externo abra el expediente y permite cancelar el vínculo desde el directorio', async () => {
+    const onNotify = vi.fn();
+    render(<GruposModule currentUser={{ id: 'admin', rol: 'admin' }} onNotify={onNotify} />);
+    await screen.findByRole('heading', { name: 'GIDTA' });
+    fireEvent.click(screen.getByTitle('Minciencias Scienti'));
+    expect(screen.queryByRole('dialog', { name: 'GIDTA' })).not.toBeInTheDocument();
+
+    GruposAPI.getMembers.mockResolvedValueOnce([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Más opciones del grupo GIDTA' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gestionar Equipo' }));
+    await screen.findByRole('dialog', { name: 'Equipo de Investigación' });
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Talent Pool' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Investigadores' }));
+    fireEvent.click(screen.getByText('Lina Investigadora'));
+    const roleSelect = screen.getByRole('option', { name: 'Asesor Externo' }).parentElement;
+    fireEvent.change(roleSelect, { target: { value: 'Asesor' } });
+    expect(roleSelect).toHaveValue('Asesor');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByText('Vincular a Lina Investigadora')).not.toBeInTheDocument();
+    expect(GruposAPI.addMember).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar Directorio' }));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'apr-2' } });
+    expect(screen.getByText('Vincular a Luis Aprendiz')).toBeVisible();
+    const apprenticeRole = screen.getByRole('option', { name: 'Aprendiz Investigador' }).parentElement;
+    expect(apprenticeRole).toHaveValue('Aprendiz');
+    GruposAPI.addMember.mockRejectedValueOnce(new Error('fallo del directorio'));
+    fireEvent.click(screen.getByRole('button', { name: 'Vincular' }));
+    await waitFor(() => expect(onNotify).toHaveBeenCalledWith('Error al vincular: fallo del directorio', 'error'));
+    expect(screen.getByText('Vincular a Luis Aprendiz')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
   });
 });

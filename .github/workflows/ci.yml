@@ -117,7 +117,7 @@ jobs:
       - name: Capture Formulation API Coverage
         working-directory: ./frontend
         run: |
-          npm test -- --coverage.enabled --coverage.reporter=json --coverage.reportsDirectory=./coverage/formulation-api --run src/test/proyectos-api-import.test.js
+          npm test -- --coverage.enabled --coverage.reporter=json --coverage.reportsDirectory ./coverage/formulation-api --run src/test/proyectos-api-import.test.js
 
       - name: Enforce 100% Frontend Function Coverage
         run: |
