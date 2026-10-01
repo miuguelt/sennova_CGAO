@@ -112,16 +112,16 @@ jobs:
         working-directory: ./frontend
         run: |
           echo "Ejecutando la suite completa de Vitest y generando cobertura V8..."
-          npm run test:coverage
+          npm run test:coverage -- --maxWorkers=2 --testTimeout=30000
 
-      - name: Capture Formulation API Coverage
+      - name: Capture Supplemental API Coverage
         working-directory: ./frontend
         run: |
-          npm test -- --coverage.enabled --coverage.reporter=json --coverage.reportsDirectory ./coverage/formulation-api --run src/test/proyectos-api-import.test.js
+          npm test -- --coverage.enabled --coverage.reporter=json --coverage.reportsDirectory ./coverage/api-contracts --run src/test/api-uncovered-contracts.test.js src/test/proyectos-api-import.test.js
 
       - name: Enforce 100% Frontend Function Coverage
         run: |
-          python backend/scripts/check_changed_function_coverage.py --all-functions --coverage frontend/coverage/coverage-final.json --coverage frontend/coverage/formulation-api/coverage-final.json --format istanbul --source-root frontend/src
+          python backend/scripts/check_changed_function_coverage.py --all-functions --coverage frontend/coverage/coverage-final.json --coverage frontend/coverage/api-contracts/coverage-final.json --format istanbul --source-root frontend/src
 
       - name: Publish Frontend Coverage Artifact
         if: always()
@@ -131,7 +131,7 @@ jobs:
           path: |
             frontend/coverage/coverage-final.json
             frontend/coverage/coverage-summary.json
-            frontend/coverage/formulation-api/coverage-final.json
+            frontend/coverage/api-contracts/coverage-final.json
           if-no-files-found: warn
 
       - name: Build Frontend Production Bundle

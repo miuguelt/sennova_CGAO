@@ -267,10 +267,7 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
             </form>
             {isLogin && import.meta.env.DEV && (
               <div className="mt-6 border-t border-slate-100 pt-6">
-                <DevLoginPanel onSelect={(id, pass) => {
-                  setEmail(id);
-                  setPassword(pass);
-                }} />
+                <DevLoginPanel onSelect={handleTestCredential} />
               </div>
             )}
           </Card>

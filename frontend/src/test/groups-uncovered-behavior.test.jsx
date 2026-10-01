@@ -299,7 +299,13 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     })));
     expect(notify).toHaveBeenCalledWith('Datos del investigador actualizados correctamente', 'success');
 
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Marta Líder Actualizada' })).getByRole('button', { name: 'Cerrar ventana modal' }));
+    const updatedResearcherDialog = screen.getByRole('dialog', { name: 'Marta Líder Actualizada' });
+    fireEvent.click(within(updatedResearcherDialog).getByRole('button', { name: 'Cerrar' }));
+    expect(screen.queryByRole('dialog', { name: 'Marta Líder Actualizada' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText(/marta@sena\.edu\.co.*•/));
+    const reopenedResearcherDialog = await screen.findByRole('dialog', { name: 'Marta Líder' });
+    fireEvent.click(within(reopenedResearcherDialog).getByRole('button', { name: 'Cerrar ventana modal' }));
+    expect(screen.queryByRole('dialog', { name: 'Marta Líder' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Registrar Investigador' }));
     const registrationDialog = await screen.findByRole('dialog', { name: 'Registrar Nuevo Investigador' });
     fireEvent.click(within(registrationDialog).getByRole('button', { name: 'Cerrar ventana modal' }));

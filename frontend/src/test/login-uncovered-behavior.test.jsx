@@ -5,10 +5,12 @@ import LoginScreen from '../components/auth/LoginScreen';
 
 describe('LoginScreen, accesos rápidos', () => {
   it('carga las credenciales de desarrollo y alterna la visibilidad de la contraseña', () => {
-    render(<LoginScreen onLogin={vi.fn()} onRegister={vi.fn()} />);
+    render(<LoginScreen onLogin={vi.fn()} onRegister={vi.fn()} apiError="Error de autenticación" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Error de autenticación');
 
     fireEvent.click(screen.getByRole('button', { name: /Admin Sistema/i }));
     expect(screen.getByPlaceholderText('nombre@sena.edu.co')).toHaveValue('admin@sena.edu.co');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     const password = screen.getByPlaceholderText('••••••••');
     expect(password).toHaveValue('123456');
     expect(password).toHaveAttribute('type', 'password');
