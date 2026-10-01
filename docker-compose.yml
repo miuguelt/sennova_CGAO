@@ -152,7 +152,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-sennova}
       POSTGRES_USER: ${DB_USER:-sennova}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el entorno seguro}"
       POSTGRES_INITDB_ARGS: "--locale=es_CO.UTF-8 --encoding=UTF8"
     command: >
       postgres
@@ -200,7 +200,7 @@ services:
       "
     environment:
       POSTGRES_USER: ${DB_USER:-sennova}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el entorno seguro}"
       POSTGRES_DB: ${DB_NAME:-sennova}
     volumes:
       # Volumen nombrado, no ./backups. Un bind mount al checkout ata los
@@ -228,7 +228,7 @@ services:
       DB_HOST: ${DB_HOST:-sennova-db}
       DB_PORT: "${DB_PORT:-5432}"
       DB_USER: ${DB_USER:-sennova}
-      DB_PASSWORD: "${DB_PASSWORD}"
+      DB_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el entorno seguro}"
       DB_NAME: ${DB_NAME:-sennova}
       DATABASE_URL: "${DATABASE_URL:-postgresql+psycopg://${DB_USER:-sennova}:${DB_PASSWORD}@sennova-db:5432/${DB_NAME:-sennova}}"
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@sena.edu.co}

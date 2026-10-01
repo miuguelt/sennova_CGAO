@@ -112,9 +112,8 @@
   "env_variables": [
     {
       "name": "DB_PASSWORD",
-      "description": "Contraseña de PostgreSQL - Mínimo 12 caracteres recomendado",
-      "required": true,
-      "default": "sennova_secure_password_2024"
+      "description": "Contraseña obligatoria de PostgreSQL; configúrela como secreto en Coolify (mínimo 12 caracteres recomendado)",
+      "required": true
     },
     {
       "name": "JWT_SECRET",
