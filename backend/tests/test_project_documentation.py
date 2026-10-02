@@ -179,6 +179,7 @@ def test_all_document_kinds_generate_real_office_files_individual_download_and_z
     view = complete_forms(ctx)
     base = f"/proyectos/{ctx[2].id}/documentacion"
     names = []
+    expected_files = []
     final_report_name = None
     for item in view["documentos"]:
         assert item["generable"] and item["faltantes"] == []
@@ -198,6 +199,11 @@ def test_all_document_kinds_generate_real_office_files_individual_download_and_z
                 final_report_name = result["nombre_archivo"]
         assert result["estado"] == "borrador"
         names.append(result["nombre_archivo"])
+        expected_files.append({"nombre": result["nombre_archivo"], "carpeta": item["carpeta"], "contenido": content})
+    assert {item["tipo"] for item in view["documentos"]} == {
+        "formulacion_proyecto", "presentacion_proyecto", "acta_inicio", "producto_resultado", "poster_producto",
+        "informe_bimensual", "acta_cierre", "informe_final", "registro_evidencias",
+    }
     assert ctx[0].query(ProjectDocumentVersion).count() == len(view["documentos"])
     assert ctx[0].query(Documento).count() == len(view["documentos"])
     assert final_report_name
@@ -205,7 +211,17 @@ def test_all_document_kinds_generate_real_office_files_individual_download_and_z
     assert archive.status_code == 200
     with ZipFile(io.BytesIO(archive.content)) as package:
         assert all(any(path.endswith(name) for path in package.namelist()) for name in names)
-        assert "1ProyectoFomulado/" in package.namelist()
+        expected_folders = {
+            "1ProyectoFomulado/", "2ActadeInicio/", "3Productos/", "4InformesBimensuales/",
+            "5ActaCierre/", "6EvidenciasFotograficas/",
+        }
+        assert {path for path in package.namelist() if path.endswith("/")} == expected_folders
+        for expected in expected_files:
+            stored_path = next(path for path in package.namelist() if path.endswith("_" + expected["nombre"]))
+            assert stored_path.split("/", 1)[0] == expected["carpeta"]
+            assert package.read(stored_path) == expected["contenido"]
+            with ZipFile(io.BytesIO(package.read(stored_path))) as generated_file:
+                assert "[Content_Types].xml" in generated_file.namelist()
         final_path = next(path for path in package.namelist() if path.endswith("_" + final_report_name))
         with ZipFile(io.BytesIO(package.read(final_path))) as final_report:
             assert "GCDTP-F-023 V01" in final_report.read("docProps/core.xml").decode()
