@@ -18,3 +18,10 @@ def test_container_bootstrap_includes_non_destructive_catalog_before_server_star
     assert "ensure_research_catalog(db)" in script
     assert entrypoint.index("python scripts/bootstrap_initial_data.py") < entrypoint.index('exec "$@"')
     assert "seed_database.py" not in entrypoint
+
+
+def test_database_service_provides_network_aliases():
+    root = Path(__file__).resolve().parents[2]
+    compose = (root / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "postgres-db" in compose
+
