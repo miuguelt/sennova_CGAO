@@ -42,6 +42,7 @@ services:
         condition: service_healthy
     networks:
       - sennova-net
+      - coolify
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost/"]
       interval: 30s
@@ -251,6 +252,8 @@ networks:
   sennova-net:
     driver: bridge
     internal: false
+  coolify:
+    external: true
 
 # ── VOLÚMENES PERSISTENTES ────────────────────────────────────────────
 volumes:

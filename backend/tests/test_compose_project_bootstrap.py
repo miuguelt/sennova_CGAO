@@ -25,3 +25,19 @@ def test_database_service_provides_network_aliases():
     compose = (root / "docker-compose.yml").read_text(encoding="utf-8")
     assert "postgres-db" in compose
 
+
+def test_compose_defines_coolify_network_and_attaches_frontend():
+    import yaml
+    root = Path(__file__).resolve().parents[2]
+    compose_content = (root / "docker-compose.yml").read_text(encoding="utf-8")
+    compose_data = yaml.safe_load(compose_content)
+
+    assert "networks" in compose_data
+    assert "coolify" in compose_data["networks"]
+    assert compose_data["networks"]["coolify"].get("external") is True
+
+    frontend_networks = compose_data["services"]["sennova-frontend"]["networks"]
+    assert "coolify" in frontend_networks
+    assert "sennova-net" in frontend_networks
+
+
