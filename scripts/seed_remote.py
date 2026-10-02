@@ -2,16 +2,15 @@
 import requests
 import json
 import time
+import os
+from qa_credentials import get_qa_credentials
 
-BASE_URL = "http://38.242.137.70:8000"
+BASE_URL = os.getenv("API_URL", "http://localhost:8000")
 
 def login():
     """Login como admin y obtener token"""
     try:
-        resp = requests.post(f"{BASE_URL}/auth/login", json={
-            "email": "admin@sena.edu.co",
-            "password": "123456"
-        }, timeout=10)
+        resp = requests.post(f"{BASE_URL}/auth/login", json=get_qa_credentials(), timeout=10)
         if resp.status_code == 200:
             return resp.json()["access_token"]
         else:

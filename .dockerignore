@@ -10,6 +10,7 @@ logs/
 __pycache__/
 .venv/
 docker-compose.override.yml
+.ruff_cache/
 # --- end DevBrain repo hygiene ---
 
 # --- DevBrain: rastros de agentes IA (bloque gestionado) ---

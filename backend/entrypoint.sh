@@ -2,7 +2,8 @@
 # SENNOVA CGAO — Entrypoint del contenedor de backend.
 #
 # Deja la instalación lista antes de atender tráfico: espera la base de datos,
-# crea/repara el esquema y crea el administrador inicial. Si el administrador no
+# crea/repara el esquema, crea el administrador inicial y agrega los grupos reales.
+# Si el administrador o el catálogo no
 # se puede crear de forma segura, el contenedor falla aquí en vez de publicar una
 # instalación abierta.
 set -e
@@ -24,7 +25,7 @@ else
   echo "✅ Base de datos detectada"
 fi
 
-# Esquema + administrador inicial. Idempotente: en redespliegues no duplica nada
+# Esquema + administrador inicial + catálogo de grupos. En redespliegues no duplica
 # ni reescribe credenciales existentes.
 python scripts/bootstrap_initial_data.py
 

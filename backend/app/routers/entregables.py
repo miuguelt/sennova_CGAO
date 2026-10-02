@@ -193,6 +193,7 @@ def obtener_entregable(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("", response_model=EntregableResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=EntregableResponse, status_code=status.HTTP_201_CREATED)
 def crear_entregable(
     data: EntregableCreate,

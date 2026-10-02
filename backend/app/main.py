@@ -18,11 +18,14 @@ from app.bootstrap import (
     ensure_initial_admin,
 )
 from app.config import get_settings
+from app.research_catalog import ResearchCatalogError, ensure_research_catalog
+from app.services.documentation_schema import upgrade_documentation_schema
 from app.database import (
     engine,
     Base,
     SessionLocal,
     ensure_document_description_column,
+    ensure_document_period_column,
     ensure_investigador_role,
 )
 from app.routers import (
@@ -30,7 +33,7 @@ from app.routers import (
     productos, documentos, usuarios, stats, reportes, 
     entregables, notificaciones, cvlac, retos,
     maintenance, audit, plantillas, aprendices, mensajes,
-    mensajes_adjuntos
+    mensajes_adjuntos, project_files, project_documentation
 )
 from app.middlewares.audit import AuditMiddleware
 from app.middlewares.request_limits import FormulationRequestSizeLimitMiddleware
@@ -44,8 +47,10 @@ async def lifespan(app: FastAPI):
     # Startup: Crear tablas si no existen (operación segura)
     try:
         Base.metadata.create_all(bind=engine)
+        upgrade_documentation_schema(engine)
         print("✅ Base de datos verificada/creada")
         ensure_document_description_column(engine)
+        ensure_document_period_column(engine)
         ensure_investigador_role(engine)
 
         # Verificación segura de columnas adicionales en tablas existentes
@@ -73,11 +78,6 @@ async def lifespan(app: FastAPI):
                             UPDATE proyectos 
                             SET grupo_id = (SELECT semilleros.grupo_id FROM semilleros WHERE semilleros.id = proyectos.semillero_id)
                             WHERE proyectos.grupo_id IS NULL AND proyectos.semillero_id IS NOT NULL
-                        """))
-                        conn.execute(text("""
-                            UPDATE proyectos
-                            SET grupo_id = (SELECT id FROM grupos LIMIT 1)
-                            WHERE proyectos.grupo_id IS NULL AND (SELECT COUNT(*) FROM grupos) > 0
                         """))
                         conn.commit()
         except Exception as col_err:
@@ -115,6 +115,11 @@ async def lifespan(app: FastAPI):
                             print("✅ Datos de demostración poblados correctamente")
                         except Exception as seed_err:
                             print(f"⚠️ Error en poblado de demostración: {seed_err}")
+            catalog = ensure_research_catalog(db)
+            print(f"🌱 Catálogo de grupos: {catalog.created} creados; {catalog.existing} existentes.")
+        except ResearchCatalogError:
+            # El entrypoint también valida este contrato antes de atender tráfico.
+            raise
         except AdminBootstrapError as admin_err:
             # Sin administrador utilizable la instalación no sirve, pero tampoco
             # se crea uno abierto: se informa y la API arranca sin él.
@@ -124,6 +129,8 @@ async def lifespan(app: FastAPI):
         finally:
             db.close()
             
+    except ResearchCatalogError:
+        raise
     except Exception as e:
         print(f"⚠️ Error inicializando BD: {e}")
     
@@ -261,6 +268,8 @@ async def unified_cors_exception_handler(request: Request, exc: Exception):
 
 app.include_router(auth.router)
 app.include_router(proyectos.router)
+app.include_router(project_files.router)
+app.include_router(project_documentation.router)
 app.include_router(grupos.router)
 app.include_router(semilleros.router)
 app.include_router(convocatorias.router)

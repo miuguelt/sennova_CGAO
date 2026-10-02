@@ -35,9 +35,12 @@ export const EntregablesAPI = {
    * Crea un nuevo entregable
    */
   async crear(data) {
+    const payload = { ...data };
+    if (payload.responsable_id === '') payload.responsable_id = null;
+    if (payload.producto_id === '') payload.producto_id = null;
     return fetchAPI(API_BASE, {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify(payload)
     });
   },
 
@@ -45,9 +48,12 @@ export const EntregablesAPI = {
    * Actualiza un entregable existente
    */
   async actualizar(entregableId, data) {
+    const payload = { ...data };
+    if (payload.responsable_id === '') payload.responsable_id = null;
+    if (payload.producto_id === '') payload.producto_id = null;
     return fetchAPI(`${API_BASE}/${entregableId}`, {
       method: 'PUT',
-      body: JSON.stringify(data)
+      body: JSON.stringify(payload)
     });
   },
 

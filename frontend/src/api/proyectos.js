@@ -11,6 +11,12 @@ export const ProyectosAPI = {
 
   get: (id) => fetchAPI(`/proyectos/${id}`),
 
+  getExpediente: (id) => fetchAPI(`/proyectos/${id}/expediente`),
+
+  downloadExpediente: (id) => fetchAPI(`/proyectos/${id}/expediente/descargar`, {
+    responseType: 'blob',
+  }),
+
   create: (data) => fetchAPI('/proyectos', {
     method: 'POST',
     body: JSON.stringify(data),

@@ -14,6 +14,7 @@ import os
 import json
 import uuid
 from datetime import datetime
+from qa_credentials import get_qa_seed_password
 
 BASE_URL = os.getenv('API_URL', 'http://localhost:8000')
 
@@ -30,17 +31,17 @@ class Colors:
 DEV_ACCOUNTS = {
     "admin": {
         "email": "admin@sennova.dev.co",
-        "password": os.getenv("DEV_TEST_PASSWORD", ""),
+        "password": get_qa_seed_password(),
         "label": "Administrador"
     },
     "investigador": {
         "email": "investigador@sennova.dev.co",
-        "password": os.getenv("DEV_TEST_PASSWORD", ""),
+        "password": get_qa_seed_password(),
         "label": "Investigador"
     },
     "aprendiz": {
         "email": "aprendiz@sennova.dev.co",
-        "password": os.getenv("DEV_TEST_PASSWORD", ""),
+        "password": get_qa_seed_password(),
         "label": "Aprendiz"
     }
 }

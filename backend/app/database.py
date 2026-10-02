@@ -66,6 +66,18 @@ def ensure_document_description_column(target_engine=engine):
     return True
 
 
+def ensure_document_period_column(target_engine=engine):
+    """Añade el bimestre sin atribuir períodos a documentos heredados."""
+    inspector = inspect(target_engine)
+    if "documentos" not in inspector.get_table_names():
+        return False
+    if "periodo_bimestre" in {column["name"] for column in inspector.get_columns("documentos")}:
+        return False
+    with target_engine.begin() as connection:
+        connection.execute(text("ALTER TABLE documentos ADD COLUMN periodo_bimestre INTEGER"))
+    return True
+
+
 def ensure_investigador_role(target_engine=engine):
     """Unifica en investigador los registros que usaban el rol eliminado."""
     inspector = inspect(target_engine)

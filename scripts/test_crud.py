@@ -2,16 +2,14 @@
 """Test completo de CRUD SENNOVA CGAO"""
 import os
 import requests
+from qa_credentials import get_qa_credentials, get_qa_seed_password
 import json
 
 BASE_URL = os.getenv('API_URL', 'http://localhost:8000')
 
 def test_all():
     # Login
-    resp = requests.post(f"{BASE_URL}/auth/login", json={
-        "email": "admin@sena.edu.co",
-        "password": "123456"
-    })
+    resp = requests.post(f"{BASE_URL}/auth/login", json=get_qa_credentials())
     
     if resp.status_code != 200:
         print(f"Login failed: {resp.status_code}")

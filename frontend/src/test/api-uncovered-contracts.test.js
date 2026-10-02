@@ -101,7 +101,9 @@ describe('contratos de clientes API sin cobertura', () => {
     await expectRequest(EntregablesAPI, 'listarMisEntregables', [], '/entregables/mis-entregables?');
     await expectRequest(EntregablesAPI, 'obtener', ['e-1'], '/entregables/e-1');
     await expectRequest(EntregablesAPI, 'crear', [{ nombre: 'Informe' }], '/entregables', json('POST', { nombre: 'Informe' }));
+    await expectRequest(EntregablesAPI, 'crear', [{ nombre: 'Informe', responsable_id: '', producto_id: '' }], '/entregables', json('POST', { nombre: 'Informe', responsable_id: null, producto_id: null }));
     await expectRequest(EntregablesAPI, 'actualizar', ['e-1', { nombre: 'Final' }], '/entregables/e-1', json('PUT', { nombre: 'Final' }));
+    await expectRequest(EntregablesAPI, 'actualizar', ['e-1', { nombre: 'Final', responsable_id: '', producto_id: '' }], '/entregables/e-1', json('PUT', { nombre: 'Final', responsable_id: null, producto_id: null }));
     await expectRequest(EntregablesAPI, 'eliminar', ['e-1'], '/entregables/e-1', { method: 'DELETE' });
     await expectRequest(EntregablesAPI, 'cambiarEstado', ['e-1', 'Completado', 'Listo'], '/entregables/e-1/cambiar-estado?nuevo_estado=Completado&observaciones=Listo', { method: 'POST' });
     await expectRequest(EntregablesAPI, 'cambiarEstado', ['e-2', 'Pendiente'], '/entregables/e-2/cambiar-estado?nuevo_estado=Pendiente', { method: 'POST' });

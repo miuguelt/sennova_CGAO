@@ -35,7 +35,7 @@ const EMPTY_FORM = {
   tipo: 'documento',
   fecha_entrega: new Date().toISOString().split('T')[0],
   proyecto_id: '',
-  responsable_id: '',
+  responsable_id: null,
 };
 
 const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandled }) => {
@@ -141,11 +141,16 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
 
   const handleSubmit = async () => {
     try {
+      const payload = {
+        ...formData,
+        responsable_id: formData.responsable_id || null,
+        producto_id: formData.producto_id || null,
+      };
       if (isEditing) {
-        await EntregablesAPI.update(formData.id, formData);
+        await EntregablesAPI.update(formData.id, payload);
         onNotify?.('Entregable actualizado', 'success');
       } else {
-        await EntregablesAPI.create(formData);
+        await EntregablesAPI.create(payload);
         onNotify?.('Nuevo entregable programado', 'success');
       }
       setShowForm(false);

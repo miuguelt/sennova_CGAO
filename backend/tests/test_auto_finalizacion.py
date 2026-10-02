@@ -57,7 +57,11 @@ def setup_overrides():
 client = TestClient(app)
 
 
-def test_auto_finalizacion_flow_and_elaboracion_diagnostic():
+def test_auto_finalizacion_flow_and_elaboracion_diagnostic(tmp_path, monkeypatch):
+    from app.config import get_settings
+    from app.routers import documentos
+    monkeypatch.setattr(get_settings(), "STORAGE_DIR", str(tmp_path))
+    monkeypatch.setattr(documentos, "STORAGE_DIR", tmp_path)
     # 1. Crear un proyecto
     res_proj = client.post("/proyectos", json={
         "nombre": "Proyecto SENNOVA Automatización Robotizada",
@@ -132,20 +136,17 @@ def test_auto_finalizacion_flow_and_elaboracion_diagnostic():
     client.post(f"/productos/{prod1_id}/verificar", json={"is_verificado": True})
     client.post(f"/productos/{prod2_id}/verificar", json={"is_verificado": True})
 
-    # 6. Registrar informe final técnico en BD (para simular carga de informe)
-    db = TestingSessionLocal()
-    doc_informe = Documento(
-        entidad_tipo="proyecto",
-        entidad_id=proj_id,
-        tipo="informe_final",
-        nombre_archivo="Informe_Final_Robotica.pdf",
-        content_type="application/pdf",
-        file_path="storage/documentos/test_informe.pdf",
-        owner_id=mock_admin.id
-    )
-    db.add(doc_informe)
-    db.commit()
-    db.close()
+    # 6. Completar las seis etapas con archivos persistidos y períodos distintos.
+    for kind in ("formulacion_proyecto", "acta_inicio", "producto_resultado", "acta_cierre", "informe_final", "evidencia_fotografica"):
+        upload = client.post("/documentos/upload", data={"entidad_tipo": "proyecto", "entidad_id": proj_id, "tipo": kind}, files={"file": (kind + ".pdf", b"%PDF-1.4\ncontenido de prueba", "application/pdf")})
+        assert upload.status_code == 201, upload.text
+    for period in range(1, 7):
+        upload = client.post("/documentos/upload", data={"entidad_tipo": "proyecto", "entidad_id": proj_id, "tipo": "informe_bimensual", "periodo_bimestre": period}, files={"file": (f"bimestre-{period}.pdf", b"%PDF-1.4\ninforme de prueba", "application/pdf")})
+        assert upload.status_code == 201, upload.text
+    for product_id in (prod1_id, prod2_id):
+        upload = client.post("/documentos/upload", data={"entidad_tipo": "producto", "entidad_id": product_id, "tipo": "soporte_minciencias"}, files={"file": ("resultado.pdf", b"%PDF-1.4\nresultado de prueba", "application/pdf")})
+        assert upload.status_code == 201, upload.text
+    assert client.get(f"/proyectos/{proj_id}/expediente").json()["completo"] is True
 
     # 7. Cambiar estado de Entregable a 'aprobado' -> Debe disparar la auto-finalización del proyecto
     res_app = client.post(f"/entregables/{ent_id}/cambiar-estado?nuevo_estado=aprobado", json={})

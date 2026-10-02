@@ -86,6 +86,7 @@ def test_application_startup_migrates_existing_instructor_accounts(monkeypatch):
             nombre="Docente SENNOVA",
             rol="instructor",
         ))
+        db.add(User(email="admin-migracion@example.com", nombre="Administrador de migración", password_hash="example", rol="admin", is_active=True))
         db.commit()
 
     monkeypatch.setattr(main, "engine", engine)

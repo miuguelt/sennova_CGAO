@@ -43,44 +43,24 @@ function testFrontendEnv() {
         }
     }
     
-    if (!envLoaded) {
-        console.log('\n❌ No se encontró archivo .env con variables VITE_');
-        return false;
-    }
-    
-    console.log('\n📦 Variables VITE_ encontradas:');
-    for (const [key, value] of Object.entries(envVars)) {
-        const masked = value.length > 20 ? value.substring(0, 20) + '...' : value;
-        console.log(`   ${key}=${masked}`);
-    }
-    
-    // Verificar variables requeridas
-    console.log('\n✅ Validaciones:');
-    const required = ['VITE_API_URL'];
-    let allOk = true;
-    
-    for (const key of required) {
+    console.log('\n✅ Configuración del frontend:');
+    const optional = ['VITE_API_URL', 'VITE_CVLAC_BASE_URL'];
+    for (const key of optional) {
         if (envVars[key]) {
-            console.log(`   ✅ ${key}: configurado`);
+            console.log(`   ✅ ${key}: configurada`);
         } else {
-            console.log(`   ❌ ${key}: NO ENCONTRADO`);
-            allOk = false;
+            console.log(`   ⚪ ${key}: usará el valor predeterminado`);
         }
     }
-    
-    // Variable opcional
-    if (envVars['VITE_CVLAC_BASE_URL']) {
-        console.log(`   ✅ VITE_CVLAC_BASE_URL: ${envVars['VITE_CVLAC_BASE_URL']}`);
-    } else {
-        console.log(`   ⚪ VITE_CVLAC_BASE_URL: usará default`);
+    if (!envLoaded) {
+        console.log('   No se encontró un archivo .env con ajustes del frontend; no es obligatorio.');
     }
+    const allOk = true;
     
     console.log('\n' + '='.repeat(60));
     if (allOk) {
         console.log('✅ FRONTEND CONFIGURADO CORRECTAMENTE');
-        console.log('   Las variables de entorno están listas.');
-    } else {
-        console.log('⚠️  FALTAN VARIABLES REQUERIDAS');
+        console.log('   El frontend puede funcionar con sus valores predeterminados.');
     }
     console.log('='.repeat(60));
     

@@ -1,235 +1,67 @@
-# 🚀 Guía de Deploy - SENNOVA CGAO
+# Guía de despliegue de SENNOVA CGAO
 
-Esta guía te ayudará a desplegar el sistema SENNOVA CGAO en **Coolify** o cualquier servidor con Docker.
+Esta guía cubre el despliegue con Coolify o Docker Compose. La instalación estándar requiere tres variables de entorno; las demás opciones tienen valores predeterminados.
 
-## 📋 Índice
-- [Requisitos](#requisitos)
-- [Deploy en Coolify](#deploy-en-coolify)
-- [Deploy Manual con Docker](#deploy-manual)
-- [Configuración de Variables](#configuración-de-variables)
-- [Backups](#backups)
-- [Troubleshooting](#troubleshooting)
+## Requisitos
 
----
+- Coolify o Docker Compose instalado en el servidor.
+- El repositorio disponible en el servidor.
+- Un dominio para publicar el frontend.
 
-## 🔧 Requisitos
+## Variables obligatorias
 
-- **Coolify** v4+ instalado (o servidor con Docker y Docker Compose)
-- **Git** para clonar el repositorio
-- Dominio configurado (opcional, Coolify genera uno automáticamente)
+Configura estos valores en Coolify o en el archivo `.env` local:
 
----
+| Variable | Uso |
+|---|---|
+| `DB_PASSWORD` | Contraseña que usan PostgreSQL y los procesos de respaldo. |
+| `JWT_SECRET` | Clave aleatoria de al menos 32 caracteres para firmar sesiones. |
+| `INITIAL_ADMIN_PASSWORD` | Contraseña del administrador creado durante el primer arranque. |
 
-## 🚀 Deploy en Coolify
+No uses valores predeterminados para estas contraseñas. En Coolify, guarda cada una como secreto. Para un despliegue local, copia `.env.example` a `.env` y reemplaza los marcadores antes de iniciar Compose.
 
-### Paso 1: Crear Proyecto en Coolify
+El frontend usa `/api` y Nginx envía esas solicitudes al backend por la red interna. No necesitas configurar `VITE_API_URL` ni `ALLOWED_ORIGINS` para esta topología. Si publicas el backend en otro dominio, configura ambas variables según tus dominios.
 
-1. Accede a tu panel de Coolify (`https://tu-coolify.example.com`)
-2. Clic en **"Create New Project"**
-3. Selecciona **"Docker Compose"** como tipo de proyecto
-4. Nombre: `sennova-cgao`
+## Despliegue con Coolify
 
-### Paso 2: Configurar Repositorio
+1. Crea un recurso de tipo **Docker Compose** y conecta el repositorio.
+2. Usa `docker-compose.yml` como archivo de Compose.
+3. Configura las tres variables obligatorias de la tabla.
+4. Asigna un dominio al frontend y conserva el backend y PostgreSQL en la red interna.
+5. Confirma que los volúmenes declarados en Compose persistan entre despliegues.
+6. Inicia el despliegue y revisa el estado de los servicios.
 
-1. En el proyecto, clic en **"Add New Resource"**
-2. Selecciona **"Docker Compose"**
-3. Configura:
-   - **Repository**: URL de tu repo (ej: `https://github.com/tuusuario/sennova-cgao`)
-   - **Branch**: `main`
-   - **Docker Compose Path**: `docker-compose.yml`
-
-### Paso 3: Configurar Variables de Entorno
-
-Ve a la sección **"Environment Variables"** y configura:
+## Despliegue manual
 
 ```bash
-# Base de datos (REQUERIDO)
-DB_PASSWORD=tu_password_seguro_aqui
-
-# Seguridad JWT (REQUERIDO - cambiar en producción!)
-JWT_SECRET=una_clave_secreta_larga_y_aleatoria_minimo_32_caracteres
-
-# CORS - dominios permitidos
-ALLOWED_ORIGINS=https://tu-dominio.com,https://app.tu-dominio.com
-
-# pgAdmin (opcional)
-PGADMIN_EMAIL=admin@sena.edu.co
-PGADMIN_PASSWORD=tu_password_pgadmin
-```
-
-### Paso 4: Persistent Volumes
-
-En Coolify, asegúrate de marcar estos volúmenes como persistentes:
-- `postgres_data` - Datos de PostgreSQL
-- `pgadmin_data` - Configuración pgAdmin
-- `backup_data` - Backups automáticos
-
-### Paso 5: Deploy
-
-1. Clic en **"Deploy"**
-2. Espera a que Coolify construya y despliegue los servicios
-3. Verifica en los logs que PostgreSQL y el backend iniciaron correctamente
-
-### Paso 6: Acceder
-
-Coolify generará URLs automáticamente:
-- **API**: `https://api-sennova-cgao.tucoolify.com`
-- **pgAdmin**: `https://pgadmin-sennova-cgao.tucoolify.com`
-
----
-
-## 🐳 Deploy Manual con Docker
-
-Si prefieres deployar manualmente en tu servidor:
-
-```bash
-# 1. Clonar repositorio
-git clone https://github.com/tuusuario/sennova-cgao.git
-cd sennova-cgao
-
-# 2. Crear archivo de variables
+git clone "$REPOSITORY_URL"
+cd sennova
 cp .env.example .env
-# Editar .env con tus valores
-
-# 3. Iniciar servicios
-docker-compose up -d
-
-# 4. Verificar logs
-docker-compose logs -f backend
-docker-compose logs -f postgres
 ```
 
----
-
-## 🔐 Configuración de Variables
-
-### Variables Obligatorias
-
-| Variable | Descripción | Ejemplo |
-|----------|-------------|---------|
-| `DB_PASSWORD` | Contraseña PostgreSQL | `S3gur4_2024!` |
-| `JWT_SECRET` | Clave secreta JWT | `minimo-32-caracteres-seguros` |
-
-### Variables Opcionales
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `ALLOWED_ORIGINS` | `http://localhost:5173` | Dominios permitidos (CORS) |
-| `JWT_EXPIRATION_HOURS` | `24` | Duración de tokens JWT |
-| `PGADMIN_EMAIL` | `admin@sena.edu.co` | Email pgAdmin |
-| `PGADMIN_PASSWORD` | `admin123` | Password pgAdmin |
-
----
-
-## 💾 Backups
-
-### Backups Automáticos
-
-El servicio `backup` en docker-compose crea dumps automáticos:
-- **Frecuencia**: Cada 6 horas
-- **Retención**: 7 días (los más antiguos se eliminan)
-- **Ubicación**: Volumen `backup_data`
-
-### Backup Manual
+Define `REPOSITORY_URL` con la dirección del repositorio antes de ejecutar el
+comando. Edita `.env` para reemplazar los tres marcadores. Luego inicia y revisa
+los servicios:
 
 ```bash
-# Crear backup
-docker exec sennova-postgres pg_dump -U sennova sennova > backup_$(date +%Y%m%d).sql
-
-# Copiar desde contenedor
-docker cp sennova-postgres:/backups/backup_20240101.sql ./
+docker compose up -d
+docker compose ps
+docker compose logs -f sennova-backend
 ```
 
-### Restaurar Backup
+No publiques PostgreSQL ni el backend directamente en Internet. El frontend expone `/api` mediante Nginx.
 
-```bash
-# Restaurar a PostgreSQL
-docker exec -i sennova-postgres psql -U sennova sennova < backup_20240101.sql
-```
+## Verificación y copias de seguridad
 
----
+Abre `https://<DOMINIO_DEL_FRONTEND>/health`. El servicio debe responder con el estado de la API. La documentación interactiva permanece desactivada en producción.
 
-## 🔧 Troubleshooting
+Compose conserva los datos en los volúmenes `pg_data`, `storage_data`, `uploads_data` y `backups_data`. El servicio `sennova-backup` crea una copia cada 24 horas y conserva las siete más recientes.
 
-### El backend no conecta a PostgreSQL
+## Solución de problemas
 
-1. Verificar que PostgreSQL esté saludable:
-   ```bash
-   docker-compose ps
-   ```
+- **La base de datos no inicia:** confirma que `DB_PASSWORD` tenga un valor y que PostgreSQL y el backend reciban el mismo secreto.
+- **El administrador no puede iniciar sesión:** verifica que el correo predeterminado sea `admin@sena.edu.co` y que `INITIAL_ADMIN_PASSWORD` coincida con el valor configurado antes del primer arranque.
+- **El navegador reporta CORS:** en la instalación estándar, usa la dirección del frontend y el proxy `/api`. Para dominios separados, configura `ALLOWED_ORIGINS` y `VITE_API_URL`.
+- **No aparecen archivos cargados tras un redespliegue:** confirma que `storage_data` y `uploads_data` persistan en Coolify.
 
-2. Revisar logs:
-   ```bash
-   docker-compose logs postgres
-   docker-compose logs backend
-   ```
-
-3. Verificar DATABASE_URL en el backend
-
-### Error de CORS
-
-Actualizar `ALLOWED_ORIGINS` con tu dominio exacto:
-```bash
-ALLOWED_ORIGINS=https://tu-dominio.com
-```
-
-### pgAdmin no conecta a PostgreSQL
-
-Configurar conexión en pgAdmin:
-- **Host**: `postgres` (nombre del servicio)
-- **Port**: `5432`
-- **Database**: `sennova`
-- **Username**: `sennova`
-- **Password**: (valor de DB_PASSWORD)
-
-### Reiniciar servicios
-
-```bash
-# Reiniciar todo
-docker-compose restart
-
-# Reiniciar solo backend
-docker-compose restart backend
-
-# Reconstruir y reiniciar
-docker-compose up -d --build backend
-```
-
----
-
-## 📊 Verificación Post-Deploy
-
-Después del deploy, verifica que todo funciona:
-
-1. **Health Check**: `https://tu-api.com/health`
-   - Debe retornar: `{"status": "ok"}`
-
-2. **API Docs**: `https://tu-api.com/docs`
-   - Solo se publica con `DEBUG=true`. En producción responde 404 a propósito.
-
-3. **Login**: Intenta iniciar sesión con el administrador inicial:
-   - Email: el valor de `INITIAL_ADMIN_EMAIL`
-   - Password: el valor de `INITIAL_ADMIN_PASSWORD` que definiste en el entorno
-   - No hay contraseña por defecto: si no defines `INITIAL_ADMIN_PASSWORD`, el
-     contenedor falla en el arranque en vez de publicar un admin abierto.
-
-4. **pgAdmin**: `https://tu-pgadmin.com`
-   - Debe mostrar login de pgAdmin4
-
----
-
-## 🆘 Soporte
-
-Si tienes problemas:
-1. Revisar logs: `docker-compose logs -f`
-2. Verificar variables de entorno
-3. Confirmar volúmenes persistentes están configurados
-4. Contactar administrador del servidor
-
----
-
-## 📚 Recursos
-
-- **FastAPI Docs**: https://fastapi.tiangolo.com/
-- **Coolify Docs**: https://coolify.io/docs/
-- **PostgreSQL**: https://www.postgresql.org/docs/
+No subas el archivo `.env` real al repositorio. Las credenciales de producción deben permanecer en el almacén de secretos de Coolify.

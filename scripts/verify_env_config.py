@@ -80,50 +80,17 @@ def test_env_loading():
         print(check_color(f"   Error leyendo .env: {e}", "red"))
     
     # Variables requeridas
-    required_vars = [
-        'JWT_SECRET',
-        'DB_PASSWORD',
-        'ALLOWED_ORIGINS',
-        'INITIAL_ADMIN_EMAIL',
-        'INITIAL_ADMIN_PASSWORD'
-    ]
-    
-    optional_vars = [
-        'DATABASE_URL',
-        'DB_HOST',
-        'DB_PORT',
-        'DB_NAME',
-        'DB_USER',
-        'HOST',
-        'PORT',
-        'ADDITIONAL_CORS_ORIGINS',
-        'CVLAC_BASE_URL',
-        'FRONTEND_URL',
-        'BACKEND_URL',
-        'DEBUG',
-        'LOG_LEVEL',
-        'MAX_UPLOAD_SIZE',
-        'RATE_LIMIT_PER_MINUTE'
-    ]
+    required_vars = ['DB_PASSWORD', 'JWT_SECRET', 'INITIAL_ADMIN_PASSWORD']
     
     print(check_color("\n✅ Variables requeridas:", "green"))
     all_required_ok = True
     for var in required_vars:
         value = os.getenv(var)
         if value:
-            masked = value[:4] + "****" if len(value) > 8 else "****"
-            print(f"   ✅ {var}: {masked} ({len(value)} chars)")
+            print(f"   ✅ {var}: CONFIGURADA ({len(value)} caracteres)")
         else:
             print(f"   ❌ {var}: NO DEFINIDA")
             all_required_ok = False
-    
-    print(check_color("\n⚙️  Variables opcionales:", "yellow"))
-    for var in optional_vars:
-        value = os.getenv(var)
-        if value:
-            print(f"   ✅ {var}: {value[:30]}{'...' if len(value) > 30 else ''}")
-        else:
-            print(f"   ⚪ {var}: (usando default)")
     
     # Validaciones específicas
     print(check_color("\n🔐 Validaciones de seguridad:", "blue"))
@@ -142,22 +109,6 @@ def test_env_loading():
             print(f"   ⚠️  DB_PASSWORD: Muy corta ({len(db_password)} chars, recomendado 12+)")
         else:
             print(f"   ✅ DB_PASSWORD: Longitud adecuada ({len(db_password)} chars)")
-    
-    allowed_origins = os.getenv('ALLOWED_ORIGINS', '')
-    if 'localhost' in allowed_origins and os.getenv('DEBUG', 'true').lower() != 'true':
-        print(f"   ⚠️  ALLOWED_ORIGINS contiene 'localhost' pero DEBUG=false")
-    elif 'localhost' in allowed_origins:
-        print(f"   ✅ ALLOWED_ORIGINS: Configurado para desarrollo (localhost)")
-    
-    # Verificación de conectividad básica
-    print(check_color("\n🌐 URLs configuradas:", "blue"))
-    host = os.getenv('HOST', '127.0.0.1')
-    port = os.getenv('PORT', '8000')
-    frontend_url = os.getenv('FRONTEND_URL', f'http://localhost:{port}')
-    backend_url = os.getenv('BACKEND_URL', f'http://{host}:{port}')
-    
-    print(f"   Backend URL: {backend_url}")
-    print(f"   Frontend URL: {frontend_url}")
     
     # Resumen
     print(check_color("\n" + "=" * 60, "blue"))

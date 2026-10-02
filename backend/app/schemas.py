@@ -1,8 +1,18 @@
 from datetime import datetime, date
-from typing import Literal, Optional, List
+from typing import Annotated, Literal, Optional, List
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, EmailStr, Field
+
+
+def empty_str_to_none(v):
+    """Convierte cadenas vacías a None para compatibilidad con campos opcionales."""
+    if v == "" or v is None:
+        return None
+    return v
+
+
+OptionalUUID = Annotated[Optional[UUID], BeforeValidator(empty_str_to_none)]
 
 
 # ==========================================
@@ -449,6 +459,7 @@ class DocumentoBase(BaseModel):
     tipo: str  # cvlac_pdf, acta, contrato, informe
     nombre_archivo: str
     descripcion: Optional[str] = None
+    periodo_bimestre: Optional[int] = Field(default=None, ge=1)
 
 
 class DocumentoCreate(DocumentoBase):
@@ -495,8 +506,8 @@ class EntregableBase(BaseModel):
 
 class EntregableCreate(EntregableBase):
     proyecto_id: UUID
-    responsable_id: Optional[UUID] = None
-    producto_id: Optional[UUID] = None
+    responsable_id: OptionalUUID = None
+    producto_id: OptionalUUID = None
 
 
 class EntregableUpdate(BaseModel):
@@ -509,8 +520,8 @@ class EntregableUpdate(BaseModel):
     fecha_envio: Optional[date] = None
     fecha_aprobacion: Optional[date] = None
     observaciones: Optional[str] = None
-    responsable_id: Optional[UUID] = None
-    producto_id: Optional[UUID] = None
+    responsable_id: OptionalUUID = None
+    producto_id: OptionalUUID = None
 
 
 class EntregableResponse(EntregableBase):

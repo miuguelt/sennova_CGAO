@@ -27,6 +27,8 @@ vi.mock('../api/proyectos', () => ({
     removeEquipo: vi.fn(),
     checkLiquidacion: vi.fn(),
     getElaboracionStatus: vi.fn(),
+    getExpediente: vi.fn(),
+    downloadExpediente: vi.fn(),
   }
 }));
 
@@ -167,6 +169,26 @@ describe('ProyectosModule', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /Formatos/i }));
     expect(await screen.findByText(/Aún no hay una formulación DOCX adjunta/i)).toBeInTheDocument();
+  });
+
+  it('conserva Referencia como estado propio en columna, tarjeta, filtro y detalle', async () => {
+    const reference = { ...mockProyecto, id: 'reference-1', nombre: 'Ejemplo institucional privado', nombre_corto: 'Ejemplo de referencia', estado: 'Referencia' };
+    ProyectosAPI.list.mockResolvedValue([reference, { ...mockProyecto, id: 'approved-1', nombre_corto: 'Proyecto aprobado', estado: 'Aprobado' }]);
+    ProyectosAPI.get.mockResolvedValue(reference);
+    render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
+    await screen.findByText('Ejemplo de referencia');
+    const referenceColumn = screen.getByLabelText('Columna Referencia');
+    expect(within(referenceColumn).getByText('Ejemplo de referencia')).toBeInTheDocument();
+    expect(within(referenceColumn).getByText('Referencia')).toBeInTheDocument();
+    expect(within(screen.getByLabelText('Columna Aprobado')).queryByText('Ejemplo de referencia')).not.toBeInTheDocument();
+    for (const state of ['Aprobado', 'En ejecución', 'Finalizado', 'Referencia']) expect(within(screen.getByLabelText('Filtrar por estado')).getByRole('option', { name: state })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Filtrar por estado'), { target: { value: 'Referencia' } });
+    expect(screen.getByText('Ejemplo de referencia')).toBeInTheDocument();
+    expect(screen.queryByText('Proyecto aprobado')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Ejemplo de referencia'));
+    const drawer = await screen.findByRole('dialog');
+    expect(within(drawer).getByText('Referencia')).toBeInTheDocument();
+    expect(within(drawer).queryByText('Aprobado')).not.toBeInTheDocument();
   });
 
   it('no consulta listados de gestión cuando el módulo se abre para un aprendiz', async () => {
@@ -491,6 +513,28 @@ describe('ProyectosModule', () => {
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Diagnóstico de Elaboración SENNOVA' })).getByText('Cerrar Diagnóstico'));
     fireEvent.click(within(detail).getByText('Cerrar'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('abre el expediente documental del proyecto desde su pestaña', async () => {
+    ProyectosAPI.getExpediente.mockResolvedValue({ proyecto_id: 'p-1', completo: false, porcentaje_completitud: 0, pendientes: ['Adjunte el acta de inicio.'], etapas: [] });
+    render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
+    fireEvent.click(await screen.findByText('SENNOVA Core'));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Expediente' }));
+    expect(await screen.findByText('Adjunte el acta de inicio.')).toBeInTheDocument();
+    expect(ProyectosAPI.getExpediente).toHaveBeenCalledWith('p-1');
+  });
+
+  it('refresca los datos confirmados sin cerrar el detalle ni su pestaña', async () => {
+    ProyectosAPI.getExpediente.mockResolvedValue({ proyecto_id: 'p-1', completo: false, porcentaje_completitud: 0, pendientes: [], etapas: [] });
+    const view = render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} refreshVersion={0} />);
+    fireEvent.click(await screen.findByText('SENNOVA Core'));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Expediente' }));
+    await screen.findByRole('button', { name: 'Descargar expediente parcial (ZIP)' });
+    ProyectosAPI.list.mockResolvedValue([{ ...mockProyecto, nombre: 'Proyecto actualizado' }]);
+    view.rerender(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} refreshVersion={1} />);
+    await waitFor(() => expect(ProyectosAPI.list).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Proyecto actualizado');
+    expect(screen.getByRole('tab', { name: 'Expediente' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('formats currency values for chart labels', () => {

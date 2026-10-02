@@ -42,7 +42,7 @@ describe('PresupuestoModule, rubros de referencia', () => {
 
     expect(await screen.findByText(/rubros observados en el ejemplar GIC-F-037/i)).toBeInTheDocument();
     await waitFor(() => expect(ProyectosAPI.get).toHaveBeenCalledWith('proyecto-1'));
-    expect(screen.getAllByRole('button', { name: /cargar rubros de referencia/i })).toHaveLength(2);
+    expect(await screen.findAllByRole('button', { name: /cargar rubros de referencia/i })).toHaveLength(2);
   });
 
   it('carga los rubros de referencia después de la confirmación', async () => {

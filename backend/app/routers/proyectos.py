@@ -11,14 +11,13 @@ from sqlalchemy.orm import Session, joinedload
 from app.auth import STAFF_ROLES, get_current_user
 from app.config import get_settings
 from app.database import get_db
-from app.models import Aprendiz, Documento, Proyecto, User, proyecto_equipo, Entregable, Grupo, Semillero
+from app.models import Aprendiz, Documento, Proyecto, User, proyecto_equipo, Entregable, Grupo, Semillero, Convocatoria, Reto
 from app.schemas import (
     ProyectoCreate, ProyectoUpdate, EquipoMiembro
 )
 from app.utils import log_actividad
 from app.services.proyectos_service import (
     evaluar_requisitos_liquidacion,
-    evaluar_y_auto_finalizar_proyecto,
     calcular_estatus_elaboracion
 )
 from app.services.proyecto_import_service import (
@@ -29,6 +28,7 @@ from app.services.proyecto_import_service import (
     safe_document_filename,
 )
 from app.services.project_access import can_access_project
+from app.services.entity_document_cleanup import delete_entity_documents, cleanup_document_files
 
 router = APIRouter(prefix="/proyectos", tags=["Proyectos"])
 FORMULATION_STORAGE_DIR = Path(get_settings().STORAGE_DIR) / "documentos"
@@ -50,18 +50,30 @@ def can_edit_proyecto(proyecto: Proyecto, user: User) -> bool:
     return False
 
 
+def _resolve_project_links(values: dict, db: Session) -> dict:
+    """Valida referencias y hereda el grupo del semillero sin atribuciones arbitrarias."""
+    resolved = {}
+    for field, model in (("grupo_id", Grupo), ("semillero_id", Semillero), ("convocatoria_id", Convocatoria), ("reto_origen_id", Reto)):
+        value = str(values[field]) if values.get(field) else None
+        if value is not None and db.query(model).filter(model.id == value).first() is None:
+            raise HTTPException(status_code=404, detail=f"No se encontró el registro vinculado: {field}.")
+        resolved[field] = value
+    if resolved["semillero_id"]:
+        semillero = db.query(Semillero).filter(Semillero.id == resolved["semillero_id"]).one()
+        inherited_group = str(semillero.grupo_id) if semillero.grupo_id else None
+        if resolved["grupo_id"] and inherited_group and resolved["grupo_id"] != inherited_group:
+            raise HTTPException(status_code=422, detail="El grupo del proyecto debe coincidir con el grupo del semillero seleccionado.")
+        resolved["grupo_id"] = inherited_group or resolved["grupo_id"]
+    return resolved
+
+
 def _build_proyecto_record(proyecto_data: ProyectoCreate, current_user: User, db: Session) -> Proyecto:
     """Construye el registro y sus relaciones sin confirmar la transacción."""
-    grupo_id = str(proyecto_data.grupo_id) if proyecto_data.grupo_id else None
-    semillero_id = str(proyecto_data.semillero_id) if proyecto_data.semillero_id else None
-    if semillero_id and not grupo_id:
-        semillero = db.query(Semillero).filter(Semillero.id == semillero_id).first()
-        if semillero and semillero.grupo_id:
-            grupo_id = str(semillero.grupo_id)
-    if not grupo_id:
-        grupo = db.query(Grupo).first()
-        if grupo:
-            grupo_id = str(grupo.id)
+    if proyecto_data.estado.casefold() in {"finalizado", "completado"}:
+        raise HTTPException(status_code=400, detail="Cree el proyecto en ejecución y complete su expediente antes de finalizarlo.")
+    links = _resolve_project_links(proyecto_data.model_dump(), db)
+    grupo_id = links["grupo_id"]
+    semillero_id = links["semillero_id"]
 
     proyecto = Proyecto(
         nombre=proyecto_data.nombre,
@@ -361,6 +373,9 @@ def create_proyecto(
         proyecto = _build_proyecto_record(proyecto_data, current_user, db)
         db.commit()
         db.refresh(proyecto)
+    except HTTPException:
+        db.rollback()
+        raise
     except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
         db.rollback()
         raise db_err
@@ -480,24 +495,14 @@ def update_proyecto(
         raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar proyectos")
     
     update_data = proyecto_update.model_dump(exclude_unset=True)
+    link_fields = ("grupo_id", "semillero_id", "convocatoria_id", "reto_origen_id")
+    if any(field in update_data for field in link_fields):
+        values = {field: update_data.get(field, getattr(proyecto, field)) for field in link_fields}
+        if "semillero_id" in update_data and "grupo_id" not in update_data:
+            values["grupo_id"] = None
+        resolved = _resolve_project_links(values, db)
+        update_data.update({field: resolved[field] for field in link_fields if field in update_data or field == "grupo_id"})
     
-    # Validación de Liquidación (Finalizado)
-    if update_data.get("estado") == "Finalizado":
-        try:
-            check = check_liquidacion(proyecto_id, db, current_user)
-            if not check["can_liquidate"]:
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"No se puede finalizar el proyecto. {check['message']}"
-                )
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error al validar liquidación: {str(e)}"
-            )
-
     for field, value in update_data.items():
         if field != "equipo":  # Equipo se maneja separado
             if field in ("convocatoria_id", "reto_origen_id", "semillero_id", "grupo_id"):
@@ -507,15 +512,19 @@ def update_proyecto(
                     value = None
             setattr(proyecto, field, value)
             
-    # Si cambió semillero_id y no se pasó grupo_id explícitamente, actualizar grupo_id
-    if "semillero_id" in update_data and proyecto.semillero_id and not update_data.get("grupo_id"):
-        semillero_obj = db.query(Semillero).filter(Semillero.id == str(proyecto.semillero_id)).first()
-        if semillero_obj and semillero_obj.grupo_id:
-            proyecto.grupo_id = str(semillero_obj.grupo_id)
-    
     try:
+        # Evalúa los valores nuevos dentro de la misma transacción, antes del commit.
+        if str(proyecto.estado).casefold() in {"finalizado", "completado"}:
+            db.flush()
+            check = evaluar_requisitos_liquidacion(proyecto, db)
+            if not check["can_liquidate"]:
+                raise HTTPException(status_code=400, detail=f"No se puede finalizar el proyecto. {check['message']}")
+            proyecto.estado = "Finalizado"
         db.commit()
         db.refresh(proyecto)
+    except HTTPException:
+        db.rollback()
+        raise
     except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
         db.rollback()
         raise db_err
@@ -545,8 +554,8 @@ def check_liquidacion(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Verifica si un proyecto cumple con todos los requisitos institucionales SENNOVA para ser liquidado (Finalizado).
-    Si cumple el 100%, activa la transición automática a estado Finalizado.
+    Consulta los requisitos de liquidación sin modificar el estado del proyecto.
+    La actualización explícita y las cargas confirmadas realizan el cierre.
     """
     try:
         proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
@@ -557,8 +566,6 @@ def check_liquidacion(
         if not can_edit_proyecto(proyecto, current_user):
             raise HTTPException(status_code=403, detail="No tienes permiso para verificar liquidación de este proyecto")
         
-        # Ejecutar evaluación y auto-finalización
-        auto_res = evaluar_y_auto_finalizar_proyecto(proyecto_id, db)
         eval_res = evaluar_requisitos_liquidacion(proyecto, db)
         
         return {
@@ -567,7 +574,7 @@ def check_liquidacion(
             "items_cumplidos": eval_res["items_cumplidos"],
             "total_items": eval_res["total_items"],
             "checklist": eval_res["checklist"],
-            "auto_finalizado": auto_res.get("auto_finalizado", False),
+            "auto_finalizado": False,
             "message": eval_res["message"]
         }
     except HTTPException:
@@ -615,6 +622,7 @@ def delete_proyecto(
     nombre_proyecto = proyecto.nombre
 
     try:
+        documents = delete_entity_documents(db, "proyecto", proyecto_id)
         db.delete(proyecto)
         db.commit()
     except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
@@ -634,6 +642,9 @@ def delete_proyecto(
         entidad_id=str(proyecto_id)
     )
 
+    pending = cleanup_document_files(documents)
+    if pending:
+        return {"message": "Proyecto eliminado. Algunos archivos quedan pendientes de limpieza.", "limpieza_pendiente": True, "documentos_pendientes_limpieza": pending}
     return {"message": "Proyecto eliminado"}
 
 

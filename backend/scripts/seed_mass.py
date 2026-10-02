@@ -18,6 +18,11 @@ from app.auth import get_password_hash
 fake = Faker(['es_CO'])
 
 def seed_data():
+    default_pwd = os.getenv("INITIAL_ADMIN_PASSWORD") or os.getenv("DEV_SEED_PASSWORD")
+    if not default_pwd:
+        print("❌ Define INITIAL_ADMIN_PASSWORD o DEV_SEED_PASSWORD en el entorno seguro antes de poblar la base de datos.")
+        return False
+
     db = SessionLocal()
     try:
         print("🌱 Iniciando poblamiento de base de datos...")
@@ -34,7 +39,7 @@ def seed_data():
         # Asegurar un admin
         admin = User(
             email="admin@sena.edu.co",
-            password_hash=get_password_hash("123456"),
+            password_hash=get_password_hash(default_pwd),
             nombre="Administrador Sistema",
             rol="admin",
             rol_sennova="Líder SENNOVA",
@@ -47,7 +52,7 @@ def seed_data():
         for i in range(99):
             user = User(
                 email=fake.unique.email(),
-                password_hash=get_password_hash("password123"),
+                password_hash=get_password_hash(default_pwd),
                 nombre=fake.name(),
                 rol=random.choice(['admin', 'investigador']),
                 rol_sennova=random.choice(['Instructor Investigador', 'Gestor SENNOVA', 'Dinamizador']),

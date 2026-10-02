@@ -11,7 +11,7 @@ import warnings
 class Settings(BaseSettings):
     # Database - Soporte para construcción dinámica de URL
     DB_USER: str = os.getenv("DB_USER", "sennova")
-    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "sennova123")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "")
     DB_HOST: str = os.getenv("DB_HOST", "localhost")
     DB_PORT: str = os.getenv("DB_PORT", "5434")
     DB_NAME: str = os.getenv("DB_NAME", "sennova")
@@ -29,16 +29,14 @@ class Settings(BaseSettings):
                 self.DATABASE_URL = "sqlite:///./sennova.db"
     
     # Security
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "sennova-secret-key-change-in-production-min-32-chars")
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
     JWT_EXPIRATION_HOURS: int = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
     
     # App
     APP_NAME: str = os.getenv("APP_NAME", "SENNOVA CGAO API")
-    # El modo desarrollo se pide explícitamente. Con el default invertido, un
-    # despliegue que olvide definir DEBUG obtenía a la vez el JWT_SECRET por
-    # defecto, la contraseña de siembra por defecto y el CORS abierto a la LAN,
-    # porque validate_production_settings solo corre cuando DEBUG es false.
+    # DEBUG es false por defecto para que un despliegue sin configuración
+    # explícita aplique las validaciones de producción.
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     
     # Servidor
@@ -98,15 +96,17 @@ class Settings(BaseSettings):
 
 
 def validate_production_settings(settings: Settings):
-    """Valida configuraciones críticas en producción"""
+    """Valida las claves de seguridad y la base de datos de producción."""
+    if len(settings.JWT_SECRET) < 32:
+        raise ValueError(
+            "JWT_SECRET es obligatorio y debe tener mínimo 32 caracteres. "
+            "Genera uno nuevo con: openssl rand -base64 32"
+        )
+
     if not settings.DEBUG:
-        # En producción, validar que no se usen valores por defecto inseguros
-        
-        if "sennova-secret-key" in settings.JWT_SECRET or len(settings.JWT_SECRET) < 32:
+        if settings.DATABASE_URL.startswith("sqlite"):
             raise ValueError(
-                "🚨 JWT_SECRET no es seguro para producción. "
-                "Debe tener mínimo 32 caracteres y no ser el valor por defecto. "
-                "Genera uno nuevo con: openssl rand -base64 32"
+                "DATABASE_URL o DB_PASSWORD debe apuntar a PostgreSQL en producción."
             )
         
         if "localhost" in settings.ALLOWED_ORIGINS:
@@ -116,8 +116,8 @@ def validate_production_settings(settings: Settings):
                 UserWarning
             )
         
-        # Solo validar DB_PASSWORD si no se usa DATABASE_URL (que ya contiene la contraseña)
-        if not settings.DATABASE_URL and ("sennova123" in settings.DB_PASSWORD or len(settings.DB_PASSWORD) < 12):
+        # DATABASE_URL puede incluir las credenciales para una base externa.
+        if not os.getenv("DATABASE_URL") and len(settings.DB_PASSWORD) < 12:
             raise ValueError(
                 "🚨 DB_PASSWORD no es segura para producción. "
                 "Debe tener mínimo 12 caracteres y no ser el valor por defecto."

@@ -135,6 +135,12 @@ EMPRESAS_SANTANDER = [
 
 def seed_database(verbose: bool = True):
     """Puebla todas las tablas del sistema con datos consistentes y correlacionados."""
+    default_pwd = os.getenv("INITIAL_ADMIN_PASSWORD") or os.getenv("DEV_SEED_PASSWORD")
+    if not default_pwd:
+        if verbose:
+            print("❌ Define INITIAL_ADMIN_PASSWORD o DEV_SEED_PASSWORD en el entorno seguro antes de poblar la base de datos.")
+        return False
+
     if verbose:
         print("\n" + "═" * 70)
         print("  🌱 SENNOVA CGAO — POBLADO MASIVO DE BASE DE DATOS")
@@ -153,7 +159,6 @@ def seed_database(verbose: bool = True):
 
     try:
         # Contraseña única para todos los usuarios de prueba
-        default_pwd = os.getenv("INITIAL_ADMIN_PASSWORD") or os.getenv("DEV_SEED_PASSWORD") or "123456"
         pwd_hash = get_password_hash(default_pwd)
 
         if verbose:
@@ -1238,12 +1243,7 @@ def seed_database(verbose: bool = True):
             else:
                 print("  ⚠️ Atención: Algunas tablas no alcanzaron los 20 registros mínimos.")
             print("═" * 70)
-            print("  🔑 CREDENCIALES DE ACCESO RÁPIDO DISPONIBLES:")
-            print("     • Admin:        admin@sena.edu.co       / 123456")
-            print("     • Investigador: m.rodriguez@sena.edu.co / 123456")
-            print("     • Instructor:   c.lopez@sena.edu.co     / 123456")
-            print("     • Aprendiz:     jperez@soy.sena.edu.co  / 123456")
-            print("     • Dev Admin:    admin@sennova.dev.co    / 123456")
+            print("  Cuentas de prueba listas; la contraseña proviene de la variable segura y no se imprime.")
             print("═" * 70 + "\n")
 
         return True

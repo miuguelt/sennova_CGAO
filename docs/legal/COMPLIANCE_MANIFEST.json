@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "project": "sennova",
+  "jurisdiction": "CO",
+  "profile": "P2",
+  "status": "review_required",
+  "controller": {
+    "name": null,
+    "verification": "Pendiente de confirmación institucional para producción"
+  },
+  "required_profiles": [
+    "personal_data",
+    "education",
+    "public_entity",
+    "file_uploads"
+  ],
+  "last_reviewed": "2026-10-01",
+  "release_rule": "La verificación técnica no constituye aprobación institucional para publicar datos personales. La liberación requiere cerrar los pendientes humanos documentados.",
+  "evidence_directory": "docs/architecture",
+  "controls": [
+    {
+      "id": "project_access",
+      "status": "implemented",
+      "owner": "Equipo de desarrollo",
+      "evidence": "backend/tests/test_project_documentation.py",
+      "description": "Acceso autenticado y mutaciones restringidas a investigadores y administradores."
+    },
+    {
+      "id": "source_scope",
+      "status": "implemented",
+      "owner": "Equipo de desarrollo",
+      "evidence": "backend/tests/test_reference_documentation_import.py",
+      "description": "Referencia privada y explícita de desarrollo; no se crean personas ni plantillas personales globales."
+    },
+    {
+      "id": "history_integrity",
+      "status": "implemented",
+      "owner": "Equipo de desarrollo",
+      "evidence": "backend/tests/test_project_documentation.py",
+      "description": "Snapshot de datos, revisiones, hashes y descargas por versión."
+    },
+    {
+      "id": "institutional_authority",
+      "status": "pending_human_review",
+      "owner": "Responsable institucional por confirmar",
+      "evidence": null,
+      "description": "Confirmar responsable del tratamiento, permisos sobre las fuentes, retención y autorización de publicación antes de producción."
+    }
+  ]
+}

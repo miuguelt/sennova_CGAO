@@ -83,6 +83,7 @@ const getErrorMessage = (error, fallback) => {
 
 // Fetch con manejo de errores
 export async function fetchAPI(endpoint, options = {}) {
+  const { responseType, ...fetchOptions } = options;
   const url = buildApiUrl(endpoint);
   const method = String(options.method || 'GET').toUpperCase();
   const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
@@ -98,7 +99,7 @@ export async function fetchAPI(endpoint, options = {}) {
   }
 
   const config = {
-    ...options,
+    ...fetchOptions,
     headers,
   };
 
@@ -109,7 +110,7 @@ export async function fetchAPI(endpoint, options = {}) {
       console.error('[AUTH] 401 Unauthorized detectado. Cerrando sesión.');
       setAuthToken(null);
       window.location.href = '/login';
-      throw new Error('Sesión expirada');
+      throw Object.assign(new Error('Sesión expirada'), { status: response.status });
     }
     
     if (response.status === 403) {
@@ -120,14 +121,14 @@ export async function fetchAPI(endpoint, options = {}) {
         console.warn('[AUTH] Missing Authorization header. Check if token is available.');
       }
       
-      throw new Error(errorData.detail || 'Acceso denegado');
+      throw Object.assign(new Error(errorData.detail || 'Acceso denegado'), { status: response.status });
     }
     
     if (!response.ok) {
       const error = await response.json().catch(() => ({ 
         detail: `Error ${response.status}: ${response.statusText}` 
       }));
-      throw new Error(getErrorMessage(error, 'Error en la petición'));
+      throw Object.assign(new Error(getErrorMessage(error, 'Error en la petición')), { status: response.status });
     }
     
     if (response.status === 204) {
@@ -135,7 +136,7 @@ export async function fetchAPI(endpoint, options = {}) {
       return null;
     }
 
-    const data = await response.json();
+    const data = responseType === 'blob' ? await response.blob() : await response.json();
     if (isMutation) emitDataRefresh({ endpoint, method });
 
     return data;

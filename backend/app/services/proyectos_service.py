@@ -8,13 +8,13 @@ Proporciona lógica centralizada para:
 
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
-from app.models import Proyecto, Entregable, Documento, User, Notificacion
-from app.utils import log_actividad
+from app.models import Proyecto, Entregable, Documento, User, Notificacion, Actividad
 from app.database import safe_commit
+from app.services.project_evidence_service import evaluate_project_file, document_bytes
 
 
 def evaluar_requisitos_liquidacion(proyecto: Proyecto, db: Session) -> Dict[str, Any]:
-    """Verifica los 5 requisitos institucionales SENNOVA para liquidar un proyecto."""
+    """Verifica reglas de cierre y el expediente documental completo."""
     entregables = db.query(Entregable).filter(Entregable.proyecto_id == str(proyecto.id)).all()
     total_entregables = len(entregables)
     aprobados = sum(1 for e in entregables if e.estado == "aprobado")
@@ -29,7 +29,8 @@ def evaluar_requisitos_liquidacion(proyecto: Proyecto, db: Session) -> Dict[str,
         Documento.entidad_id == str(proyecto.id),
         Documento.tipo == "informe_final"
     ).first()
-    ok_informe = bool(informe_doc or proyecto.informe_final_path)
+    ok_informe = bool(informe_doc and document_bytes(informe_doc))
+    expediente = evaluate_project_file(proyecto, db)
     
     ok_presupuesto = (proyecto.presupuesto_total or 0) > 0
     ok_sgps = bool(proyecto.codigo_sgps and str(proyecto.codigo_sgps).strip())
@@ -39,7 +40,8 @@ def evaluar_requisitos_liquidacion(proyecto: Proyecto, db: Session) -> Dict[str,
         {"id": "productos", "label": f"Productos Verificados ({len(productos_verificados)}/{min_productos})", "status": ok_productos, "detalles": f"Mínimo {min_productos} producto(s)"},
         {"id": "informe", "label": "Informe Final Técnico Cargado", "status": ok_informe, "detalles": "PDF adjunto"},
         {"id": "presupuesto", "label": "Presupuesto Asignado", "status": ok_presupuesto, "detalles": f"${proyecto.presupuesto_total or 0:,.0f}"},
-        {"id": "sgps", "label": "Código SGPS Registrado", "status": ok_sgps, "detalles": f"{proyecto.codigo_sgps or 'Pendiente'}"}
+        {"id": "sgps", "label": "Código SGPS Registrado", "status": ok_sgps, "detalles": f"{proyecto.codigo_sgps or 'Pendiente'}"},
+        {"id": "expediente", "label": "Expediente documental de las seis etapas", "status": expediente["completo"], "detalles": "Completo" if expediente["completo"] else " ".join(expediente["pendientes"])}
     ]
     
     total_items = len(checklist)
@@ -65,27 +67,27 @@ def evaluar_y_auto_finalizar_proyecto(proyecto_id: str, db: Session) -> Dict[str
     
     if proyecto.estado == "Finalizado":
         res = evaluar_requisitos_liquidacion(proyecto, db)
-        return {"auto_finalizado": False, "reason": "Proyecto ya finalizado", "porcentaje": 100.0, "checklist": res["checklist"]}
+        return {"auto_finalizado": False, "reason": "Proyecto ya finalizado", "porcentaje": res["porcentaje_completitud"], "checklist": res["checklist"]}
     
     eval_res = evaluar_requisitos_liquidacion(proyecto, db)
     if eval_res["can_liquidate"]:
         estado_anterior = proyecto.estado
         proyecto.estado = "Finalizado"
         
-        log_actividad(
-            db, str(proyecto.owner_id), "auto_finalizar_proyecto",
-            f"Transición automática de '{estado_anterior}' a 'Finalizado'.",
-            entidad_tipo="proyecto", entidad_id=str(proyecto.id)
-        )
-        
         try:
+            db.add(Actividad(
+                user_id=str(proyecto.owner_id), tipo_accion="auto_finalizar_proyecto",
+                descripcion=f"Transición automática de '{estado_anterior}' a 'Finalizado'.",
+                entidad_tipo="proyecto", entidad_id=str(proyecto.id),
+            ))
+            admins = db.query(User).filter(User.rol == "admin", User.is_active.is_(True)).all()
             db.add(Notificacion(
                 user_id=str(proyecto.owner_id), tipo="proyecto",
                 titulo="🎉 ¡Proyecto Finalizado Automáticamente!",
                 mensaje=f"El proyecto '{proyecto.nombre}' cumplió 100% requisitos SENNOVA.",
                 entidad_tipo="proyecto", entidad_id=str(proyecto.id), prioridad="alta"
             ))
-            for adm in db.query(User).filter(User.rol == "admin", User.is_active == True).all():
+            for adm in admins:
                 if str(adm.id) != str(proyecto.owner_id):
                     db.add(Notificacion(
                         user_id=str(adm.id), tipo="proyecto",
@@ -96,7 +98,8 @@ def evaluar_y_auto_finalizar_proyecto(proyecto_id: str, db: Session) -> Dict[str
             safe_commit(db)
             db.refresh(proyecto)
         except Exception:
-            safe_commit(db)
+            db.rollback()
+            raise
             
         return {
             "auto_finalizado": True,

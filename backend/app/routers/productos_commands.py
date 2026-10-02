@@ -1,18 +1,23 @@
 """Create, update and delete product routes."""
 
+from pathlib import Path
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
+from app.config import get_settings
 from app.database import get_db
-from app.models import Notificacion, Producto, Proyecto, User
+from app.models import Entregable, Notificacion, Producto, Proyecto, User
 from app.schemas import ProductoCreate, ProductoUpdate
 from app.services import EmailService
 from app.utils import log_actividad
 from app.routers.productos_common import make_producto_dict
+from app.services.entity_document_cleanup import cleanup_document_files, delete_entity_documents
 
 router = APIRouter(prefix="/productos")
+DOCUMENT_STORAGE_DIR = Path(get_settings().STORAGE_DIR) / "documentos"
 
 
 def _resolve_project_name(
@@ -236,6 +241,9 @@ def delete_producto(
     if current_user.rol != "admin" and str(producto.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso para eliminar")
     try:
+        documents = delete_entity_documents(db, "producto", str(producto.id))
+        for deliverable in db.query(Entregable).filter(Entregable.producto_id == str(producto.id)).all():
+            deliverable.producto_id = None
         db.delete(producto)
         db.commit()
     except (OperationalError, SQLAlchemyError):
@@ -247,4 +255,11 @@ def delete_producto(
         raise HTTPException(
             status_code=500, detail="Error interno al eliminar producto"
         )
+    pending = cleanup_document_files(documents, DOCUMENT_STORAGE_DIR)
+    if pending:
+        return {
+            "message": "Producto eliminado; hay archivos pendientes de limpieza",
+            "limpieza_pendiente": True,
+            "documentos_pendientes_limpieza": pending,
+        }
     return {"message": "Producto eliminado"}

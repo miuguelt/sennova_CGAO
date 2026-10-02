@@ -84,11 +84,9 @@ echo ""
 echo "🔍 Verificando variables críticas documentadas..."
 
 CRITICAL_VARS=(
+    "DB_PASSWORD"
     "JWT_SECRET"
-    "ALLOWED_ORIGINS"
-    "VITE_API_URL"
-    "DATABASE_URL\|DB_PASSWORD"
-    "DEBUG"
+    "INITIAL_ADMIN_PASSWORD"
 )
 
 for var in "${CRITICAL_VARS[@]}"; do

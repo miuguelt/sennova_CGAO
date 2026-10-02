@@ -19,19 +19,14 @@ environment:
   required:
     - DB_PASSWORD
     - JWT_SECRET
-  optional:
-    - ALLOWED_ORIGINS
-    - VITE_API_URL
-    - INITIAL_ADMIN_EMAIL
     - INITIAL_ADMIN_PASSWORD
-    - PGADMIN_EMAIL
-    - PGADMIN_PASSWORD
 
 # Volúmenes persistentes (se configuran automáticamente en Coolify)
 persistent_volumes:
-  - postgres_data
-  - sennova_storage
-  - backup_data
+  - pg_data
+  - storage_data
+  - uploads_data
+  - backups_data
 
 # Healthchecks
 healthchecks:
@@ -45,13 +40,15 @@ healthchecks:
 # Notas para el administrador
 notes: |
   Este proyecto incluye:
-  - PostgreSQL 15 con backups automáticos cada 6 horas
+  - PostgreSQL 16 con copias de seguridad automáticas cada 24 horas
   - Backend FastAPI con healthcheck
   - Frontend React con Nginx
   - Volúmenes persistentes para datos y archivos
   
-  Variables importantes:
-  1. JWT_SECRET: Mínimo 32 caracteres, cambiar en producción
-  2. DB_PASSWORD: Contraseña fuerte para PostgreSQL
-  3. ALLOWED_ORIGINS: Incluir dominios de Coolify separados por comas
-  4. VITE_API_URL: usar /api para que el frontend pase por el proxy interno de Nginx
+  Variables obligatorias:
+  1. DB_PASSWORD: contraseña fuerte para PostgreSQL
+  2. JWT_SECRET: valor aleatorio de mínimo 32 caracteres
+  3. INITIAL_ADMIN_PASSWORD: contraseña para crear el administrador inicial
+
+  Las demás opciones usan valores predeterminados. El frontend consume /api
+  mediante el proxy interno de Nginx.

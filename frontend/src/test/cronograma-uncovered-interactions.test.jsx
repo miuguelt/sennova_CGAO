@@ -78,7 +78,7 @@ describe('CronogramaModule, cierres y fechas', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Agendar Entregable' }));
 
     await waitFor(() => expect(EntregablesAPI.create).toHaveBeenCalledWith(expect.objectContaining({
-      titulo: 'Informe técnico', proyecto_id: 'p-1', fecha_entrega: '2026-10-15',
+      titulo: 'Informe técnico', proyecto_id: 'p-1', fecha_entrega: '2026-10-15', responsable_id: null,
     })));
     expect(onNotify).toHaveBeenCalledWith('Nuevo entregable programado', 'success');
   });

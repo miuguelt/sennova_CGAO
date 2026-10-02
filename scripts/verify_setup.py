@@ -163,7 +163,7 @@ def main():
         
         # Verificar variables en .env
         env_content = env_file.read_text()
-        required_vars = ["DB_PASSWORD", "JWT_SECRET"]
+        required_vars = ["DB_PASSWORD", "JWT_SECRET", "INITIAL_ADMIN_PASSWORD"]
         for var in required_vars:
             if var in env_content:
                 print(check_color(f"   ✅ Variable {var} configurada", "green"))

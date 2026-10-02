@@ -14,6 +14,11 @@ from app.models import (
 from app.auth import get_password_hash
 
 def seed_data():
+    default_pwd = os.getenv("INITIAL_ADMIN_PASSWORD") or os.getenv("DEV_SEED_PASSWORD")
+    if not default_pwd:
+        print("❌ Define INITIAL_ADMIN_PASSWORD o DEV_SEED_PASSWORD en el entorno seguro antes de poblar la base de datos.")
+        return False
+
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     print("🧹 Limpiando datos previos...")
@@ -44,7 +49,7 @@ def seed_data():
     if not admin:
         admin = User(
             email="admin@sena.edu.co",
-            password_hash=get_password_hash("123456"),
+            password_hash=get_password_hash(default_pwd),
             nombre="Administrador Sistema",
             rol="admin",
             sede="CGAO Vélez",
@@ -56,7 +61,7 @@ def seed_data():
     # Investigadores Líderes
     inv1 = User(
         email="m.rodriguez@sena.edu.co",
-        password_hash=get_password_hash("123456"),
+        password_hash=get_password_hash(default_pwd),
         nombre="Dra. Marta Rodríguez",
         rol="investigador",
         rol_sennova="Investigador Senior",
@@ -69,7 +74,7 @@ def seed_data():
     )
     inv2 = User(
         email="j.castro@sena.edu.co",
-        password_hash=get_password_hash("123456"),
+        password_hash=get_password_hash(default_pwd),
         nombre="Ing. Jorge Castro",
         rol="investigador",
         rol_sennova="Investigador Junior",
@@ -82,7 +87,7 @@ def seed_data():
     )
     inv3 = User(
         email="c.lopez@sena.edu.co",
-        password_hash=get_password_hash("123456"),
+        password_hash=get_password_hash(default_pwd),
         nombre="Mag. Clara López",
         rol="investigador",
         rol_sennova="Investigador Asociado",
@@ -99,7 +104,7 @@ def seed_data():
     # Aprendices ADSO
     apr1 = User(
         email="jperez@soy.sena.edu.co",
-        password_hash=get_password_hash("123456"),
+        password_hash=get_password_hash(default_pwd),
         nombre="Juan David Pérez",
         rol="aprendiz",
         rol_sennova="Aprendiz Investigador",
@@ -110,7 +115,7 @@ def seed_data():
     )
     apr2 = User(
         email="lmarcela@soy.sena.edu.co",
-        password_hash=get_password_hash("123456"),
+        password_hash=get_password_hash(default_pwd),
         nombre="Lina Marcela Duarte",
         rol="aprendiz",
         rol_sennova="Aprendiz Investigador",
@@ -122,7 +127,7 @@ def seed_data():
     # Aprendices Alimentos
     apr3 = User(
         email="csanchez@soy.sena.edu.co",
-        password_hash=get_password_hash("123456"),
+        password_hash=get_password_hash(default_pwd),
         nombre="Carlos Sánchez",
         rol="aprendiz",
         rol_sennova="Aprendiz Investigador",
@@ -134,7 +139,7 @@ def seed_data():
     # Aprendices Turismo
     apr4 = User(
         email="sruiz@soy.sena.edu.co",
-        password_hash=get_password_hash("123456"),
+        password_hash=get_password_hash(default_pwd),
         nombre="Sandra Ruiz",
         rol="aprendiz",
         rol_sennova="Aprendiz Investigador",

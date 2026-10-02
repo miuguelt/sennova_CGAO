@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "project": "sennova",
+  "jurisdiction": "CO",
+  "last_reviewed": "2026-10-01",
+  "verdict": {
+    "development_reference": "Solicitud explícita del usuario para procesar estos ejemplos en desarrollo",
+    "production_with_real_personal_data": "BLOCKED",
+    "technical_status": "Funcionalidad verificada en desarrollo; auditoría de dependencias pendiente antes de liberar"
+  },
+  "pending_blockers": [
+    {
+      "id": "institutional_authority",
+      "owner": "Responsable institucional por confirmar",
+      "decision_required": "Confirmar el tratamiento, la retención y la publicación de información personal en producción",
+      "status": "pending",
+      "evidence": null
+    }
+  ],
+  "ai_resume_contract": {
+    "preserve": [
+      "No inventar aprobación sectorial, firmas o resultados",
+      "Conservar fuentes y contradicciones del ejemplo",
+      "Mantener referencias privadas y excluir su fixture de Git"
+    ],
+    "next_actions": [
+      "Conservar la evidencia técnica en docs/architecture/construccion-documental.md",
+      "Resolver los hallazgos de dependencias antes de liberar",
+      "Solicitar decisiones institucionales al preparar una liberación"
+    ],
+    "approved_scope": "Construcción y verificación local autorizada por el usuario"
+  },
+  "audit_trail": {
+    "last_legal_change_reviewed_on": "2026-10-01",
+    "decision_humana": {
+      "source": "Solicitud del usuario en este chat",
+      "scope": "Uso de los documentos aportados como ejemplo para construir y verificar la funcionalidad en desarrollo",
+      "production_approval": null
+    }
+  }
+}

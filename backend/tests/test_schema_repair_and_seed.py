@@ -2,6 +2,7 @@
 
 import os
 import random
+from unittest.mock import Mock
 
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
@@ -28,7 +29,7 @@ def test_fix_schema_adds_document_description_and_is_idempotent(monkeypatch):
         fix_db_schema.fix_schema()
 
         columns = {column["name"] for column in inspect(engine).get_columns("documentos")}
-        assert columns == {"id", "descripcion"}
+        assert columns == {"id", "descripcion", "periodo_bimestre"}
     finally:
         engine.dispose()
 
@@ -45,6 +46,7 @@ def test_seed_database_uses_only_supported_roles_and_labels_group_members(monkey
     monkeypatch.setattr(seed_database, "SessionLocal", sessions)
     monkeypatch.setattr(seed_database, "fix_schema", lambda: None)
     monkeypatch.setattr(seed_database, "get_password_hash", lambda _password: "hash-de-prueba")
+    monkeypatch.setenv("DEV_SEED_PASSWORD", "fixture-password")
     previous_random_state = random.getstate()
     random.seed(731)
 
@@ -72,3 +74,45 @@ def test_seed_database_uses_only_supported_roles_and_labels_group_members(monkey
         seed_database.Base.metadata.drop_all(bind=engine)
         engine.dispose()
         random.setstate(previous_random_state)
+
+
+def test_seed_database_refuses_to_touch_database_without_configured_password(monkeypatch):
+    from scripts import seed_database
+
+    monkeypatch.delenv("INITIAL_ADMIN_PASSWORD", raising=False)
+    monkeypatch.delenv("DEV_SEED_PASSWORD", raising=False)
+    create_all = Mock()
+    session_factory = Mock()
+    monkeypatch.setattr(seed_database.Base.metadata, "create_all", create_all)
+    monkeypatch.setattr(seed_database, "SessionLocal", session_factory)
+
+    assert seed_database.seed_database(verbose=False) is False
+    create_all.assert_not_called()
+    session_factory.assert_not_called()
+
+
+def test_demo_seed_refuses_to_touch_database_without_configured_password(monkeypatch):
+    from scripts import seed_demo_data
+
+    monkeypatch.delenv("INITIAL_ADMIN_PASSWORD", raising=False)
+    monkeypatch.delenv("DEV_SEED_PASSWORD", raising=False)
+    create_all = Mock()
+    session_factory = Mock()
+    monkeypatch.setattr(seed_demo_data.Base.metadata, "create_all", create_all)
+    monkeypatch.setattr(seed_demo_data, "SessionLocal", session_factory)
+
+    assert seed_demo_data.seed_data() is False
+    create_all.assert_not_called()
+    session_factory.assert_not_called()
+
+
+def test_mass_seed_refuses_to_touch_database_without_configured_password(monkeypatch):
+    from scripts import seed_mass
+
+    monkeypatch.delenv("INITIAL_ADMIN_PASSWORD", raising=False)
+    monkeypatch.delenv("DEV_SEED_PASSWORD", raising=False)
+    session_factory = Mock()
+    monkeypatch.setattr(seed_mass, "SessionLocal", session_factory)
+
+    assert seed_mass.seed_data() is False
+    session_factory.assert_not_called()

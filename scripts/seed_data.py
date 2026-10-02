@@ -4,22 +4,22 @@ Script para poblar la base de datos SENNOVA CGAO con datos de ejemplo
 """
 import os
 import requests
+from qa_credentials import get_qa_credentials, get_qa_seed_password
 import json
 
 BASE_URL = os.getenv('API_URL', 'http://localhost:8000')
 
-def login():
+def login(credentials=None):
     """Login como admin y obtener token"""
-    resp = requests.post(f"{BASE_URL}/auth/login", json={
-        "email": "admin@sena.edu.co",
-        "password": "123456"
-    })
+    resp = requests.post(f"{BASE_URL}/auth/login", json=credentials or get_qa_credentials())
     if resp.status_code == 200:
         return resp.json()["access_token"]
     return None
 
 def seed_data():
-    token = login()
+    credentials = get_qa_credentials()
+    seed_password = get_qa_seed_password()
+    token = login(credentials)
     if not token:
         print("❌ Error: No se pudo iniciar sesión")
         return
@@ -33,9 +33,9 @@ def seed_data():
     # 1. Crear usuarios investigadores
     print("\n👥 Creando usuarios investigadores...")
     usuarios_data = [
-        {"email": "investigador1@sena.edu.co", "password": "123456", "nombre": "Carlos Rodríguez", "rol": "investigador", "sede": "CGAO Vélez", "regional": "Santander"},
-        {"email": "investigador2@sena.edu.co", "password": "123456", "nombre": "María González", "rol": "investigador", "sede": "CGAO Vélez", "regional": "Santander"},
-        {"email": "investigador3@sena.edu.co", "password": "123456", "nombre": "Ana Martínez", "rol": "investigador", "sede": "CGAO Vélez", "regional": "Santander"},
+        {"email": "investigador1@sena.edu.co", "password": seed_password, "nombre": "Carlos Rodríguez", "rol": "investigador", "sede": "CGAO Vélez", "regional": "Santander"},
+        {"email": "investigador2@sena.edu.co", "password": seed_password, "nombre": "María González", "rol": "investigador", "sede": "CGAO Vélez", "regional": "Santander"},
+        {"email": "investigador3@sena.edu.co", "password": seed_password, "nombre": "Ana Martínez", "rol": "investigador", "sede": "CGAO Vélez", "regional": "Santander"},
     ]
     
     for user in usuarios_data:

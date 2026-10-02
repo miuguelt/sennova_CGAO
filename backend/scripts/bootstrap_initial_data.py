@@ -6,6 +6,7 @@ Lo ejecuta el entrypoint del contenedor antes de arrancar Uvicorn:
 1. crea el esquema que falte,
 2. aplica las columnas añadidas después de la última versión del esquema,
 3. crea el administrador inicial a partir del entorno.
+4. completa el catálogo institucional de grupos sin borrar datos existentes.
 
 Termina con código distinto de cero cuando la configuración no permite crear un
 administrador seguro, para que el despliegue falle en el arranque en vez de
@@ -25,7 +26,12 @@ from app.bootstrap import (  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.database import Base, SessionLocal, engine  # noqa: E402
 from app import models  # noqa: E402,F401  (registra todas las tablas en Base)
+from app.research_catalog import (  # noqa: E402
+    ResearchCatalogError,
+    ensure_research_catalog,
+)
 from scripts.fix_db_schema import fix_schema  # noqa: E402
+from app.services.documentation_schema import upgrade_documentation_schema  # noqa: E402
 
 
 def bootstrap() -> int:
@@ -33,6 +39,7 @@ def bootstrap() -> int:
 
     print("🗄️  Verificando esquema de base de datos...")
     Base.metadata.create_all(bind=engine)
+    upgrade_documentation_schema(engine)
     fix_schema()
 
     print("👤 Verificando administrador inicial...")
@@ -45,13 +52,15 @@ def bootstrap() -> int:
             # producción la exigencia de longitud no es negociable.
             enforce_strong_password=not settings.DEBUG,
         )
-    except AdminBootstrapError as exc:
+        catalog = ensure_research_catalog(db)
+    except (AdminBootstrapError, ResearchCatalogError) as exc:
         print(f"❌ {exc}")
         return 1
     finally:
         db.close()
 
     print(f"✅ {result.detail}")
+    print(f"✅ Catálogo de grupos: {catalog.created} creados; {catalog.existing} existentes.")
     return 0
 
 

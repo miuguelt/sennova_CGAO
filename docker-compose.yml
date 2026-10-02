@@ -96,7 +96,8 @@ services:
       FRONTEND_URL: "${FRONTEND_URL:-https://${DOMAIN:-localhost}}"
       BACKEND_URL: "${BACKEND_URL:-https://${DOMAIN:-localhost}/api}"
       # ── Admin Inicial ──
-      # Unico dato de negocio que debe existir antes del primer arranque. Lo crea
+      # El administrador y el catálogo de 12 grupos se verifican antes del arranque.
+      # El catálogo agrega sólo grupos ausentes y conserva los datos vigentes. Lo crea
       # el entrypoint (scripts/bootstrap_initial_data.py) de forma idempotente:
       # en redespliegues no duplica el admin ni reescribe su contrasena.
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@sena.edu.co}
@@ -153,7 +154,7 @@ services:
       POSTGRES_DB: ${DB_NAME:-sennova}
       POSTGRES_USER: ${DB_USER:-sennova}
       POSTGRES_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el entorno seguro}"
-      POSTGRES_INITDB_ARGS: "--locale=es_CO.UTF-8 --encoding=UTF8"
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=es-CO --encoding=UTF8"
     command: >
       postgres
       -c shared_buffers=256MB

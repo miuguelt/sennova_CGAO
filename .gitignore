@@ -92,11 +92,15 @@ _archive*/
 scratch/
 debug_*
 docker-compose.override.yml
+.ruff_cache/
 # --- end DevBrain repo hygiene ---
 
 # Storage & Uploaded Documents (PDFs, media)
 storage/
 backend/storage/
+frontend/coverage-expediente/
+backend/tests/fixtures/project_documentation_reference.json
+backend/tests/fixtures/project_documentation_reference_cap14.json
 *.pdf
 
 # --- DevBrain: rastros de agentes IA (bloque gestionado) ---

@@ -5,10 +5,14 @@ Almacenamiento en disco (storage/documentos)
 """
 
 import base64
+import binascii
+import logging
+import math
 import os
 import uuid
 from typing import List, Optional
 from pathlib import Path
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Response
 from fastapi.responses import FileResponse
@@ -18,13 +22,14 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.auth import STAFF_ROLES, get_current_user
 from app.database import get_db
-from app.models import Aprendiz, Documento, User, Proyecto, Semillero
+from app.models import Aprendiz, Documento, Producto, User, Proyecto, Semillero
 from app.schemas import DocumentoResponse, DocumentoCreate
 from app.utils import log_actividad
 from app.services.project_access import can_access_project
 from app.services.proyectos_service import evaluar_y_auto_finalizar_proyecto
 
 router = APIRouter(prefix="/documentos", tags=["Documentos"])
+logger = logging.getLogger(__name__)
 
 # Configuración de almacenamiento
 settings = get_settings()
@@ -38,6 +43,13 @@ def _can_access_document(documento: Documento, user: User, db: Session) -> bool:
         return True
     if documento.entidad_tipo in {"general", "formato", "plantilla"}:
         return True
+    if documento.entidad_tipo == "producto":
+        product = db.query(Producto).filter(Producto.id == str(documento.entidad_id)).first()
+        if not product:
+            return False
+        if product.proyecto:
+            return can_access_project(product.proyecto, user)
+        return user.rol in STAFF_ROLES or str(product.owner_id) == str(user.id)
     if documento.entidad_tipo != "proyecto":
         return False
     project = db.query(Proyecto).filter(Proyecto.id == str(documento.entidad_id)).first()
@@ -102,10 +114,24 @@ ALLOWED_CONTENT_TYPES = [
     "image/jpeg",
     "image/png",
     "image/jpg",
+    "video/mp4",
 ]
 
+CONTENT_TYPES_BY_EXTENSION = {
+    ".pdf": "application/pdf",
+    ".doc": "application/msword",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xls": "application/vnd.ms-excel",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".mp4": "video/mp4",
+}
 
-def validate_file(file: UploadFile) -> tuple:
+
+def validate_file(file: UploadFile) -> str:
     """Valida tipo y tamaño de archivo."""
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
@@ -113,6 +139,96 @@ def validate_file(file: UploadFile) -> tuple:
             detail=f"Tipo de archivo no permitido. Permitidos: {ALLOWED_CONTENT_TYPES}"
         )
     return file.content_type
+
+
+def _validate_document_target(entidad_tipo: str, entidad_id: str, tipo: str,
+                              periodo_bimestre: Optional[int], user: User, db: Session) -> Optional[str]:
+    """Valida existencia, acceso y período antes de escribir el expediente."""
+    try:
+        entidad_id = str(UUID(entidad_id))
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(status_code=422, detail="El identificador de la entidad no es válido")
+    project = None
+    if entidad_tipo in {"general", "formato", "plantilla"}:
+        pass
+    elif entidad_tipo == "proyecto":
+        project = db.query(Proyecto).filter(Proyecto.id == entidad_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        if not can_access_project(project, user):
+            raise HTTPException(status_code=403, detail="Sin acceso al proyecto")
+    elif entidad_tipo == "producto":
+        product = db.query(Producto).filter(Producto.id == entidad_id).first()
+        if not product:
+            raise HTTPException(status_code=404, detail="Producto no encontrado")
+        project = product.proyecto
+        allowed = can_access_project(project, user) if project else (
+            user.rol in STAFF_ROLES or str(product.owner_id) == str(user.id)
+        )
+        if not allowed:
+            raise HTTPException(status_code=403, detail="Sin acceso al producto")
+    elif entidad_tipo == "user":
+        target = db.query(User).filter(User.id == entidad_id).first()
+        if not target:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        if user.rol != "admin" and str(target.id) != str(user.id):
+            raise HTTPException(status_code=403, detail="Solo puedes subir documentos a tu perfil")
+    else:
+        raise HTTPException(status_code=422, detail="Tipo de entidad no permitido")
+
+    if tipo in {"informe_bimensual", "informe_bimestral"}:
+        if entidad_tipo != "proyecto":
+            raise HTTPException(status_code=422, detail="El informe bimestral debe pertenecer a un proyecto")
+        if periodo_bimestre is None or periodo_bimestre < 1:
+            raise HTTPException(status_code=422, detail="Indica un período bimestral mayor o igual a 1")
+        if project.vigencia and project.vigencia > 0 and periodo_bimestre > math.ceil(project.vigencia / 2):
+            raise HTTPException(status_code=422, detail="El período bimestral supera la duración del proyecto")
+    elif periodo_bimestre is not None:
+        raise HTTPException(status_code=422, detail="El período bimestral solo corresponde a informes bimestrales")
+    return str(project.id) if project else None
+
+
+def _validate_content(content: bytes) -> None:
+    """Rechaza archivos vacíos o superiores al límite del centro documental."""
+    if not content:
+        raise HTTPException(status_code=400, detail="El archivo está vacío. Selecciona un archivo con contenido")
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="El archivo supera el máximo permitido de 10 MB")
+
+
+def _persist_document(documento: Documento, content: bytes, db: Session) -> Documento:
+    """Guarda el archivo y compensa la escritura si la transacción falla."""
+    file_path = STORAGE_DIR / f"{documento.id}{Path(documento.nombre_archivo).suffix.lower()}"
+    file_created = False
+    try:
+        with open(file_path, "xb") as file:
+            file_created = True
+            file.write(content)
+        documento.file_path = file_path.as_posix()
+        db.add(documento)
+        db.flush()
+        db.refresh(documento)
+        db.commit()
+    except Exception:
+        db.rollback()
+        if file_created:
+            try:
+                file_path.unlink(missing_ok=True)
+            except OSError:
+                logger.exception("No se pudo retirar el archivo de la transacción fallida")
+        logger.exception("No se pudo guardar el documento")
+        raise HTTPException(status_code=500, detail="No se pudo guardar el documento. Intenta nuevamente")
+    return documento
+
+
+def _evaluate_project_completion(project_id: Optional[str], db: Session) -> None:
+    """Actualiza el cierre al incorporar cualquier soporte del expediente."""
+    if project_id:
+        try:
+            evaluar_y_auto_finalizar_proyecto(project_id, db)
+        except Exception:
+            db.rollback()
+            logger.exception("El documento se guardó, pero no se pudo evaluar el cierre del proyecto")
 
 
 @router.get("", response_model=List[DocumentoResponse])
@@ -146,12 +262,21 @@ def list_documentos(
                 )
             allowed_projects = db.query(Proyecto.id).filter(project_access)
 
+        allowed_products = db.query(Producto.id).filter(or_(
+            Producto.owner_id == str(current_user.id),
+            Producto.proyecto_id.in_(allowed_projects),
+        )) if current_user.rol not in STAFF_ROLES else db.query(Producto.id)
+
         query = query.filter(or_(
             Documento.owner_id == str(current_user.id),
             Documento.entidad_tipo.in_(["general", "formato", "plantilla"]),
             and_(
                 Documento.entidad_tipo == "proyecto",
                 Documento.entidad_id.in_(allowed_projects),
+            ),
+            and_(
+                Documento.entidad_tipo == "producto",
+                Documento.entidad_id.in_(allowed_products),
             ),
         ))
     
@@ -189,44 +314,33 @@ def create_documento_base64(
     if current_user.rol == "aprendiz":
         raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para subir documentos")
 
-    doc_id = str(uuid.uuid4())
-    file_ext = data.nombre_archivo.split('.')[-1] if '.' in data.nombre_archivo else 'bin'
-    file_name = f"{doc_id}.{file_ext}"
-    file_path = STORAGE_DIR / file_name
-
+    project_id = _validate_document_target(data.entidad_tipo, str(data.entidad_id), data.tipo,
+                                            data.periodo_bimestre, current_user, db)
+    content_type = CONTENT_TYPES_BY_EXTENSION.get(Path(data.nombre_archivo).suffix.lower())
+    if not content_type:
+        raise HTTPException(status_code=400, detail="Tipo de archivo no permitido")
+    if len(data.data_base64) > 4 * ((MAX_FILE_SIZE + 2) // 3):
+        raise HTTPException(status_code=400, detail="El archivo supera el máximo permitido de 10 MB")
     try:
-        binary_data = base64.b64decode(data.data_base64)
-        with open(file_path, "wb") as f:
-            f.write(binary_data)
-    except Exception:
-        file_path = None
+        binary_data = base64.b64decode(data.data_base64, validate=True)
+    except (ValueError, binascii.Error):
+        raise HTTPException(status_code=400, detail="El contenido base64 no es válido")
+    _validate_content(binary_data)
 
     documento = Documento(
-        id=doc_id,
+        id=str(uuid.uuid4()),
         entidad_tipo=data.entidad_tipo,
         entidad_id=str(data.entidad_id),
         tipo=data.tipo,
         nombre_archivo=data.nombre_archivo,
         descripcion=data.descripcion,
-        file_path=str(file_path) if file_path else None,
-        data_base64=data.data_base64 if not file_path else None,
-        content_type="application/pdf" if data.nombre_archivo.endswith(".pdf") else "application/octet-stream",
+        periodo_bimestre=data.periodo_bimestre,
+        content_type=content_type,
         owner_id=str(current_user.id)
     )
 
-    db.add(documento)
-    try:
-        db.commit()
-        db.refresh(documento)
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
-    if data.entidad_tipo == "proyecto" and data.tipo == "informe_final":
-        try:
-            evaluar_y_auto_finalizar_proyecto(str(data.entidad_id), db)
-        except Exception:
-            pass
+    _persist_document(documento, binary_data, db)
+    _evaluate_project_completion(project_id, db)
 
     return documento
 
@@ -237,6 +351,7 @@ async def upload_documento(
     entidad_id: Optional[str] = Form(None),
     tipo: Optional[str] = Form("evidencia", description="Tipo: cvlac_pdf, acta, contrato, informe, evidencia, soporte_minciencias, otro"),
     descripcion: Optional[str] = Form(None, description="Descripción de la evidencia o referencia documental"),
+    periodo_bimestre: Optional[int] = Form(None, description="Número del período del informe bimestral"),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -246,59 +361,35 @@ async def upload_documento(
         raise HTTPException(status_code=422, detail="El tipo de adjunto de bitácora ya no está disponible. Seleccione otro tipo de documento.")
     if current_user.rol == "aprendiz":
         raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para subir documentos")
-    content_type = validate_file(file)
-    
-    content = await file.read()
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="Archivo excede 10MB máximo")
-    
-    doc_id = str(uuid.uuid4())
-    file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'bin'
-    file_name = f"{doc_id}.{file_ext}"
-    file_path = STORAGE_DIR / file_name
-    
-    with open(file_path, "wb") as f:
-        f.write(content)
-    
     resolved_entidad_tipo = entidad_tipo or "general"
-    resolved_entidad_id = entidad_id if (entidad_id and entidad_id.strip()) else str(current_user.id)
+    if resolved_entidad_tipo in {"proyecto", "producto", "user"} and not (entidad_id and entidad_id.strip()):
+        raise HTTPException(status_code=422, detail="Indica la entidad a la que pertenece el documento")
+    resolved_entidad_id = entidad_id.strip() if (entidad_id and entidad_id.strip()) else str(current_user.id)
     resolved_tipo = tipo or "evidencia"
+    project_id = _validate_document_target(resolved_entidad_tipo, resolved_entidad_id, resolved_tipo,
+                                            periodo_bimestre, current_user, db)
+    resolved_entidad_id = str(UUID(resolved_entidad_id))
+    content_type = validate_file(file)
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="El archivo debe tener un nombre")
+    content = await file.read(MAX_FILE_SIZE + 1)
+    _validate_content(content)
     
     # Crear documento en BD
     documento = Documento(
-        id=doc_id,
+        id=str(uuid.uuid4()),
         entidad_tipo=resolved_entidad_tipo,
         entidad_id=resolved_entidad_id,
         tipo=resolved_tipo,
         nombre_archivo=file.filename,
         descripcion=descripcion.strip() if descripcion and descripcion.strip() else None,
         content_type=content_type,
-        file_path=str(file_path).replace("\\", "/"),
+        periodo_bimestre=periodo_bimestre,
         owner_id=str(current_user.id)
     )
     
-    db.add(documento)
-    try:
-        db.commit()
-    except Exception as __db_err:
-        import logging
-        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
-        try:
-            if 'session' in globals() or 'session' in locals():
-                db.session.rollback()
-            else:
-                db.rollback()
-        except Exception:
-            pass
-    db.refresh(documento)
-    
-    # Si se subió un informe final de proyecto, evaluar auto-finalización
-    if resolved_entidad_tipo == "proyecto" and resolved_tipo == "informe_final":
-        try:
-            evaluar_y_auto_finalizar_proyecto(resolved_entidad_id, db)
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning("Error al evaluar auto-finalización tras subir informe_final: %s", e)
+    _persist_document(documento, content, db)
+    _evaluate_project_completion(project_id, db)
 
     return documento
 
@@ -365,25 +456,19 @@ def delete_documento(
         elif os.path.exists(STORAGE_DIR / Path(doc.file_path).name):
             target_path = STORAGE_DIR / Path(doc.file_path).name
 
-    if target_path and os.path.exists(target_path):
-        try:
-            os.remove(target_path)
-        except Exception as e:
-            print(f"⚠️ Error al eliminar archivo físico: {e}")
-            
     db.delete(doc)
     try:
         db.commit()
-    except Exception as __db_err:
-        import logging
-        logging.getLogger(__name__).warning('DB Commit falló (infraestructura): %s', __db_err)
+    except Exception:
+        db.rollback()
+        logger.exception("No se pudo eliminar el documento de la base de datos")
+        raise HTTPException(status_code=500, detail="No se pudo eliminar el documento. Intenta nuevamente")
+    if target_path:
         try:
-            if 'session' in globals() or 'session' in locals():
-                db.session.rollback()
-            else:
-                db.rollback()
-        except Exception:
-            pass
+            Path(target_path).unlink(missing_ok=True)
+        except OSError:
+            logger.exception("El registro se eliminó, pero falta retirar el archivo físico")
+            raise HTTPException(status_code=500, detail="El registro se eliminó, pero no se pudo retirar el archivo físico")
     
     return {"message": "Documento eliminado"}
 

@@ -5,6 +5,7 @@ Genera reporte en formato de tabla
 """
 import os
 import requests
+from qa_credentials import get_qa_credentials, get_qa_seed_password
 import json
 from datetime import datetime
 
@@ -18,12 +19,9 @@ class Colors:
     RESET = "\033[0m"
     BOLD = "\033[1m"
 
-def login():
+def login(credentials=None):
     """Login como admin y obtener token"""
-    resp = requests.post(f"{BASE_URL}/auth/login", json={
-        "email": "admin@sena.edu.co",
-        "password": "123456"
-    })
+    resp = requests.post(f"{BASE_URL}/auth/login", json=credentials or get_qa_credentials())
     if resp.status_code == 200:
         return resp.json()["access_token"]
     return None
@@ -44,7 +42,9 @@ def print_table_footer():
     print(f"{Colors.BOLD}{'='*100}{Colors.RESET}\n")
 
 def test_all_tables():
-    token = login()
+    credentials = get_qa_credentials()
+    seed_password = get_qa_seed_password()
+    token = login(credentials)
     if not token:
         print(f"{Colors.RED}❌ Error: No se pudo iniciar sesión{Colors.RESET}")
         return
@@ -71,7 +71,7 @@ def test_all_tables():
     # CREATE Usuario
     user_data = {
         "email": f"testuser_{datetime.now().timestamp()}@sena.edu.co",
-        "password": "123456",
+        "password": get_qa_seed_password(),
         "nombre": "Usuario de Prueba",
         "rol": "investigador"
     }
@@ -200,7 +200,7 @@ def test_all_tables():
             r = requests.post(f"{BASE_URL}/semilleros/{semillero_id}/aprendices/full", headers=headers, json={
                 "email": f"aprendiz_{datetime.now().timestamp()}@sena.edu.co",
                 "nombre": "Aprendiz de Prueba",
-                "password": "password123",
+                "password": seed_password,
                 "ficha": "12345678",
                 "programa_formacion": "ADSO",
                 "semillero_id": str(semillero_id),

@@ -264,10 +264,8 @@ Write-Status "═ PASO 4: Ejecutando Pruebas de Funcionamiento ═" $Cyan
 # Test 1: Login
 Write-Status "Test 1: Login..." $Cyan
 try {
-    $LoginBody = @{
-        email = "admin@sena.edu.co"
-        password = "123456"
-    } | ConvertTo-Json
+    if (-not $env:SENNOVA_QA_EMAIL -or -not $env:SENNOVA_QA_PASSWORD) { throw 'Define las variables QA del proyecto para comprobar el inicio de sesión.' }
+    $LoginBody = @{ email = $env:SENNOVA_QA_EMAIL; password = $env:SENNOVA_QA_PASSWORD } | ConvertTo-Json
     
     $LoginResponse = Invoke-WebRequest -Uri "$ApiUrl/auth/login" -Method POST -Body $LoginBody -ContentType "application/json" -TimeoutSec 10 -UseBasicParsing
     
@@ -349,7 +347,7 @@ if ($BackendOk -and $FrontendOk) {
     Write-Status "║         ✅ SISTEMA LISTO PARA USO                           ║" $Green
     Write-Status "║                                                              ║" $Green
     Write-Status "║   Accede al sistema: http://localhost:3001                   ║" $Green
-    Write-Status "║   Login: admin@sena.edu.co / 123456                         ║" $Green
+    Write-Status "Configure las variables QA para verificar el acceso" $Green
     Write-Status "╚══════════════════════════════════════════════════════════════╝" $Green
 } else {
     Write-Status "╔══════════════════════════════════════════════════════════════╗" $Red

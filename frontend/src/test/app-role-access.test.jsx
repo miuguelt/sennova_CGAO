@@ -49,11 +49,16 @@ vi.mock('../components/dashboard/DashboardModule', () => ({
   ),
 }));
 vi.mock('../components/projects/ProyectosModule', () => ({
-  default: ({ initialAction, onActionHandled }) => (
+  default: ({ initialAction, onActionHandled, refreshVersion }) => {
+    const [evidenceOpen, setEvidenceOpen] = React.useState(false);
+    return (
     <div data-testid="vista-proyectos" data-action={initialAction?.form || ''}>
       {initialAction && <button onClick={onActionHandled}>Acción gestionada</button>}
+      <button onClick={() => setEvidenceOpen(true)}>Abrir expediente documental</button>
+      {evidenceOpen && <div data-testid="expediente-abierto" data-revision={refreshVersion}>Expediente abierto</div>}
     </div>
-  ),
+    );
+  },
 }));
 vi.mock('../components/users/InvestigadoresModule', () => ({ default: () => <div data-testid="vista-investigadores" /> }));
 vi.mock('../components/auth/LoginScreen', () => ({ default: () => null }));
@@ -103,6 +108,15 @@ vi.mock('../utils/dataRefresh', () => ({ subscribeToDataRefresh: (listener) => {
 import React from 'react';
 
 describe('Acceso a vistas desde la aplicación', () => {
+  it('mantiene abierto el expediente mientras refresca proyectos tras adjuntar un documento', () => {
+    authState.currentUser = { id: 'admin-1', rol: 'admin' };
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir proyectos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir expediente documental' }));
+    expect(screen.getByTestId('expediente-abierto')).toHaveAttribute('data-revision', '0');
+    act(() => refreshState.listener({ endpoint: '/documentos/upload', method: 'POST' }));
+    expect(screen.getByTestId('expediente-abierto')).toHaveAttribute('data-revision', '1');
+  });
   beforeEach(() => {
     authState.currentUser = { id: 'learner-1', nombre: 'Aprendiz', rol: 'aprendiz' };
     authState.loading = false;

@@ -10,6 +10,7 @@ on:
       - 'hotfix/**'
       - 'bugfix/**'
       - 'support/**'
+      - 'codex/**'
     types: [opened, synchronize, reopened]
   push:
     branches:
@@ -21,6 +22,7 @@ on:
       - 'hotfix/**'
       - 'bugfix/**'
       - 'support/**'
+      - 'codex/**'
   workflow_dispatch:
 
 concurrency:
@@ -47,8 +49,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
-          pip install pytest httpx pytest-cov
+          pip install -r backend/requirements-test.txt
 
       - name: Run Backend Pytest Suite
         working-directory: ./backend
@@ -81,6 +82,50 @@ jobs:
           echo "- **Estado**: ${{ job.status == 'success' && '✅ Aprobado' || '❌ Fallido' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Ramas aplicables**: GitFlow PRs y ramas de desarrollo" >> $GITHUB_STEP_SUMMARY
           echo "- **Alcance**: Auditoría E2E, Roles, Grupos, Convocatorias, Proyectos, Productos MinCiencias, Mensajería y Adjuntos" >> $GITHUB_STEP_SUMMARY
+
+  postgres-integration:
+    name: Integración real del expediente en PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: sennova_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_INITDB_ARGS: --locale-provider=icu --icu-locale=es-CO --encoding=UTF8
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sennova_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements-test.txt
+      - name: Instalar dependencias de prueba
+        run: pip install -r backend/requirements-test.txt
+      - name: Generar secreto efímero de autenticación
+        shell: python
+        run: |
+          import os, secrets
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              env.write('JWT_SECRET=' + secrets.token_urlsafe(48) + '\n')
+      - name: Verificar UUID, relaciones, períodos y ZIP con el motor de producción
+        working-directory: backend
+        env:
+          DEBUG: 'true'
+          DATABASE_URL: postgresql+psycopg://postgres@localhost:5432/sennova_test
+          SENNOVA_TEST_POSTGRES_DSN: postgresql+psycopg://postgres@localhost:5432/sennova_test
+        run: python -m pytest integration_tests/ -v --tb=short --junitxml=postgres-results.xml
+      - name: Publicar resultado PostgreSQL
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-integration-${{ github.run_id }}
+          path: backend/postgres-results.xml
 
   frontend-tests-and-build:
     name: Frontend Vitest, cobertura global de funciones y compilación

@@ -34,6 +34,7 @@ import { PDFGenerator } from '../../utils/pdfGenerator';
 import ProyectoEquipoTab from './ProyectoEquipoTab';
 import ProjectFormulationImport from './ProjectFormulationImport';
 import ProjectSourceDocuments from './ProjectSourceDocuments';
+import ProjectEvidenceFile from './ProjectEvidenceFile';
 import MoverProyectoSemilleroModal from './MoverProyectoSemilleroModal';
 
 // ─── Gantt Component ──────────────────────────────────────────────────────────
@@ -109,7 +110,7 @@ const ProjectTimeline = ({ entregables = [] }) => {
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const STATES = ['Aprobado', 'En ejecución', 'Finalizado'];
+const STATES = ['Aprobado', 'En ejecución', 'Finalizado', 'Referencia'];
 
 const RUBROS = [
   { id: 'personal', label: 'Talento Humano', icon: Users, color: 'text-emerald-600' },
@@ -144,6 +145,7 @@ const STATE_DOT = {
   'Aprobado':     'bg-blue-500',
   'En ejecución': 'bg-emerald-500',
   'Finalizado':   'bg-slate-500',
+  'Referencia':   'bg-indigo-500',
 };
 
 const normalizeEstado = (estado) => {
@@ -222,10 +224,13 @@ const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick,
     ].join(' ')}
   >
     {/* Top row */}
-    <div className="flex items-center justify-between mb-3">
-      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md font-mono">
-        {p.codigo_sgps || 'S/C'}
-      </span>
+    <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md font-mono">
+          {p.codigo_sgps || 'S/C'}
+        </span>
+        {p.estado === 'Referencia' && <StatusBadge estado={p.estado} />}
+      </div>
       <div className="relative" ref={isMenuOpen ? menuRef : null}>
         <button
           aria-label="Opciones del proyecto"
@@ -339,7 +344,7 @@ const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick,
 );
 
 // ─── Main module ──────────────────────────────────────────────────────────────
-const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled }) => {
+const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled, refreshVersion = 0 }) => {
   const [proyectos,        setProyectos]        = useState([]);
   const [retosDisponibles, setRetosDisponibles] = useState([]);
   const [convocatorias,    setConvocatorias]    = useState([]);
@@ -389,7 +394,11 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
   useClickOutside(menuRef, () => setMenuOpenId(null));
 
-  useEffect(() => { loadData(true); }, []);
+  const initialLoad = useRef(true);
+  useEffect(() => {
+    loadData(initialLoad.current);
+    initialLoad.current = false;
+  }, [refreshVersion]);
 
   // Close menus on click outside
   useEffect(() => {
@@ -971,7 +980,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
       {/* ── Kanban ── */}
       {viewMode === 'kanban' ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pb-6 min-h-[60vh]">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 pb-6 min-h-[60vh]">
           {STATES.map(state => {
             const cards = byState(state);
             const totalBudget = cards.reduce((sum, c) => sum + (Number(c.presupuesto_total) || 0), 0);
@@ -980,6 +989,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               'Aprobado':     { border: 'border-blue-300', bg: 'bg-blue-50', badge: 'bg-blue-100 text-blue-950 font-black border border-blue-200', text: 'text-blue-950 font-black', dot: 'bg-blue-600' },
               'En ejecución': { border: 'border-emerald-300', bg: 'bg-emerald-50', badge: 'bg-emerald-100 text-emerald-950 font-black border border-emerald-200', text: 'text-emerald-950 font-black', dot: 'bg-emerald-600' },
               'Finalizado':   { border: 'border-slate-300', bg: 'bg-slate-100/80', badge: 'bg-slate-200 text-slate-950 font-black border border-slate-300', text: 'text-slate-950 font-black', dot: 'bg-slate-600' },
+              'Referencia':   { border: 'border-indigo-300', bg: 'bg-indigo-50', badge: 'bg-indigo-100 text-indigo-950 font-black border border-indigo-200', text: 'text-indigo-950 font-black', dot: 'bg-indigo-600' },
             };
             const theme = headerThemes[state] || headerThemes['Aprobado'];
 
@@ -1214,6 +1224,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
         }
         tabs={[
           { id: 'summary', label: 'Resumen', icon: FileText },
+          { id: 'evidence', label: 'Expediente', icon: FolderOpen },
           { id: 'team', label: 'Equipo', icon: Users },
           { id: 'timeline', label: 'Línea de Tiempo', icon: Clock3 },
           { id: 'formats', label: 'Formatos', icon: FileText },
@@ -1392,6 +1403,10 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                   </p>
                 </div>
               </div>
+            )}
+
+            {activeTab === 'evidence' && (
+              <ProjectEvidenceFile projectId={selectedProyecto.id} currentUser={currentUser} onNotify={onNotify} />
             )}
 
             {activeTab === 'team' && (

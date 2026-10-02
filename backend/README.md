@@ -5,7 +5,7 @@ Backend RESTful para el Sistema de Gestión de Investigación del CGAO Vélez - 
 ## 🏗️ Arquitectura
 
 - **Framework:** FastAPI (Python 3.11)
-- **Base de Datos:** PostgreSQL 15
+- **Base de Datos:** PostgreSQL 16
 - **ORM:** SQLAlchemy 2.0
 - **Auth:** JWT (python-jose) + bcrypt
 - **Deploy:** Docker + Coolify
@@ -16,13 +16,14 @@ Backend RESTful para el Sistema de Gestión de Investigación del CGAO Vélez - 
 
 ```bash
 # Instalar PostgreSQL
+export DB_PASSWORD='<CLAVE_SEGURA_DE_POSTGRES>'
 docker run -d \
   --name sennova-postgres \
   -e POSTGRES_USER=sennova \
-  -e POSTGRES_PASSWORD=sennova123 \
+  -e POSTGRES_PASSWORD="$DB_PASSWORD" \
   -e POSTGRES_DB=sennova \
   -p 5432:5432 \
-  postgres:15-alpine
+  postgres:16-alpine
 ```
 
 ### 2. Backend
@@ -67,7 +68,6 @@ docker-compose logs -f backend
 |----------|--------|-------------|
 | Backend | 8000 | API FastAPI |
 | PostgreSQL | 5432 | Base de datos |
-| pgAdmin | 5050 | Admin de BD (admin@sena.edu.co / admin123) |
 
 ## 📁 Estructura
 
@@ -103,7 +103,7 @@ Authorization: Bearer <token>
 ```bash
 curl -X POST http://localhost:8000/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email": "admin@sena.edu.co", "password": "123456"}'
+  -d '{"email": "admin@sena.edu.co", "password": "<CLAVE_DEL_ADMINISTRADOR>"}'
 ```
 
 ### Roles:
@@ -137,7 +137,7 @@ python scripts/migrate_from_indexeddb.py backup_sennova.json
 
 ## 💾 Backup y Restore
 
-### Backup automático (cada 6 horas):
+### Copia de seguridad automática (cada 24 horas):
 ```bash
 # Configurado en docker-compose.yml
 # Backups en: ./backups/
@@ -155,12 +155,15 @@ docker exec -i sennova-postgres psql -U sennova sennova < backup_20240115.sql
 
 ## 🔧 Variables de Entorno
 
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `DATABASE_URL` | postgresql://... | URL de conexión PostgreSQL |
-| `JWT_SECRET` | sennova-secret... | Clave secreta para JWT |
-| `JWT_EXPIRATION_HOURS` | 24 | Horas de validez del token |
-| `ALLOWED_ORIGINS` | localhost:5173 | Orígenes CORS permitidos |
+| Variable | Uso |
+|----------|-----|
+| `DB_PASSWORD` | Contraseña de PostgreSQL requerida por Docker Compose. |
+| `JWT_SECRET` | Clave para firmar sesiones; debe tener al menos 32 caracteres. |
+| `INITIAL_ADMIN_PASSWORD` | Contraseña requerida para crear el administrador inicial. |
+
+Docker Compose define los valores predeterminados para la conexión a la base de
+datos, el servidor y el frontend. Configure otras variables solo cuando necesite
+ajustar una opción de la aplicación.
 
 ## 🧪 Testing
 

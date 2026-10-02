@@ -41,6 +41,14 @@ describe('API Config', () => {
   });
 
   describe('fetchAPI', () => {
+    it('conserva el estado HTTP de un conflicto para conciliar revisiones', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false, status: 409,
+        json: () => Promise.resolve({ detail: 'Otra persona guardó cambios.' }),
+      });
+      await expect(fetchAPI('/proyectos/example/documentacion/comunes', { method: 'PUT', body: '{}' }))
+        .rejects.toMatchObject({ status: 409, message: 'Otra persona guardó cambios.' });
+    });
     it('performs a successful GET request', async () => {
       const mockData = { id: 1, name: 'Test' };
       global.fetch = vi.fn().mockResolvedValue({

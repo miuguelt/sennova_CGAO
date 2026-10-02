@@ -55,7 +55,8 @@ def fix_schema():
             ("fecha_entrega", "TIMESTAMP")
         ],
         "documentos": [
-            ("descripcion", "TEXT")
+            ("descripcion", "TEXT"),
+            ("periodo_bimestre", "INTEGER")
         ]
     }
     

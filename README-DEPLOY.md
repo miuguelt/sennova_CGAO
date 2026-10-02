@@ -24,69 +24,66 @@ Asegúrate de que estos archivos estén en tu repositorio:
 │   ├── Dockerfile
 │   ├── nginx.conf
 │   └── src/
-├── docker-compose.prod.yml
+├── docker-compose.yml
 ├── coolify.json
 └── .env.example
 ```
 
 ### 1.2 Configurar Variables de Entorno
 
-1. Copia el archivo de ejemplo:
+1. Copia el archivo de ejemplo, que contiene solo las tres variables obligatorias:
    ```bash
    cp .env.example .env
    ```
 
-2. Edita `.env` con valores seguros para producción:
+2. Asigna valores seguros a estas variables en `.env`:
    ```env
-   DB_PASSWORD=tu_contraseña_segura_de_postgres_2024
-   JWT_SECRET=genera_un_string_de_32_caracteres_o_mas_aqui
-   ALLOWED_ORIGINS=https://sennova.tucoolify.app,https://api-sennova.tucoolify.app
-   VITE_API_URL=https://api-sennova.tucoolify.app
-   INITIAL_ADMIN_EMAIL=admin@sena.edu.co
-   INITIAL_ADMIN_PASSWORD=admin_password_segura_2024
+   DB_PASSWORD=<CLAVE_SEGURA_DE_POSTGRES>
+   JWT_SECRET=<CLAVE_ALEATORIA_DE_32_CARACTERES_O_MAS>
+   INITIAL_ADMIN_PASSWORD=<CLAVE_SEGURA_DEL_ADMINISTRADOR>
    ```
 
-> ⚠️ **IMPORTANTE**: Genera un JWT_SECRET seguro con al menos 32 caracteres.
+El frontend usa `/api` a través del proxy interno de Nginx. Los demás parámetros
+se resuelven con valores predeterminados y solo requieren ajuste en despliegues
+con una topología diferente.
 
 ## 🌐 Paso 2: Configurar en Coolify
 
 ### 2.1 Crear Nuevo Proyecto
 
-1. Inicia sesión en tu panel de Coolify
-2. Clic en **"New Project"**
-3. Selecciona **"Docker Compose"** como tipo de aplicación
-4. Conecta tu repositorio de GitHub/GitLab
-5. Selecciona la rama principal (main/master)
+1. Inicia sesión en tu panel de Coolify.
+2. Haz clic en **"New Project"**.
+3. Selecciona **"Docker Compose"** como tipo de aplicación.
+4. Conecta tu repositorio de GitHub o GitLab.
+5. Selecciona la rama principal (`main` o `master`).
 
 ### 2.2 Configuración de Variables de Entorno
 
-En la sección **"Environment Variables"** de Coolify, agrega todas las variables del archivo `.env`:
+En la sección **"Environment Variables"** de Coolify, configura solo estas tres variables:
 
-| Variable | Valor de Ejemplo | Descripción |
-|----------|------------------|-------------|
-| `DB_PASSWORD` | `SecureP4ssw0rd!` | Contraseña de PostgreSQL |
-| `JWT_SECRET` | `min32chars_secret_key_here_abc123xyz` | Secret para JWT |
-| `ALLOWED_ORIGINS` | `https://sennova.tu.coolify.app` | Dominios permitidos CORS |
-| `VITE_API_URL` | `https://api-sennova.tu.coolify.app` | URL del backend |
-| `INITIAL_ADMIN_EMAIL` | `admin@sena.edu.co` | Email admin inicial |
-| `INITIAL_ADMIN_PASSWORD` | `AdminP4ssw0rd!2024` | Contraseña admin inicial (mínimo 7 caracteres) |
+| Variable | Descripción |
+|----------|-------------|
+| `DB_PASSWORD` | Contraseña de PostgreSQL. Usa una clave segura de al menos 12 caracteres. |
+| `JWT_SECRET` | Clave aleatoria para firmar sesiones; debe tener al menos 32 caracteres. |
+| `INITIAL_ADMIN_PASSWORD` | Contraseña para crear el administrador inicial. |
+
+No necesitas registrar variables para el proxy del frontend ni CORS en la
+instalación estándar. Coolify aplica los valores predeterminados; ajusta otras
+opciones solo cuando las necesites.
 
 ### 2.3 Configurar Dominios
 
-1. Frontend: Configura el dominio principal (ej: `sennova.tucoolify.app`)
-2. Backend: Configura el subdominio para la API (ej: `api-sennova.tucoolify.app`)
-3. pgAdmin (opcional): `pgadmin-sennova.tucoolify.app`
+1. Frontend: configura el dominio principal (por ejemplo, `sennova.tucoolify.app`).
+
+El frontend enruta las solicitudes de `/api` al backend por la red interna de
+Docker. No necesitas asignar un dominio público al backend para la instalación
+estándar.
 
 ### 2.4 Configurar Volúmenes Persistentes
 
-En Coolify, asegúrate de configurar estos volúmenes:
-
-```yaml
-volumes:
-  - postgres_data:/var/lib/postgresql/data    # Datos de BD
-  - sennova_storage:/app/storage               # Archivos del sistema
-  - backup_data:/backups                       # Backups automáticos
-```
+El archivo `docker-compose.yml` declara los volúmenes persistentes de la base de
+datos, los archivos cargados y las copias de seguridad. Confirma que Coolify los
+conserve entre despliegues.
 
 ## 🚀 Paso 3: Desplegar
 
@@ -98,16 +95,13 @@ volumes:
 
 ### 3.2 Verificar Despliegue
 
-1. **Health Check Backend**:
+1. **Estado del backend**:
    ```
-   https://api-sennova.tucoolify.app/health
+   https://sennova.tucoolify.app/health
    ```
    Debe responder: `{"status": "ok", "version": "2.0.0"}`
 
-2. **Documentación API**:
-   ```
-   https://api-sennova.tucoolify.app/docs
-   ```
+2. La documentación interactiva de la API está desactivada en producción.
 
 3. **Frontend**:
    ```
@@ -116,11 +110,12 @@ volumes:
 
 ## 🔒 Paso 4: Configuraciones de Seguridad
 
-### 4.1 Cambiar Contraseñas por Defecto
+### 4.1 Confirmar el acceso inicial
 
-1. Accede al sistema con las credenciales iniciales
-2. Ve a "Gestión de Usuarios"
-3. Cambia la contraseña del administrador
+1. Inicia sesión con el correo predeterminado `admin@sena.edu.co` y el valor de
+   `INITIAL_ADMIN_PASSWORD` que configuraste en Coolify.
+2. Entra a **Gestión de Usuarios** y cambia la contraseña cuando la política
+   institucional lo requiera.
 
 ### 4.2 Configurar HTTPS
 
@@ -130,17 +125,15 @@ Coolify configura HTTPS automáticamente con Let's Encrypt si tienes:
 
 ### 4.3 Firewall y Seguridad
 
-En Coolify, el único servicio expuesto externamente debe ser:
-- **Frontend**: Puerto 80/443
-- **Backend**: Puerto 8000 (si accedes directamente)
-
-Los demás servicios (PostgreSQL, pgAdmin) deben estar en la red interna.
+Expón el frontend por los puertos 80/443. El backend y PostgreSQL deben
+permanecer en la red interna; Nginx enruta las solicitudes de API desde el
+frontend.
 
 ## 🔄 Paso 5: Mantenimiento
 
 ### 5.1 Backups Automáticos
 
-El sistema incluye un servicio de backup que crea dumps cada 6 horas:
+El sistema incluye un servicio de respaldo que crea copias cada 24 horas:
 
 ```bash
 # Ver backups en el contenedor
@@ -167,19 +160,21 @@ curl https://api-sennova.tucoolify.app/health
 
 ### Problema: CORS Error
 
-**Solución**: Verifica que `ALLOWED_ORIGINS` incluya tu dominio exacto de Coolify.
+**Solución**: Si el frontend y la API usan dominios diferentes, configura
+`ALLOWED_ORIGINS` con el origen exacto del frontend. En la instalación estándar,
+ambos se comunican mediante el proxy interno de Nginx.
 
 ### Problema: Base de datos no conecta
 
 **Solución**:
 1. Verifica que el servicio `postgres` esté healthy
-2. Revisa que `DB_PASSWORD` coincida en todas las variables
+2. Confirma que PostgreSQL y el backend reciban el mismo valor de `DB_PASSWORD`.
 3. Verifica la URL de conexión en los logs del backend
 
 ### Problema: Frontend no muestra datos
 
 **Solución**:
-1. Verifica que `VITE_API_URL` apunte correctamente al backend
+1. Confirma que el frontend use `/api` y que el proxy interno de Nginx esté activo.
 2. Revisa la consola del navegador (F12)
 3. Verifica que el backend responda correctamente
 
@@ -199,9 +194,7 @@ curl https://api-sennova.tucoolify.app/health
 
 1. **NO** subas el archivo `.env` real al repositorio
 2. Los volúmenes de Coolify persisten entre despliegues
-3. El servicio `backup` crea dumps automáticos cada 6 horas
-4. pgAdmin está comentado en `docker-compose.prod.yml` por seguridad
-5. El backend usa SQLite como fallback solo si PostgreSQL no está disponible
+3. El servicio `sennova-backup` crea copias automáticas cada 24 horas.
 
 ## 🆘 Soporte
 
@@ -209,7 +202,7 @@ Si encuentras problemas:
 
 1. Revisa los logs en Coolify (Deployment Logs)
 2. Verifica la conectividad entre servicios
-3. Asegúrate de que todas las variables de entorno estén configuradas
+3. Confirma que estén configuradas `DB_PASSWORD`, `JWT_SECRET` e `INITIAL_ADMIN_PASSWORD`.
 4. Consulta la documentación de Coolify: https://coolify.io/docs/
 
 ---

@@ -368,6 +368,7 @@ class Documento(Base):
     tipo = Column(String(50), nullable=False)  # cvlac_pdf, acta, contrato, informe
     nombre_archivo = Column(String(255))
     descripcion = Column(Text, nullable=True)
+    periodo_bimestre = Column(Integer, nullable=True)
     content_type = Column(String(100))
     data_base64 = Column(Text)  # Obsoleto, migrando a file_path
     file_path = Column(String(255))  # Nueva columna para almacenamiento en disco
@@ -613,3 +614,7 @@ class MensajeAdjunto(Base):
     # Relaciones
     mensaje = relationship("Mensaje", back_populates="adjuntos")
     owner = relationship("User", foreign_keys=[owner_id])
+
+
+# Registra las tablas de autoría después de definir sus entidades relacionadas.
+from app import documentation_models  # noqa: E402,F401

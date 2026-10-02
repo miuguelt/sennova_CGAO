@@ -141,8 +141,8 @@ function AppContent() {
     switch (currentView) {
       case 'dashboard':      return <DashboardModule {...props} onOpenSearch={canUseGlobalSearch(rol) ? () => setIsSearchOpen(true) : undefined} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} onModuleAction={handleModuleAction} />;
       case 'perfil':         return <PerfilModule {...props} onUpdateUser={updateUser} />;
-      case 'proyectos':      return <ProyectosModule {...props} initialAction={actionFor('proyectos')} onActionHandled={handleActionHandled} />;
-      case 'mis-proyectos':  return <ProyectosModule {...props} initialAction={actionFor('mis-proyectos')} onActionHandled={handleActionHandled} />;
+      case 'proyectos':      return <ProyectosModule {...props} refreshVersion={dataVersion} initialAction={actionFor('proyectos')} onActionHandled={handleActionHandled} />;
+      case 'mis-proyectos':  return <ProyectosModule {...props} refreshVersion={dataVersion} initialAction={actionFor('mis-proyectos')} onActionHandled={handleActionHandled} />;
       case 'investigadores': return <InvestigadoresModule {...props} />;
       case 'aprendices':     return <AprendicesModule {...props} />;
       case 'productos':      return <ProductosModule {...props} initialAction={actionFor('productos')} onActionHandled={handleActionHandled} />;
@@ -178,7 +178,7 @@ function AppContent() {
         onOpenSearch={() => setIsSearchOpen(true)}
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 print:max-w-none print:p-0 print:m-0 print:pt-0">
-        <React.Fragment key={`view-${currentView}-${dataVersion}`}>
+        <React.Fragment key={`view-${currentView}-${['proyectos', 'mis-proyectos'].includes(currentView) ? 'persistente' : dataVersion}`}>
           {renderView()}
         </React.Fragment>
       </main>

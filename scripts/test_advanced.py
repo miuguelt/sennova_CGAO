@@ -2,15 +2,13 @@
 """Test avanzado de funcionalidades SENNOVA CGAO"""
 import os
 import requests
+from qa_credentials import get_qa_credentials, get_qa_seed_password
 
 BASE_URL = os.getenv('API_URL', 'http://localhost:8000')
 
 def test_advanced():
     # Login
-    resp = requests.post(f"{BASE_URL}/auth/login", json={
-        "email": "admin@sena.edu.co",
-        "password": "123456"
-    })
+    resp = requests.post(f"{BASE_URL}/auth/login", json=get_qa_credentials())
     token = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     

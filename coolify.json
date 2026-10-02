@@ -15,7 +15,10 @@
         "postgres_data:/var/lib/postgresql/data"
       ],
       "healthcheck": {
-        "test": ["CMD-SHELL", "pg_isready -U sennova -d sennova"],
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U sennova -d sennova"
+        ],
         "interval": "10s",
         "timeout": "5s",
         "retries": 5
@@ -27,18 +30,15 @@
         "dockerfile": "Dockerfile"
       },
       "environment": [
-        "DATABASE_URL=${DATABASE_URL}",
+        "DATABASE_URL=postgresql+psycopg://sennova:${DB_PASSWORD}@postgres:5432/sennova",
         "JWT_SECRET=${JWT_SECRET}",
         "JWT_ALGORITHM=HS256",
         "JWT_EXPIRATION_HOURS=24",
         "APP_NAME=SENNOVA CGAO API",
         "DEBUG=false",
-        "ALLOWED_ORIGINS=${ALLOWED_ORIGINS}",
-        "ADDITIONAL_CORS_ORIGINS=${ADDITIONAL_CORS_ORIGINS}",
         "HOST=0.0.0.0",
         "PORT=8000",
-        "CVLAC_BASE_URL=${CVLAC_BASE_URL}",
-        "INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL}",
+        "INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL:-admin@sena.edu.co}",
         "INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD}"
       ],
       "ports": [
@@ -51,7 +51,12 @@
         "sennova_storage:/app/storage"
       ],
       "healthcheck": {
-        "test": ["CMD", "curl", "-f", "http://localhost:8000/health"],
+        "test": [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:8000/health"
+        ],
         "interval": "30s",
         "timeout": "10s",
         "retries": 3
@@ -65,28 +70,12 @@
           "VITE_API_URL": "${VITE_API_URL:-/api}"
         }
       },
-      "environment": [
-        "VITE_API_URL=${VITE_API_URL:-/api}"
-      ],
+      "environment": [],
       "ports": [
         "3000:80"
       ],
       "depends_on": [
         "backend"
-      ]
-    },
-    "pgadmin": {
-      "image": "dpage/pgadmin4:latest",
-      "environment": [
-        "PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}",
-        "PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}",
-        "PGADMIN_CONFIG_SERVER_MODE=False"
-      ],
-      "volumes": [
-        "pgadmin_data:/var/lib/pgadmin"
-      ],
-      "depends_on": [
-        "postgres"
       ]
     },
     "backup": {
@@ -105,7 +94,6 @@
   },
   "volumes": [
     "postgres_data",
-    "pgadmin_data",
     "backup_data",
     "sennova_storage"
   ],
@@ -117,63 +105,13 @@
     },
     {
       "name": "JWT_SECRET",
-      "description": "Secret key para JWT tokens - Mínimo 32 caracteres, cambiar en producción",
-      "required": true,
-      "default": "your-super-secret-jwt-key-change-this-in-production-immediately"
-    },
-    {
-      "name": "ALLOWED_ORIGINS",
-      "description": "Orígenes permitidos para CORS (coma separado). Solo dominios externos necesitan estar aquí. Con proxy nginx no es necesario incluir el frontend.",
-      "required": false,
-      "default": "https://sennova.enlinea.sbs"
-    },
-    {
-      "name": "VITE_API_URL",
-      "description": "URL de la API para el frontend. Usar '/api' para proxy interno (recomendado) o URL completa del backend si se usa CORS",
-      "required": false,
-      "default": "/api"
-    },
-    {
-      "name": "VITE_CVLAC_BASE_URL",
-      "description": "URL base del servicio CVLAC de Colciencias para placeholders",
-      "required": false,
-      "default": "https://scienti.minciencias.gov.co"
-    },
-    {
-      "name": "VITE_BACKEND_URL",
-      "description": "URL interna del backend en Docker (http://backend:8000)",
-      "required": false,
-      "default": "http://backend:8000"
-    },
-    {
-      "name": "CVLAC_BASE_URL",
-      "description": "URL base del servicio CVLAC para validación en backend",
-      "required": false,
-      "default": "https://scienti.minciencias.gov.co"
-    },
-    {
-      "name": "INITIAL_ADMIN_EMAIL",
-      "description": "Email del usuario administrador inicial",
-      "required": false,
-      "default": "admin@sena.edu.co"
+      "description": "Clave aleatoria obligatoria para firmar sesiones (mínimo 32 caracteres)",
+      "required": true
     },
     {
       "name": "INITIAL_ADMIN_PASSWORD",
-      "description": "Contraseña del usuario administrador inicial - Cambiar en producción",
-      "required": false,
-      "default": "admin_secure_password_2024"
-    },
-    {
-      "name": "PGADMIN_EMAIL",
-      "description": "Email para pgAdmin",
-      "required": false,
-      "default": "admin@sena.edu.co"
-    },
-    {
-      "name": "PGADMIN_PASSWORD",
-      "description": "Contraseña para pgAdmin",
-      "required": false,
-      "default": "pgadmin_secure_password_2024"
+      "description": "Contraseña obligatoria para crear el administrador inicial",
+      "required": true
     }
   ],
   "persistent_volumes": [
@@ -181,11 +119,6 @@
       "name": "postgres_data",
       "mount_path": "/var/lib/postgresql/data",
       "description": "Datos de PostgreSQL - NO BORRAR"
-    },
-    {
-      "name": "pgadmin_data",
-      "mount_path": "/var/lib/pgadmin",
-      "description": "Configuración de pgAdmin"
     },
     {
       "name": "backup_data",

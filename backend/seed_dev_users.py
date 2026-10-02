@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import bcrypt
 
 PROJECT_NAME = "sennova"
-DEV_PASSWORD = os.getenv("DEV_SEED_PASSWORD")
+DEV_PASSWORD = os.getenv("DEV_SEED_PASSWORD", "")
 if not DEV_PASSWORD:
     raise RuntimeError("Define DEV_SEED_PASSWORD antes de ejecutar el seed de desarrollo")
 
