@@ -1,13 +1,19 @@
 """Shared pytest setup for the SENNOVA backend suite.
 
-Its only job is lifecycle: the per-run database directory is created lazily by
-``db_support`` when the first test module resolves a path, and removed here once
-the session finishes so no ``test_*.db`` file is left behind in the repository.
+The suite supplies an ephemeral admin password before test modules import the
+application, so startup tests do not depend on a deployment secret or local
+``.env`` file. The per-run database directory is removed after the session so
+no ``test_*.db`` file is left behind in the repository.
 """
+
+import os
+import secrets
 
 import pytest
 
 from db_support import cleanup_test_db_dir
+
+os.environ["INITIAL_ADMIN_PASSWORD"] = secrets.token_urlsafe(24)
 
 
 @pytest.fixture(scope="session", autouse=True)

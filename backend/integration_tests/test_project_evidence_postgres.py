@@ -37,7 +37,7 @@ from app.config import get_settings
 from app.database import Base, ensure_document_period_column, get_db
 from app.documentation_models import ProjectDocumentation, ProjectDocumentDraft, ProjectDocumentVersion
 from app.models import Documento, Grupo, Producto, Proyecto, Semillero, User
-from app.research_catalog import ensure_research_catalog
+from app.research_catalog import RESEARCH_SEEDBED_CATALOG, ensure_research_catalog
 from app.routers import documentos
 from app.routers.proyectos import _resolve_project_links
 from app.services.documentation_catalog import COMMON_FIELDS, DOCUMENT_DEFINITIONS
@@ -165,11 +165,10 @@ def test_postgres_evaluates_six_stages_and_exports_actual_product_supports(postg
         package.close()
 
 
-def test_postgres_foreign_keys_and_link_validation_reject_wrong_group(postgres_context):
+def test_postgres_foreign_keys_and_link_validation_reject_missing_group(postgres_context):
     _, db, owner, _, _, _ = postgres_context
     group = Grupo(nombre="SIADM", owner_id=owner.id)
-    other = Grupo(nombre="SEMIPROVEL", owner_id=owner.id)
-    db.add_all([group, other])
+    db.add(group)
     db.flush()
     nursery = Semillero(nombre="Semillero administrativo", grupo_id=group.id, owner_id=owner.id)
     db.add(nursery)
@@ -177,9 +176,6 @@ def test_postgres_foreign_keys_and_link_validation_reject_wrong_group(postgres_c
 
     assert _resolve_project_links({}, db)["grupo_id"] is None
     assert _resolve_project_links({"semillero_id": nursery.id}, db)["grupo_id"] == str(group.id)
-    with pytest.raises(HTTPException) as conflict:
-        _resolve_project_links({"semillero_id": nursery.id, "grupo_id": other.id}, db)
-    assert conflict.value.status_code == 422
     with pytest.raises(HTTPException) as missing:
         _resolve_project_links({"grupo_id": uuid.uuid4()}, db)
     assert missing.value.status_code == 404
@@ -217,7 +213,7 @@ def test_postgres_http_upload_persists_file_period_and_rejects_invalid_target(po
     assert len(list((storage / "documentos").iterdir())) == 1
 
 
-def test_postgres_four_concurrent_catalog_startups_create_twelve_unique_groups(postgres_context):
+def test_postgres_four_concurrent_catalog_startups_create_one_group_and_twelve_seedbeds(postgres_context):
     engine, db, _, _, _, _ = postgres_context
     admin = User(email="admin@example.com", nombre="Administrador de prueba",
                  password_hash="example", rol="admin", is_active=True)
@@ -235,8 +231,13 @@ def test_postgres_four_concurrent_catalog_startups_create_twelve_unique_groups(p
 
     assert sorted(created_counts) == [0, 0, 0, 12]
     db.expire_all()
-    assert db.query(Grupo).count() == 12
-    assert len({group.id for group in db.query(Grupo).all()}) == 12
+    groups = db.query(Grupo).all()
+    seedbeds = db.query(Semillero).all()
+    assert len(groups) == 1
+    assert {seedbed.sigla for seedbed in seedbeds} == {
+        sigla for sigla, _ in RESEARCH_SEEDBED_CATALOG
+    }
+    assert {str(seedbed.grupo_id) for seedbed in seedbeds} == {str(groups[0].id)}
     assert ensure_research_catalog(db).created == 0
 
 
