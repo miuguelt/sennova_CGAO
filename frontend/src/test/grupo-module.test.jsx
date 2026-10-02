@@ -697,10 +697,12 @@ describe('GrupoModule Integration Tests', () => {
     await screen.findByText('GRUPO CGAO');
 
     fireEvent.click(screen.getByRole('button', { name: 'Editar Perfil' }));
-    fireEvent.change(await screen.findByLabelText(/Sigla o Nombre Corto/), { target: { value: 'CGAO Editado' } });
+    const groupName = await screen.findByLabelText(/Nombre del grupo institucional/);
+    expect(groupName).toHaveValue('Investigadores CGAO');
+    expect(groupName).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Líneas de Investigación (separadas por coma)'), { target: { value: 'Agroindustria, Innovación' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar Cambios' }));
-    await waitFor(() => expect(GruposAPI.update).toHaveBeenCalledWith('g-1', expect.objectContaining({ nombre: 'CGAO Editado', lineas_investigacion: ['Agroindustria', 'Innovación'] })));
+    await waitFor(() => expect(GruposAPI.update).toHaveBeenCalledWith('g-1', expect.objectContaining({ nombre: 'Investigadores CGAO', lineas_investigacion: ['Agroindustria', 'Innovación'] })));
 
     fireEvent.click(screen.getByTitle('Abrir directorio de aprendices'));
     fireEvent.click(screen.getByRole('button', { name: /Certificado PDF/i }));

@@ -19,15 +19,8 @@ from app.bootstrap import (
 )
 from app.config import get_settings
 from app.research_catalog import ResearchCatalogError, ensure_research_catalog
-from app.services.documentation_schema import upgrade_documentation_schema
-from app.database import (
-    engine,
-    Base,
-    SessionLocal,
-    ensure_document_description_column,
-    ensure_document_period_column,
-    ensure_investigador_role,
-)
+from app.database import engine, SessionLocal
+from app.services.database_startup import initialize_schema
 from app.routers import (
     auth, proyectos, grupos, semilleros, convocatorias, 
     productos, documentos, usuarios, stats, reportes, 
@@ -44,48 +37,9 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gestión del ciclo de vida de la aplicación."""
-    # Startup: Crear tablas si no existen (operación segura)
     try:
-        Base.metadata.create_all(bind=engine)
-        upgrade_documentation_schema(engine)
-        print("✅ Base de datos verificada/creada")
-        ensure_document_description_column(engine)
-        ensure_document_period_column(engine)
-        ensure_investigador_role(engine)
-
-        # Verificación segura de columnas adicionales en tablas existentes
-        try:
-            from sqlalchemy import inspect, text
-            inspector = inspect(engine)
-            tables = inspector.get_table_names()
-            with engine.connect() as conn:
-                if "mensajes" in tables:
-                    cols = [c["name"] for c in inspector.get_columns("mensajes")]
-                    if "entregado" not in cols:
-                        conn.execute(text("ALTER TABLE mensajes ADD COLUMN entregado BOOLEAN DEFAULT FALSE"))
-                        conn.commit()
-                    if "fecha_entrega" not in cols:
-                        conn.execute(text("ALTER TABLE mensajes ADD COLUMN fecha_entrega TIMESTAMP"))
-                        conn.commit()
-                if "proyectos" in tables:
-                    cols_p = [c["name"] for c in inspector.get_columns("proyectos")]
-                    if "grupo_id" not in cols_p:
-                        conn.execute(text("ALTER TABLE proyectos ADD COLUMN grupo_id VARCHAR(36)"))
-                        conn.commit()
-                    # Backfill grupo_id a partir de semilleros o grupo principal
-                    if "semilleros" in tables and "grupos" in tables:
-                        conn.execute(text("""
-                            UPDATE proyectos 
-                            SET grupo_id = (SELECT semilleros.grupo_id FROM semilleros WHERE semilleros.id = proyectos.semillero_id)
-                            WHERE proyectos.grupo_id IS NULL AND proyectos.semillero_id IS NOT NULL
-                        """))
-                        conn.commit()
-        except Exception as col_err:
-            pass
-        
-        # Bootstrap: administrador inicial (mismo módulo que usa el entrypoint
-        # del contenedor, para que arrancar con Docker o en local produzca el
-        # mismo estado y las mismas validaciones).
+        initialize_schema(engine)
+        print("✅ Esquema de base de datos verificado.")
         db = SessionLocal()
         try:
             result = ensure_initial_admin(
@@ -116,23 +70,29 @@ async def lifespan(app: FastAPI):
                         except Exception as seed_err:
                             print(f"⚠️ Error en poblado de demostración: {seed_err}")
             catalog = ensure_research_catalog(db)
-            print(f"🌱 Catálogo de grupos: {catalog.created} creados; {catalog.existing} existentes.")
+            print(
+                "🌱 Estructura institucional: "
+                f"grupo {'creado' if catalog.group_created else 'verificado'}; "
+                f"{catalog.created} semilleros creados, "
+                f"{catalog.existing} existentes y {catalog.groups_migrated} grupos anteriores consolidados."
+            )
         except ResearchCatalogError:
-            # El entrypoint también valida este contrato antes de atender tráfico.
             raise
         except AdminBootstrapError as admin_err:
-            # Sin administrador utilizable la instalación no sirve, pero tampoco
-            # se crea uno abierto: se informa y la API arranca sin él.
             print(f"❌ No se creó el administrador inicial: {admin_err}")
-        except Exception as e:
-            print(f"⚠️ Error en bootstrap de usuario: {e}")
+            raise
+        except Exception:
+            print("❌ No se pudo completar la configuración inicial de la base de datos.")
+            raise
         finally:
             db.close()
-            
-    except ResearchCatalogError:
-        raise
     except Exception as e:
-        print(f"⚠️ Error inicializando BD: {e}")
+        if not isinstance(e, (ResearchCatalogError, AdminBootstrapError)):
+            print(
+                "❌ No se pudo inicializar la base de datos. "
+                "Revise la conexión, el esquema y los permisos antes de iniciar de nuevo."
+            )
+        raise
     
     print("🚀 SENNOVA API iniciada")
     yield

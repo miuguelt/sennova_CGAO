@@ -27,6 +27,12 @@ class Settings(BaseSettings):
                 self.DATABASE_URL = f"postgresql+psycopg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
             else:
                 self.DATABASE_URL = "sqlite:///./sennova.db"
+        if not self.DEBUG and "ALLOWED_ORIGINS" not in values and not os.getenv("ALLOWED_ORIGINS"):
+            self.ALLOWED_ORIGINS = "https://sennova.enlinea.sbs,https://www.sennova.enlinea.sbs"
+        if not self.DEBUG and "FRONTEND_URL" not in values and not os.getenv("FRONTEND_URL"):
+            self.FRONTEND_URL = "https://sennova.enlinea.sbs"
+        if not self.DEBUG and "BACKEND_URL" not in values and not os.getenv("BACKEND_URL"):
+            self.BACKEND_URL = "https://sennova.enlinea.sbs/api"
     
     # Security
     JWT_SECRET: str = os.getenv("JWT_SECRET", "")

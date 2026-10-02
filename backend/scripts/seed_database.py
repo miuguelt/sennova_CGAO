@@ -31,6 +31,7 @@ from app.models import (
     grupo_integrantes, proyecto_equipo, semillero_investigadores
 )
 from app.auth import get_password_hash
+from app.research_catalog import CANONICAL_GROUP_NAME
 from scripts.fix_db_schema import fix_schema
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -378,87 +379,41 @@ def seed_database(verbose: bool = True):
             print(f"   ✅ {len(usuarios_creados)} usuarios creados exitosamente.")
 
         # ─────────────────────────────────────────────────────────────────────
-        # TABLA 2: GRUPOS (20 Grupos de Investigación de Santander y Red SENA)
+        # TABLA 2: GRUPO INSTITUCIONAL ÚNICO
         # ─────────────────────────────────────────────────────────────────────
         if verbose:
-            print("\n🔬 3. Generando Grupos de Investigación (Mínimo 20)...")
+            print("\n🔬 3. Generando el grupo institucional de investigadores...")
 
-        grupos_creados = []
-        nombres_grupos = [
-            ("GIA-CGAO", "Grupo de Investigación en Agroindustria y Tecnología - CGAO", "A1"),
-            ("GICITE", "Grupo de Investigación en Ciencias de la Información y Telemática", "A"),
-            ("BIOTEC-SENA", "Biotecnología Aplicada al Sector Agroalimentario Veleño", "A"),
-            ("GISEPRO", "Grupo de Investigación en Sistemas Sostenibles y Procesos Productivos", "B"),
-            ("GITUR-SANTANDER", "Grupo de Investigación en Turismo Cultural, Patrimonio y Gastronomía", "B"),
-            ("ECO-INNOVA", "Innovación y Desarrollo en Economía Circular y Sostenibilidad", "B"),
-            ("GEI-CGAO", "Grupo de Estudios en Eficiencia Energética e Industria 4.0", "B"),
-            ("GINTEL", "Inteligencia Artificial y Analítica de Datos para el Campo", "C"),
-            ("AGRO-VALOR", "Valorización de Subproductos Agroindustriales y Biomasa", "C"),
-            ("G-SOFTWARE", "Grupo de Investigación en Arquitecturas de Software y Cloud", "A1"),
-            ("CACAO-TECH", "Innovación Tecnológica en la Cadena de Valor del Cacao", "B"),
-            ("PANELA-INNOVA", "Tecnología y Buenas Prácticas en el Subsector Panelero", "B"),
-            ("RURAL-DEV", "Desarrollo Rural Sostenible y Gobernanza Territorial", "C"),
-            ("BIO-EMPAQUES", "Materiales Biodegradables a partir de Fibras Naturales", "C"),
-            ("HEALTH-TECH", "Tecnologías Aplicadas a la Salud Ocupacional y Ergonomía Rural", "Reconocido"),
-            ("LOGIS-CGAO", "Logística y Cadena de Frío para Productos Agrícolas Perecederos", "C"),
-            ("AQUA-SUAREZ", "Gestión Integral del Recurso Hídrico en la Cuenca del Río Suárez", "B"),
-            ("ROBOT-AGRO", "Robótica de Bajo Costo y Drones para Agricultura de Precisión", "C"),
-            ("FOOD-SAFETY", "Inocuidad, Trazabilidad y Calidad en la Industria Alimentaria", "A"),
-            ("SOCIAL-INNOVA", "Innovación Social y Apropiación Social del Conocimiento SENA", "Reconocido"),
-            ("ENER-SOLAR", "Aprovechamiento de Energía Solar Fotovoltaica en Fincas Cafeteras", "C"),
-            ("BIOPROCESOS-CGAO", "Bioprocesos Microbianos para Fermentaciones Controladas", "B"),
-        ]
-
-        for i, (sigla, nombre_largo, clasif) in enumerate(nombres_grupos):
-            director = random.choice(investigadores)
-            grupo = Grupo(
-                nombre=sigla,
-                nombre_completo=nombre_largo,
-                codigo_gruplac=f"COL{random.randint(1000000, 9999999)}",
-                clasificacion=clasif,
-                gruplac_url=f"https://scienti.minciencias.gov.co/gruplac/jsp/visualiza/visualizagr.do?cod_grupo={10000+i}",
-                lineas_investigacion=[random.choice(AREAS_CONOCIMIENTO), random.choice(LINEAS_INVESTIGACION)],
-                director_nombre=director.nombre,
-                director_email=director.email,
-                fecha_reconocimiento=date(2020 + (i % 4), random.randint(1, 12), random.randint(1, 28)),
-                vigencia_hasta=date(2026 + (i % 3), 12, 31),
-                descripcion_grupo=f"Grupo enfocado en {nombre_largo.lower()} para impulsar la competitividad de la provincia de Vélez.",
-                mision="Generar conocimiento científico y transferencia tecnológica pertinente para aprendices y empresarios.",
-                vision="Ser referente regional y nacional en innovación técnica y desarrollo tecnológico para 2030.",
-                convocatoria_activa=f"Convocatoria Nacional {2024 + (i % 2)}",
-                owner_id=admin_user.id,
-                is_publico=True,
-                estado="activo"
-            )
-            db.add(grupo)
-            grupos_creados.append(grupo)
+        grupo = Grupo(
+            nombre=CANONICAL_GROUP_NAME,
+            nombre_completo="Grupo institucional de investigadores del CGAO",
+            lineas_investigacion=AREAS_CONOCIMIENTO,
+            owner_id=admin_user.id,
+            is_publico=True,
+            estado="activo",
+        )
+        db.add(grupo)
+        grupos_creados = [grupo]
 
         db.flush()
         if verbose:
-            print(f"   ✅ {len(grupos_creados)} grupos de investigación creados.")
+            print(f"   ✅ Grupo creado: {CANONICAL_GROUP_NAME}.")
 
         # ─────────────────────────────────────────────────────────────────────
         # TABLA 3: GRUPO_INTEGRANTES (>= 25 registros en tabla pivote)
         # ─────────────────────────────────────────────────────────────────────
         if verbose:
-            print("\n🔗 4. Vinculando Integrantes a Grupos (Mínimo 20)...")
+            print("\n🔗 4. Vinculando investigadores al grupo institucional...")
 
         integraciones_count = 0
-        used_grupo_user = set()
-        for grupo in grupos_creados:
-            # Asignar al menos 2 investigadores o aprendices a cada grupo
-            miembros = random.sample(usuarios_creados, k=random.randint(2, 4))
-            for m in miembros:
-                par = (str(grupo.id), str(m.id))
-                if par not in used_grupo_user:
-                    used_grupo_user.add(par)
-                    db.execute(grupo_integrantes.insert().values(
-                        grupo_id=grupo.id,
-                        user_id=m.id,
-                    rol_en_grupo="Líder" if m.rol == "admin" else ("Investigador" if m.rol == "investigador" else "Aprendiz Semillero"),
-                        fecha_vinculacion=date(2023, random.randint(1, 12), random.randint(1, 28))
-                    ))
-                    integraciones_count += 1
+        for researcher in investigadores:
+            db.execute(grupo_integrantes.insert().values(
+                grupo_id=grupo.id,
+                user_id=researcher.id,
+                rol_en_grupo="Investigador",
+                fecha_vinculacion=date(2023, random.randint(1, 12), random.randint(1, 28)),
+            ))
+            integraciones_count += 1
 
         db.flush()
         if verbose:
@@ -506,7 +461,7 @@ def seed_database(verbose: bool = True):
                 plan_accion=f"Plan de acción para la formación de semilleristas en {desc.lower()}.",
                 horas_dedicadas=random.choice([4, 6, 8, 10]),
                 estado="activo" if i < 18 else "en_convocatoria",
-                grupo_id=grupos_creados[i % len(grupos_creados)].id,
+                grupo_id=grupo.id,
                 owner_id=tutor.id,
                 created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(30, 365))
             )
@@ -722,7 +677,7 @@ def seed_database(verbose: bool = True):
             investigador_lider = investigadores[i % len(investigadores)]
             convocatoria_asociada = convocatorias_creadas[i % len(convocatorias_creadas)]
             semillero_asociado = semilleros_creados[i % len(semilleros_creados)]
-            grupo_asociado = grupos_creados[i % len(grupos_creados)]
+            grupo_asociado = grupo
             reto_asociado = retos_creados[i % len(retos_creados)] if i < len(retos_creados) else None
 
             year_start = 2023 + (i % 3)
@@ -793,7 +748,11 @@ def seed_database(verbose: bool = True):
                 equipo_count += 1
 
             # Asignar 1 o 2 aprendices o co-investigadores
-            co_miembros = random.sample(usuarios_creados, k=2)
+            team_candidates = [
+                user for user in usuarios_creados
+                if user.rol in {"investigador", "aprendiz"}
+            ]
+            co_miembros = random.sample(team_candidates, k=min(2, len(team_candidates)))
             for cm in co_miembros:
                 par = (str(proy.id), str(cm.id))
                 if par not in used_proy_user:

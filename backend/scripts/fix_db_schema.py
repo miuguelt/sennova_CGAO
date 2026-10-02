@@ -7,8 +7,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlalchemy import text, inspect
 from app.database import engine
 
-def fix_schema():
-    print("🚀 Iniciando reparación avanzada de esquema de base de datos...")
+def fix_schema(target_engine=None):
+    """Agrega columnas heredadas faltantes dentro de una sola transacción."""
+    db_engine = target_engine or engine
+    print("🗄️ Verificando columnas heredadas de la base de datos...")
     
     # Lista de cambios por tabla
     modifications = {
@@ -60,37 +62,25 @@ def fix_schema():
         ]
     }
     
-    inspector = inspect(engine)
-    existing_tables = inspector.get_table_names()
-    
-    with engine.connect() as conn:
-        db_type = engine.url.drivername
-        print(f"📦 Tipo de base de datos detectado: {db_type}")
-        
+    with db_engine.begin() as conn:
+        inspector = inspect(conn)
+        existing_tables = set(inspector.get_table_names())
+        db_type = db_engine.url.drivername
+        print(f"📦 Motor detectado: {db_type}")
         for table_name, columns in modifications.items():
             if table_name not in existing_tables:
-                print(f"⚠️ La tabla '{table_name}' no existe. Saltando verificaciones de columnas.")
                 continue
-                
-            print(f"\n📂 Verificando tabla '{table_name}'...")
+            existing_columns = {
+                column["name"] for column in inspector.get_columns(table_name)
+            }
             for col_name, col_type in columns:
-                try:
-                    # Verificar si la columna existe de forma robusta
-                    columns_info = inspector.get_columns(table_name)
-                    exists = any(c['name'] == col_name for c in columns_info)
-                    
-                    if not exists:
-                        print(f"  ➕ Añadiendo columna '{col_name}' ({col_type}) a '{table_name}'...")
-                        conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"))
-                        conn.commit()
-                        print(f"  ✅ Columna '{col_name}' añadida con éxito.")
-                    else:
-                        print(f"  ✔ La columna '{col_name}' ya existe.")
-                        
-                except Exception as e:
-                    print(f"  ❌ Error procesando columna '{col_name}' en '{table_name}': {e}")
-        
-        print("\n✨ Proceso de reparación finalizado.")
+                if col_name in existing_columns:
+                    continue
+                conn.execute(text(
+                    f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"
+                ))
+                existing_columns.add(col_name)
+    print("✅ Las columnas heredadas están disponibles.")
 
 if __name__ == "__main__":
     fix_schema()

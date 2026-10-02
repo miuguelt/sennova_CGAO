@@ -6,6 +6,7 @@ from unittest.mock import Mock
 
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
+from app.research_catalog import CANONICAL_GROUP_NAME
 
 from db_support import db_path_for, sqlite_url_for
 
@@ -59,17 +60,24 @@ def test_seed_database_uses_only_supported_roles_and_labels_group_members(monkey
             instructor_profile = db.query(seed_database.User).filter_by(
                 email="c.lopez@sena.edu.co"
             ).one()
-            group_roles = {
-                row.rol_en_grupo
-                for row in db.execute(seed_database.grupo_integrantes.select()).all()
-            }
+        group_rows = db.execute(seed_database.grupo_integrantes.select()).all()
+        group_roles = {row.rol_en_grupo for row in group_rows}
+        group_count = db.query(seed_database.Grupo).count()
+        group_name = db.query(seed_database.Grupo).one().nombre
+        seedbed_count = db.query(seed_database.Semillero).count()
+        member_roles = {
+            db.query(seed_database.User).filter_by(id=row.user_id).one().rol
+            for row in group_rows
+        }
 
         assert len(users) == 32
         assert roles == {"admin", "investigador", "aprendiz"}
         assert instructor_profile.rol == "investigador"
-        assert group_roles <= {"Líder", "Investigador", "Aprendiz Semillero"}
-        assert "Investigador" in group_roles
-        assert "Aprendiz Semillero" in group_roles
+        assert group_count == 1
+        assert group_name == CANONICAL_GROUP_NAME
+        assert seedbed_count >= 20
+        assert group_roles == {"Investigador"}
+        assert member_roles == {"investigador"}
     finally:
         seed_database.Base.metadata.drop_all(bind=engine)
         engine.dispose()

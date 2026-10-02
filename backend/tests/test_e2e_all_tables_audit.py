@@ -257,6 +257,7 @@ def test_audit_grupos(client, auth_tokens):
     assert res.status_code in (200, 201)
     grupo = res.json()
     grupo_id = grupo["id"]
+    assert grupo["nombre"] == "Investigadores CGAO"
 
     # 2.2 Listar Grupos
     res_list = client.get("/grupos", headers=headers)
@@ -275,6 +276,12 @@ def test_audit_grupos(client, auth_tokens):
         "rol_en_grupo": "Investigador Asociado"
     }, headers=headers)
     assert res_mem.status_code in (200, 201)
+    apprentice_id = auth_tokens["aprendiz"]["user_id"]
+    res_apprentice_member = client.post(f"/grupos/{grupo_id}/integrantes", json={
+        "user_id": apprentice_id,
+        "rol_en_grupo": "Aprendiz Semillero"
+    }, headers=headers)
+    assert res_apprentice_member.status_code == 422
 
     # 2.5 Listar Integrantes
     res_members = client.get(f"/grupos/{grupo_id}/integrantes", headers=headers)
@@ -305,18 +312,17 @@ def test_audit_grupos(client, auth_tokens):
     # Re-vincular para flujo posterior
     client.post(f"/grupos/{grupo_id}/integrantes", json={"user_id": inv_id, "rol_en_grupo": "Investigador"}, headers=headers)
 
-    # 2.9 Creación y Eliminación de Grupo (DELETE grupos)
+    # 2.9 El sistema conserva el único grupo institucional.
     res_temp_grp = client.post("/grupos", json={
         "nombre": "Grupo Temporal a Eliminar",
         "clasificacion": "B"
     }, headers=headers)
-    assert res_temp_grp.status_code in (200, 201)
-    temp_gid = res_temp_grp.json()["id"]
+    assert res_temp_grp.status_code == 409
 
-    res_del_grp = client.delete(f"/grupos/{temp_gid}", headers=headers)
-    assert res_del_grp.status_code == 200
-    res_del_grp_check = client.get(f"/grupos/{temp_gid}", headers=headers)
-    assert res_del_grp_check.status_code == 404
+    res_del_grp = client.delete(f"/grupos/{grupo_id}", headers=headers)
+    assert res_del_grp.status_code == 409
+    res_del_grp_check = client.get(f"/grupos/{grupo_id}", headers=headers)
+    assert res_del_grp_check.status_code == 200
 
 
 # ==============================================================================

@@ -39,12 +39,11 @@ const ROLES_GRUPO = [
   { value: 'Líder', label: 'Líder de Grupo' },
   { value: 'Investigador', label: 'Investigador Principal' },
   { value: 'Coinvestigador', label: 'Coinvestigador' },
-  { value: 'Asesor', label: 'Asesor Externo' },
-  { value: 'Aprendiz', label: 'Aprendiz Investigador' }
+  { value: 'Asesor', label: 'Asesor Externo' }
 ];
 
 const EMPTY_FORM = {
-  nombre: '',
+  nombre: 'Investigadores CGAO',
   nombre_completo: '',
   codigo_gruplac: '',
   clasificacion: 'C',
@@ -96,7 +95,6 @@ const GruposModule = ({ currentUser, onNotify }) => {
   const [grupos, setGrupos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [formStep, setFormStep] = useState(1);
   const [showMembers, setShowMembers] = useState(false);
   const [integrantes, setIntegrantes] = useState([]);
@@ -113,7 +111,6 @@ const GruposModule = ({ currentUser, onNotify }) => {
   const [loadingSemilleros, setLoadingSemilleros] = useState(false);
   const [isPoolVisible,    setIsPoolVisible]    = useState(false);
   const [dragOverGroup,     setDragOverGroup]     = useState(false);
-  const [talentTab,        setTalentTab]        = useState('investigadores');
   const [memberToLink,     setMemberToLink]     = useState(null);
   const [linkingRole,      setLinkingRole]      = useState('Investigador');
   
@@ -121,7 +118,6 @@ const GruposModule = ({ currentUser, onNotify }) => {
   const [activeTab, setActiveTab] = useState('overview');
 
   // Confirmation dialogs
-  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
   const [removeMemberConfirm, setRemoveMemberConfirm] = useState({ isOpen: false, id: null, name: '' });
 
   useEffect(() => { loadData(true); }, []);
@@ -150,22 +146,14 @@ const GruposModule = ({ currentUser, onNotify }) => {
     }
   };
 
-  const handleOpenCreate = () => {
-    setFormData(EMPTY_FORM);
-    setIsEditing(false);
-    setFormStep(1);
-    setShowForm(true);
-    setMenuOpenId(null);
-  };
-
   const handleOpenEdit = (grupo) => {
     setFormData({
       ...grupo,
+      nombre: 'Investigadores CGAO',
       lineas_investigacion: Array.isArray(grupo.lineas_investigacion)
         ? grupo.lineas_investigacion.join(', ')
         : grupo.lineas_investigacion
     });
-    setIsEditing(true);
     setFormStep(1);
     setShowForm(true);
     setMenuOpenId(null);
@@ -173,39 +161,15 @@ const GruposModule = ({ currentUser, onNotify }) => {
 
   const handleSubmit = async () => {
     try {
-      if (isEditing) {
-        await GruposAPI.update(formData.id, formData);
-        onNotify?.('Grupo institucional actualizado', 'success');
-        if (selectedGrupo?.id === formData.id) {
-          setSelectedGrupo(prev => ({ ...prev, ...formData }));
-        }
-      } else {
-        await GruposAPI.create(formData);
-        onNotify?.('Grupo institucional registrado exitosamente', 'success');
+      await GruposAPI.update(formData.id, formData);
+      onNotify?.('Grupo institucional actualizado', 'success');
+      if (selectedGrupo?.id === formData.id) {
+        setSelectedGrupo(prev => ({ ...prev, ...formData }));
       }
       setShowForm(false);
       await loadData(false);
     } catch (err) {
       onNotify?.('Error al guardar grupo: ' + err.message, 'error');
-    }
-  };
-
-  const handleDelete = (id) => {
-    setDeleteConfirm({ isOpen: true, id });
-  };
-
-  const confirmDeleteAction = async () => {
-    if (!deleteConfirm.id) return;
-    try {
-      await GruposAPI.delete(deleteConfirm.id);
-      onNotify?.('Grupo institucional eliminado', 'success');
-      setDeleteConfirm({ isOpen: false, id: null });
-      if (selectedGrupo?.id === deleteConfirm.id) {
-        setIsDetailOpen(false);
-      }
-      await loadData(false);
-    } catch (err) {
-      onNotify?.('Error al eliminar grupo: ' + err.message, 'error');
     }
   };
 
@@ -265,7 +229,7 @@ const GruposModule = ({ currentUser, onNotify }) => {
     try {
       await GruposAPI.addMember(selectedGrupo.id, {
         user_id: userId,
-        rol: talentTab === 'aprendices' ? 'Aprendiz' : 'Investigador'
+        rol: 'Investigador'
       });
       onNotify?.('Talento vinculado al grupo exitosamente', 'success');
       const m = await GruposAPI.getMembers(selectedGrupo.id);
@@ -313,20 +277,14 @@ const GruposModule = ({ currentUser, onNotify }) => {
             <Layers size={32} />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Grupos de Investigación</h1>
-            <p className="text-slate-500 font-medium mt-1">Estructura matriz de I+D+i del Centro de Gestión Agroempresarial del Oriente</p>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Grupo de Investigación</h1>
+            <p className="text-slate-500 font-medium mt-1">Investigadores CGAO y sus semilleros de investigación</p>
           </div>
         </div>
-        
-        {currentUser?.rol === 'admin' && (
-          <Button onClick={handleOpenCreate} variant="sena" className="h-12 px-8 shadow-xl shadow-indigo-500/20">
-            <Plus size={20} className="mr-2" /> Nuevo Grupo
-          </Button>
-        )}
       </div>
 
       {/* ─── Metrics Summary ───────────────────────────────────────────── */}      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Grupos Institucionales" value={grupos.length} icon={Layers} colorCls="text-indigo-600" bgCls="bg-indigo-100" />
+        <StatCard label="Grupo Institucional" value={grupos.length} icon={Layers} colorCls="text-indigo-600" bgCls="bg-indigo-100" />
         <StatCard label="Investigadores Matriz" value={grupos.reduce((acc, g) => acc + (g.total_investigadores || 0), 0)} icon={Users} colorCls="text-emerald-600" bgCls="bg-emerald-100" />
         <StatCard label="Categoría Máxima" value={categoriaMaxima} icon={Award} colorCls="text-amber-600" bgCls="bg-amber-100" />
         <StatCard label="Semilleros Adscritos" value={semillerosAdscritos} icon={Target} colorCls="text-rose-600" bgCls="bg-rose-100" />
@@ -379,8 +337,6 @@ const GruposModule = ({ currentUser, onNotify }) => {
                           <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-30 animate-scaleIn">
                             <button onClick={() => handleOpenEdit(grupo)} className="w-full px-4 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"><Edit2 size={14} /> Editar Datos</button>
                             <button onClick={() => handleOpenMembers(grupo)} className="w-full px-4 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"><Users size={14} /> Gestionar Equipo</button>
-                            <div className="my-1 border-t border-slate-100" />
-                            <button onClick={() => handleDelete(grupo.id)} className="w-full px-4 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2"><Trash2 size={14} /> Eliminar Grupo</button>
                           </div>
                         )}
                       </div>
@@ -632,8 +588,8 @@ const GruposModule = ({ currentUser, onNotify }) => {
         onClose={() => setShowForm(false)}
         size="lg"
         variant="indigo"
-        icon={isEditing ? Edit2 : Zap}
-        title={isEditing ? 'Actualizar Grupo' : 'Nuevo Grupo de Investigación'}
+        icon={Edit2}
+        title="Actualizar Grupo"
         subtitle={`Paso ${formStep} de 3 • ${formStep === 1 ? 'Identidad' : formStep === 2 ? 'Clasificación' : 'Conocimiento'}`}
         footer={
           <div className="flex justify-between items-center w-full">
@@ -654,7 +610,7 @@ const GruposModule = ({ currentUser, onNotify }) => {
                 </Button>
               ) : (
                 <Button variant="sena" onClick={handleSubmit}>
-                  {isEditing ? 'Actualizar Información' : 'Registrar Grupo'}
+                  Actualizar Información
                 </Button>
               )}
             </div>
@@ -667,7 +623,7 @@ const GruposModule = ({ currentUser, onNotify }) => {
 
         {formStep === 1 && (
           <div className="space-y-5 animate-fadeIn">
-            <Input label="Sigla o Nombre Corto" value={formData.nombre} onChange={patch('nombre')} placeholder="Ej: GIDTA" required />
+            <Input label="Nombre del grupo institucional" value="Investigadores CGAO" disabled />
             <Input label="Nombre Completo Institucional" value={formData.nombre_completo} onChange={patch('nombre_completo')} placeholder="Ej: Grupo de Investigación en Tecnologías Aplicadas" required />
             <Input label="Código GrupLAC" value={formData.codigo_gruplac} onChange={patch('codigo_gruplac')} placeholder="COL000XXXX" />
           </div>
@@ -745,25 +701,14 @@ const GruposModule = ({ currentUser, onNotify }) => {
                   <button onClick={() => setIsPoolVisible(false)} className="p-1 hover:bg-white/10 rounded-lg"><X size={14} /></button>
                 </div>
 
-                <div className="flex bg-slate-50 p-1 border-b border-slate-100">
-                  <button 
-                    onClick={() => setTalentTab('investigadores')}
-                    className={`flex-1 py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${talentTab === 'investigadores' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
-                  >
-                    Investigadores
-                  </button>
-                  <button 
-                    onClick={() => setTalentTab('aprendices')}
-                    className={`flex-1 py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${talentTab === 'aprendices' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
-                  >
-                    Aprendices
-                  </button>
+                <div className="px-4 py-3 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                  Investigadores
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/30">
                   {usuarios
+                    .filter(u => u.rol === 'investigador')
                     .filter(u => !integrantes.some(m => m.id === u.id))
-                    .filter(u => talentTab === 'aprendices' ? u.rol === 'aprendiz' : u.rol !== 'aprendiz')
                     .map(u => (
                     <div 
                       key={u.id}
@@ -771,12 +716,12 @@ const GruposModule = ({ currentUser, onNotify }) => {
                       onDragStart={(e) => handleDragUserStart(e, u)}
                       onClick={() => {
                         setMemberToLink(u);
-                        setLinkingRole(talentTab === 'aprendices' ? 'Aprendiz' : 'Investigador');
+                        setLinkingRole('Investigador');
                       }}
                       className="group p-3 bg-white border border-slate-100 rounded-2xl cursor-grab active:cursor-grabbing hover:border-emerald-400 hover:shadow-md transition-all flex items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${talentTab === 'aprendices' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                        <div className="shrink-0 w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">
                           {u.nombre.charAt(0)}
                         </div>
                         <div className="min-w-0">
@@ -862,15 +807,15 @@ const GruposModule = ({ currentUser, onNotify }) => {
                         const u = usuarios.find(usr => usr.id === e.target.value);
                         if (u) {
                           setMemberToLink(u);
-                          setLinkingRole(u.rol === 'aprendiz' ? 'Aprendiz' : 'Investigador');
+                          setLinkingRole('Investigador');
                         }
                         e.target.value = ""; 
                       }}
                       value=""
                     >
-                      <option value="">Buscar talento en el directorio CGAO...</option>
-                      {usuarios.filter(u => !integrantes.some(m => m.id === u.id)).map(u => (
-                        <option key={u.id} value={u.id}>{u.nombre} {u.ficha ? `(Aprendiz)` : '(Investigador)'}</option>
+                      <option value="">Buscar investigador en el directorio CGAO...</option>
+                      {usuarios.filter(u => u.rol === 'investigador' && !integrantes.some(m => m.id === u.id)).map(u => (
+                        <option key={u.id} value={u.id}>{u.nombre} (Investigador)</option>
                       ))}
                     </select>
                   </div>
@@ -933,17 +878,6 @@ const GruposModule = ({ currentUser, onNotify }) => {
           </div>
         </div>
       </Modal>
-
-      {/* ─── Confirm Delete Dialog ─────────────────────────────────────── */}
-      <ConfirmDialog
-        isOpen={deleteConfirm.isOpen}
-        onClose={() => setDeleteConfirm({ isOpen: false, id: null })}
-        onConfirm={confirmDeleteAction}
-        title="¿Eliminar Grupo de Investigación?"
-        description="Esta acción eliminará el grupo institucional de investigación. No se puede revertir."
-        confirmText="Sí, Eliminar Grupo"
-        variant="danger"
-      />
 
       {/* ─── Confirm Remove Member Dialog ──────────────────────────────── */}
       <ConfirmDialog

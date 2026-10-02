@@ -869,6 +869,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
   const handleEditGrupo = () => {
     setFormData({
       ...grupo,
+      nombre: 'Investigadores CGAO',
       lineas_investigacion: Array.isArray(grupo?.lineas_investigacion)
         ? grupo.lineas_investigacion.join(', ')
         : grupo?.lineas_investigacion || '',
@@ -3551,7 +3552,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
       >
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Sigla o Nombre Corto" value={formData.nombre || ''} onChange={(e) => setFormData({ ...formData, nombre: e.target.value })} required />
+            <Input label="Nombre del grupo institucional" value="Investigadores CGAO" disabled />
             <Input label="Código GrupLAC (Scienti)" value={formData.codigo_gruplac || ''} onChange={(e) => setFormData({ ...formData, codigo_gruplac: e.target.value })} placeholder="COL000XXXX" />
           </div>
 

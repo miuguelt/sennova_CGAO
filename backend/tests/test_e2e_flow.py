@@ -1,5 +1,6 @@
 import os
 import pytest
+import uuid
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -15,7 +16,7 @@ os.environ["DEBUG"] = "true"
 
 from app.database import Base, get_db
 from app.main import app
-from app.models import User
+from app.models import Aprendiz, User
 from app.auth import get_password_hash, create_access_token
 
 test_engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
@@ -54,8 +55,17 @@ def setup_db():
         sede="CGAO",
         is_active=True
     )
+    aprendiz = User(
+        email="aprendiz@sena.edu.co",
+        password_hash=get_password_hash("123456"),
+        nombre="Aprendiz E2E",
+        rol="aprendiz",
+        sede="CGAO",
+        is_active=True,
+    )
     db.add(admin)
     db.add(investigador)
+    db.add(aprendiz)
     db.commit()
     db.close()
     
@@ -88,6 +98,8 @@ def test_sennova_e2e_notification_and_project_lifecycle(setup_db):
     inv_headers = {"Authorization": f"Bearer {inv_token}"}
     
     inv_id = str(inv_user.id)
+    apr_id = str(db.query(User).filter(User.email == "aprendiz@sena.edu.co").one().id)
+    admin_id = str(admin_user.id)
     db.close()
 
     # 3. Crear Grupo y Semillero (para poder ligar proyectos)
@@ -98,6 +110,9 @@ def test_sennova_e2e_notification_and_project_lifecycle(setup_db):
     res_sem = client.post("/semilleros", json={"nombre": "Semillero ADSO Vélez", "grupo_id": grupo_id}, headers=admin_headers)
     assert res_sem.status_code == 201
     semillero_id = res_sem.json()["id"]
+    with TestingSessionLocal() as db:
+        db.add(Aprendiz(user_id=apr_id, semillero_id=semillero_id, estado="activo"))
+        db.commit()
 
     # 4. Crear Convocatoria (Admin) -> Debe generar notificaciones in-app e emails simulados
     res_conv = client.post("/convocatorias", json={
@@ -141,6 +156,52 @@ def test_sennova_e2e_notification_and_project_lifecycle(setup_db):
     # Asignar investigador al equipo del proyecto
     res_eq = client.post(f"/proyectos/{proj_id}/equipo", json={"user_id": inv_id, "rol_en_proyecto": "Co-investigador", "horas_dedicadas": 20}, headers=admin_headers)
     assert res_eq.status_code in (200, 201)
+
+    res_learner = client.post(f"/proyectos/{proj_id}/equipo", json={
+        "user_id": apr_id,
+        "rol_en_proyecto": "Aprendiz Semillerista",
+        "horas_dedicadas": 10,
+    }, headers=admin_headers)
+    assert res_learner.status_code == 200
+    res_admin_member = client.post(f"/proyectos/{proj_id}/equipo", json={
+        "user_id": admin_id,
+        "rol_en_proyecto": "Administrador",
+    }, headers=admin_headers)
+    assert res_admin_member.status_code == 422
+    res_missing_member = client.post(f"/proyectos/{proj_id}/equipo", json={
+        "user_id": str(uuid.uuid4()),
+        "rol_en_proyecto": "Investigador",
+    }, headers=admin_headers)
+    assert res_missing_member.status_code == 404
+    res_duplicate_member = client.post(f"/proyectos/{proj_id}/equipo", json={
+        "user_id": inv_id,
+        "rol_en_proyecto": "Coinvestigador",
+    }, headers=admin_headers)
+    assert res_duplicate_member.status_code == 400
+    project_detail = client.get(f"/proyectos/{proj_id}", headers=admin_headers).json()
+    assert {member["id"] for member in project_detail["equipo"]} == {inv_id, apr_id}
+
+    project_with_initial_team = client.post("/proyectos", json={
+        "nombre": "Proyecto creado con equipo completo",
+        "semillero_id": semillero_id,
+        "equipo": [
+            {"user_id": inv_id, "rol_en_proyecto": "Investigador Principal"},
+            {"user_id": apr_id, "rol_en_proyecto": "Aprendiz Semillerista"},
+        ],
+    }, headers=admin_headers)
+    assert project_with_initial_team.status_code == 201
+    assert {
+        member["id"] for member in project_with_initial_team.json()["equipo"]
+    } == {inv_id, apr_id}
+
+    repeated_team_member = client.post("/proyectos", json={
+        "nombre": "Proyecto con integrante repetido",
+        "equipo": [
+            {"user_id": inv_id},
+            {"user_id": inv_id},
+        ],
+    }, headers=admin_headers)
+    assert repeated_team_member.status_code == 422
 
     # 7. Crear Entregable (Asignado al Investigador) -> Genera email + in-app
     res_ent = client.post("/entregables/", json={

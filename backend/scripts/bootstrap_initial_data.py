@@ -6,7 +6,8 @@ Lo ejecuta el entrypoint del contenedor antes de arrancar Uvicorn:
 1. crea el esquema que falte,
 2. aplica las columnas añadidas después de la última versión del esquema,
 3. crea el administrador inicial a partir del entorno.
-4. completa el catálogo institucional de grupos sin borrar datos existentes.
+4. conserva un solo grupo, migra los grupos anteriores a semilleros y completa
+   el catálogo base sin borrar proyectos ni integrantes.
 
 Termina con código distinto de cero cuando la configuración no permite crear un
 administrador seguro, para que el despliegue falle en el arranque en vez de
@@ -24,23 +25,26 @@ from app.bootstrap import (  # noqa: E402
     ensure_initial_admin,
 )
 from app.config import get_settings  # noqa: E402
-from app.database import Base, SessionLocal, engine  # noqa: E402
-from app import models  # noqa: E402,F401  (registra todas las tablas en Base)
+from app.database import SessionLocal, engine  # noqa: E402
+from app.services.database_startup import initialize_schema  # noqa: E402
 from app.research_catalog import (  # noqa: E402
     ResearchCatalogError,
     ensure_research_catalog,
 )
-from scripts.fix_db_schema import fix_schema  # noqa: E402
-from app.services.documentation_schema import upgrade_documentation_schema  # noqa: E402
 
 
 def bootstrap() -> int:
     settings = get_settings()
 
     print("🗄️  Verificando esquema de base de datos...")
-    Base.metadata.create_all(bind=engine)
-    upgrade_documentation_schema(engine)
-    fix_schema()
+    try:
+        initialize_schema(engine)
+    except Exception:
+        print(
+            "❌ No se pudo preparar el esquema de la base de datos. "
+            "Revise la conexión, la versión del motor y los permisos de migración."
+        )
+        return 1
 
     print("👤 Verificando administrador inicial...")
     db = SessionLocal()
@@ -60,7 +64,12 @@ def bootstrap() -> int:
         db.close()
 
     print(f"✅ {result.detail}")
-    print(f"✅ Catálogo de grupos: {catalog.created} creados; {catalog.existing} existentes.")
+    print(
+        "✅ Estructura institucional: "
+        f"grupo {'creado' if catalog.group_created else 'verificado'}; "
+        f"{catalog.created} semilleros creados, "
+        f"{catalog.existing} existentes y {catalog.groups_migrated} grupos anteriores consolidados."
+    )
     return 0
 
 

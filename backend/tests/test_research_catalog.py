@@ -1,4 +1,4 @@
-"""Contrato del catálogo institucional y del primer arranque, con persistencia real."""
+"""Contrato de la estructura institucional y de su primer despliegue."""
 
 import asyncio
 import os
@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -18,28 +19,22 @@ os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("JWT_SECRET", secrets.token_urlsafe(32))
 
 from app.database import Base
-from app.models import Grupo, User
+from app.models import (
+    Aprendiz,
+    Grupo,
+    Proyecto,
+    Semillero,
+    User,
+    grupo_integrantes,
+    semillero_investigadores,
+)
 from app.research_catalog import (
-    RESEARCH_GROUP_CATALOG,
+    CANONICAL_GROUP_NAME,
+    RESEARCH_SEEDBED_CATALOG,
     ResearchCatalogError,
     ensure_research_catalog,
 )
-
-
-EXPECTED_GROUPS = {
-    "SEMIPROVEL": "Sistemas y Programación",
-    "SIAMB": "Ambiental",
-    "SIACF": "Contabilidad y Finanzas",
-    "SENAGRO2": "Agropecuaria y Agroindustria",
-    "SISSTYSIG": "Seguridad y Salud en el Trabajo y SG Integ",
-    "SIDECI": "Deporte y Ciencia",
-    "FORMARTE": "Investigación Pedagógica",
-    "SINVESCON": "Construcción",
-    "SIADM": "Administración",
-    "SEMITEC": "Motos y Mecánica",
-    "SITURISMO": "Turismo y cultura",
-    "SIASA": "Salud",
-}
+from app.services.research_structure_migration import downgrade_legacy_groups
 
 
 @pytest.fixture()
@@ -56,10 +51,13 @@ def database():
     engine.dispose()
 
 
-def add_admin(db, *, rol="admin", active=True, email="admin@example.com"):
+def add_user(db, *, role="admin", active=True, email="admin@example.com"):
     user = User(
-        email=email, nombre="Administrador de prueba", password_hash="example",
-        rol=rol, is_active=active,
+        email=email,
+        nombre="Usuario de prueba",
+        password_hash="example",
+        rol=role,
+        is_active=active,
     )
     db.add(user)
     db.commit()
@@ -68,110 +66,161 @@ def add_admin(db, *, rol="admin", active=True, email="admin@example.com"):
 
 def bootstrap_settings():
     return SimpleNamespace(
-        DEBUG=False, INITIAL_ADMIN_EMAIL="admin@example.com",
+        DEBUG=False,
+        INITIAL_ADMIN_EMAIL="admin@example.com",
         INITIAL_ADMIN_PASSWORD=secrets.token_urlsafe(24),
-        INITIAL_ADMIN_NOMBRE="Administrador", INITIAL_ADMIN_DOCUMENTO="",
-        INITIAL_ADMIN_SEDE="CGAO", SEED_INITIAL_DATA=False,
+        INITIAL_ADMIN_NOMBRE="Administrador",
+        INITIAL_ADMIN_DOCUMENTO="",
+        INITIAL_ADMIN_SEDE="CGAO",
+        SEED_INITIAL_DATA=False,
     )
 
 
-def test_catálogo_corresponde_a_los_doce_grupos_de_la_imagen(database):
+def test_first_setup_creates_one_group_and_seedbed_catalog(database):
     _, sessions, db = database
-    admin = add_admin(db)
+    admin = add_user(db)
+
     result = ensure_research_catalog(db)
 
-    assert dict(RESEARCH_GROUP_CATALOG) == EXPECTED_GROUPS
-    assert result.created == 12
-    assert result.existing == 0
+    assert result.group_created is True
+    assert result.created == len(RESEARCH_SEEDBED_CATALOG)
     with sessions() as persisted:
         groups = persisted.query(Grupo).all()
-        assert {g.nombre for g in groups} == set(EXPECTED_GROUPS)
-        for group in groups:
-            assert group.nombre_completo == f"{group.nombre} ({EXPECTED_GROUPS[group.nombre]})"
-            assert str(group.owner_id) == str(admin.id)
-            assert group.is_publico is True
-            assert group.estado == "activo"
-            assert group.codigo_gruplac is None
-            assert group.clasificacion is None
-            assert group.gruplac_url is None
-            assert group.lineas_investigacion == []
+        semilleros = persisted.query(Semillero).all()
+        assert len(groups) == 1
+        assert groups[0].nombre == CANONICAL_GROUP_NAME
+        assert str(groups[0].owner_id) == str(admin.id)
+        assert len(semilleros) == len(RESEARCH_SEEDBED_CATALOG)
+        assert {s.sigla: s.nombre for s in semilleros} == dict(RESEARCH_SEEDBED_CATALOG)
+        assert {str(s.grupo_id) for s in semilleros} == {str(groups[0].id)}
+
+    repeated = ensure_research_catalog(db)
+    assert repeated.group_created is False
+    assert repeated.created == 0
+    assert db.query(Grupo).count() == 1
+    assert db.query(Semillero).count() == len(RESEARCH_SEEDBED_CATALOG)
 
 
-def test_redespliegue_conserva_identidades_datos_y_grupos_adicionales(database):
-    _, _, db = database
-    admin = add_admin(db)
+def test_legacy_groups_move_to_seedbeds_and_keep_members_and_projects(database):
+    engine, _, db = database
+    admin = add_user(db)
+    researcher = add_user(db, role="investigador", email="investigador@example.com")
+    learner = add_user(db, role="aprendiz", email="aprendiz@example.com")
+    with engine.begin() as connection:
+        connection.execute(text("DROP INDEX IF EXISTS uq_grupos_singleton"))
+    legacy = Grupo(
+        nombre="SEMIPROVEL",
+        nombre_completo="SEMIPROVEL (Sistemas y Programación)",
+        descripcion_grupo="Descripción anterior",
+        owner_id=admin.id,
+    )
+    db.add(legacy)
+    db.flush()
+    db.execute(grupo_integrantes.insert().values(
+        grupo_id=legacy.id, user_id=researcher.id, rol_en_grupo="Investigador"
+    ))
+    db.execute(grupo_integrantes.insert().values(
+        grupo_id=legacy.id, user_id=learner.id, rol_en_grupo="Aprendiz Semillero"
+    ))
+    project = Proyecto(
+        nombre="Proyecto heredado",
+        grupo_id=legacy.id,
+        owner_id=researcher.id,
+    )
+    db.add(project)
+    db.commit()
+    original_project_id = str(project.id)
+    original_group_id = str(legacy.id)
+
+    result = ensure_research_catalog(db)
+
+    assert result.groups_migrated == 1
+    assert db.query(Grupo).count() == 1
+    central_group = db.query(Grupo).one()
+    assert central_group.nombre == CANONICAL_GROUP_NAME
+    migrated = db.query(Semillero).filter_by(sigla="SEMIPROVEL").one()
+    assert migrated.nombre == "Sistemas y Programación"
+    assert migrated.descripcion == "Descripción anterior"
+    assert str(migrated.grupo_id) == str(central_group.id)
+    project = db.query(Proyecto).filter_by(id=original_project_id).one()
+    assert str(project.grupo_id) == str(central_group.id)
+    assert str(project.semillero_id) == str(migrated.id)
+    assert str(project.grupo_id) != original_group_id
+    members = {
+        str(row.user_id): row.rol_en_grupo
+        for row in db.execute(grupo_integrantes.select()).all()
+    }
+    assert members == {str(researcher.id): "Investigador"}
+    profile = db.query(Aprendiz).filter_by(user_id=learner.id).one()
+    assert str(profile.semillero_id) == str(migrated.id)
+    researchers = db.execute(
+        semillero_investigadores.select().where(
+            semillero_investigadores.c.semillero_id == migrated.id
+        )
+    ).all()
+    assert [str(row.user_id) for row in researchers] == [str(researcher.id)]
+
+
+def test_legacy_group_migration_can_be_rolled_back(database):
+    engine, _, db = database
+    admin = add_user(db)
+    researcher = add_user(db, role="investigador", email="rollback@example.com")
+    with engine.begin() as connection:
+        connection.execute(text("DROP INDEX IF EXISTS uq_grupos_singleton"))
+    legacy = Grupo(nombre="Grupo anterior", owner_id=admin.id)
+    db.add(legacy)
+    db.flush()
+    db.execute(grupo_integrantes.insert().values(
+        grupo_id=legacy.id,
+        user_id=researcher.id,
+        rol_en_grupo="Investigador",
+    ))
+    project = Proyecto(
+        nombre="Proyecto para reversión",
+        grupo_id=legacy.id,
+        owner_id=researcher.id,
+    )
+    db.add(project)
+    db.commit()
+    group_id = str(legacy.id)
+    project_id = str(project.id)
+
     ensure_research_catalog(db)
-    original_ids = {group.nombre: group.id for group in db.query(Grupo).all()}
-    group = db.query(Grupo).filter_by(nombre="SEMIPROVEL").one()
-    group.nombre = "Nombre actualizado por su investigador"
-    group.descripcion_grupo = "Misión registrada por el equipo"
-    group.codigo_gruplac = "example"
-    group.estado = "inactivo"
-    db.add(Grupo(nombre="Grupo adicional", owner_id=admin.id))
-    db.commit()
+    restored = downgrade_legacy_groups(db)
 
-    result = ensure_research_catalog(db)
-
-    assert result.created == 0
-    assert result.existing == 12
-    assert db.query(Grupo).count() == 13
-    assert group.id == original_ids["SEMIPROVEL"]
-    assert group.nombre == "Nombre actualizado por su investigador"
-    assert group.descripcion_grupo == "Misión registrada por el equipo"
-    assert group.codigo_gruplac == "example"
-    assert group.estado == "inactivo"
+    assert restored == 1
+    assert db.query(Grupo).filter_by(id=group_id).one().nombre == "Grupo anterior"
+    assert db.query(Grupo).filter_by(nombre=CANONICAL_GROUP_NAME).count() == 1
+    restored_project = db.query(Proyecto).filter_by(id=project_id).one()
+    assert str(restored_project.grupo_id) == group_id
+    assert restored_project.semillero_id is None
+    restored_member = db.execute(grupo_integrantes.select().where(
+        grupo_integrantes.c.grupo_id == group_id
+    )).one()
+    assert str(restored_member.user_id) == str(researcher.id)
 
 
-@pytest.mark.parametrize("existing_name", [
-    " siamb ", "SIAMB (Ambiental)", "2 SIAMB (Ambiental)", "2SIAMB (Ambiental)",
-])
-def test_semillado_conserva_grupo_preexistente_y_su_responsable(database, existing_name):
+def test_no_active_admin_means_no_partial_structure(database):
     _, _, db = database
-    add_admin(db)
-    researcher = add_admin(db, rol="investigador", email="researcher@example.com")
-    group = Grupo(nombre=existing_name, nombre_completo="Nombre vigente",
-                  owner_id=researcher.id, codigo_gruplac="example")
-    db.add(group)
-    db.commit()
-    original_id = group.id
+    add_user(db, role="investigador")
 
-    result = ensure_research_catalog(db)
-
-    assert result.created == 11
-    assert result.existing == 1
-    assert db.query(Grupo).count() == 12
-    assert group.id == original_id
-    assert group.nombre == existing_name
-    assert group.owner_id == researcher.id
-    assert group.nombre_completo == "Nombre vigente"
-    assert group.codigo_gruplac == "example"
-
-
-@pytest.mark.parametrize("rol,active", [("investigador", True), ("admin", False)])
-def test_sin_administrador_activo_no_inventa_un_propietario(database, rol, active):
-    _, _, db = database
-    add_admin(db, rol=rol, active=active)
     with pytest.raises(ResearchCatalogError, match="administrador activo"):
         ensure_research_catalog(db)
-    assert db.query(Grupo).count() == 0
-
-
-def test_error_real_de_persistencia_revierte_todo_el_catálogo(database):
-    engine, _, db = database
-    add_admin(db)
-    with engine.begin() as connection:
-        connection.execute(text(
-            "CREATE TRIGGER reject_catalog BEFORE INSERT ON grupos "
-            "WHEN NEW.nombre = 'SIACF' BEGIN SELECT RAISE(ABORT, 'example'); END"
-        ))
-
-    with pytest.raises(ResearchCatalogError, match="catálogo"):
-        ensure_research_catalog(db)
 
     assert db.query(Grupo).count() == 0
-    with engine.begin() as connection:
-        connection.execute(text("DROP TRIGGER reject_catalog"))
-    assert ensure_research_catalog(db).created == 12
+    assert db.query(Semillero).count() == 0
+
+
+def test_database_rejects_a_second_group(database):
+    _, _, db = database
+    admin = add_user(db)
+    ensure_research_catalog(db)
+
+    db.add(Grupo(nombre="Otro grupo", owner_id=admin.id))
+    with pytest.raises(IntegrityError):
+        db.commit()
+    db.rollback()
+    assert db.query(Grupo).count() == 1
 
 
 def configure_bootstrap(monkeypatch, database):
@@ -186,85 +235,110 @@ def configure_bootstrap(monkeypatch, database):
     return bootstrap_initial_data, settings
 
 
-def test_entrypoint_crea_admin_y_catálogo_en_producción_y_no_duplica(database, monkeypatch):
+def test_container_bootstrap_creates_one_group_and_catalog_without_duplicates(database, monkeypatch):
     bootstrap_module, _ = configure_bootstrap(monkeypatch, database)
     _, _, db = database
 
     assert bootstrap_module.bootstrap() == 0
-    ids = {group.id for group in db.query(Grupo).all()}
     password_hash = db.query(User).one().password_hash
-    assert len(ids) == 12
+    assert db.query(Grupo).count() == 1
+    assert db.query(Grupo).one().nombre == CANONICAL_GROUP_NAME
+    assert db.query(Semillero).count() == len(RESEARCH_SEEDBED_CATALOG)
     assert bootstrap_module.bootstrap() == 0
-    assert {group.id for group in db.query(Grupo).all()} == ids
+    assert db.query(Grupo).count() == 1
+    assert db.query(Semillero).count() == len(RESEARCH_SEEDBED_CATALOG)
     assert db.query(User).count() == 1
     assert db.query(User).one().password_hash == password_hash
 
 
-def test_entrypoint_sin_credencial_no_publica_catálogo(database, monkeypatch):
+def test_first_startup_migrates_legacy_groups_before_adding_singleton_index(database, monkeypatch):
+    engine, sessions, db = database
+    admin = add_user(db)
+    researcher = add_user(db, role="investigador", email="legacy@example.com")
+    with engine.begin() as connection:
+        connection.execute(text("DROP INDEX IF EXISTS uq_grupos_singleton"))
+
+    catalog_group = Grupo(nombre="SEMIPROVEL", owner_id=admin.id)
+    legacy_group = Grupo(nombre="Grupo legado", owner_id=admin.id)
+    db.add_all([catalog_group, legacy_group])
+    db.flush()
+    catalog_project = Proyecto(
+        nombre="Proyecto catalogado",
+        grupo_id=catalog_group.id,
+        owner_id=researcher.id,
+    )
+    legacy_project = Proyecto(
+        nombre="Proyecto legado",
+        grupo_id=legacy_group.id,
+        owner_id=researcher.id,
+    )
+    db.add_all([catalog_project, legacy_project])
+    db.commit()
+    catalog_project_id = str(catalog_project.id)
+    legacy_project_id = str(legacy_project.id)
+
+    bootstrap_module, _ = configure_bootstrap(monkeypatch, database)
+    assert bootstrap_module.bootstrap() == 0
+
+    with sessions() as persisted:
+        central_group = persisted.query(Grupo).one()
+        assert central_group.nombre == CANONICAL_GROUP_NAME
+        assert persisted.query(Semillero).count() == len(RESEARCH_SEEDBED_CATALOG) + 1
+        assert persisted.query(Semillero).filter_by(sigla="SEMIPROVEL").count() == 1
+        catalog_seedbed = persisted.query(Semillero).filter_by(sigla="SEMIPROVEL").one()
+        legacy_seedbed = persisted.query(Semillero).filter_by(nombre="Grupo legado").one()
+        assert str(catalog_seedbed.grupo_id) == str(central_group.id)
+        assert str(legacy_seedbed.grupo_id) == str(central_group.id)
+        migrated_projects = {
+            str(project.id): (str(project.grupo_id), str(project.semillero_id))
+            for project in persisted.query(Proyecto).all()
+        }
+        assert migrated_projects[catalog_project_id] == (
+            str(central_group.id), str(catalog_seedbed.id)
+        )
+        assert migrated_projects[legacy_project_id] == (
+            str(central_group.id), str(legacy_seedbed.id)
+        )
+        with engine.connect() as connection:
+            index_name = connection.execute(text(
+                "SELECT name FROM sqlite_master "
+                "WHERE type = 'index' AND name = 'uq_grupos_singleton'"
+            )).scalar_one_or_none()
+        assert index_name == "uq_grupos_singleton"
+
+
+def test_container_bootstrap_without_admin_password_creates_no_structure(database, monkeypatch):
     bootstrap_module, settings = configure_bootstrap(monkeypatch, database)
     settings.INITIAL_ADMIN_PASSWORD = ""
     _, _, db = database
+
     assert bootstrap_module.bootstrap() == 1
     assert db.query(User).count() == 0
     assert db.query(Grupo).count() == 0
+    assert db.query(Semillero).count() == 0
 
 
-def test_entrypoint_falla_si_catálogo_no_se_puede_persistir(database, monkeypatch):
-    bootstrap_module, _ = configure_bootstrap(monkeypatch, database)
-    engine, _, db = database
-    with engine.begin() as connection:
-        connection.execute(text(
-            "CREATE TRIGGER reject_catalog BEFORE INSERT ON grupos "
-            "BEGIN SELECT RAISE(ABORT, 'example'); END"
-        ))
-    assert bootstrap_module.bootstrap() == 1
-    assert db.query(Grupo).count() == 0
-
-
-def test_lifespan_local_crea_y_conserva_catálogo(database, monkeypatch):
+def test_lifespan_uses_the_same_idempotent_structure(database, monkeypatch):
     from app import main
 
     engine, sessions, db = database
     monkeypatch.setattr(main, "engine", engine)
     monkeypatch.setattr(main, "SessionLocal", sessions)
     monkeypatch.setattr(main, "settings", bootstrap_settings())
-    # Estos auxiliares capturan el motor global al definirse; usan el mismo motor aislado.
-    monkeypatch.setattr(main, "ensure_document_description_column", lambda _: False)
-    monkeypatch.setattr(main, "ensure_investigador_role", lambda _: 0)
 
     async def start_twice():
         async with main.lifespan(main.app):
-            assert db.query(Grupo).count() == 12
+            assert db.query(Grupo).count() == 1
+            assert db.query(Semillero).count() == len(RESEARCH_SEEDBED_CATALOG)
         async with main.lifespan(main.app):
-            assert db.query(Grupo).count() == 12
+            assert db.query(Grupo).count() == 1
+            assert db.query(Semillero).count() == len(RESEARCH_SEEDBED_CATALOG)
 
     asyncio.run(start_twice())
     assert db.query(User).count() == 1
 
 
-def test_lifespan_rechaza_error_real_del_catálogo(database, monkeypatch):
-    from app import main
-
-    engine, sessions, db = database
-    monkeypatch.setattr(main, "engine", engine)
-    monkeypatch.setattr(main, "SessionLocal", sessions)
-    monkeypatch.setattr(main, "settings", bootstrap_settings())
-    with engine.begin() as connection:
-        connection.execute(text(
-            "CREATE TRIGGER reject_catalog BEFORE INSERT ON grupos "
-            "BEGIN SELECT RAISE(ABORT, 'example'); END"
-        ))
-
-    async def start():
-        async with main.lifespan(main.app):
-            pytest.fail("La aplicación no debe atender tráfico sin el catálogo persistido")
-
-    with pytest.raises(ResearchCatalogError):
-        asyncio.run(start())
-    assert db.query(Grupo).count() == 0
-
-
-def test_script_real_del_contenedor_crea_el_catálogo_con_salida_exitosa(tmp_path):
+def test_real_container_script_installs_the_base_on_first_boot(tmp_path):
     backend = Path(__file__).resolve().parents[1]
     database_file = tmp_path / "first-deployment.db"
     environment = {
@@ -278,33 +352,22 @@ def test_script_real_del_contenedor_crea_el_catálogo_con_salida_exitosa(tmp_pat
         "PYTHONIOENCODING": "utf-8",
     }
     result = subprocess.run(
-        [sys.executable, "scripts/bootstrap_initial_data.py"], cwd=backend,
-        env=environment, capture_output=True, text=True, encoding="utf-8", timeout=30,
+        [sys.executable, "scripts/bootstrap_initial_data.py"],
+        cwd=backend,
+        env=environment,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=30,
     )
 
     assert result.returncode == 0, result.stderr
-    assert "12 creados" in result.stdout
     engine = create_engine(environment["DATABASE_URL"])
     try:
         with engine.connect() as connection:
-            assert connection.execute(text("SELECT count(*) FROM grupos")).scalar() == 12
+            assert connection.execute(text("SELECT count(*) FROM grupos")).scalar() == 1
+            assert connection.execute(text("SELECT nombre FROM grupos")).scalar() == CANONICAL_GROUP_NAME
+            assert connection.execute(text("SELECT count(*) FROM semilleros")).scalar() == len(RESEARCH_SEEDBED_CATALOG)
             assert connection.execute(text("SELECT rol FROM users")).scalar() == "admin"
     finally:
         engine.dispose()
-
-
-def test_bloqueo_del_catálogo_usa_un_identificador_compartido(database, monkeypatch):
-    engine, _, db = database
-    add_admin(db)
-    locks = []
-    # SQLite ejecuta la misma consulta mediante una función escalar de prueba.
-    # La persistencia del catálogo continúa usando sesiones y tablas reales.
-    raw_connection = engine.raw_connection()
-    raw_connection.create_function("pg_advisory_xact_lock", 1, lambda key: locks.append(key) or 1)
-    raw_connection.close()
-    monkeypatch.setattr(engine.dialect, "name", "postgresql")
-
-    assert ensure_research_catalog(db).created == 12
-    assert ensure_research_catalog(db).created == 0
-    assert locks == [53454, 53454]
-    assert db.query(Grupo).count() == 12

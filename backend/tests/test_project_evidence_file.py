@@ -217,6 +217,7 @@ def test_finalization_transaction_rolls_back_state_activity_and_notifications(ev
 
 def test_project_group_is_never_assigned_arbitrarily_and_invalid_links_are_rejected(evidence_context):
     db, owner, _, _, client = evidence_context
+    db.execute(text("DROP INDEX IF EXISTS uq_grupos_singleton"))
     first = Grupo(nombre="SEMIPROVEL", owner_id=owner.id)
     second = Grupo(nombre="SIADM", owner_id=owner.id)
     db.add_all([first, second])

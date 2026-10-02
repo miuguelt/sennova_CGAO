@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     Column, String, Integer, Boolean, DateTime, Date, 
-    ForeignKey, Text, Float, Table, JSON
+    ForeignKey, Text, Float, Table, JSON, Index, text
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import ARRAY as PostgresARRAY
@@ -143,6 +143,9 @@ class User(Base):
 
 class Grupo(Base):
     __tablename__ = "grupos"
+    __table_args__ = (
+        Index("uq_grupos_singleton", text("(1)"), unique=True),
+    )
     
     id = get_uuid_column(primary_key=True, default=uuid.uuid4)
     nombre = Column(String(255), nullable=False)

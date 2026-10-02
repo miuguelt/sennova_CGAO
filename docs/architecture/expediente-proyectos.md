@@ -41,11 +41,13 @@ Al eliminar un proyecto, sus registros documentales se retiran en la misma trans
 
 La disponibilidad y los períodos no demuestran la calidad científica, las firmas, la coincidencia de todos los datos internos ni la aprobación institucional. El responsable debe revisar contenido y versión del formato antes de radicar. El ZIP informa este alcance.
 
-## Catálogo y despliegue
+## Estructura institucional y despliegue
 
-El catálogo incluye los 12 grupos de la imagen y excluye las carpetas de base de datos y formatos. El administrador es propietario técnico inicial; no se infieren integrantes, director, código o clasificación Minciencias. UUID estables y un bloqueo transaccional de PostgreSQL evitan duplicados entre workers. Los nombres y campos existentes se conservan.
+La base contiene un solo grupo, **Investigadores CGAO**. Los doce registros de catálogo son semilleros; cada uno pertenece al grupo y puede relacionar investigadores, aprendices y proyectos. Los equipos de proyecto admiten cuentas con rol de investigador o aprendiz.
 
-El entrypoint de Docker Compose ejecuta `scripts/bootstrap_initial_data.py`: esquema, administrador y catálogo. Un error del catálogo rechaza el arranque. No se requiere activar el servicio destructivo de demostración ni copiar la carpeta de referencia al contenedor. Coolify mantiene el almacenamiento en su volumen persistente.
+En instalaciones anteriores, el arranque convierte cada grupo adicional en un semillero, conserva integrantes investigadores, perfiles de aprendices y asignaciones de proyectos, y registra una copia reversible de los vínculos migrados. La migración y la creación del catálogo ocurren en una transacción protegida por bloqueo; un índice único impide guardar otro grupo. Las altas de grupos adicionales y la eliminación del grupo institucional se rechazan desde la API.
+
+El entrypoint de Docker Compose ejecuta `scripts/bootstrap_initial_data.py` antes de Uvicorn. Ese flujo crea las tablas, repara columnas heredadas, aplica el esquema documental, crea el administrador inicial y deja listo el grupo con sus semilleros. El mismo flujo se ejecuta al iniciar FastAPI fuera del contenedor. Si falla la preparación, el servicio no atiende tráfico. No se activa el poblado destructivo de demostración en producción.
 
 La imagen `postgres:16-alpine` inicializa volúmenes nuevos con ICU y configuración `es-CO`, en lugar de exigir una configuración de libc no instalada. Este mecanismo sigue la [documentación de la imagen oficial](https://hub.docker.com/_/postgres?tab=description) y las opciones de [initdb de PostgreSQL 16](https://www.postgresql.org/docs/16/app-initdb.html). No modifica la configuración regional de volúmenes existentes. La integración continua usa los mismos argumentos de inicialización.
 
@@ -53,7 +55,7 @@ La imagen `postgres:16-alpine` inicializa volúmenes nuevos con ICU y configurac
 
 - La carpeta y el informe indican CAP-05-2026; el objetivo del acta de inicio menciona CAP-06-2026. No se confirmó el código correcto para importar ese proyecto.
 - El acta declara 15 meses, con fechas 01-02-2026 y 30-09-2027. La duración y el intervalo deben conciliarse antes de calcular su calendario.
-- El acta menciona SIADM como semillero; la solicitud actual pide registrar el listado como grupos. El catálogo cumple la solicitud y no convierte automáticamente semilleros existentes ni cambia sus relaciones.
+- El acta menciona SIADM como semillero. La estructura actual conserva un único grupo institucional y clasifica el listado del catálogo como semilleros.
 - El presupuesto general del acta y el rubro visible de servicios personales no son iguales. Se requiere verificar el desglose completo.
 - Las conclusiones del acta contienen referencias a fortalecimiento administrativo que deben revisarse frente al propósito de organización documental.
 

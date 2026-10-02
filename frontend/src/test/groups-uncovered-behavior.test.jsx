@@ -89,6 +89,7 @@ function configureApis() {
   SemillerosAPI.deleteAprendiz.mockResolvedValue({});
   UsuariosAPI.list.mockResolvedValue([
     { id: 'u-owner', nombre: 'Marta Líder', email: 'marta@sena.edu.co', rol: 'investigador', rol_sennova: 'Investigador Principal' },
+    { id: 'u-investigator', nombre: 'Carlos Investigador', email: 'carlos@sena.edu.co', rol: 'investigador' },
     { id: 'u-admin', nombre: 'Admin CGAO', email: 'admin@sena.edu.co', rol: 'admin' },
     { id: 'a-1', nombre: 'Ana Aprendiz', email: 'ana@soy.sena.edu.co', rol: 'aprendiz', ficha: 'ADSO-01' },
   ]);
@@ -435,23 +436,27 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     await waitFor(() => expect(notify).toHaveBeenCalledWith('Error al guardar producto: producto rechazado', 'error'));
   });
 
-  it('maneja errores de carga, formularios y vinculación desde la administración de grupos', async () => {
+  it('maneja errores de carga y de edición del grupo institucional', async () => {
     const notify = vi.fn();
     GruposAPI.list.mockRejectedValueOnce(new Error('grupos no disponibles'));
     render(<GruposModule currentUser={admin} onNotify={notify} />);
-    expect(await screen.findByRole('heading', { name: 'Grupos de Investigación' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Grupo de Investigación' })).toBeVisible();
     expect(await screen.findByText('No se encontraron grupos de investigación.')).toBeVisible();
     expect(notify).toHaveBeenCalledWith('Error al cargar datos: grupos no disponibles', 'error');
 
+    cleanup();
     GruposAPI.list.mockResolvedValue([grupo]);
-    fireEvent.click(screen.getByRole('button', { name: 'Nuevo Grupo' }));
-    fireEvent.change(screen.getByLabelText(/Sigla o Nombre Corto/i), { target: { value: 'GIDTA-N' } });
-    fireEvent.change(screen.getByLabelText(/Nombre Completo Institucional/i), { target: { value: 'Grupo nuevo' } });
+    render(<GruposModule currentUser={admin} onNotify={notify} />);
+    await screen.findByRole('heading', { name: grupo.nombre });
+    fireEvent.click(screen.getByRole('button', { name: `Más opciones del grupo ${grupo.nombre}` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Datos' }));
+    fireEvent.change(screen.getByLabelText(/Nombre Completo Institucional/i), { target: { value: 'Grupo actualizado' } });
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
-    GruposAPI.create.mockRejectedValueOnce(new Error('grupo rechazado'));
-    fireEvent.click(screen.getByRole('button', { name: 'Registrar Grupo' }));
+    GruposAPI.update.mockRejectedValueOnce(new Error('grupo rechazado'));
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar Información' }));
     await waitFor(() => expect(notify).toHaveBeenCalledWith('Error al guardar grupo: grupo rechazado', 'error'));
+    expect(GruposAPI.create).not.toHaveBeenCalled();
   });
 
   it('conserva el grupo si falla la carga de integrantes y permite arrastrar un investigador al equipo', async () => {
@@ -463,16 +468,16 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Gestionar Equipo' }));
     await waitFor(() => expect(notify).toHaveBeenCalledWith('Error al cargar integrantes: equipo no disponible', 'error'));
     fireEvent.click(screen.getByRole('button', { name: 'Abrir Talent Pool' }));
-    const investigator = screen.getByText('Admin CGAO');
-    const dataTransfer = { setData: vi.fn(), getData: vi.fn(() => 'u-admin') };
+    const investigator = screen.getByText('Carlos Investigador');
+    const dataTransfer = { setData: vi.fn(), getData: vi.fn(() => 'u-investigator') };
     fireEvent.dragStart(investigator.closest('[draggable="true"]'), { dataTransfer });
-    expect(dataTransfer.setData).toHaveBeenCalledWith('userId', 'u-admin');
+    expect(dataTransfer.setData).toHaveBeenCalledWith('userId', 'u-investigator');
     const dropArea = screen.getByText('Vincular Integrante').parentElement.parentElement.parentElement;
     fireEvent.dragOver(dropArea, { dataTransfer });
     GruposAPI.addMember.mockRejectedValueOnce(new Error('vinculación rechazada'));
     fireEvent.drop(dropArea, { dataTransfer });
     await waitFor(() => expect(notify).toHaveBeenCalledWith('Error al vincular talento: vinculación rechazada', 'error'));
-    expect(GruposAPI.addMember).toHaveBeenCalledWith('g-1', { user_id: 'u-admin', rol: 'Investigador' });
+    expect(GruposAPI.addMember).toHaveBeenCalledWith('g-1', { user_id: 'u-investigator', rol: 'Investigador' });
   });
 
   it('vincula talento desde el selector del directorio y confirma su desvinculación aunque falle la API', async () => {
@@ -484,11 +489,11 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     await screen.findByRole('dialog', { name: 'Equipo de Investigación' });
 
     const talentSelector = screen.getAllByRole('combobox').at(-1);
-    fireEvent.change(talentSelector, { target: { value: 'a-1' } });
-    expect(screen.getByRole('heading', { name: 'Vincular a Ana Aprendiz' })).toBeVisible();
-    expect(screen.getAllByRole('combobox').map(select => select.value)).toContain('Aprendiz');
+    fireEvent.change(talentSelector, { target: { value: 'u-investigator' } });
+    expect(screen.getByRole('heading', { name: 'Vincular a Carlos Investigador' })).toBeVisible();
+    expect(screen.getAllByRole('combobox').map(select => select.value)).toContain('Investigador');
     fireEvent.click(screen.getByRole('button', { name: 'Vincular' }));
-    await waitFor(() => expect(GruposAPI.addMember).toHaveBeenCalledWith('g-1', { user_id: 'a-1', rol: 'Aprendiz' }));
+    await waitFor(() => expect(GruposAPI.addMember).toHaveBeenCalledWith('g-1', { user_id: 'u-investigator', rol: 'Investigador' }));
     expect(notify).toHaveBeenCalledWith('Integrante vinculado correctamente', 'success');
 
     GruposAPI.removeMember.mockRejectedValueOnce(new Error('integrante en uso'));
@@ -500,23 +505,23 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     expect(screen.queryByRole('dialog', { name: '¿Desvincular Integrante?' })).not.toBeInTheDocument();
   });
 
-  it('actualiza el rol visible al editar un grupo y muestra errores al eliminarlo', async () => {
+  it('mantiene fijo el nombre institucional y oculta la eliminación del grupo', async () => {
     const notify = vi.fn();
     render(<GruposModule currentUser={admin} onNotify={notify} />);
     await screen.findByRole('heading', { name: 'GIDTA' });
     fireEvent.click(screen.getByRole('button', { name: 'Más opciones del grupo GIDTA' }));
     fireEvent.click(screen.getByRole('button', { name: 'Editar Datos' }));
-    fireEvent.change(screen.getByLabelText(/Sigla o Nombre Corto/i), { target: { value: 'GIDTA modificado' } });
+    const groupName = screen.getByLabelText(/Nombre del grupo institucional/i);
+    expect(groupName).toHaveValue('Investigadores CGAO');
+    expect(groupName).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     fireEvent.click(screen.getByRole('button', { name: 'Anterior' }));
-    expect(screen.getByLabelText(/Sigla o Nombre Corto/i)).toHaveValue('GIDTA modificado');
+    expect(screen.getByLabelText(/Nombre del grupo institucional/i)).toHaveValue('Investigadores CGAO');
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Más opciones del grupo GIDTA' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Eliminar Grupo' }));
-    GruposAPI.delete.mockRejectedValueOnce(new Error('grupo en uso'));
-    fireEvent.click(within(screen.getByRole('dialog', { name: '¿Eliminar Grupo de Investigación?' })).getByRole('button', { name: 'Sí, Eliminar Grupo' }));
-    await waitFor(() => expect(notify).toHaveBeenCalledWith('Error al eliminar grupo: grupo en uso', 'error'));
+    expect(screen.queryByRole('button', { name: 'Eliminar Grupo' })).not.toBeInTheDocument();
+    expect(GruposAPI.delete).not.toHaveBeenCalled();
   });
 
   it('consulta el expediente del grupo por sus pestañas y actualiza sus datos desde el encabezado', async () => {
@@ -540,13 +545,13 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     expect(screen.getByText('Semillero Agro')).toBeVisible();
 
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar Datos' }));
-    fireEvent.change(await screen.findByLabelText(/Sigla o Nombre Corto/i), { target: { value: 'GIDTA actualizado' } });
+    expect(await screen.findByLabelText(/Nombre del grupo institucional/i)).toHaveValue('Investigadores CGAO');
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     fireEvent.change(screen.getByLabelText(/Líneas de Investigación/i), { target: { value: 'Agroindustria, Automatización' } });
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar Información' }));
 
-    await waitFor(() => expect(GruposAPI.update).toHaveBeenCalledWith(grupo.id, expect.objectContaining({ nombre: 'GIDTA actualizado' })));
+    await waitFor(() => expect(GruposAPI.update).toHaveBeenCalledWith(grupo.id, expect.objectContaining({ nombre: 'Investigadores CGAO' })));
     expect(notify).toHaveBeenCalledWith('Grupo institucional actualizado', 'success');
   });
 
@@ -803,7 +808,8 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     fireEvent.click(within(cancelDialog).getByRole('button', { name: 'Cancelar' }));
     fireEvent.click(screen.getByRole('button', { name: 'Editar Perfil' }));
     const editDialog = await screen.findByRole('dialog', { name: 'Editar Perfil Institucional del Grupo' });
-    fireEvent.change(within(editDialog).getByLabelText(/Sigla o Nombre Corto/), { target: { value: 'GIDTA Renovado' } });
+    expect(within(editDialog).getByLabelText(/Nombre del grupo institucional/)).toHaveValue('Investigadores CGAO');
+    expect(within(editDialog).getByLabelText(/Nombre del grupo institucional/)).toBeDisabled();
     fireEvent.change(within(editDialog).getByLabelText(/Código GrupLAC/), { target: { value: 'COL009999' } });
     fireEvent.change(within(editDialog).getByLabelText(/Nombre Institucional Completo/), { target: { value: 'Grupo Renovado CGAO' } });
     fireEvent.change(within(editDialog).getByLabelText(/Director\(a\) del Grupo/), { target: { value: 'Nueva Directora' } });
@@ -817,7 +823,7 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     fireEvent.change(within(editDialog).getByLabelText(/Visión Institucional/), { target: { value: 'Ser referentes regionales' } });
     fireEvent.click(within(editDialog).getByRole('button', { name: 'Guardar Cambios' }));
     await waitFor(() => expect(GruposAPI.update).toHaveBeenCalledWith('g-1', expect.objectContaining({
-      nombre: 'GIDTA Renovado', codigo_gruplac: 'COL009999', nombre_completo: 'Grupo Renovado CGAO',
+      nombre: 'Investigadores CGAO', codigo_gruplac: 'COL009999', nombre_completo: 'Grupo Renovado CGAO',
       director_nombre: 'Nueva Directora', director_email: 'directora@sena.edu.co', clasificacion: 'A1',
       convocatoria_activa: 'Convocatoria 2026', gruplac_url: 'https://gruplac.example/renovado',
       lineas_investigacion: ['Agroindustria', 'Robótica'], descripcion_grupo: 'Descripción institucional actualizada',

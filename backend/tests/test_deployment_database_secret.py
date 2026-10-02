@@ -190,3 +190,54 @@ def test_production_settings_reject_sqlite_without_a_database_secret():
         assert "PostgreSQL" in str(error)
     else:
         raise AssertionError("Producción debe requerir una conexión a PostgreSQL")
+
+
+def test_production_settings_default_to_production_origins_without_warning():
+    import warnings
+    settings = Settings(
+        _env_file=None,
+        DB_PASSWORD="a_very_secure_db_password_123",
+        JWT_SECRET=secrets.token_urlsafe(32),
+        DATABASE_URL="postgresql+psycopg://sennova:pass@sennova-db:5432/sennova",
+        DEBUG=False,
+    )
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
+        validate_production_settings(settings)
+        assert not any("ALLOWED_ORIGINS contiene 'localhost'" in str(w.message) for w in captured)
+    assert "sennova.enlinea.sbs" in settings.ALLOWED_ORIGINS
+    assert settings.FRONTEND_URL == "https://sennova.enlinea.sbs"
+    assert settings.BACKEND_URL == "https://sennova.enlinea.sbs/api"
+
+
+def test_production_settings_warn_when_localhost_is_explicitly_configured():
+    import warnings
+    settings = Settings(
+        _env_file=None,
+        DB_PASSWORD="a_very_secure_db_password_123",
+        JWT_SECRET=secrets.token_urlsafe(32),
+        DATABASE_URL="postgresql+psycopg://sennova:pass@sennova-db:5432/sennova",
+        ALLOWED_ORIGINS="http://localhost:3000",
+        DEBUG=False,
+    )
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
+        validate_production_settings(settings)
+        assert any("ALLOWED_ORIGINS contiene 'localhost'" in str(w.message) for w in captured)
+
+
+def test_frontend_public_sena_logo_exists_and_is_valid_svg():
+    import xml.etree.ElementTree as ET
+    logo_path = REPOSITORY_ROOT / "frontend" / "public" / "sena-logo.svg"
+    assert logo_path.exists(), "frontend/public/sena-logo.svg debe existir para el favicon del navegador"
+    content = logo_path.read_text(encoding="utf-8")
+    root = ET.fromstring(content)
+    assert root.tag.endswith("svg")
+    assert "#39A900" in content, "El logo debe incluir el color verde institucional del SENA"
+
+
+def test_compose_uses_sennova_enlinea_sbs_as_domain_default():
+    compose = (REPOSITORY_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "https://${DOMAIN:-sennova.enlinea.sbs}" in compose
+    assert "https://${DOMAIN:-localhost}" not in compose
+

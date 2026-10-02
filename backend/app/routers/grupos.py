@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user, get_current_admin, get_current_staff
 from app.database import get_db
 from app.models import Grupo, User, grupo_integrantes
+from app.research_catalog import CANONICAL_GROUP_NAME
 from app.schemas import GrupoCreate, GrupoUpdate
 from app.utils import log_actividad
 
@@ -143,10 +144,15 @@ def create_grupo(
     current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    """Crear un nuevo grupo de investigación."""
+    """Crea el grupo institucional solo si todavía no existe."""
+    if db.query(Grupo.id).first() is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="El grupo Investigadores CGAO ya existe. Registra los equipos de trabajo como semilleros.",
+        )
     grupo = Grupo(
-        nombre=grupo_data.nombre,
-        nombre_completo=grupo_data.nombre_completo,
+        nombre=CANONICAL_GROUP_NAME,
+        nombre_completo=grupo_data.nombre_completo or "Grupo institucional de investigadores del CGAO",
         codigo_gruplac=grupo_data.codigo_gruplac,
         clasificacion=grupo_data.clasificacion,
         gruplac_url=grupo_data.gruplac_url,
@@ -159,17 +165,12 @@ def create_grupo(
         db.add(grupo)
         db.commit()
         db.refresh(grupo)
-        
-        # Owner es automáticamente líder del grupo
-        db.execute(
-            grupo_integrantes.insert().values(
-                grupo_id=str(grupo.id),
-                user_id=str(current_user.id),
-                rol_en_grupo='Líder'
-            )
-        )
-        db.commit()
-        db.refresh(grupo)
+    except sa.exc.IntegrityError as db_err:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="El grupo Investigadores CGAO ya existe. Registra los equipos de trabajo como semilleros.",
+        ) from db_err
     except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
         db.rollback()
         raise db_err
@@ -209,6 +210,8 @@ def update_grupo(
         raise HTTPException(status_code=403, detail="Sin permiso para editar")
     
     update_data = grupo_update.model_dump(exclude_unset=True) if hasattr(grupo_update, 'model_dump') else grupo_update.dict(exclude_unset=True)
+    if update_data.get("nombre", CANONICAL_GROUP_NAME) != CANONICAL_GROUP_NAME:
+        raise HTTPException(status_code=422, detail="El nombre del grupo institucional es fijo: Investigadores CGAO.")
     for field, value in update_data.items():
         setattr(grupo, field, value)
     
@@ -250,18 +253,11 @@ def delete_grupo(
         raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar grupos")
     if current_user.rol != "admin" and str(grupo.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso para eliminar")
-    
-    try:
-        db.delete(grupo)
-        db.commit()
-    except (sa.exc.OperationalError, sa.exc.SQLAlchemyError) as db_err:
-        db.rollback()
-        raise db_err
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error al eliminar grupo: {str(e)}")
-    
-    return {"message": "Grupo eliminado"}
+
+    raise HTTPException(
+        status_code=409,
+        detail="El grupo Investigadores CGAO es la estructura institucional y no se puede eliminar.",
+    )
 
 
 # ==========================================
@@ -321,6 +317,11 @@ def add_integrante(
     user = db.query(User).filter(User.id == str(user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if user.rol != "investigador":
+        raise HTTPException(
+            status_code=422,
+            detail="El grupo Investigadores CGAO solo admite integrantes con rol de investigador.",
+        )
     
     # Verificar si ya es integrante
     existing = db.query(grupo_integrantes).filter(

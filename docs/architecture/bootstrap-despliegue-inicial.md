@@ -6,14 +6,15 @@
 
 El modelo de datos no tiene tablas de catálogo: roles, estados, tipologías,
 categorías Minciencias y las fases del cronograma SENNOVA están en el código
-(`app/routers/plantillas.py`, columnas con `default` en `app/models.py`). Por eso
-el único dato de negocio que la base de datos necesita antes del primer login es
-**un usuario con rol `admin`**.
+(`app/routers/plantillas.py`, columnas con `default` en `app/models.py`). El único
+dato de negocio que la base de datos necesita para habilitar el primer login es
+**un usuario con rol `admin`**. Antes de atender tráfico, el bootstrap también
+prepara la estructura institucional: un grupo llamado **Investigadores CGAO** y
+el catálogo inicial de semilleros.
 
-Todo lo demás — grupos, semilleros, proyectos, convocatorias, retos, aprendices,
-productos, entregables — lo crea ese administrador desde la interfaz y tiene
-`owner_id` apuntando a un usuario, así que no puede precargarse sin un
-administrador previo.
+Los proyectos, convocatorias, retos, aprendices, productos y entregables se
+crean desde la interfaz una vez exista el administrador. El bootstrap precarga
+el grupo y sus semilleros porque definen la estructura institucional.
 
 Fuente de esos datos, por orden de dependencia:
 
@@ -23,6 +24,7 @@ Fuente de esos datos, por orden de dependencia:
 | Contraseña del admin | `INITIAL_ADMIN_PASSWORD` | **Sí, sin default** | Mínimo 7 caracteres con `DEBUG=false`. Sin ella el contenedor falla al arrancar. |
 | Nombre, sede | `INITIAL_ADMIN_NOMBRE`, `INITIAL_ADMIN_SEDE` | No | Solo presentación. |
 | Documento | `INITIAL_ADMIN_DOCUMENTO` | No | Único en `users.documento`; si ya está ocupado el arranque falla con el correo del dueño. |
+| Grupo y semilleros | Bootstrap inicial | Automático | Crea el grupo `Investigadores CGAO`, prepara el catálogo de semilleros y consolida grupos heredados. |
 | Firma de sesiones | `JWT_SECRET` | **Sí, sin default** | Mínimo 32 caracteres; `validate_production_settings` lo bloquea en producción. |
 | Base de datos | `DATABASE_URL` o `DB_*` | Sí | Sin `DB_PASSWORD` ni `DATABASE_URL` la app cae a SQLite local. |
 | Origen del frontend | `ALLOWED_ORIGINS` | Sí en producción | Sin él, el navegador bloquea toda petición autenticada. |
@@ -65,6 +67,10 @@ modo que ambos caminos producen el mismo estado.
    revertir la credencial que el operador cambió desde la aplicación.
 3. **Falla con mensaje accionable** cuando `INITIAL_ADMIN_DOCUMENTO` ya pertenece
    a otro usuario, en vez de romper con un error de integridad.
+4. **Normaliza la estructura institucional.** Mantiene un solo grupo,
+   convierte grupos adicionales de bases existentes en semilleros y conserva
+   los vínculos con investigadores, aprendices y proyectos. Si no puede
+   completar la estructura, el arranque falla antes de servir tráfico.
 
 Pruebas: `backend/tests/test_bootstrap_admin.py`.
 

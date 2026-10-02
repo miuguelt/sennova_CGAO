@@ -50,21 +50,49 @@ def can_edit_proyecto(proyecto: Proyecto, user: User) -> bool:
     return False
 
 
+def _database_identifier(db: Session, value):
+    """Adapta UUID de API al tipo que usa el motor de persistencia."""
+    if value is None:
+        return None
+    if db.get_bind().dialect.name == "postgresql":
+        return uuid.UUID(str(value))
+    return str(value)
+
+
 def _resolve_project_links(values: dict, db: Session) -> dict:
     """Valida referencias y hereda el grupo del semillero sin atribuciones arbitrarias."""
     resolved = {}
     for field, model in (("grupo_id", Grupo), ("semillero_id", Semillero), ("convocatoria_id", Convocatoria), ("reto_origen_id", Reto)):
         value = str(values[field]) if values.get(field) else None
-        if value is not None and db.query(model).filter(model.id == value).first() is None:
+        if value is not None and db.query(model).filter(
+            model.id == _database_identifier(db, value)
+        ).first() is None:
             raise HTTPException(status_code=404, detail=f"No se encontró el registro vinculado: {field}.")
         resolved[field] = value
     if resolved["semillero_id"]:
-        semillero = db.query(Semillero).filter(Semillero.id == resolved["semillero_id"]).one()
+        semillero = db.query(Semillero).filter(
+            Semillero.id == _database_identifier(db, resolved["semillero_id"])
+        ).one()
         inherited_group = str(semillero.grupo_id) if semillero.grupo_id else None
         if resolved["grupo_id"] and inherited_group and resolved["grupo_id"] != inherited_group:
             raise HTTPException(status_code=422, detail="El grupo del proyecto debe coincidir con el grupo del semillero seleccionado.")
         resolved["grupo_id"] = inherited_group or resolved["grupo_id"]
     return resolved
+
+
+def _get_project_team_member(db: Session, user_id) -> User:
+    """Restringe los equipos a investigadores y aprendices existentes."""
+    member = db.query(User).filter(
+        User.id == _database_identifier(db, user_id)
+    ).first()
+    if member is None:
+        raise HTTPException(status_code=404, detail="No se encontró el integrante del proyecto.")
+    if member.rol not in {"investigador", "aprendiz"}:
+        raise HTTPException(
+            status_code=422,
+            detail="Un proyecto solo puede incluir investigadores y aprendices.",
+        )
+    return member
 
 
 def _build_proyecto_record(proyecto_data: ProyectoCreate, current_user: User, db: Session) -> Proyecto:
@@ -94,24 +122,28 @@ def _build_proyecto_record(proyecto_data: ProyectoCreate, current_user: User, db
         is_publico=proyecto_data.is_publico,
         presupuesto_detallado=proyecto_data.presupuesto_detallado,
         linea_programatica=proyecto_data.linea_programatica,
-        reto_origen_id=str(proyecto_data.reto_origen_id) if proyecto_data.reto_origen_id else None,
-        semillero_id=semillero_id,
-        grupo_id=grupo_id,
-        convocatoria_id=str(proyecto_data.convocatoria_id) if proyecto_data.convocatoria_id else None,
-        owner_id=str(current_user.id),
+        reto_origen_id=_database_identifier(db, proyecto_data.reto_origen_id),
+        semillero_id=_database_identifier(db, semillero_id),
+        grupo_id=_database_identifier(db, grupo_id),
+        convocatoria_id=_database_identifier(db, proyecto_data.convocatoria_id),
+        owner_id=_database_identifier(db, current_user.id),
     )
     db.add(proyecto)
     db.flush()
     if proyecto_data.equipo:
+        assigned_members = set()
         for member_data in proyecto_data.equipo:
-            member = db.query(User).filter(User.id == str(member_data.user_id)).first()
-            if member:
-                db.execute(proyecto_equipo.insert().values(
-                    proyecto_id=str(proyecto.id),
-                    user_id=str(member.id),
-                    rol_en_proyecto=member_data.rol_en_proyecto,
-                    horas_dedicadas=member_data.horas_dedicadas,
-                ))
+            member = _get_project_team_member(db, member_data.user_id)
+            member_id = str(member.id)
+            if member_id in assigned_members:
+                raise HTTPException(status_code=422, detail="El equipo contiene integrantes repetidos.")
+            assigned_members.add(member_id)
+            db.execute(proyecto_equipo.insert().values(
+                proyecto_id=proyecto.id,
+                user_id=member.id,
+                rol_en_proyecto=member_data.rol_en_proyecto,
+                horas_dedicadas=member_data.horas_dedicadas,
+            ))
     return proyecto
 
 
@@ -482,7 +514,9 @@ def update_proyecto(
     db: Session = Depends(get_db)
 ):
     """Actualizar un proyecto."""
-    proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
+    proyecto = db.query(Proyecto).filter(
+        Proyecto.id == _database_identifier(db, proyecto_id)
+    ).first()
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     
@@ -673,13 +707,15 @@ def add_proyecto_miembro(
     for m in proyecto.equipo:
         if str(m.id) == str(miembro_data.user_id):
             raise HTTPException(status_code=400, detail="El usuario ya es miembro del proyecto")
+
+    member = _get_project_team_member(db, miembro_data.user_id)
     
     try:
         # Añadir a la tabla de asociación
         db.execute(
             proyecto_equipo.insert().values(
-                proyecto_id=str(proyecto_id),
-                user_id=str(miembro_data.user_id),
+                proyecto_id=proyecto.id,
+                user_id=member.id,
                 rol_en_proyecto=miembro_data.rol_en_proyecto,
                 horas_dedicadas=miembro_data.horas_dedicadas
             )
@@ -703,7 +739,9 @@ def remove_proyecto_miembro(
     db: Session = Depends(get_db)
 ):
     """Eliminar un miembro del equipo."""
-    proyecto = db.query(Proyecto).filter(Proyecto.id == str(proyecto_id)).first()
+    proyecto = db.query(Proyecto).filter(
+        Proyecto.id == _database_identifier(db, proyecto_id)
+    ).first()
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     
@@ -718,8 +756,8 @@ def remove_proyecto_miembro(
     try:
         db.execute(
             proyecto_equipo.delete().where(
-                proyecto_equipo.c.proyecto_id == str(proyecto_id),
-                proyecto_equipo.c.user_id == str(user_id)
+                proyecto_equipo.c.proyecto_id == proyecto.id,
+                proyecto_equipo.c.user_id == _database_identifier(db, user_id)
             )
         )
         db.commit()
