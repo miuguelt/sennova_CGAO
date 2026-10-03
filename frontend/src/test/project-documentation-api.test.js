@@ -22,6 +22,8 @@ describe('API de construcción documental', () => {
     expect(fetchAPI).toHaveBeenLastCalledWith('/proyectos/p-1/documentacion/analizar-formato', expect.objectContaining({ method: 'POST' }));
     await ProjectDocumentationAPI.applyFormulation('p-1', { intro: 'ok' }, { nombre: 'ok' });
     expect(fetchAPI).toHaveBeenLastCalledWith('/proyectos/p-1/documentacion/aplicar-formato', { method: 'POST', body: JSON.stringify({ borrador: { intro: 'ok' }, proyecto: { nombre: 'ok' } }) });
+    await ProjectDocumentationAPI.getRecommendation('p-1', 'planteamiento_problema', 'Texto de prueba');
+    expect(fetchAPI).toHaveBeenLastCalledWith('/proyectos/p-1/documentacion/recomendar', { method: 'POST', body: JSON.stringify({ campo: 'planteamiento_problema', texto: 'Texto de prueba' }) });
   });
 });
 

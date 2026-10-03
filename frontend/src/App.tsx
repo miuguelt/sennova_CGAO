@@ -74,23 +74,10 @@ function AppContent() {
     );
   }
 
-  const handleLogin = async (email, password) => {
-    const result = await login(email, password);
-    if (result?.success) {
-      setCurrentView(getHomeModule(currentUser?.rol));
-    }
-    return result;
-  };
-
-  const handleLogout = () => {
-    setCurrentView('grupos');
-    logout();
-  };
-
   if (!currentUser) {
     return (
       <LoginScreen
-        onLogin={handleLogin}
+        onLogin={login}
         onRegister={register}
         apiError={apiError}
       />
@@ -187,7 +174,7 @@ function AppContent() {
         currentModule={currentView} 
         onNavigate={navigateTo} 
         onModuleAction={handleModuleAction}
-        onLogout={handleLogout} 
+        onLogout={logout} 
         onOpenSearch={() => setIsSearchOpen(true)}
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 print:max-w-none print:p-0 print:m-0 print:pt-0">

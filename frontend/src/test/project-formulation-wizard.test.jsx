@@ -32,13 +32,14 @@ const mockRecord = {
   ],
   ruta_formulacion: {
     pasos: [
-      { id: 'identificacion', numero: 1, titulo: 'Identificación y objetivos', fuente: 'proyecto', campos: ['nombre', 'objetivo_general'], proposito: 'Defina qué se va a lograr y en cuánto tiempo.', completo: false, faltantes: ['Complete el objetivo general.'], advertencias: [] },
+      { id: 'identificacion', numero: 1, titulo: 'Identificación y objetivos', fuente: 'proyecto', campos: ['nombre', 'objetivo_general'], proposito: 'Defina qué se va a lograr y en cuánto tiempo.', completo: false, faltantes: ['Complete el objetivo general.'], advertencias: ['Alerta sobre fechas'] },
       { id: 'institucional', numero: 2, titulo: 'Datos institucionales', fuente: 'comunes', campos: ['centro'], proposito: 'Ubique el proyecto en el centro y regional.', completo: true, faltantes: [], advertencias: [] },
+      { id: 'tecnica', numero: 3, titulo: 'Formulación técnica', fuente: 'formulacion', campos: ['introduccion'], proposito: 'Escriba la introducción.', completo: false, faltantes: [], advertencias: [] },
       { id: 'generar', numero: 9, titulo: 'Revisar y generar documentos', fuente: 'generacion', campos: [], proposito: 'Genere los documentos para su revisión.', completo: false, faltantes: [], advertencias: [] },
     ],
     completados: 1,
-    total: 3,
-    porcentaje: 33.3,
+    total: 4,
+    porcentaje: 25,
     siguiente_paso: 'identificacion',
     campos_proyecto: [
       { key: 'nombre', label: 'Título del proyecto', tipo: 'texto', help: 'Nombre oficial' },
@@ -57,9 +58,10 @@ describe('Asistente de formulación (ProjectFormulationWizard)', () => {
   it('muestra la barra de avance y los pasos de la formulación guiada', () => {
     render(<ProjectFormulationWizard projectId="p-1" record={mockRecord} drafts={{ comunes: {}, formulacion_proyecto: {} }} dirty={{}} canEdit={true} busy={false} />);
     expect(screen.getByText('Formular proyecto de investigación')).toBeInTheDocument();
-    expect(screen.getByText('1 de 3 pasos completados')).toBeInTheDocument();
-    expect(screen.getByText('33.3% de avance en formulación')).toBeInTheDocument();
+    expect(screen.getByText('1 de 4 pasos completados')).toBeInTheDocument();
+    expect(screen.getByText('25% de avance en formulación')).toBeInTheDocument();
     expect(screen.getByText('1. Identificación y objetivos')).toBeInTheDocument();
+    expect(screen.getByText('Alerta sobre fechas')).toBeInTheDocument();
   });
 
   it('permite cambiar entre formulario guiado y carga de formato DOCX', () => {
@@ -122,15 +124,62 @@ describe('Asistente de formulación (ProjectFormulationWizard)', () => {
     const generateMock = vi.fn();
     const downloadMock = vi.fn();
     render(<ProjectFormulationWizard projectId="p-1" record={mockRecord} drafts={{ comunes: {}, formulacion_proyecto: {} }} dirty={{}} canEdit={true} busy={false} onGenerate={generateMock} onDownload={downloadMock} />);
-    fireEvent.click(screen.getByRole('button', { name: /3\. Revisar y generar documentos/i }));
+    fireEvent.click(screen.getByRole('button', { name: /4\. Revisar y generar documentos/i }));
     expect(screen.getByText('Formulación del proyecto (.docx)')).toBeInTheDocument();
     expect(screen.getByText('Presentación del proyecto (.pptx)')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /generar word \(\.docx\)/i }));
     expect(generateMock).toHaveBeenCalled();
 
+    fireEvent.click(screen.getByRole('button', { name: /generar powerpoint \(\.pptx\)/i }));
+    expect(generateMock).toHaveBeenCalledTimes(2);
+
     fireEvent.click(screen.getByRole('button', { name: /descargar/i }));
     expect(downloadMock).toHaveBeenCalledWith('doc-v1');
+  });
+
+  it('permite avanzar, retroceder y editar campos institucionales y de formulación', () => {
+    const changeMock = vi.fn();
+    const saveCommonMock = vi.fn();
+    const saveDraftMock = vi.fn();
+
+    render(
+      <ProjectFormulationWizard
+        projectId="p-1"
+        record={mockRecord}
+        drafts={{ comunes: { centro: 'CGAO' }, formulacion_proyecto: { introduccion: 'Intro' } }}
+        dirty={{ comunes: true, formulacion_proyecto: true }}
+        canEdit={true}
+        busy={false}
+        onChange={changeMock}
+        onSaveCommon={saveCommonMock}
+        onSaveDraft={saveDraftMock}
+      />
+    );
+
+    // Clic en "Ir a este paso" sugerido
+    fireEvent.click(screen.getByRole('button', { name: /ir a este paso/i }));
+    expect(screen.getByText('Paso 1 de 9')).toBeInTheDocument();
+
+    // Siguiente paso -> Paso 2 (comunes)
+    fireEvent.click(screen.getByRole('button', { name: /siguiente paso/i }));
+    expect(screen.getByText('Datos institucionales')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Centro de formación/i), { target: { value: 'Centro Tecnológico' } });
+    expect(changeMock).toHaveBeenCalledWith('comunes', 'centro', 'Centro Tecnológico');
+    fireEvent.click(screen.getByRole('button', { name: /guardar datos institucionales/i }));
+    expect(saveCommonMock).toHaveBeenCalledWith('comunes');
+
+    // Siguiente paso -> Paso 3 (formulacion)
+    fireEvent.click(screen.getByRole('button', { name: /siguiente paso/i }));
+    expect(screen.getByText('Formulación técnica')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Introducción/i), { target: { value: 'Nueva introducción' } });
+    expect(changeMock).toHaveBeenCalledWith('formulacion_proyecto', 'introduccion', 'Nueva introducción');
+    fireEvent.click(screen.getByRole('button', { name: /guardar borrador/i }));
+    expect(saveDraftMock).toHaveBeenCalledWith('formulacion_proyecto', expect.anything());
+
+    // Paso anterior -> Vuelve a Paso 2
+    fireEvent.click(screen.getByRole('button', { name: /paso anterior/i }));
+    expect(screen.getByText('Datos institucionales')).toBeInTheDocument();
   });
 
   it('permite solicitar recomendaciones de la IA para campos de texto', async () => {

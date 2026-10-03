@@ -18,7 +18,7 @@ vi.mock('../api/semilleros', () => ({ SemillerosAPI: {
   list: vi.fn(), listAprendices: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), addAprendiz: vi.fn(), deleteAprendiz: vi.fn(),
 } }));
 vi.mock('../api/usuarios', () => ({ UsuariosAPI: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn() } }));
-vi.mock('../api/proyectos', () => ({ ProyectosAPI: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), addEquipo: vi.fn(), removeEquipo: vi.fn() } }));
+vi.mock('../api/proyectos', () => ({ ProyectosAPI: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), addEquipo: vi.fn(), removeEquipo: vi.fn(), downloadExpediente: vi.fn(), getExpediente: vi.fn() } }));
 vi.mock('../api/productos', () => ({ ProductosAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() } }));
 vi.mock('../api/aprendices', () => ({ AprendicesAPI: { list: vi.fn() } }));
 vi.mock('../api/plantillas', () => ({ PlantillasAPI: { getReportePresupuesto: vi.fn(), getDatosCertificado: vi.fn() } }));
@@ -956,5 +956,22 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     expect(await screen.findByText('En Proceso de Medición')).toBeVisible();
     expect(screen.getByText(/Código Minciencias:/).parentElement).toHaveTextContent('COL000000');
     expect(GruposAPI.list).toHaveBeenCalledOnce();
+  });
+
+  it('abre el expediente y descarga el zip desde la pestaña formatos del proyecto', async () => {
+    configureApis();
+    ProyectosAPI.downloadExpediente.mockResolvedValueOnce(new Blob(['zip data']));
+    ProyectosAPI.getExpediente.mockResolvedValueOnce({ completo: true, porcentaje_completitud: 100, etapas: [] });
+    render(<GrupoModule currentUser={admin} onNotify={vi.fn()} />);
+    await screen.findByText('GIDTA');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    fireEvent.click((await screen.findByText('Pectina')).closest('.cursor-pointer'));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Formatos' }));
+    fireEvent.click(screen.getByRole('button', { name: /Ver Carpetas y Construir Documentación/i }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Formatos' }));
+    fireEvent.click(screen.getByRole('button', { name: /Descargar Expediente Completo \(ZIP\)/i }));
+    await waitFor(() => {
+      expect(ProyectosAPI.downloadExpediente).toHaveBeenCalledWith('p-1');
+    });
   });
 });
