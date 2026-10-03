@@ -25,10 +25,10 @@ describe('ProjectTraceabilityPanel', () => {
     expect(screen.getByText('50%')).toBeInTheDocument();
     
     // Check if titles render
-    expect(screen.getByText('Formulación del proyecto')).toBeInTheDocument();
-    expect(screen.getByText('Acta de inicio')).toBeInTheDocument();
-    expect(screen.getByText('Informe producto')).toBeInTheDocument();
-    expect(screen.getByText('Informe 1')).toBeInTheDocument();
+    expect(screen.getByText(/Formulación del proyecto/)).toBeInTheDocument();
+    expect(screen.getByText(/Acta de inicio/)).toBeInTheDocument();
+    expect(screen.getByText(/Informe producto/)).toBeInTheDocument();
+    expect(screen.getByText(/Informe 1/)).toBeInTheDocument();
 
     // Check states
     expect(screen.getByText('Revisado')).toBeInTheDocument();

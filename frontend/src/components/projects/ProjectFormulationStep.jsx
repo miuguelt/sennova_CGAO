@@ -57,11 +57,15 @@ export default function ProjectFormulationStep({
     try {
       const allTips = [];
       for (const field of relevantFields) {
-        if (field.tipo === 'texto_largo' || field.tipo === 'texto') {
+        if (field.tipo === 'texto_largo' || field.tipo === 'texto' || field.type === 'textarea' || field.type === 'text') {
           const text = currentValues[field.key] || '';
-          const res = await ProjectDocumentationAPI.getRecommendation(projectId, field.key, text);
-          if (res.recomendaciones && res.recomendaciones.length > 0) {
-            allTips.push({ campo: field.label || field.key, tips: res.recomendaciones });
+          try {
+            const res = await ProjectDocumentationAPI.getRecommendation(projectId, field.key, text);
+            if (res?.recomendaciones && Array.isArray(res.recomendaciones) && res.recomendaciones.length > 0) {
+              allTips.push({ campo: field.label || field.key, tips: res.recomendaciones });
+            }
+          } catch {
+            // Continúa con los demás campos si uno falla
           }
         }
       }

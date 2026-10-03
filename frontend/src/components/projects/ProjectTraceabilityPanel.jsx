@@ -112,7 +112,9 @@ export default function ProjectTraceabilityPanel({ documentos }) {
                     <li key={doc.clave} className="flex items-start gap-2 text-xs">
                       <Icon size={14} className={`mt-0.5 shrink-0 ${iconColor}`} />
                       <div>
-                        <span className="font-semibold text-slate-700 block">{doc.titulo}</span>
+                        <span className="font-semibold text-slate-700 block">
+                          {doc.titulo} ({doc.formato?.toUpperCase() || 'DOC'})
+                        </span>
                         <span className={`text-[10px] uppercase font-bold tracking-wider ${iconColor}`}>{statusText}</span>
                       </div>
                     </li>
