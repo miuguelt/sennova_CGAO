@@ -7,9 +7,8 @@ const ADMIN_MODULES = new Set(['auditoria', 'configuracion', 'cvlac-admin', 'cvl
 const STAFF_ROLES = new Set(['admin', 'investigador']);
 const GROUP_HOME_ROLES = new Set(['admin', 'investigador', 'instructor', 'aprendiz']);
 
-export function getHomeModule(role) {
-  if (GROUP_HOME_ROLES.has(role)) return 'grupos';
-  return 'dashboard';
+export function getHomeModule(_role) {
+  return 'grupos';
 }
 
 export function canAccessModule(role, module) {

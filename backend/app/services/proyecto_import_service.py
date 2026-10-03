@@ -229,3 +229,57 @@ def extract_formulation_draft(filename: str | None, content: bytes) -> dict:
         "campos_no_detectados": missing_fields,
         "mensaje": "Revisa y ajusta los datos extraídos antes de crear el proyecto.",
     }
+
+
+# Secciones numeradas de la formulación CAP y su campo en el formulario guiado.
+GUIDED_SECTION_FIELDS = {
+    2: "introduccion",
+    3: "planteamiento_problema",
+    4: "justificacion",
+    6: "referente_teorico",
+    7: "metodologia",
+    9: "fases",
+    10: "referencias",
+}
+GUIDED_TEXT_LIMIT = 20000
+GUIDED_ROW_LIMIT = 80
+
+
+def extract_formulation_sections(filename: str | None, content: bytes) -> dict:
+    """Propone valores para el formulario guiado a partir de un formato diligenciado.
+
+    No guarda datos: la persona revisa la propuesta antes de aplicarla. Los textos
+    se recortan al límite del formulario y se informa cuando eso ocurre.
+    """
+    base = extract_formulation_draft(filename, content)
+    rows = _read_docx_rows(content)
+    draft = {}
+    truncated = []
+    for number, key in GUIDED_SECTION_FIELDS.items():
+        text = _section_content(rows, number)
+        if not text:
+            continue
+        if len(text) > GUIDED_TEXT_LIMIT:
+            text = text[:GUIDED_TEXT_LIMIT]
+            truncated.append(key)
+        draft[key] = text
+    results = [line.strip(" -•\t") for line in _section_content(rows, 8).splitlines() if line.strip(" -•\t")]
+    if results:
+        draft["resultados_esperados"] = [
+            {"resultado": line[:2000], "indicador": "", "meta": "", "unidad": "", "medio_verificacion": ""}
+            for line in results[:GUIDED_ROW_LIMIT]
+        ]
+    suggested = base["suggested_fields"]
+    project = {key: suggested[key] for key in ("nombre", "objetivo_general") if key in suggested}
+    if suggested.get("objetivos_especificos"):
+        project["objetivos_especificos"] = "\n".join(suggested["objetivos_especificos"])
+    expected = list(GUIDED_SECTION_FIELDS.values()) + ["resultados_esperados"]
+    return {
+        "borrador": draft,
+        "proyecto": project,
+        "campos_detectados": sorted(draft) + sorted(project),
+        "campos_no_detectados": [key for key in expected if key not in draft]
+                                + [key for key in ("nombre", "objetivo_general", "objetivos_especificos") if key not in project],
+        "campos_recortados": truncated,
+        "mensaje": "Revise la propuesta. Solo se aplicará a los campos que usted confirme.",
+    }

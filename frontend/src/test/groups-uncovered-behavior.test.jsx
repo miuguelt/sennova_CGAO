@@ -403,6 +403,7 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     const notify = vi.fn();
     render(<GrupoModule currentUser={admin} onNotify={notify} />);
     await screen.findByText('GIDTA');
+    fireEvent.click(document.getElementById('tab-gruplac'));
 
     UsuariosAPI.create.mockRejectedValueOnce(new Error('investigador rechazado'));
     fireEvent.click(screen.getByRole('button', { name: 'Registrar Investigador' }));
@@ -951,6 +952,7 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
   it('mantiene el módulo utilizable cuando no se puede consultar el grupo institucional', async () => {
     GruposAPI.list.mockRejectedValueOnce(new Error('grupo temporalmente no disponible'));
     render(<GrupoModule currentUser={admin} onNotify={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('tab', { name: /Control GrupLAC/i }));
     expect(await screen.findByText('En Proceso de Medición')).toBeVisible();
     expect(screen.getByText(/Código Minciencias:/).parentElement).toHaveTextContent('COL000000');
     expect(GruposAPI.list).toHaveBeenCalledOnce();

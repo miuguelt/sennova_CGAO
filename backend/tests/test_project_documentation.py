@@ -212,8 +212,9 @@ def test_all_document_kinds_generate_real_office_files_individual_download_and_z
     with ZipFile(io.BytesIO(archive.content)) as package:
         assert all(any(path.endswith(name) for path in package.namelist()) for name in names)
         expected_folders = {
-            "1ProyectoFomulado/", "2ActadeInicio/", "3Productos/", "4InformesBimensuales/",
-            "5ActaCierre/", "6EvidenciasFotograficas/",
+            "1ProyectoFormulado/", "2ActadeInicio/", "3Productos/",
+            "3Productos/1InformeFinal/", "3Productos/2PosteryEventos/", "3Productos/3.InnovacionGestionEmpresarial/",
+            "4InformesBimensuales/", "5ActaCierre/", "6EvidenciasFotograficas/", "7Borradoresyvarios/",
         }
         assert {path for path in package.namelist() if path.endswith("/")} == expected_folders
         for expected in expected_files:

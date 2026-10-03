@@ -35,6 +35,7 @@ import ScrollableTabs from '../ui/ScrollableTabs';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import StatusBadge from '../ui/StatusBadge';
 import ProyectoEquipoTab from '../projects/ProyectoEquipoTab';
+import ProjectEvidenceFile from '../projects/ProjectEvidenceFile';
 import UserInsightPanel from '../users/UserInsightPanel';
 import MoverProyectoSemilleroModal from '../projects/MoverProyectoSemilleroModal';
 
@@ -267,7 +268,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
   const [productosGrupo, setProductosGrupo] = useState([]);
   const [aprendicesGrupo, setAprendicesGrupo] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('gruplac');
+  const [activeTab, setActiveTab] = useState('stats');
 
   // Filtros
   const [proySearchTerm, setProySearchTerm] = useState('');
@@ -2201,6 +2202,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
         }
         tabs={[
           { id: 'summary', label: 'Resumen & Presupuesto', icon: DollarSign },
+          { id: 'evidence', label: 'Expediente', icon: FolderOpen },
           { id: 'team', label: 'Equipo', icon: Users },
           { id: 'timeline', label: 'Línea de Tiempo', icon: Clock3 },
           { id: 'formats', label: 'Formatos', icon: FileText },
@@ -2316,6 +2318,16 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
               </div>
             )}
 
+            {projectDrawerTab === 'evidence' && (
+              <div className="space-y-6 animate-fadeIn">
+                <ProjectEvidenceFile
+                  projectId={selectedProyecto.id}
+                  currentUser={currentUser}
+                  onNotify={onNotify}
+                />
+              </div>
+            )}
+
             {projectDrawerTab === 'team' && (
               <ProyectoEquipoTab
                 proyecto={selectedProyecto}
@@ -2335,6 +2347,53 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
 
             {projectDrawerTab === 'formats' && (
               <div className="space-y-4 animate-fadeIn">
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-3">
+                  <div className="flex items-start gap-3">
+                    <FolderOpen size={20} className="text-emerald-700 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider">
+                        Expediente y Carpetas Institucionales SENNOVA (SharePoint)
+                      </h4>
+                      <p className="text-xs text-emerald-900 mt-1">
+                        Consulte o genere la documentación oficial en las 7 carpetas del grupo de investigación: Formulación, Acta de inicio, Productos, Informes bimensuales, Acta de cierre, Evidencias fotográficas y Borradores.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button
+                      variant="sena"
+                      size="xs"
+                      onClick={() => setProjectDrawerTab('evidence')}
+                      className="text-xs font-bold"
+                    >
+                      <FolderOpen size={13} className="mr-1.5" /> Ver Carpetas y Construir Documentación
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={async () => {
+                        try {
+                          const blob = await ProyectosAPI.downloadExpediente(selectedProyecto.id);
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `expediente-${selectedProyecto.codigo_sgps || selectedProyecto.id}.zip`;
+                          document.body.appendChild(a);
+                          a.click();
+                          a.remove();
+                          URL.revokeObjectURL(url);
+                          onNotify?.('Descarga del expediente en ZIP iniciada.', 'success');
+                        } catch (err) {
+                          onNotify?.('Error al descargar expediente: ' + err.message, 'error');
+                        }
+                      }}
+                      className="border-emerald-300 text-emerald-800 bg-white hover:bg-emerald-100/50 text-xs font-bold"
+                    >
+                      <Download size={13} className="mr-1.5" /> Descargar Expediente Completo (ZIP)
+                    </Button>
+                  </div>
+                </div>
+
                 <div>
                   <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-1">Modelos de referencia SENNOVA</h4>
                   <p className="text-xs text-slate-500">PDF generados con los datos registrados para facilitar el seguimiento.</p>

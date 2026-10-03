@@ -25,7 +25,7 @@ import GlobalSearch from './components/common/GlobalSearch';
 import QuickActionHub from './components/common/QuickActionHub';
 import { Toaster, toast } from 'react-hot-toast';
 import { subscribeToDataRefresh } from './utils/dataRefresh';
-import { canAccessModule, canStartModuleAction, canUseGlobalSearch, resolveAccessibleModule } from './lib/roleAccess';
+import { canAccessModule, canStartModuleAction, canUseGlobalSearch, getHomeModule, resolveAccessibleModule } from './lib/roleAccess';
 
 function AppContent() {
   const { currentUser, loading, login, register, logout, updateUser, apiError } = useAuth();
@@ -74,10 +74,23 @@ function AppContent() {
     );
   }
 
+  const handleLogin = async (email, password) => {
+    const result = await login(email, password);
+    if (result?.success) {
+      setCurrentView(getHomeModule(currentUser?.rol));
+    }
+    return result;
+  };
+
+  const handleLogout = () => {
+    setCurrentView('grupos');
+    logout();
+  };
+
   if (!currentUser) {
     return (
       <LoginScreen
-        onLogin={login}
+        onLogin={handleLogin}
         onRegister={register}
         apiError={apiError}
       />
@@ -174,7 +187,7 @@ function AppContent() {
         currentModule={currentView} 
         onNavigate={navigateTo} 
         onModuleAction={handleModuleAction}
-        onLogout={logout} 
+        onLogout={handleLogout} 
         onOpenSearch={() => setIsSearchOpen(true)}
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 print:max-w-none print:p-0 print:m-0 print:pt-0">

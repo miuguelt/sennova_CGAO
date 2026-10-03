@@ -5,7 +5,17 @@ import ProjectDocumentationEditor from '../components/projects/ProjectDocumentat
 import { ProjectDocumentationAPI } from '../api/projectDocumentation';
 import { DocumentosAPI } from '../api/documentos';
 import { emitDataRefresh } from '../utils/dataRefresh';
-vi.mock('../api/projectDocumentation', () => ({ ProjectDocumentationAPI: { get: vi.fn(), saveCommon: vi.fn(), saveDraft: vi.fn(), generate: vi.fn(), review: vi.fn() } }));
+vi.mock('../api/projectDocumentation', () => ({ ProjectDocumentationAPI: {
+  get: vi.fn(),
+  saveCommon: vi.fn(),
+  saveDraft: vi.fn(),
+  saveIdentification: vi.fn(),
+  analyzeFormulation: vi.fn(),
+  applyFormulation: vi.fn(),
+  generate: vi.fn(),
+  review: vi.fn(),
+} }));
+
 vi.mock('../api/documentos', () => ({ DocumentosAPI: { download: vi.fn() } }));
 const fixture = () => ({ proyecto: { id: 'p-1', nombre: 'Proyecto agrícola' }, revision: 1, comunes: { centro: 'CGAO', fecha: '', presupuesto: 0, equipo: [] }, campos_comunes: [
   { key: 'centro', label: 'Centro de formación', type: 'text', required: true, help: 'Escriba el nombre oficial del centro.' },

@@ -23,6 +23,7 @@ STAGES = (
     ("informes", "4InformesBimensuales", "Informes bimensuales", "informe_bimensual", {"informe_bimensual", "informe_bimestral"}, "Cargue un informe por cada bimestre de la vigencia. Indique el número de bimestre y describa actividades, avances, dificultades y evidencias."),
     ("cierre", "5ActaCierre", "Acta de cierre", "acta_cierre", {"acta_cierre", "informe_final"}, "Adjunte el acta de cierre firmada y el informe final técnico. Concilie los resultados, productos y ejecución del presupuesto."),
     ("evidencias", "6EvidenciasFotograficas", "Evidencias fotográficas", "evidencia_fotografica", {"evidencia_fotografica", "evidencia_video", "registro_evidencias"}, "Adjunte fotos o videos de las actividades. Describa la fecha, el lugar y su relación con los resultados del proyecto."),
+    ("borradores", "7Borradoresyvarios", "Borradores y varios", "borrador_varios", {"borrador_varios", "nota_trabajo", "documento_apoyo"}, "Adjunte borradores, actas preliminares, minutas, notas de trabajo o documentos auxiliares del proyecto."),
 )
 
 
@@ -101,7 +102,7 @@ def evaluate_project_file(project: Proyecto, db: Session) -> dict:
         usable = [doc for doc in docs if available[str(doc.id)] and generation_status[str(doc.id)][0] and (stage_id != "evidencias" or doc.tipo != "registro_evidencias")]
         pending = []
         pending.extend(generation_status[str(doc.id)][1] for doc in docs if generation_status[str(doc.id)][1])
-        if not usable:
+        if not usable and stage_id != "borradores":
             pending.append(f"Adjunte un archivo disponible para {title.lower()}.")
         if stage_id == "productos":
             for product in project.productos:
@@ -143,11 +144,12 @@ def evaluate_project_file(project: Proyecto, db: Session) -> dict:
         stages.append(stage)
         missing.extend(pending)
     unclassified = [doc for doc in documents if doc.tipo not in known_types]
-    complete_stages = sum(stage["completo"] for stage in stages)
+    technical_stages = [s for s in stages if s["id"] != "borradores"]
+    complete_stages = sum(s["completo"] for s in technical_stages)
     return {
         "proyecto_id": str(project.id), "nombre": project.nombre,
-        "codigo_sgps": project.codigo_sgps, "completo": complete_stages == 6,
-        "porcentaje_completitud": round(complete_stages / 6 * 100, 1),
+        "codigo_sgps": project.codigo_sgps, "completo": complete_stages == len(technical_stages),
+        "porcentaje_completitud": round(complete_stages / len(technical_stages) * 100, 1),
         "etapas": stages, "pendientes": missing,
         "documentos_sin_clasificar": [{"id": str(doc.id), "nombre_archivo": doc.nombre_archivo} for doc in unclassified],
         "alcance": "La comprobación documental verifica archivos y períodos registrados. La validez del contenido, las firmas y la versión institucional requieren revisión del responsable.",
@@ -155,20 +157,32 @@ def evaluate_project_file(project: Proyecto, db: Session) -> dict:
 
 
 def build_project_file_zip(project: Proyecto, db: Session):
-    """Exporta archivos reales, seis directorios y diagnóstico sin sustituir soportes."""
+    """Exporta archivos reales, siete directorios normalizados de SharePoint y diagnóstico."""
     report = evaluate_project_file(project, db)
     target = SpooledTemporaryFile(max_size=8 * 1024 * 1024, mode="w+b")
     try:
         with ZipFile(target, "w", compression=ZIP_DEFLATED) as archive:
             for stage in report["etapas"]:
                 archive.writestr(stage["carpeta"] + "/", b"")
+            archive.writestr("3Productos/1InformeFinal/", b"")
+            archive.writestr("3Productos/2PosteryEventos/", b"")
+            archive.writestr("3Productos/3.InnovacionGestionEmpresarial/", b"")
             archive.writestr("expediente.json", json.dumps(report, ensure_ascii=False, indent=2))
-            archive.writestr("pendientes.txt", report["alcance"] + "\n\n" + ("\n".join(report["pendientes"]) or "Las seis etapas documentales están completas."))
+            archive.writestr("pendientes.txt", report["alcance"] + "\n\n" + ("\n".join(report["pendientes"]) or "Las etapas documentales están completas."))
             for document in project_documents(project, db):
                 content = document_bytes(document)
                 if content is None:
                     continue
-                folder = next((stage[1] for stage in STAGES if document.tipo in stage[4]), "1ProyectoFomulado/Anexos")
+                if document.tipo == "poster_producto":
+                    folder = "3Productos/2PosteryEventos"
+                elif document.tipo in {"soporte_minciencias", "certificacion_producto"}:
+                    folder = "3Productos/3.InnovacionGestionEmpresarial"
+                elif document.tipo == "producto_resultado":
+                    folder = "3Productos/1InformeFinal"
+                elif document.tipo in {"borrador_varios", "nota_trabajo", "documento_apoyo"}:
+                    folder = "7Borradoresyvarios"
+                else:
+                    folder = next((stage[1] for stage in STAGES if document.tipo in stage[4]), "1ProyectoFomulado/Anexos")
                 safe_name = re.sub(r"[^\w.() -]", "_", (document.nombre_archivo or "documento").replace("\\", "/").split("/")[-1]).replace("..", "_")[:180] or "documento"
                 archive.writestr(f"{folder}/{document.id}_{safe_name}", content)
         target.seek(0)

@@ -5,8 +5,11 @@ import { subscribeToDataRefresh } from '../../utils/dataRefresh';
 import ProjectDocumentationFields, { documentationButtonClass } from './ProjectDocumentationFields';
 import ProjectDocumentationCard from './ProjectDocumentationCard';
 import ProjectDocumentationContext from './ProjectDocumentationContext';
+import ProjectFormulationWizard from './ProjectFormulationWizard';
+import ProjectTraceabilityPanel from './ProjectTraceabilityPanel';
 
 export default function ProjectDocumentationEditor({ projectId, currentUser, onNotify }) {
+
   const [opened, setOpened] = useState(false);
   const [record, setRecord] = useState(null);
   const [drafts, setDrafts] = useState({});
@@ -113,7 +116,26 @@ export default function ProjectDocumentationEditor({ projectId, currentUser, onN
       {record && <>
         <ProjectDocumentationContext project={record.proyecto} />
         {record.advertencias?.length > 0 && <section aria-label="Datos por aclarar" className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><h4 className="font-bold">Datos por aclarar antes de revisar</h4><ul className="w-full list-disc pl-5">{record.advertencias.map((warning, index) => <li key={index}>{warning}</li>)}</ul></section>}
+        {record.ruta_formulacion && (
+          <ProjectFormulationWizard
+            projectId={projectId}
+            record={record}
+            drafts={drafts}
+            dirty={dirty}
+            canEdit={canEdit}
+            busy={busy || loading}
+            onNotify={onNotify}
+            onReload={reload}
+            onChange={change}
+            onSaveCommon={save}
+            onSaveDraft={save}
+            onGenerate={generate}
+            onDownload={download}
+          />
+        )}
+        <ProjectTraceabilityPanel documentos={record.documentos} />
         <section aria-label="Datos comunes" className="space-y-4 rounded-2xl border border-slate-200 p-4">
+
           <details>
             <summary className="min-h-[44px] cursor-pointer font-bold text-slate-900"><span>Datos comunes</span><span className="mt-1 block text-sm font-medium text-slate-700">{commonFilled} campos con información · <span>{commonRows} filas registradas</span></span></summary>
             <div className="space-y-4 pt-4">

@@ -47,7 +47,7 @@ describe('Matriz de acceso por rol', () => {
     expect(canAccessModule('instructor', 'grupos')).toBe(true);
     expect(canAccessModule('desconocido', 'proyectos')).toBe(false);
     expect(canAccessModule('instructor', 'proyectos')).toBe(false);
-    expect(getHomeModule('desconocido')).toBe('dashboard');
+    expect(getHomeModule('desconocido')).toBe('grupos');
   });
 
   it('filtra menús y acciones rápidas según el rol', () => {

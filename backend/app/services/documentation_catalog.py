@@ -107,11 +107,11 @@ FORMULATION_FIELDS = (
 
 DOCUMENT_DEFINITIONS = {
     "formulacion_proyecto": {
-        "title": "Formulación del proyecto", "folder": "1ProyectoFomulado", "format": "docx",
+        "title": "Formulación del proyecto", "folder": "1ProyectoFormulado", "format": "docx",
         "required_common": PROJECT_REQUIRED + ["equipo", "presupuesto", "cronograma"], "fields": list(FORMULATION_FIELDS),
     },
     "presentacion_proyecto": {
-        "title": "Presentación del proyecto", "folder": "1ProyectoFomulado", "format": "pptx",
+        "title": "Presentación del proyecto", "folder": "1ProyectoFormulado", "format": "pptx",
         "required_common": PROJECT_REQUIRED + ["equipo", "presupuesto", "cronograma"], "fields": list(FORMULATION_FIELDS),
     },
     "acta_inicio": {

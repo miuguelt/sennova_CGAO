@@ -57,6 +57,9 @@ def bootstrap() -> int:
             enforce_strong_password=not settings.DEBUG,
         )
         catalog = ensure_research_catalog(db)
+        from app.services.reference_files_sync import sync_reference_project_files
+        sync_result = sync_reference_project_files(db)
+        print(f"📁 Archivos base sincronizados: {sync_result['documentos_sincronizados']} documentos.")
     except (AdminBootstrapError, ResearchCatalogError) as exc:
         print(f"❌ {exc}")
         return 1

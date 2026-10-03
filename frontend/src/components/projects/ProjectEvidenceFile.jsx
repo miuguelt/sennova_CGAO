@@ -106,13 +106,13 @@ export default function ProjectEvidenceFile({ projectId, currentUser, onNotify }
   return (
     <section aria-label="Expediente del proyecto" className="min-w-0 space-y-5">
       <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
-        <h3 className="flex items-center gap-2 text-lg font-bold text-emerald-950"><FolderOpen size={22} aria-hidden="true" />Expediente del proyecto</h3>
-        <p className="w-full text-sm leading-relaxed text-emerald-950">Construya la documentación del proyecto en estas seis carpetas. Revise la guía de cada etapa, adjunte los documentos vigentes y corrija los pendientes antes de radicar.</p>
+        <h3 className="flex items-center gap-2 text-lg font-bold text-emerald-950"><FolderOpen size={22} aria-hidden="true" />Expediente del proyecto (Estructura institucional SharePoint)</h3>
+        <p className="w-full text-sm leading-relaxed text-emerald-950">Organice y consulte la documentación del proyecto en las 7 carpetas institucionales del grupo de investigación CGAO. Revise la guía de cada etapa, genere los formatos requeridos y adjunte los soportes vigentes antes de radicar.</p>
         {data && <>
           <p className="w-full text-sm font-semibold text-emerald-950">{data.completo ? 'Expediente completo' : 'Expediente en construcción'} · {data.porcentaje_completitud}% de requisitos cumplidos.</p>
           <progress aria-label="Completitud del expediente" aria-valuenow={data.porcentaje_completitud} max="100" value={data.porcentaje_completitud} className="h-3 w-full accent-emerald-700" />
           <button type="button" disabled={busy} onClick={() => download()} className={`${evidenceButtonClass} gap-2`}><Download size={16} aria-hidden="true" />{data.completo ? 'Descargar expediente (ZIP)' : 'Descargar expediente parcial (ZIP)'}</button>
-          {!data.completo && <p className="w-full text-sm text-emerald-950">La descarga conserva las seis carpetas e incluye el reporte de pendientes. Un paquete parcial requiere completar y revisar sus evidencias.</p>}
+          {!data.completo && <p className="w-full text-sm text-emerald-950">La descarga conserva las carpetas normalizadas e incluye el reporte de pendientes. Un paquete parcial requiere completar y revisar sus evidencias.</p>}
           {data.alcance && <p className="w-full text-sm text-emerald-950">{data.alcance}</p>}
         </>}
       </div>

@@ -107,6 +107,13 @@ def documentation_view(project, db):
         } for version in sorted(draft.versiones, key=lambda item: item.version, reverse=True)] if draft else []
         pending = generation_pending(project, slot, common, data)
         documents.append(dict(slot, datos=data, revision=revision, campos=DOCUMENT_DEFINITIONS[slot["tipo"]]["fields"], faltantes=pending, generable=not pending, historial=history))
+    from app.models import Documento
+    from app.services.formulation_route import FORMULATION_KEY, formulation_route
+    uploaded = next((doc for doc in db.query(Documento).filter_by(entidad_tipo="proyecto", entidad_id=str(project.id), tipo=FORMULATION_KEY)
+                     .order_by(Documento.created_at.desc()).all() if doc.version_generada is None), None)
+    uploaded_source = {"documento_id": str(uploaded.id), "nombre_archivo": uploaded.nombre_archivo} if uploaded else None
+    formulation_slot = next((item for item in documents if item["clave"] == FORMULATION_KEY), None)
     return {"proyecto": project_context(project), "revision": common_revision, "comunes": common,
             "campos_comunes": COMMON_FIELDS, "documentos": documents,
-            "advertencias": consistency_issues(project_context(project), common)}
+            "advertencias": consistency_issues(project_context(project), common),
+            "ruta_formulacion": formulation_route(project, common, formulation_slot, uploaded_source)}

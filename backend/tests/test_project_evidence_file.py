@@ -70,10 +70,13 @@ def test_empty_project_has_exact_six_stages_and_actionable_missing_items(evidenc
     res = client.get(f"/proyectos/{project.id}/expediente")
     assert res.status_code == 200
     data = res.json()
-    assert [s["carpeta"] for s in data["etapas"]] == ["1ProyectoFomulado", "2ActadeInicio", "3Productos", "4InformesBimensuales", "5ActaCierre", "6EvidenciasFotograficas"]
+    assert [s["carpeta"] for s in data["etapas"]] == [
+        "1ProyectoFomulado", "2ActadeInicio", "3Productos", "4InformesBimensuales",
+        "5ActaCierre", "6EvidenciasFotograficas", "7Borradoresyvarios"
+    ]
     assert data["completo"] is False
     assert data["porcentaje_completitud"] == 0
-    assert all(s["guia"] and s["faltantes"] for s in data["etapas"])
+    assert all(s["guia"] and (s["faltantes"] or s["id"] == "borradores") for s in data["etapas"])
     assert data["etapas"][3]["bimestres_pendientes"] == [1, 2]
 
 

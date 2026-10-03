@@ -237,9 +237,9 @@ describe('GrupoModule Integration Tests', () => {
       expect(screen.getByText('GRUPO CGAO')).toBeDefined();
     });
 
-    expect(screen.getByText(/Grupo de investigadores CGAO/)).toBeDefined();
-    expect(screen.getByRole('tab', { name: 'Control GrupLAC / CvLAC' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.queryByText('Tablero de Impacto Científico & Formativo CGAO')).toBeNull();
+    expect(screen.getByText(/Centro de Gestión Agroempresarial del Oriente/)).toBeDefined();
+    expect(screen.getByRole('tab', { name: /Estadísticas e Indicadores/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Tablero de Impacto Científico & Formativo CGAO')).toBeDefined();
   });
 
   it('limits apprentices to their linked semilleros and projects', async () => {
@@ -334,6 +334,7 @@ describe('GrupoModule Integration Tests', () => {
     // Debe abrir el drawer con la información del proyecto y tabs
     await waitFor(() => {
       expect(screen.getByText('Resumen & Presupuesto')).toBeDefined();
+      expect(screen.getByText('Expediente')).toBeDefined();
       expect(screen.getByText('Línea de Tiempo')).toBeDefined();
     });
   });
@@ -652,6 +653,7 @@ describe('GrupoModule Integration Tests', () => {
   it('registers and edits investigators, manages product records and filters apprentices', async () => {
     render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin' }} onNotify={vi.fn()} />);
     await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-gruplac'));
     fireEvent.click(screen.getByRole('button', { name: 'Registrar Investigador' }));
     fireEvent.change(await screen.findByLabelText(/Nombre Completo/), { target: { value: 'Investigadora Nueva' } });
     fireEvent.change(await screen.findByLabelText(/Correo Electrónico/), { target: { value: 'nueva@sena.edu.co' } });

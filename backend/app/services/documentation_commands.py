@@ -154,3 +154,83 @@ def review_version(project, db, user, document_id, observation):
     result = version_result(version)
     commit_edit(db)
     return result
+
+
+def update_project_identification(project, db, user, data):
+    lock_project(project, db)
+    if "nombre" in data and data["nombre"] is not None:
+        project.nombre = str(data["nombre"]).strip()
+    if "objetivo_general" in data and data["objetivo_general"] is not None:
+        project.objetivo_general = str(data["objetivo_general"]).strip()
+    if "objetivos_especificos" in data and data["objetivos_especificos"] is not None:
+        raw = data["objetivos_especificos"]
+        if isinstance(raw, str):
+            objectives = [line.strip() for line in raw.splitlines() if line.strip()]
+        elif isinstance(raw, list):
+            objectives = [str(item).strip() for item in raw if str(item).strip()]
+        else:
+            objectives = []
+        project.objetivos_especificos = objectives
+    if "vigencia" in data and data["vigencia"] is not None:
+        try:
+            val = int(data["vigencia"]) if data["vigencia"] != "" else None
+            project.vigencia = val
+        except (ValueError, TypeError):
+            pass
+    if "presupuesto_total" in data and data["presupuesto_total"] is not None:
+        try:
+            val = float(data["presupuesto_total"]) if data["presupuesto_total"] != "" else None
+            project.presupuesto_total = val
+        except (ValueError, TypeError):
+            pass
+    commit_edit(db)
+    from app.services.documentation_state import documentation_view
+    return documentation_view(project, db)
+
+
+def apply_formulation_proposal(project, db, user, draft_data, project_data):
+    from app.services.formulation_route import FORMULATION_KEY
+    lock_project(project, db)
+    if project_data:
+        if "nombre" in project_data and project_data["nombre"]:
+            project.nombre = str(project_data["nombre"]).strip()
+        if "objetivo_general" in project_data and project_data["objetivo_general"]:
+            project.objetivo_general = str(project_data["objetivo_general"]).strip()
+        if "objetivos_especificos" in project_data and project_data["objetivos_especificos"]:
+            raw = project_data["objetivos_especificos"]
+            if isinstance(raw, str):
+                objectives = [line.strip() for line in raw.splitlines() if line.strip()]
+            elif isinstance(raw, list):
+                objectives = [str(item).strip() for item in raw if str(item).strip()]
+            else:
+                objectives = []
+            if objectives:
+                project.objetivos_especificos = objectives
+    if draft_data:
+        slot = slot_for_key(project, FORMULATION_KEY)
+        draft = db.query(ProjectDocumentDraft).filter_by(proyecto_id=project.id, clave=FORMULATION_KEY).first()
+        current_data = dict(draft.datos) if draft and draft.datos else {}
+        for key, val in draft_data.items():
+            if val is not None and val != "" and val != []:
+                current_data[key] = val
+        normalized = validate_fields(current_data, DOCUMENT_DEFINITIONS[slot["tipo"]]["fields"])
+        if draft is None:
+            draft = ProjectDocumentDraft(
+                proyecto_id=project.id,
+                clave=FORMULATION_KEY,
+                tipo=slot["tipo"],
+                periodo_bimestre=None,
+                producto_id=None,
+                revision=1,
+                datos=normalized,
+                updated_by=user.id,
+            )
+            db.add(draft)
+        else:
+            draft.datos = normalized
+            draft.revision += 1
+            draft.updated_by = user.id
+    commit_edit(db)
+    from app.services.documentation_state import documentation_view
+    return documentation_view(project, db)
+

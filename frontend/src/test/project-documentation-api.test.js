@@ -15,5 +15,13 @@ describe('API de construcción documental', () => {
     expect(fetchAPI).toHaveBeenLastCalledWith('/proyectos/p-1/documentacion/generar/acta_inicio', { method: 'POST', body: JSON.stringify({ revision: 4, revision_comunes: 2 }) });
     await ProjectDocumentationAPI.review('p-1', 'doc-1', 'Contenido contrastado con los resultados.');
     expect(fetchAPI).toHaveBeenLastCalledWith('/proyectos/p-1/documentacion/revisar/doc-1', { method: 'POST', body: JSON.stringify({ observacion: 'Contenido contrastado con los resultados.' }) });
+    await ProjectDocumentationAPI.saveIdentification('p-1', { nombre: 'Proyecto Nuevo' });
+    expect(fetchAPI).toHaveBeenLastCalledWith('/proyectos/p-1/documentacion/identificacion', { method: 'PUT', body: JSON.stringify({ nombre: 'Proyecto Nuevo' }) });
+    const dummyFile = new File(['content'], 'formato.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    await ProjectDocumentationAPI.analyzeFormulation('p-1', dummyFile);
+    expect(fetchAPI).toHaveBeenLastCalledWith('/proyectos/p-1/documentacion/analizar-formato', expect.objectContaining({ method: 'POST' }));
+    await ProjectDocumentationAPI.applyFormulation('p-1', { intro: 'ok' }, { nombre: 'ok' });
+    expect(fetchAPI).toHaveBeenLastCalledWith('/proyectos/p-1/documentacion/aplicar-formato', { method: 'POST', body: JSON.stringify({ borrador: { intro: 'ok' }, proyecto: { nombre: 'ok' } }) });
   });
 });
+
