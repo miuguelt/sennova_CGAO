@@ -71,7 +71,7 @@ def test_empty_project_has_exact_six_stages_and_actionable_missing_items(evidenc
     assert res.status_code == 200
     data = res.json()
     assert [s["carpeta"] for s in data["etapas"]] == [
-        "1ProyectoFomulado", "2ActadeInicio", "3Productos", "4InformesBimensuales",
+        "1ProyectoFormulado", "2ActadeInicio", "3Productos", "4InformesBimensuales",
         "5ActaCierre", "6EvidenciasFotograficas", "7Borradoresyvarios"
     ]
     assert data["completo"] is False

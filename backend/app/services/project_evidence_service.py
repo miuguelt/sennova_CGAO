@@ -17,7 +17,7 @@ from app.models import Documento, Proyecto
 
 # Los nombres de directorio conservan literalmente el contrato de la referencia.
 STAGES = (
-    ("formulacion", "1ProyectoFomulado", "Proyecto formulado", "formulacion_proyecto", {"formulacion_proyecto", "presentacion_proyecto"}, "Adjunte la formulación, la metodología, los objetivos, el presupuesto y el cronograma. Puede agregar la presentación del proyecto."),
+    ("formulacion", "1ProyectoFormulado", "Proyecto formulado", "formulacion_proyecto", {"formulacion_proyecto", "presentacion_proyecto"}, "Adjunte la formulación, la metodología, los objetivos, el presupuesto y el cronograma. Puede agregar la presentación del proyecto."),
     ("inicio", "2ActadeInicio", "Acta de inicio", "acta_inicio", {"acta_inicio"}, "Adjunte el acta de inicio con fecha, equipo, responsabilidades, presupuesto y firmas. Verifique que sus datos coincidan con la formulación."),
     ("productos", "3Productos", "Productos", "producto_resultado", {"producto_resultado", "soporte_minciencias", "poster_producto"}, "Registre los productos y adjunte el resultado o soporte de cada uno. La revisión del administrador se realiza en el módulo de productos."),
     ("informes", "4InformesBimensuales", "Informes bimensuales", "informe_bimensual", {"informe_bimensual", "informe_bimestral"}, "Cargue un informe por cada bimestre de la vigencia. Indique el número de bimestre y describa actividades, avances, dificultades y evidencias."),
@@ -182,7 +182,7 @@ def build_project_file_zip(project: Proyecto, db: Session):
                 elif document.tipo in {"borrador_varios", "nota_trabajo", "documento_apoyo"}:
                     folder = "7Borradoresyvarios"
                 else:
-                    folder = next((stage[1] for stage in STAGES if document.tipo in stage[4]), "1ProyectoFomulado/Anexos")
+                    folder = next((stage[1] for stage in STAGES if document.tipo in stage[4]), "1ProyectoFormulado/Anexos")
                 safe_name = re.sub(r"[^\w.() -]", "_", (document.nombre_archivo or "documento").replace("\\", "/").split("/")[-1]).replace("..", "_")[:180] or "documento"
                 archive.writestr(f"{folder}/{document.id}_{safe_name}", content)
         target.seek(0)
