@@ -8,7 +8,9 @@ const SIZE_CLASSES = {
   lg: 'max-w-2xl',
   xl: 'max-w-4xl',
   '2xl': 'max-w-5xl',
-  full: 'max-w-7xl',
+  '3xl': 'max-w-6xl',
+  '4xl': 'max-w-7xl',
+  full: 'max-w-[95vw] w-full',
 };
 
 const VARIANT_HEADER_STYLES = {

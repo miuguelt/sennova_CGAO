@@ -36,6 +36,7 @@ import ProjectFormulationImport from './ProjectFormulationImport';
 import ProjectSourceDocuments from './ProjectSourceDocuments';
 import ProjectEvidenceFile from './ProjectEvidenceFile';
 import MoverProyectoSemilleroModal from './MoverProyectoSemilleroModal';
+import ProjectDocumentationEditor from './ProjectDocumentationEditor';
 
 // ─── Gantt Component ──────────────────────────────────────────────────────────
 const ProjectTimeline = ({ entregables = [] }) => {
@@ -185,9 +186,30 @@ const TIPOLOGIA_OPTIONS = [
 ];
 
 const REPORTES_GESTION = [
-  { id: 'etapa_productiva', nombre: 'Reporte de etapa productiva' },
-  { id: 'seguimiento', nombre: 'Reporte de seguimiento del proyecto' },
-  { id: 'informe_final', nombre: 'Reporte de cierre del proyecto' },
+  {
+    id: 'ficha_tecnica',
+    nombre: 'Ficha técnica de formulación I+D+i',
+    codigo: 'SGPS / SIGP',
+    descripcion: 'Ficha oficial consolidada con la formulación técnica, objetivos, presupuesto y equipo investigador.'
+  },
+  {
+    id: 'acta_inicio',
+    nombre: 'Acta de inicio y socialización I+D+i',
+    codigo: 'ACTA-INI-SENN',
+    descripcion: 'Acta formal de instalación del equipo de investigación, compromisos y cronograma aprobado.'
+  },
+  {
+    id: 'seguimiento',
+    nombre: 'Reporte de seguimiento técnico y financiero',
+    codigo: 'GIC-F-037',
+    descripcion: 'Seguimiento periódico de hitos, entregables y ejecución presupuestal del proyecto de investigación.'
+  },
+  {
+    id: 'informe_final',
+    nombre: 'Informe final de resultados de investigación',
+    codigo: 'GIC-F-038',
+    descripcion: 'Cierre técnico, balance de actividades, productos MinCiencias e impactos generados.'
+  },
 ];
 
 const controlValue = (eventOrValue) => eventOrValue?.target ? eventOrValue.target.value : eventOrValue;
@@ -659,9 +681,13 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     setGeneratingFormatId(formatId);
     try {
       switch (formatId) {
-        case 'etapa_productiva':
-          PDFGenerator.generateEtapaProductiva(selectedProyecto);
-          onNotify?.('Reporte de etapa productiva generado', 'success');
+        case 'ficha_tecnica':
+          await PDFGenerator.generateProjectPDF(selectedProyecto, teamMembers);
+          onNotify?.('Ficha técnica de investigación generada', 'success');
+          break;
+        case 'acta_inicio':
+          PDFGenerator.generateActaInicio(selectedProyecto);
+          onNotify?.('Acta de inicio de investigación generada', 'success');
           break;
         case 'seguimiento':
           PDFGenerator.generateSeguimiento(selectedProyecto);
@@ -1194,7 +1220,8 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       <Drawer
         isOpen={isDetailOpen && !!selectedProyecto}
         onClose={() => setIsDetailOpen(false)}
-        size="lg"
+        size="2xl"
+        allowExpand={true}
         variant="emerald"
         title={selectedProyecto?.nombre}
         badge={selectedProyecto && <StatusBadge estado={selectedProyecto.estado} />}
@@ -1204,26 +1231,37 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setActiveTab('guia')}
+                className="h-8 px-2.5 sm:px-3 text-[11px] font-black text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 border-emerald-300 shadow-sm flex items-center gap-1.5"
+              >
+                <Sparkles size={13} className="text-emerald-700" />
+                <span className="hidden sm:inline">Metodología Guiada</span>
+                <span className="sm:hidden">Guía</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => handleOpenElaboracionDiagnostic(selectedProyecto)}
-                className="h-8 px-3 text-[11px] font-black text-slate-700 bg-white hover:bg-slate-50 border-slate-200 shadow-sm flex items-center gap-1.5"
+                className="h-8 px-2.5 sm:px-3 text-[11px] font-black text-slate-700 bg-white hover:bg-slate-50 border-slate-200 shadow-sm flex items-center gap-1.5"
               >
                 <Sparkles size={13} className="text-emerald-600" />
-                Diagnóstico Elaboración
+                <span className="hidden sm:inline">Diagnóstico</span> Elaboración
               </Button>
               <Button
                 variant="sena"
                 size="sm"
                 onClick={() => handleOpenLiquidation(selectedProyecto)}
-                className="h-8 px-3 text-[11px] font-black tracking-wide bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white shadow-sm flex items-center gap-1.5"
+                className="h-8 px-2.5 sm:px-3 text-[11px] font-black tracking-wide bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white shadow-sm flex items-center gap-1.5"
               >
                 <ShieldCheck size={14} />
-                Requisitos Liquidación
+                <span className="hidden sm:inline">Requisitos</span> Liquidación
               </Button>
             </div>
           )
         }
         tabs={[
           { id: 'summary', label: 'Resumen', icon: FileText },
+          { id: 'guia', label: 'Metodología Guiada', icon: Sparkles },
           { id: 'evidence', label: 'Expediente', icon: FolderOpen },
           { id: 'team', label: 'Equipo', icon: Users },
           { id: 'timeline', label: 'Línea de Tiempo', icon: Clock3 },
@@ -1405,6 +1443,51 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               </div>
             )}
 
+            {activeTab === 'guia' && (
+              <div className="space-y-6 animate-fadeIn">
+                <div className="bg-gradient-to-r from-emerald-50 via-teal-50/70 to-indigo-50/60 p-5 rounded-2xl border border-emerald-200 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-700 text-white shadow-2xs">
+                        <Sparkles size={12} /> Metodología de Formulación SENNOVA
+                      </span>
+                      <h3 className="text-lg font-black text-slate-900 mt-1.5">
+                        Guía Metodológica para la Construcción del Proyecto
+                      </h3>
+                      <p className="text-xs text-slate-600 mt-0.5 leading-relaxed max-w-3xl">
+                        Estructure paso a paso su propuesta de investigación aplicada, desarrollo tecnológico o innovación (I+D+i). Siga las indicaciones de cada etapa, valide la coherencia técnica y descargue los documentos institucionales en construcción.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs font-bold border-emerald-300 text-emerald-800 bg-white hover:bg-emerald-50 shadow-2xs"
+                        onClick={() => PDFGenerator.generateProjectPDF(selectedProyecto, teamMembers)}
+                      >
+                        <FileText size={13} className="mr-1 text-emerald-600" /> Ficha Técnica (PDF)
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs font-bold border-emerald-300 text-emerald-800 bg-white hover:bg-emerald-50 shadow-2xs"
+                        onClick={() => PDFGenerator.generateActaInicio(selectedProyecto)}
+                      >
+                        <FileText size={13} className="mr-1 text-emerald-600" /> Acta de Inicio (PDF)
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <ProjectDocumentationEditor
+                  projectId={selectedProyecto.id}
+                  currentUser={currentUser}
+                  onNotify={onNotify}
+                  initialOpened={true}
+                />
+              </div>
+            )}
+
             {activeTab === 'evidence' && (
               <ProjectEvidenceFile projectId={selectedProyecto.id} currentUser={currentUser} onNotify={onNotify} />
             )}
@@ -1430,33 +1513,77 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
             {activeTab === 'formats' && (
               <div className="space-y-6 animate-fadeIn">
-                <div>
-                  <h3 className="text-xs font-black text-slate-900 mb-1 flex items-center gap-2">
-                    <FileText size={16} className="text-emerald-600" />
-                    Reportes de gestión del proyecto
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Genere reportes PDF con la información registrada en la plataforma.
-                  </p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 mb-0.5 flex items-center gap-2">
+                      <FileText size={18} className="text-emerald-600" />
+                      Reportes de gestión del proyecto
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Genere reportes y formatos institucionales PDF con la información registrada en la plataforma de investigación SENNOVA.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab('guia')}
+                    className="h-8 text-xs font-bold border-emerald-300 text-emerald-800 bg-emerald-50/50 hover:bg-emerald-100/80 shrink-0 flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <Sparkles size={13} className="text-emerald-700" />
+                    <span>Construir en Guía Metodológica</span>
+                  </Button>
                 </div>
 
                 <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-950">
-                  Estos reportes ayudan al seguimiento y no reemplazan los formatos institucionales vigentes. La carpeta de referencia incluye un ejemplar de GIC-F-037. Confirme la versión controlada con la Coordinación SENNOVA y cárguela en la bóveda de evidencias antes de radicar.
+                  Estos reportes corresponden a proyectos de investigación, desarrollo tecnológico e innovación (I+D+i) del Sistema SENNOVA CGAO. Ayudan al seguimiento técnico y contractual, y no reemplazan los formatos institucionales vigentes. La carpeta de referencia incluye un ejemplar de GIC-F-037. Confirme la versión controlada con la Coordinación SENNOVA y cárguela en la bóveda de evidencias antes de radicar.
+                </div>
+
+                {/* Banner de acceso a metodología guiada */}
+                <div className="p-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50/70 to-teal-50/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-2xs">
+                  <div>
+                    <h4 className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-emerald-700" />
+                      ¿Desea redactar y estructurar la investigación paso a paso?
+                    </h4>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      La Metodología Guiada le indica qué información agregar en cada fase y le permite descargar los documentos mientras los construye.
+                    </p>
+                  </div>
+                  <Button
+                    variant="sena"
+                    size="sm"
+                    onClick={() => setActiveTab('guia')}
+                    className="text-xs font-bold whitespace-nowrap shadow-xs"
+                  >
+                    Abrir Metodología Guiada
+                  </Button>
                 </div>
 
                 <ProjectSourceDocuments projectId={selectedProyecto.id} />
 
                 <div className="space-y-3">
                   {REPORTES_GESTION.map(p => (
-                    <div key={p.id} className="p-4 rounded-2xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/20 transition-all flex items-center justify-between">
-                      <div className="flex items-center gap-3.5">
-                        <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-xl">
+                    <div key={p.id} className="p-4 rounded-2xl border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/20 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                      <div className="flex items-start gap-3.5">
+                        <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-xl mt-0.5 shrink-0 border border-emerald-100">
                           <FileText size={18} />
                         </div>
                         <div>
-                          <h4 className="text-xs font-bold text-slate-900">{p.nombre}</h4>
-                          <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md mt-0.5 inline-block">
-                            PDF de apoyo
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-bold text-slate-900">{p.nombre}</h4>
+                            {p.codigo && (
+                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded-md">
+                                {p.codigo}
+                              </span>
+                            )}
+                          </div>
+                          {p.descripcion && (
+                            <p className="text-[11px] text-slate-600 mt-0.5 max-w-xl leading-relaxed">
+                              {p.descripcion}
+                            </p>
+                          )}
+                          <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md mt-1.5 inline-block">
+                            PDF de apoyo SENNOVA
                           </span>
                         </div>
                       </div>
@@ -1465,10 +1592,10 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                         size="sm"
                         onClick={() => handleGenerateFormat(p.id)}
                         disabled={generatingFormatId === p.id}
-                        className="text-xs font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                        className="text-xs font-bold border-emerald-300 text-emerald-800 hover:bg-emerald-50 shrink-0 self-end sm:self-center shadow-2xs"
                       >
                         {generatingFormatId === p.id ? (
-                          <><Loader2 size={12} className="animate-spin mr-1" /> Generando</>
+                          <><Loader2 size={12} className="animate-spin mr-1" /> Generando…</>
                         ) : 'Generar'}
                       </Button>
                     </div>

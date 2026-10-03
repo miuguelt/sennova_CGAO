@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useId } from 'react';
-import { X } from 'lucide-react';
+import React, { useRef, useEffect, useId, useState } from 'react';
+import { X, Maximize2, Minimize2 } from 'lucide-react';
 import { useModalStack } from '../../hooks/useModalStack';
 import ScrollableTabs from './ScrollableTabs';
 
@@ -7,8 +7,9 @@ const DRAWER_SIZES = {
   md: 'sm:max-w-xl',
   lg: 'sm:max-w-2xl md:max-w-3xl',
   xl: 'sm:max-w-3xl md:max-w-4xl lg:max-w-5xl',
-  '2xl': 'sm:max-w-4xl md:max-w-5xl lg:max-w-6xl',
-  full: 'sm:max-w-6xl',
+  '2xl': 'sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl',
+  '3xl': 'sm:max-w-5xl md:max-w-6xl lg:max-w-7xl xl:max-w-[88vw]',
+  full: 'w-full max-w-[96vw] lg:max-w-[95vw]',
 };
 
 const DRAWER_VARIANTS = {
@@ -62,6 +63,8 @@ export const Drawer = ({
   variant = 'emerald',
   closeOnEsc = true,
   closeOnBackdrop = true,
+  allowExpand = true,
+  defaultExpanded = false,
   children,
   footer,
   className = '',
@@ -69,6 +72,7 @@ export const Drawer = ({
   customId,
   ariaLabel
 }) => {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const { zIndex, isTop } = useModalStack({
     isOpen,
     onClose,
@@ -117,7 +121,8 @@ export const Drawer = ({
 
   if (!isOpen) return null;
 
-  const sizeCls = DRAWER_SIZES[size] || DRAWER_SIZES.lg;
+  const baseSizeCls = DRAWER_SIZES[size] || DRAWER_SIZES.lg;
+  const effectiveSizeCls = isExpanded ? 'w-screen max-w-[98vw] lg:max-w-[95vw]' : `w-screen ${baseSizeCls}`;
   const style = DRAWER_VARIANTS[variant] || DRAWER_VARIANTS.emerald;
 
   const handleBackdropClick = (e) => {
@@ -145,10 +150,10 @@ export const Drawer = ({
       />
 
       {/* Slide-over Container */}
-      <div className="absolute inset-y-0 right-0 flex max-w-full pl-0 sm:pl-10">
+      <div className={`absolute inset-y-0 right-0 flex max-w-full ${isExpanded ? 'pl-0 sm:pl-2' : 'pl-0 sm:pl-10'} transition-all duration-300`}>
         <div
           ref={contentRef}
-          className={`w-screen ${sizeCls} h-full bg-white shadow-2xl flex flex-col animate-slideInRight border-l border-slate-200/60 relative z-10 ${className}`}
+          className={`${effectiveSizeCls} h-full bg-white shadow-2xl flex flex-col animate-slideInRight border-l border-slate-200/60 relative z-10 transition-all duration-300 ${className}`}
         >
           {/* Header */}
           <div className={`px-6 py-6 sm:px-8 sm:py-7 relative shrink-0 overflow-hidden ${style.headerBg}`}>
@@ -161,6 +166,17 @@ export const Drawer = ({
               
               <div className="flex items-center gap-2 ml-auto">
                 {headerActions}
+                {allowExpand && (
+                  <button
+                    type="button"
+                    onClick={() => setIsExpanded(prev => !prev)}
+                    aria-label={isExpanded ? 'Restaurar ancho de panel' : 'Aprovechar ancho de pantalla'}
+                    title={isExpanded ? 'Restaurar ancho' : 'Aprovechar ancho completo de la pantalla'}
+                    className="p-2.5 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl shadow-sm border border-slate-300 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  >
+                    {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={onClose}

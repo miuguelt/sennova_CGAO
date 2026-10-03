@@ -170,6 +170,31 @@ describe('PDFGenerator Suite Completa', () => {
     });
   });
 
+  describe('4b. generateActaInicio (Acta de Inicio I+D+i SENNOVA)', () => {
+    it('genera acta de inicio con equipo de investigación y compromisos', () => {
+      const mockProyecto = {
+        nombre: 'Biotecnología Aplicada a Cafés Especiales',
+        codigo_sgps: 'SGPS-2026-301',
+        linea_programatica: 'Línea 66 - Investigación Aplicada',
+        vigencia: 12,
+        presupuesto_total: 45000000,
+        objetivo_general: 'Desarrollar bioprocesos de fermentación controlada',
+        equipo: [
+          { nombre: 'Dra. Elena Gómez', rol: 'Investigadora Principal', horas_dedicadas: 20 },
+          { nombre: 'Juan Aprendiz', rol: 'Semillerista', horas_dedicadas: 15 }
+        ]
+      };
+
+      expect(() => PDFGenerator.generateActaInicio(mockProyecto)).not.toThrow();
+      expect(jsPDF.API.save).toHaveBeenCalled();
+    });
+
+    it('genera acta de inicio con datos vacíos sin fallar', () => {
+      expect(() => PDFGenerator.generateActaInicio({})).not.toThrow();
+      expect(jsPDF.API.save).toHaveBeenCalled();
+    });
+  });
+
   describe('5. generateEtapaProductiva (Formato Etapa Productiva)', () => {
     it('genera formato de etapa productiva con equipo de trabajo', () => {
       const mockProyecto = {

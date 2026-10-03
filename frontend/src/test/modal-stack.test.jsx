@@ -321,4 +321,60 @@ describe('Standardized UI Components in Stack', () => {
     expect(screen.getByRole('button', { name: 'Procesando...' })).toBeDisabled();
     expect(onConfirm).not.toHaveBeenCalled();
   });
+
+  it('soporta tamaños extendidos (2xl, 3xl, full) y maximizado interactivo en Drawer', () => {
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <Drawer isOpen onClose={onClose} title="Panel Amplio" size="2xl" allowExpand={true}>
+        <p>Contenido 2xl</p>
+      </Drawer>
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Panel Amplio' });
+    expect(dialog).toBeInTheDocument();
+    // Debe incluir clase de tamaño 2xl
+    expect(dialog.querySelector('.xl\\:max-w-7xl')).toBeInTheDocument();
+
+    // Botón para maximizar
+    const expandBtn = screen.getByRole('button', { name: 'Aprovechar ancho de pantalla' });
+    expect(expandBtn).toBeInTheDocument();
+    fireEvent.click(expandBtn);
+
+    // Al maximizar, el panel se expande casi al 100% de la pantalla (95vw)
+    expect(dialog.querySelector('.lg\\:max-w-\\[95vw\\]')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Restaurar ancho de panel' })).toBeInTheDocument();
+
+    // Restaurar tamaño
+    fireEvent.click(screen.getByRole('button', { name: 'Restaurar ancho de panel' }));
+    expect(screen.getByRole('button', { name: 'Aprovechar ancho de pantalla' })).toBeInTheDocument();
+
+    // Rerender con tamaño full
+    rerender(
+      <Drawer isOpen onClose={onClose} title="Panel Full" size="full">
+        <p>Contenido Full</p>
+      </Drawer>
+    );
+    expect(screen.getByRole('dialog', { name: 'Panel Full' })).toBeInTheDocument();
+  });
+
+  it('soporta tamaños extendidos (3xl, 4xl, full) en Modal', () => {
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <Modal isOpen onClose={onClose} title="Modal 4xl" size="4xl">
+        <p>Contenido 4xl</p>
+      </Modal>
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Modal 4xl' });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog.querySelector('.max-w-7xl')).toBeInTheDocument();
+
+    rerender(
+      <Modal isOpen onClose={onClose} title="Modal Full" size="full">
+        <p>Contenido Full</p>
+      </Modal>
+    );
+    const dialogFull = screen.getByRole('dialog', { name: 'Modal Full' });
+    expect(dialogFull.querySelector('.max-w-\\[95vw\\]')).toBeInTheDocument();
+  });
 });

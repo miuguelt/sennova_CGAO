@@ -8,9 +8,9 @@ import ProjectDocumentationContext from './ProjectDocumentationContext';
 import ProjectFormulationWizard from './ProjectFormulationWizard';
 import ProjectTraceabilityPanel from './ProjectTraceabilityPanel';
 
-export default function ProjectDocumentationEditor({ projectId, currentUser, onNotify }) {
+export default function ProjectDocumentationEditor({ projectId, currentUser, onNotify, initialOpened = false }) {
 
-  const [opened, setOpened] = useState(false);
+  const [opened, setOpened] = useState(initialOpened);
   const [record, setRecord] = useState(null);
   const [drafts, setDrafts] = useState({});
   const [dirty, setDirty] = useState({});

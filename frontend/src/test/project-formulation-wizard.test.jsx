@@ -134,7 +134,7 @@ describe('Asistente de formulación (ProjectFormulationWizard)', () => {
     fireEvent.click(screen.getByRole('button', { name: /generar powerpoint \(\.pptx\)/i }));
     expect(generateMock).toHaveBeenCalledTimes(2);
 
-    fireEvent.click(screen.getByRole('button', { name: /descargar/i }));
+    fireEvent.click(screen.getByRole('button', { name: /descargar última versión docx/i }));
     expect(downloadMock).toHaveBeenCalledWith('doc-v1');
   });
 

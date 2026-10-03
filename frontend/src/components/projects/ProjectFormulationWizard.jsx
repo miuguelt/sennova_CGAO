@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Sparkles, FileUp, ListOrdered } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Sparkles, FileUp, ListOrdered, Download, FileText, FileCheck2 } from 'lucide-react';
 import ProjectFormulationUpload from './ProjectFormulationUpload';
 import ProjectFormulationStep from './ProjectFormulationStep';
 import { ProjectDocumentationAPI } from '../../api/projectDocumentation';
 import { documentationButtonClass } from './ProjectDocumentationFields';
+import { PDFGenerator } from '../../utils/pdfGenerator';
 
 export default function ProjectFormulationWizard({
   projectId,
@@ -136,6 +137,60 @@ export default function ProjectFormulationWizard({
             </button>
           </div>
         )}
+
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-emerald-100">
+          <span className="text-[11px] font-bold text-emerald-950 flex items-center gap-1">
+            <Download size={13} /> Descargas rápidas de avance:
+          </span>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await PDFGenerator.generateProjectPDF({
+                  ...projectDraft,
+                  ...drafts.comunes,
+                  id: projectId,
+                  nombre: projectDraft?.nombre || 'Proyecto de Investigación SENNOVA',
+                  codigo_sgps: projectDraft?.codigo_sgps || 'SGPS-CGAO',
+                  presupuesto_total: projectDraft?.presupuesto_total || 0,
+                  vigencia: projectDraft?.vigencia || 12,
+                  objetivo_general: projectDraft?.objetivo_general || '',
+                  equipo: drafts.comunes?.equipo || []
+                }, drafts.comunes?.equipo || []);
+                onNotify?.('Ficha técnica generada correctamente', 'success');
+              } catch (err) {
+                onNotify?.('Error al generar ficha: ' + err.message, 'error');
+              }
+            }}
+            className="text-[11px] font-bold text-emerald-800 bg-white hover:bg-emerald-100/60 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors inline-flex items-center gap-1 shadow-2xs"
+          >
+            <FileText size={12} /> Ficha Técnica (PDF)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                PDFGenerator.generateActaInicio({
+                  ...projectDraft,
+                  ...drafts.comunes,
+                  id: projectId,
+                  nombre: projectDraft?.nombre || 'Proyecto de Investigación SENNOVA',
+                  codigo_sgps: projectDraft?.codigo_sgps || 'SGPS-CGAO',
+                  presupuesto_total: projectDraft?.presupuesto_total || 0,
+                  vigencia: projectDraft?.vigencia || 12,
+                  objetivo_general: projectDraft?.objetivo_general || '',
+                  equipo: drafts.comunes?.equipo || []
+                });
+                onNotify?.('Acta de inicio generada correctamente', 'success');
+              } catch (err) {
+                onNotify?.('Error al generar acta: ' + err.message, 'error');
+              }
+            }}
+            className="text-[11px] font-bold text-emerald-800 bg-white hover:bg-emerald-100/60 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors inline-flex items-center gap-1 shadow-2xs"
+          >
+            <FileCheck2 size={12} /> Acta de Inicio (PDF)
+          </button>
+        </div>
       </div>
 
       {mode === 'formato' ? (
@@ -203,6 +258,7 @@ export default function ProjectFormulationWizard({
             onSaveDraft={() => onSaveDraft('formulacion_proyecto', formulationDoc)}
             onGenerate={onGenerate}
             onDownload={onDownload}
+            onNotify={onNotify}
           />
 
           <div className="flex items-center justify-between pt-2">

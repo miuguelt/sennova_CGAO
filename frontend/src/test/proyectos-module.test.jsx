@@ -76,9 +76,29 @@ vi.mock('../api/documentos', () => ({
   },
 }));
 
+vi.mock('../api/projectDocumentation', () => ({
+  ProjectDocumentationAPI: {
+    get: vi.fn().mockResolvedValue({
+      proyecto: { id: 'p-1', nombre: 'Plataforma SENNOVA 2026' },
+      revision: 1,
+      comunes: { centro: 'CGAO', fecha: '', presupuesto: 0, equipo: [] },
+      campos_comunes: [],
+      documentos: []
+    }),
+    saveCommon: vi.fn(),
+    saveDraft: vi.fn(),
+    saveIdentification: vi.fn(),
+    analyzeFormulation: vi.fn(),
+    applyFormulation: vi.fn(),
+    generate: vi.fn(),
+    review: vi.fn(),
+  }
+}));
+
 vi.mock('../utils/pdfGenerator', () => ({
   PDFGenerator: {
     generateProjectPDF: vi.fn(),
+    generateActaInicio: vi.fn(),
     generateEtapaProductiva: vi.fn(),
     generateSeguimiento: vi.fn(),
     generateInformeFinal: vi.fn(),
@@ -348,14 +368,18 @@ describe('ProyectosModule', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Reportes de gestión del proyecto')).toBeInTheDocument();
-      expect(screen.getByText('Reporte de etapa productiva')).toBeInTheDocument();
+      expect(screen.getByText('Acta de inicio y socialización I+D+i')).toBeInTheDocument();
+      expect(screen.getByText('Ficha técnica de formulación I+D+i')).toBeInTheDocument();
+      expect(screen.getByText('Reporte de seguimiento técnico y financiero')).toBeInTheDocument();
+      expect(screen.getByText('Informe final de resultados de investigación')).toBeInTheDocument();
       expect(screen.getByText(/no reemplazan los formatos institucionales vigentes/i)).toBeInTheDocument();
     });
 
     const generateButtons = screen.getAllByRole('button', { name: /Generar/i });
-    fireEvent.click(generateButtons[0]);
+    // Botón 1 corresponde al Acta de inicio y socialización I+D+i
+    fireEvent.click(generateButtons[1]);
 
-    expect(PDFGenerator.generateEtapaProductiva).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-1' }));
+    expect(PDFGenerator.generateActaInicio).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-1' }));
   });
 
   it('allows adding a researcher to the project team', async () => {
@@ -498,10 +522,11 @@ describe('ProyectosModule', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /Formatos/i }));
     const formatButtons = screen.getAllByRole('button', { name: 'Generar' });
-    fireEvent.click(formatButtons[0]);
     fireEvent.click(formatButtons[1]);
     fireEvent.click(formatButtons[2]);
-    await waitFor(() => expect(PDFGenerator.generateSeguimiento).toHaveBeenCalledWith(project));
+    fireEvent.click(formatButtons[3]);
+    await waitFor(() => expect(PDFGenerator.generateActaInicio).toHaveBeenCalledWith(project));
+    expect(PDFGenerator.generateSeguimiento).toHaveBeenCalledWith(project);
     expect(PDFGenerator.generateInformeFinal).toHaveBeenCalledWith(project);
     expect(screen.queryByText('Bitácora consolidada')).not.toBeInTheDocument();
 
@@ -753,5 +778,28 @@ describe('ProyectosModule', () => {
     const liquidation = await screen.findByRole('dialog', { name: 'Requisitos Institucionales SENNOVA' });
     expect(ProyectosAPI.checkLiquidacion).toHaveBeenCalledWith('p-1');
     fireEvent.click(within(liquidation).getByLabelText('Cerrar ventana modal'));
+  });
+
+  it('permite abrir y explorar la pestaña de Metodología Guiada con descargas directas', async () => {
+    ProyectosAPI.list.mockResolvedValue([mockProyecto]);
+    render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText('SENNOVA Core')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('SENNOVA Core'));
+
+    const detail = await screen.findByRole('dialog');
+    const guiaTab = within(detail).getByRole('tab', { name: /Metodología Guiada/i });
+    expect(guiaTab).toBeInTheDocument();
+    fireEvent.click(guiaTab);
+
+    expect(await within(detail).findByText('Guía Metodológica para la Construcción del Proyecto')).toBeInTheDocument();
+    expect(within(detail).getByText(/Estructure paso a paso su propuesta de investigación aplicada/i)).toBeInTheDocument();
+
+    const pdfFichaBtn = within(detail).getByRole('button', { name: /Ficha Técnica \(PDF\)/i });
+    fireEvent.click(pdfFichaBtn);
+    expect(PDFGenerator.generateProjectPDF).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-1' }), expect.any(Array));
+
+    const pdfActaBtn = within(detail).getByRole('button', { name: /Acta de Inicio \(PDF\)/i });
+    fireEvent.click(pdfActaBtn);
+    expect(PDFGenerator.generateActaInicio).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-1' }));
   });
 });

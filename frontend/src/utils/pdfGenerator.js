@@ -488,6 +488,144 @@ export const PDFGenerator = {
   },
 
   /**
+   * 4b. Genera el Acta de Inicio y Socialización de Proyecto I+D+i (ACTA-INI-SENN)
+   */
+  generateActaInicio: (proyecto = {}) => {
+    const doc = new jsPDF();
+    
+    // Encabezado institucional
+    doc.setFillColor(...COLORS.senaGreen);
+    doc.rect(0, 0, 210, 40, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(17);
+    doc.setTextColor(...COLORS.white);
+    doc.text('ACTA DE INICIO Y SOCIALIZACIÓN I+D+i', 105, 17, { align: 'center' });
+    doc.setFontSize(8.5);
+    doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL Y DEL ORIENTE - REGIONAL SANTANDER', 105, 25, { align: 'center' });
+    doc.text('SISTEMA DE INVESTIGACIÓN, INNOVACIÓN Y DESARROLLO TECNOLÓGICO - SENNOVA', 105, 30, { align: 'center' });
+    addReferenceNotice(doc);
+
+    // Información básica
+    doc.setTextColor(...COLORS.navyDark);
+    doc.setFontSize(10.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text('1. INFORMACIÓN GENERAL DEL PROYECTO', 20, 50);
+    doc.setDrawColor(...COLORS.borderGray);
+    doc.line(20, 52, 190, 52);
+
+    doc.setFontSize(9);
+    doc.text('Nombre del Proyecto:', 20, 60);
+    doc.setFont('helvetica', 'normal');
+    doc.text(doc.splitTextToSize(proyecto.nombre || 'Sin definir', 135), 58, 60);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Código SGPS:', 20, 72);
+    doc.setFont('helvetica', 'normal');
+    doc.text(proyecto.codigo_sgps || proyecto.codigo || 'N/A', 50, 72);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Línea Programática:', 110, 72);
+    doc.setFont('helvetica', 'normal');
+    doc.text(proyecto.linea_programatica || proyecto.tipologia || 'Investigación Aplicada', 145, 72);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Presupuesto Aprobado:', 20, 80);
+    doc.setFont('helvetica', 'normal');
+    doc.text(formatCurrency(proyecto.presupuesto_total), 58, 80);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Vigencia de Ejecución:', 110, 80);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${proyecto.vigencia || 12} meses`, 148, 80);
+
+    // Objetivo General
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.text('2. OBJETIVO GENERAL Y ALCANCE CTeI', 20, 94);
+    doc.line(20, 96, 190, 96);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    const objText = doc.splitTextToSize(proyecto.objetivo_general || proyecto.descripcion || 'Sin objetivo general registrado para este proyecto.', 170);
+    doc.text(objText, 20, 102);
+
+    let nextY = 102 + (objText.length * 4.2) + 6;
+
+    // Equipo Vinculado
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.text('3. EQUIPO DE INVESTIGADORES Y COINVESTIGADORES', 20, nextY);
+    doc.line(20, nextY + 2, 190, nextY + 2);
+
+    const equipo = (Array.isArray(proyecto.equipo) && proyecto.equipo.length > 0)
+      ? proyecto.equipo
+      : (Array.isArray(proyecto.investigadores) && proyecto.investigadores.length > 0 ? proyecto.investigadores : []);
+
+    const bodyEquipo = equipo.length > 0 ? equipo.map(m => [
+      m.nombre || m.user?.nombre || 'Integrante de Investigación',
+      m.rol || m.rol_en_proyecto || m.pivot?.rol_en_proyecto || 'Investigador',
+      `${m.horas_dedicadas || m.pivot?.horas_dedicadas || m.horas || 20} hrs/sem`
+    ]) : [['Sin equipo de investigación registrado', 'Investigador Principal', '20 hrs/sem']];
+
+    doc.autoTable({
+      startY: nextY + 6,
+      head: [['Nombre Completo', 'Rol en Investigación', 'Dedicación Horaria']],
+      body: bodyEquipo,
+      headStyles: { fillColor: COLORS.senaGreen },
+      styles: { fontSize: 8.5 }
+    });
+
+    nextY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 8 : nextY + 30;
+
+    // Compromisos
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.text('4. COMPROMISOS TÉCNICOS Y CONTRACTUALES ACORDADOS', 20, nextY);
+    doc.line(20, nextY + 2, 190, nextY + 2);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const compromisos = [
+      'a. Cumplir con la metodología, fases experimentales y cronograma de hitos avalados en la plataforma SGPS.',
+      'b. Cargar oportunamente las evidencias, informes bimestrales y productos MinCiencias en el expediente SharePoint.',
+      'c. Ejecutar los rubros presupuestales estrictamente conforme a las actividades de investigación autorizadas.',
+      'd. Socializar los resultados de CTeI y propiciar la investigación formativa con los semilleros del CGAO.'
+    ];
+    let compY = nextY + 8;
+    compromisos.forEach(c => {
+      doc.text(c, 22, compY);
+      compY += 5;
+    });
+
+    // Firmas
+    const firmaY = Math.max(compY + 12, 240);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setDrawColor(180, 180, 180);
+    doc.line(25, firmaY, 90, firmaY);
+    doc.line(120, firmaY, 185, firmaY);
+
+    doc.text('INVESTIGADOR PRINCIPAL (IP)', 57.5, firmaY + 5, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text('Líder del Proyecto de Investigación', 57.5, firmaY + 9, { align: 'center' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('SUBDIRECTOR / LÍDER SENNOVA', 152.5, firmaY + 5, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text('Centro de Gestión Agroempresarial y Oriente', 152.5, firmaY + 9, { align: 'center' });
+
+    // Pie de página
+    doc.setFontSize(7.5);
+    doc.setTextColor(...COLORS.textMuted);
+    doc.text(`Acta de inicio generada el ${new Date().toLocaleDateString('es-CO')} - Plataforma SENNOVA CGAO`, 105, 285, { align: 'center' });
+
+    doc.save(`Acta_Inicio_${sanitizeFileName(proyecto.codigo_sgps || proyecto.codigo || 'Proyecto')}.pdf`);
+  },
+
+  /**
    * 5. Genera el Formato de Etapa Productiva
    */
   generateEtapaProductiva: (proyecto = {}) => {
