@@ -425,6 +425,26 @@ def cambiar_estado_entregable(
         if current_user.rol != "admin" and str(proyecto.owner_id) != str(current_user.id) and str(entregable.responsable_id) != str(current_user.id):
             raise HTTPException(status_code=403, detail="No tienes permiso para cambiar el estado de este entregable")
 
+        # Segregación de funciones: solo admin o director del proyecto pueden aprobar o solicitar ajustes
+        if nuevo_estado in ['aprobado', 'ajustes_requeridos']:
+            if current_user.rol != "admin" and str(proyecto.owner_id) != str(current_user.id):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Solo el director del proyecto o un administrador pueden evaluar entregables (aprobar o solicitar ajustes)"
+                )
+            if nuevo_estado == 'ajustes_requeridos' and not (observaciones and observaciones.strip()):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Debe proporcionar observaciones que justifiquen los ajustes requeridos"
+                )
+
+        # Inmutabilidad de entregables ya aprobados salvo por admin
+        if entregable.estado == 'aprobado' and nuevo_estado != 'aprobado' and current_user.rol != "admin":
+            raise HTTPException(
+                status_code=400,
+                detail="Un entregable aprobado no puede cambiar de estado salvo por un administrador"
+            )
+
         estados_validos = ['pendiente', 'en_desarrollo', 'enviado', 'aprobado', 'ajustes_requeridos']
         if nuevo_estado not in estados_validos:
             raise HTTPException(status_code=400, detail=f"Estado no válido. Use: {', '.join(estados_validos)}")

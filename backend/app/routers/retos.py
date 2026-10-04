@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Reto, User
+from app.models import Reto, User, Proyecto
 from app.schemas_retos import RetoCreate, RetoUpdate, RetoResponse
 
 router = APIRouter(prefix="/retos", tags=["Banco de Retos"])
@@ -134,7 +134,16 @@ def eliminar_reto(
             raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar retos")
         if current_user.rol != "admin" and str(reto_db.owner_id) != str(current_user.id):
             raise HTTPException(status_code=403, detail="No autorizado")
-            
+        
+        proyectos_vinculados_count = db.query(Proyecto).filter(
+            Proyecto.reto_origen_id == str(reto_db.id)
+        ).count()
+        if proyectos_vinculados_count > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"No es posible eliminar el reto '{reto_db.titulo}' porque tiene {proyectos_vinculados_count} proyecto(s) vinculado(s)."
+            )
+
         db.delete(reto_db)
         db.commit()
         return {"message": "Reto eliminado exitosamente"}

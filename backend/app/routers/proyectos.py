@@ -529,6 +529,23 @@ def update_proyecto(
         raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar proyectos")
     
     update_data = proyecto_update.model_dump(exclude_unset=True)
+
+    # Inmutabilidad de proyectos liquidados (Finalizado / Completado)
+    if str(proyecto.estado).casefold() in {"finalizado", "completado"}:
+        nuevo_estado = update_data.get("estado")
+        if nuevo_estado and str(nuevo_estado).casefold() not in {"finalizado", "completado"}:
+            if current_user.rol != "admin":
+                raise HTTPException(
+                    status_code=403,
+                    detail="Solo un administrador puede solicitar la reapertura de un proyecto liquidado."
+                )
+        if current_user.rol != "admin":
+            campos_bloqueados = {"presupuesto_total", "presupuesto_detallado", "codigo_sgps"}
+            if any(c in update_data for c in campos_bloqueados):
+                raise HTTPException(
+                    status_code=422,
+                    detail="El proyecto se encuentra liquidado; el presupuesto y código SGPS son inmutables."
+                )
     link_fields = ("grupo_id", "semillero_id", "convocatoria_id", "reto_origen_id")
     if any(field in update_data for field in link_fields):
         values = {field: update_data.get(field, getattr(proyecto, field)) for field in link_fields}

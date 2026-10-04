@@ -183,6 +183,15 @@ def delete_convocatoria(
     if not convocatoria:
         raise HTTPException(status_code=404, detail="Convocatoria no encontrada")
     
+    proyectos_count = db.query(Proyecto).filter(
+        Proyecto.convocatoria_id == str(convocatoria.id)
+    ).count()
+    if proyectos_count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=f"No es posible eliminar la convocatoria '{convocatoria.nombre}' porque contiene {proyectos_count} proyecto(s) vinculados. Debe archivarla o desvincular los proyectos primero."
+        )
+
     db.delete(convocatoria)
     safe_commit(db)
     return {"message": "Convocatoria eliminada"}

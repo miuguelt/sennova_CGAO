@@ -1,6 +1,7 @@
 """Create, update and delete product routes."""
 
 from pathlib import Path
+from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
@@ -138,12 +139,22 @@ def _notify_admins(
 
 
 def _apply_product_update(
-    producto: Producto, producto_update: ProductoUpdate, db: Session
+    producto: Producto,
+    producto_update: ProductoUpdate,
+    db: Session,
+    current_user: Optional[User] = None,
 ) -> None:
     """Apply allowed fields and persist the product update."""
     update_data = producto_update.model_dump(exclude_unset=True) if hasattr(producto_update, 'model_dump') else producto_update.dict(exclude_unset=True)
     if producto.is_verificado:
         update_data.pop("proyecto_id", None)
+        # Si un usuario que no es administrador modifica metadatos sustanciales, se revoca el aval
+        campos_sustanciales = {"tipo", "categoria", "nombre", "doi", "url", "requisitos_cumplidos"}
+        if current_user and current_user.rol != "admin":
+            if any(k in update_data for k in campos_sustanciales):
+                producto.is_verificado = False
+                producto.verificado_por = None
+                producto.fecha_verificacion = None
     for field, value in update_data.items():
         setattr(producto, field, value)
     try:
@@ -207,7 +218,7 @@ def update_producto(
         )
     if current_user.rol != "admin" and str(producto.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso para editar")
-    _apply_product_update(producto, producto_update, db)
+    _apply_product_update(producto, producto_update, db, current_user=current_user)
     log_actividad(
         db,
         current_user.id,
