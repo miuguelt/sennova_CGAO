@@ -91,3 +91,34 @@ def ensure_investigador_role(target_engine=engine):
             text("UPDATE users SET rol = 'investigador' WHERE rol = 'instructor'")
         )
     return result.rowcount or 0
+
+
+def remove_retired_stage_productivity_schema(target_engine=engine):
+    """Elimina la bitácora retirada y rutas de formatos de etapa productiva.
+
+    Esta migración borra de forma permanente las filas de `bitacora_entries` y
+    los valores de las columnas de formatos retiradas. Conserva actividades,
+    auditoría, documentos e `informe_final_path`, que corresponden al sistema
+    de proyectos de investigación.
+    """
+    inspector = inspect(target_engine)
+    existing_tables = set(inspector.get_table_names())
+    project_columns = (
+        {column["name"] for column in inspector.get_columns("proyectos")}
+        if "proyectos" in existing_tables
+        else set()
+    )
+    columns_to_remove = tuple(
+        column_name
+        for column_name in ("formato_bitacora_path", "formato_seguimiento_path")
+        if column_name in project_columns
+    )
+    table_removed = "bitacora_entries" in existing_tables
+
+    with target_engine.begin() as connection:
+        if table_removed:
+            connection.execute(text("DROP TABLE bitacora_entries"))
+        for column_name in columns_to_remove:
+            connection.execute(text(f"ALTER TABLE proyectos DROP COLUMN {column_name}"))
+
+    return {"table_removed": table_removed, "columns_removed": columns_to_remove}

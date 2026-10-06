@@ -96,6 +96,16 @@ def test_public_resources_preserve_existing_access(context, operation, entity):
     assert Path(document.file_path).read_bytes().startswith(b"%PDF")
 
 
+@pytest.mark.parametrize("operation", [create, upload])
+def test_retired_bitacora_attachment_type_is_rejected(context, operation):
+    with pytest.raises(HTTPException) as error:
+        operation(context, tipo="evidencia_bitacora")
+    assert error.value.status_code == 422
+    assert "ya no está disponible" in error.value.detail
+    assert context[0].query(Documento).count() == 0
+    assert list(context[-1].iterdir()) == []
+
+
 @pytest.mark.parametrize("encoded,filename", [("%%%%", "evidencia.pdf"), ("", "evidencia.pdf"), ("YQ==", "archivo.exe")])
 def test_base64_rejects_invalid_empty_or_unsupported_content(context, encoded, filename):
     with pytest.raises(HTTPException) as error:

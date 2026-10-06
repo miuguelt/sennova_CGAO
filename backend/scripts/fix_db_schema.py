@@ -33,14 +33,6 @@ def fix_schema(target_engine=None):
             ("programa", "VARCHAR(255)"),
             ("fecha_egreso", "DATE")
         ],
-        "bitacora_entries": [
-            ("adjuntos", "JSON"),
-            ("is_firmado_investigador", "BOOLEAN DEFAULT FALSE"),
-            ("fecha_firma_investigador", "TIMESTAMP"),
-            ("is_firmado_aprendiz", "BOOLEAN DEFAULT FALSE"),
-            ("fecha_firma_aprendiz", "TIMESTAMP"),
-            ("signature_metadata", "JSON")
-        ],
         "retos": [
             ("titulo", "VARCHAR(255)"),
             ("descripcion", "TEXT"),

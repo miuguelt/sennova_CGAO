@@ -29,6 +29,8 @@ from app.services.proyecto_import_service import (
 )
 from app.services.project_access import can_access_project
 from app.services.entity_document_cleanup import delete_entity_documents, cleanup_document_files
+from app.services.documentation_progress import documentation_progress
+from app.services.documentation_statistics import documentation_loading_options
 
 router = APIRouter(prefix="/proyectos", tags=["Proyectos"])
 FORMULATION_STORAGE_DIR = Path(get_settings().STORAGE_DIR) / "documentos"
@@ -187,7 +189,7 @@ def _format_proyecto_dict(
     )
     semillero_nombre_resolved = p.semillero.nombre if p.semillero else None
 
-    # 3. Avance técnico / Cumplimiento de entregables
+    # 3. Estadísticas de entregables y avance de construcción documental
     total_entregables = 0
     entregables_aprobados = 0
     if entregables_info:
@@ -201,12 +203,7 @@ def _format_proyecto_dict(
         except Exception:
             pass
 
-    if total_entregables > 0:
-        avance_porcentaje = int((entregables_aprobados / total_entregables) * 100)
-    elif str(p.estado).lower() in ("finalizado", "completado"):
-        avance_porcentaje = 100
-    else:
-        avance_porcentaje = 0
+    avance_documental = documentation_progress(p)
 
     return {
         "id": p_id_str,
@@ -251,7 +248,8 @@ def _format_proyecto_dict(
         "total_productos": len(p.productos) if p.productos else 0,
         "total_entregables": total_entregables,
         "entregables_aprobados": entregables_aprobados,
-        "avance_porcentaje": avance_porcentaje,
+        "avance_porcentaje": avance_documental["porcentaje"],
+        "avance_documental": avance_documental,
         "created_at": p.created_at,
         "updated_at": p.updated_at
     }
@@ -268,13 +266,14 @@ def list_proyectos(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Listar proyectos con sus relaciones, equipo, grupo y avance técnico."""
+    """Listar proyectos con sus relaciones, equipo, grupo y avance documental."""
     query = db.query(Proyecto).options(
         joinedload(Proyecto.equipo),
         joinedload(Proyecto.productos),
         joinedload(Proyecto.semillero).joinedload(Semillero.grupo),
         joinedload(Proyecto.grupo),
-        joinedload(Proyecto.owner)
+        joinedload(Proyecto.owner),
+        *documentation_loading_options(),
     )
     
     if current_user.rol not in STAFF_ROLES:
@@ -361,7 +360,8 @@ def get_proyecto(
         joinedload(Proyecto.productos),
         joinedload(Proyecto.semillero).joinedload(Semillero.grupo),
         joinedload(Proyecto.grupo),
-        joinedload(Proyecto.owner)
+        joinedload(Proyecto.owner),
+        *documentation_loading_options(),
     ).filter(Proyecto.id == str(proyecto_id)).first()
     
     if not proyecto:

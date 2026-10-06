@@ -1,386 +1,339 @@
 /**
- * Catálogo pre-programado de orientaciones metodológicas, checklists interactivas,
- * validaciones en vivo y documentos descargables para la formulación de proyectos I+D+i SENNOVA CGAO.
- * Centro de Gestión Agroempresarial y del Oriente - Regional Santander.
+ * Orientaciones metodológicas internas para organizar la formulación de proyectos.
+ * Los ejemplos son estructuras editables; los requisitos y datos deben confirmarse con fuentes vigentes.
  */
 
 export const STEP_METHODOLOGY_GUIDE = {
   identificacion: {
-    titulo: 'Identificación, Objetivos y Alcance del Proyecto',
-    badge: 'Paso 1 · Núcleo del Proyecto',
+    titulo: 'Identificación del proyecto',
+    badge: 'Paso 1 · Datos básicos',
+    referenciaEjemplo: {
+      fuente: 'Formato Proyecto Capacidad Instalada · CAP-14-2026',
+      secciones: ['Información general', '1. Título'],
+      nota: 'La muestra registra el título en la ficha inicial y lo repite en el contenido. La duración y el presupuesto se completan con los datos confirmados del proyecto.'
+    },
     queInformacionAgregar: [
       {
         campo: 'Título del proyecto',
-        instruccion: 'Debe formularse en tiempo presente afirmativo (sin iniciar con verbos en infinitivo). Debe responder a tres preguntas fundamentales: ¿Qué se va a realizar?, ¿Sobre qué objeto, proceso o población? y ¿En qué contexto geográfico o sector productivo? (ej. Provincia de Vélez / Santander).',
-        ejemplo: 'Desarrollo de un sistema IoT y bioprocesos para optimización de fermentación en cafés especiales del CGAO Vélez.'
-      },
-      {
-        campo: 'Objetivo general',
-        instruccion: 'Debe iniciar obligatoriamente con un verbo en infinitivo medible (ej: Desarrollar, Evaluar, Diseñar, Implementar, Validar). Debe describir el logro principal, el método o solución aplicada y la finalidad o impacto esperado en el Centro y la región.',
-        ejemplo: 'Desarrollar un prototipo biotecnológico para la estandarización del secado y fermentación en cafés de la provincia de Vélez, mejorando su perfil en taza.'
-      },
-      {
-        campo: 'Objetivos específicos',
-        instruccion: 'Redacta entre 3 y 4 objetivos secuenciales y cronológicos que correspondan a las fases de investigación: 1) Diagnóstico y caracterización, 2) Diseño y desarrollo experimental, 3) Validación y pruebas de campo, 4) Transferencia de conocimiento y apropiación social.',
-        ejemplo: '1. Diagnosticar las variables físico-químicas de partida.\n2. Diseñar el protocolo de fermentación controlada.\n3. Validar el desempeño técnico del prototipo.\n4. Transferir los resultados a los productores locales.'
+        instruccion: 'Describe con claridad el objeto o proceso del proyecto y el alcance respaldado por sus fuentes. Confirma las reglas de titulación que establezca la convocatoria.',
+        ejemplo: '[Acción o resultado] sobre [objeto o proceso] en [ámbito confirmado].'
       },
       {
         campo: 'Duración (vigencia) y Presupuesto total',
-        instruccion: 'Indica la vigencia planeada en meses (habitualmente 10 a 12 meses para convocatorias anuales SENNOVA) y el presupuesto total estimado en pesos colombianos ($ COP). Recuerda que el desglose de recursos en el paso de presupuesto debe sumar este valor.',
-        ejemplo: 'Vigencia: 12 meses · Presupuesto: $ 45.000.000 COP'
+        instruccion: 'Registra la duración y el presupuesto que consten en la fuente del proyecto. Contrasta el presupuesto con el desglose del paso de recursos.',
+        ejemplo: 'Duración: [período confirmado] · Presupuesto total: [valor y moneda confirmados].'
       }
     ],
     checklist: [
-      'El título está redactado en tiempo presente afirmativo y delimita objeto y territorio sin verbos infinitivos.',
-      'El objetivo general inicia con un verbo en infinitivo de alcance claro y medible.',
-      'Hay entre 3 y 4 objetivos específicos secuenciales que cubren diagnóstico, desarrollo, validación y transferencia.',
-      'La vigencia en meses es coherente con el calendario SENNOVA y el presupuesto total está definido.'
-    ],
-    documentosEnConstruccion: [
-      {
-        id: 'ficha_tecnica',
-        nombre: 'Ficha Técnica de Identificación I+D+i (PDF)',
-        tipo: 'pdf',
-        descripcion: 'Genera el resumen preliminar de la propuesta con título, objetivos, duración y presupuesto.',
-        accion: 'ficha'
-      }
+      'El título describe el proyecto con el formato solicitado y usa un alcance respaldado por sus fuentes.',
+      'La duración y el presupuesto coinciden con las fuentes aprobadas del proyecto.'
     ],
     ejemploModelo: {
-      titulo: 'Proyecto Modelo: Cafés Especiales Vélez',
-      texto: 'Título: Implementación de tecnologías de fermentación controlada y sensores IoT en microempresas cafeteras de la provincia de Vélez.\n\nObjetivo General: Implementar un modelo de fermentación controlada asistido por sensórica IoT para estandarizar perfiles de calidad en microlotes de café de la provincia de Vélez.\n\nObjetivos Específicos:\n1. Caracterizar las variables ambientales y térmicas del proceso tradicional de beneficio.\n2. Diseñar el sistema de monitoreo en tiempo real de temperatura y pH.\n3. Evaluar el impacto en la calidad sensorial y taza del grano.\n4. Capacitar a semilleristas y caficultores locales en el manejo tecnológico.'
+      titulo: 'Ficha inicial del proyecto',
+      texto: 'Título: [nombre respaldado por el proyecto].\nDuración: [período confirmado].\nPresupuesto total: [valor confirmado].'
     }
   },
   institucional: {
-    titulo: 'Datos Institucionales y Ubicación Territorial',
-    badge: 'Paso 2 · Contexto CGAO',
+    titulo: 'Datos institucionales y equipo',
+    badge: 'Paso 2 · Información general',
+    referenciaEjemplo: {
+      fuente: 'Formato Proyecto Capacidad Instalada · CAP-14-2026',
+      secciones: ['Información general'],
+      nota: 'La ficha de la muestra también incluye nivel de formación, programa, competencia y resultados de aprendizaje. Registra estos datos, la fase formativa y las clasificaciones solo si el proyecto o la convocatoria los solicita; confirma su fuente y deja vacíos los que no apliquen.'
+    },
     queInformacionAgregar: [
       {
         campo: 'Centro de Formación y Regional',
-        instruccion: 'Registra el Centro de Gestión Agroempresarial y del Oriente (CGAO) y la Regional Santander. Estos datos vinculan formalmente la propuesta a los grupos y semilleros de investigación institucional.',
-        ejemplo: 'Centro: Centro de Gestión Agroempresarial y Oriente · Regional: Santander · Ciudad: Vélez'
+        instruccion: 'Registra el centro, la regional y el territorio que consten en la fuente aprobada del proyecto. Confirma los campos requeridos para esta convocatoria.',
+        ejemplo: 'Centro: [según la fuente] · Regional: [según la fuente] · Territorio: [si aplica].'
       },
       {
-        campo: 'Responsable del proyecto y Código CAP',
-        instruccion: 'Indica al investigador líder o instructor formulador responsable ante la Coordinación SENNOVA, y el código de convocatoria CAP cuando aplique.',
-        ejemplo: 'Responsable: Investigador Principal CGAO'
+        campo: 'Responsables y código de convocatoria',
+        instruccion: 'Registra responsables y códigos solo cuando estén confirmados en la fuente del proyecto o en la convocatoria vigente.',
+        ejemplo: 'Responsable: [nombre y rol confirmados] · Código: [si la convocatoria lo asigna].'
       },
       {
         campo: 'Fechas de inicio y terminación',
-        instruccion: 'Fechas acordadas dentro del calendario de ejecución de la vigencia. La fecha final debe ser igual o posterior a la inicial y concordar con los meses de duración.',
-        ejemplo: 'Inicio: 2026-02-01 · Fin: 2026-11-30'
+        instruccion: 'Registra las fechas aprobadas y verifica que correspondan con la duración y el cronograma del proyecto.',
+        ejemplo: 'Inicio: [fecha confirmada] · Fin: [fecha confirmada].'
+      },
+      {
+        campo: 'Datos de formación y convocatoria (cuando apliquen)',
+        instruccion: 'Completa nivel, programa, competencia, resultados de aprendizaje, fase formativa, categoría o área solo si el proyecto o la convocatoria los solicita. Confirma cada dato con una fuente institucional y deja vacío lo que no aplique.',
+        ejemplo: 'Nivel: [denominación confirmada, si aplica] · Programa: [nombre confirmado, si aplica] · Competencia y resultados: [según fuente institucional].'
+      },
+      {
+        campo: 'Integrantes y responsabilidades',
+        instruccion: 'Agrega a las personas vinculadas al proyecto y asocia cada una con su rol y las actividades que le corresponden.',
+        ejemplo: 'Integrante: [persona confirmada] · Rol: [función acordada] · Actividad: [tarea del proyecto].'
       }
     ],
     checklist: [
-      'El centro de formación y la regional corresponden a la sede de radicación del proyecto (CGAO Vélez).',
-      'El responsable designado cuenta con horas de dedicación asignadas en la planeación.',
-      'Las fechas de inicio y terminación cubren exactamente la vigencia planeada.'
-    ],
-    documentosEnConstruccion: [
-      {
-        id: 'ficha_tecnica',
-        nombre: 'Ficha de Registro Institucional (PDF)',
-        tipo: 'pdf',
-        descripcion: 'Ficha técnica oficial con ubicación institucional y responsables del centro.',
-        accion: 'ficha'
-      }
+      'Los datos institucionales coinciden con la fuente aprobada y la convocatoria.',
+      'Las personas responsables y sus roles están confirmados.',
+      'Las fechas coinciden con la duración y el cronograma aprobados.'
     ],
     ejemploModelo: {
-      titulo: 'Modelo Institucional CGAO',
-      texto: 'Centro: Centro de Gestión Agroempresarial y Oriente - CGAO\nRegional: Santander\nMunicipio: Vélez (con impacto en Chipatá, Guavatá y Barbosa)\nLíder: Investigador Principal SENNOVA CGAO\nFechas: Vigencia anual de 10 meses'
+      titulo: 'Estructura para completar con fuentes del proyecto',
+      texto: 'Centro: [dato confirmado]\nRegional: [dato confirmado]\nTerritorio: [dato confirmado, si aplica]\nResponsables: [nombres y roles confirmados]\nFechas: [período aprobado]\nDatos formativos o de convocatoria: [solo los que solicite el formato vigente].'
     }
   },
   problema: {
-    titulo: 'Planteamiento del Problema, Causas y Justificación',
-    badge: 'Paso 3 · Diagnóstico y Necesidad',
+    titulo: 'Introducción, problema y justificación',
+    badge: 'Paso 3 · Necesidad del proyecto',
+    referenciaEjemplo: {
+      fuente: 'Formato Proyecto Capacidad Instalada · CAP-14-2026',
+      secciones: ['2. Introducción', '3. Planteamiento del problema', '4. Justificación'],
+      nota: 'La muestra desarrolla estos apartados antes de los objetivos. Usa el orden para explicar de dónde surge la necesidad y por qué se propone atenderla.'
+    },
     queInformacionAgregar: [
       {
         campo: 'Planteamiento del problema y contexto',
-        instruccion: 'Describe la situación no resuelta, necesidad insatisfecha u oportunidad tecnológica evidenciada en el sector agropecuario, agroindustrial o de servicios. Evita definir el problema como la simple "falta de dinero" o "falta de equipos".',
-        ejemplo: 'Alta variabilidad en la calidad del secado y pérdidas poscosecha de hasta el 28% en fincas panelero-cafeteras por métodos empíricos y clima adverso.'
+        instruccion: 'Describe la situación que el proyecto busca atender y susténtala con las fuentes disponibles. No agregues cifras, población ni causas que no estén documentadas.',
+        ejemplo: 'Situación: [descripción respaldada] · Evidencia: [fuente y fecha] · Alcance: [dato confirmado].'
       },
       {
         campo: 'Causas y consecuencias (Árbol de problemas)',
-        instruccion: 'Identifica al menos 3 causas directas e indirectas (ej. falta de control térmico, desconocimiento de curvas de humedad) y sus efectos negativos medibles (pérdidas económicas, bajo precio de venta).',
-        ejemplo: 'Causas: 1) Monitoreo manual esporádico. 2) Fluctuaciones climáticas no amortiguadas.\nEfectos: Merma en precio de venta y rechazo de lotes.'
+        instruccion: 'Relaciona las causas y consecuencias que estén respaldadas por el diagnóstico. Si una relación aún no está comprobada, identifícala como una hipótesis por validar.',
+        ejemplo: 'Causa documentada: [descripción] · Situación observada: [descripción] · Consecuencia sustentada: [descripción].'
       },
       {
-        campo: 'Justificación y pertinencia SENNOVA',
-        instruccion: 'Sustenta por qué es prioritario desarrollar esta investigación desde el SENA: impacto en la formación profesional de los aprendices, transferencia a los sectores campesinos y comunitarios, e innovación.',
-        ejemplo: 'El proyecto fortalece la formación por proyectos en aprendices ADSO y Agroindustria, impactando a más de 40 familias rurales de la provincia.'
+        campo: 'Justificación y pertinencia',
+        instruccion: 'Explica por qué se propone el proyecto, cómo se relaciona con sus objetivos y a quiénes podría beneficiar. Sustenta cada beneficio con la fuente correspondiente.',
+        ejemplo: 'Necesidad atendida: [dato confirmado] · Beneficio esperado: [resultado sustentado] · Población: [si está identificada].'
       }
     ],
     checklist: [
-      'El problema está enfocado en una causa técnica y no en la ausencia de recursos presupuestales.',
-      'Se describen causas directas, indirectas y consecuencias económicas, sociales o ambientales.',
-      'La justificación explicita el beneficio formativo para aprendices SENA y el sector productivo.'
-    ],
-    documentosEnConstruccion: [
-      {
-        id: 'ficha_tecnica',
-        nombre: 'Ficha Técnica Actualizada (PDF)',
-        tipo: 'pdf',
-        descripcion: 'Documento que consolida los objetivos y la justificación del proyecto.',
-        accion: 'ficha'
-      }
+      'La situación y su alcance están respaldados por fuentes identificables.',
+      'Las causas, consecuencias y supuestos se distinguen con claridad.',
+      'Los beneficios esperados se relacionan con los objetivos y tienen sustento.'
     ],
     ejemploModelo: {
-      titulo: 'Ejemplo de Justificación y Problema',
-      texto: 'Problema: Los caficultores tradicionales de la provincia de Vélez presentan pérdidas del 25% por fermentación heterogénea debido a la ausencia de control térmico y microbiológico.\n\nJustificación: La implementación de un fermentador controlado con IoT desarrollado en el CGAO permitirá a los aprendices adquirir competencias en Industria 4.0 y a los productores obtener cafés con puntaje superior a 84 puntos SCA, incrementando los ingresos en un 35%.'
+      titulo: 'Estructura para completar con fuentes del proyecto',
+      texto: 'Problema: [situación respaldada por diagnóstico o evidencia].\n\nJustificación: [relación con los objetivos, resultado esperado y población, según fuentes verificables].'
+    }
+  },
+  objetivos: {
+    titulo: 'Objetivos del proyecto',
+    badge: 'Paso 4 · Propósito y resultados parciales',
+    referenciaEjemplo: {
+      fuente: 'Formato Proyecto Capacidad Instalada · CAP-14-2026',
+      secciones: ['5. Objetivos'],
+      nota: 'La muestra presenta el objetivo general y después los objetivos específicos. Conserva esa relación y usa la cantidad que corresponda a tu proyecto y a sus requisitos vigentes.'
+    },
+    queInformacionAgregar: [
+      {
+        campo: 'Objetivo general',
+        instruccion: 'Expresa el resultado principal que busca el proyecto, su objeto y alcance. Comprueba que responda a la necesidad planteada.',
+        ejemplo: '[Verbo y resultado esperado] para [objeto o población], en [ámbito confirmado].'
+      },
+      {
+        campo: 'Objetivos específicos',
+        instruccion: 'Define resultados parciales que, en conjunto, permitan alcanzar el objetivo general. Ordena la secuencia de trabajo y confirma si la convocatoria pide una estructura particular.',
+        ejemplo: '1. [Resultado parcial que responda al problema].\n2. [Resultado parcial que prepare la solución].\n3. [Resultado parcial que permita verificarla, si aplica].'
+      }
+    ],
+    checklist: [
+      'El objetivo general responde a la necesidad descrita y señala un resultado esperado.',
+      'Los objetivos específicos se relacionan con el objetivo general y siguen una secuencia comprensible.'
+    ],
+    ejemploModelo: {
+      titulo: 'Relación entre los objetivos',
+      texto: 'Objetivo general: [resultado principal y alcance confirmado].\n\nObjetivos específicos:\n1. [resultado parcial].\n2. [resultado parcial].\n3. [resultado parcial, si se requiere].'
     }
   },
   marco: {
     titulo: 'Marco Teórico, Antecedentes y Marco Normativo',
-    badge: 'Paso 4 · Sustento Científico',
+    badge: 'Paso 5 · Sustento teórico y normativo',
+    referenciaEjemplo: {
+      fuente: 'Formato Proyecto Capacidad Instalada · CAP-14-2026',
+      secciones: ['6. Referente teórico'],
+      nota: 'El ejemplo incluye referentes teóricos. La aplicación también permite registrar normativa cuando sea pertinente y esté verificada.'
+    },
     queInformacionAgregar: [
       {
         campo: 'Referente teórico y estado del arte',
-        instruccion: 'Cita autores, investigaciones previas, patentes o proyectos similares que demuestren el conocimiento de frontera en la temática. Evita un glosario de términos aislados; integra los conceptos en una narrativa coherente.',
-        ejemplo: 'Se revisan modelos de fermentación controlada (Silva et al., 2021) y sensórica distribuida de bajo costo en agricultura de precisión (FAO, 2023).'
+        instruccion: 'Resume literatura, antecedentes y proyectos relacionados que hayas consultado. Registra citas completas y verifica cada fuente antes de incluirla.',
+        ejemplo: 'Antecedente: [autor o entidad, título, año y hallazgo pertinente, verificados].'
       },
       {
         campo: 'Marco normativo y regulatorio',
-        instruccion: 'Identifica resoluciones, decretos y normas técnicas pertinentes (ej. Buenas Prácticas Agrícolas BPA, normas ICA, INVIMA, MinCiencias o ISO aplicables).',
-        ejemplo: 'Resolución ICA 30021 de 2017 sobre BPA, lineamientos de propiedad intelectual SENA y lineamientos MinCiencias.'
+        instruccion: 'Incluye únicamente normas y lineamientos vigentes que apliquen al proyecto. Confirma su número, versión, alcance y entidad emisora en una fuente oficial.',
+        ejemplo: 'Norma o lineamiento: [identificador y versión confirmados] · Aplicación al proyecto: [descripción].'
       }
     ],
     checklist: [
-      'Se citan al menos 3 fuentes bibliográficas o antecedentes técnicos pertinentes.',
-      'Se identifican las normas técnicas, sanitarias o ambientales aplicables.',
+      'Las fuentes citadas existen, son pertinentes y tienen datos bibliográficos verificables.',
+      'Las normas mencionadas se confirmaron en fuentes oficiales y aplican al proyecto.',
       'El marco teórico sustenta la metodología propuesta en el paso siguiente.'
     ],
-    documentosEnConstruccion: [
-      {
-        id: 'ficha_tecnica',
-        nombre: 'Ficha Técnica de Investigación (PDF)',
-        tipo: 'pdf',
-        descripcion: 'Resumen con estado de formulación actual.',
-        accion: 'ficha'
-      }
-    ],
     ejemploModelo: {
-      titulo: 'Modelo de Referentes y Normas',
-      texto: 'Referente Teórico: La fermentación anaerobia de café en biorreactores herméticos permite elevar compuestos volátiles deseables como ésteres y alcoholes superiores (López, 2022). La integración de microcontroladores y sensores digitales posibilita la telemetría en tiempo real.\n\nNormativo: Guía de bioseguridad CGAO, Decreto 1075 de 2015 del sector educación y Política de CTeI SENA.'
+      titulo: 'Estructura para completar con fuentes verificadas',
+      texto: 'Antecedente: [fuente verificada y relación con el proyecto].\n\nNorma o lineamiento: [fuente oficial, versión vigente y requisito aplicable].'
     }
   },
   metodologia: {
     titulo: 'Metodología, Diseño Experimental y Fases',
-    badge: 'Paso 5 · Estrategia de I+D+i',
+    badge: 'Paso 6 · Cómo se desarrollará',
+    referenciaEjemplo: {
+      fuente: 'Formato Proyecto Capacidad Instalada · CAP-14-2026',
+      secciones: ['7. Metodología'],
+      nota: 'La muestra describe el enfoque, la población, las técnicas de recolección y las pruebas con usuarios; organiza el método que realmente seguirá este proyecto.'
+    },
     queInformacionAgregar: [
       {
         campo: 'Enfoque de investigación y tipo de estudio',
-        instruccion: 'Declara si la investigación es de enfoque cuantitativo, cualitativo o mixto, y clasifícala según MinCiencias (Investigación Aplicada o Desarrollo Experimental).',
-        ejemplo: 'Enfoque cuantitativo experimental, tipo Desarrollo Tecnológico e Innovación (TRL 3 a TRL 5).'
+        instruccion: 'Describe el enfoque y tipo de estudio que correspondan al método y a los objetivos. Usa la clasificación solicitada por la convocatoria, si aplica.',
+        ejemplo: 'Enfoque: [descripción sustentada] · Tipo de estudio: [clasificación requerida, si aplica].'
       },
       {
         campo: 'Población, muestra o unidades experimentales',
-        instruccion: 'Define la cantidad de muestras, repeticiones, lotes experimentales o usuarios participantes en las pruebas.',
-        ejemplo: 'Se realizarán 3 repeticiones por cada uno de los 4 tratamientos de fermentación (12 unidades experimentales de 50 kg).'
+        instruccion: 'Identifica la población, muestra o unidades de análisis que realmente contempla el proyecto. Sustenta cantidades y criterios de selección.',
+        ejemplo: 'Población o unidades: [definición] · Cantidad: [dato sustentado, si está disponible].'
       },
       {
         campo: 'Técnicas de recolección y análisis',
-        instruccion: 'Describe instrumentos de medición, sensores, software de análisis estadístico (ej. ANOVA, R, Python) y protocolos de laboratorio.',
-        ejemplo: 'Monitoreo de pH con sensor analógico, temperatura (°C) y análisis estadístico por diseño de bloques al azar con p < 0.05.'
+        instruccion: 'Describe las técnicas, instrumentos y procedimientos de análisis que el proyecto realmente propone. Indica las fuentes o protocolos aplicables.',
+        ejemplo: 'Técnica: [método] · Instrumento: [si aplica] · Análisis: [procedimiento sustentado].'
       },
       {
         campo: 'Fases del proyecto',
-        instruccion: 'Organiza el procedimiento en fases claras: Fase 1 (Diagnóstico), Fase 2 (Diseño y prototipado), Fase 3 (Validación y ensayos), Fase 4 (Socialización y transferencia).',
-        ejemplo: 'Fase I: Línea base. Fase II: Ensamble del prototipo. Fase III: Pruebas de fermentación. Fase IV: Guía técnica y capacitación.'
+        instruccion: 'Ordena las actividades necesarias para alcanzar los objetivos. Usa fases solo si corresponden al método y al cronograma aprobados.',
+        ejemplo: 'Fase 1: [actividad y resultado] · Fase 2: [actividad y resultado] · Fase 3: [actividad y resultado, si aplica].'
       }
     ],
     checklist: [
-      'El tipo de investigación está claramente delimitado (Investigación Aplicada o Desarrollo Tecnológico).',
-      'El diseño experimental incluye repeticiones o unidades suficientes para validar hipótesis.',
-      'Las fases corresponden secuencialmente con los objetivos específicos planteados en el paso 1.'
-    ],
-    documentosEnConstruccion: [
-      {
-        id: 'ficha_tecnica',
-        nombre: 'Ficha Metodológica del Proyecto (PDF)',
-        tipo: 'pdf',
-        descripcion: 'Ficha técnica que incluye la descripción del diseño experimental y las fases.',
-        accion: 'ficha'
-      }
+      'El enfoque y el tipo de estudio se justifican a partir de los objetivos y el método.',
+      'La población, las muestras y las cantidades tienen sustento metodológico.',
+      'Las actividades se relacionan con los objetivos y el cronograma del proyecto.'
     ],
     ejemploModelo: {
-      titulo: 'Estructura Metodológica Modelo',
-      texto: 'Fase 1: Caracterización fisicoquímica inicial de variedades Castillo y Colombia en Vélez.\nFase 2: Fabricación del biorreactor en acero inoxidable 304 con sensores de temperatura, humedad relativa y pH.\nFase 3: Pruebas comparativas de fermentación tradicional vs. asistida, evaluando curvas de acidez y azúcares.\nFase 4: Catación bajo protocolo SCA con catadores certificados y taller de socialización a 30 aprendices del semillero SIACF.'
-    }
-  },
-  equipo: {
-    titulo: 'Equipo de Investigadores y Vinculación de Semilleros',
-    badge: 'Paso 6 · Talento Humano CTeI',
-    queInformacionAgregar: [
-      {
-        campo: 'Investigador Principal (IP) y Coinvestigadores',
-        instruccion: 'Registra a los instructores o contratistas con su perfil profesional, rol en el proyecto y dedicación horaria (habitualmente entre 10 y 20 horas semanales).',
-        ejemplo: 'Investigador Principal: Ing. Agroindustrial (20 h/sem) · Coinvestigador: Instructor Software (15 h/sem)'
-      },
-      {
-        campo: 'Aprendices Semilleristas vinculados',
-        instruccion: 'Vincula aprendices de programas de formación pertinentes (ej. ADSO, Producción Agropecuaria, Agroindustria) con planes de concertación de actividades de investigación formativa.',
-        ejemplo: '2 Aprendices ADSO para desarrollo de software y 2 aprendices Agroindustria para ensayos de campo (20 h/sem cada uno).'
-      },
-      {
-        campo: 'Actividades a liderar por integrante',
-        instruccion: 'Describe puntualmente qué actividades del cronograma liderará cada miembro para garantizar trazabilidad y evaluación posterior.',
-        ejemplo: 'IP: Dirección metodológica y análisis de datos. Coinvestigador: Programación de telemetría y pruebas de sensórica.'
-      }
-    ],
-    checklist: [
-      'Se designó claramente el Investigador Principal responsable del proyecto.',
-      'El equipo cuenta con instructores técnicos y aprendices semilleristas formalmente vinculados.',
-      'Cada integrante tiene actividades asignadas y horas de dedicación semanales verificables.'
-    ],
-    documentosEnConstruccion: [
-      {
-        id: 'acta_inicio',
-        nombre: 'Acta de Inicio y Conformación de Equipo (PDF)',
-        tipo: 'pdf',
-        descripcion: 'Genera el Acta formal de conformación del equipo con firmas y dedicación horaria.',
-        accion: 'acta'
-      }
-    ],
-    ejemploModelo: {
-      titulo: 'Conformación de Equipo Recomendada',
-      texto: '1. Investigador Principal (IP): 20 horas/semana - Coordinación técnica, redacción de artículos y gestión presupuestal.\n2. Coinvestigador Técnico: 15 horas/semana - Fabricación del prototipo, calibración de sensores.\n3. Aprendiz Semillerista SIACF 1: 20 horas/semana - Registro de bitácoras de temperatura y toma de muestras.\n4. Aprendiz Semillerista SIACF 2: 20 horas/semana - Desarrollo de la interfaz web de visualización de datos.'
+      titulo: 'Estructura para completar con el método aprobado',
+      texto: 'Actividad 1: [procedimiento y resultado].\nActividad 2: [procedimiento y resultado].\nValidación: [criterios y evidencias definidos por el proyecto, si aplica].'
     }
   },
   recursos: {
     titulo: 'Presupuesto por Rubros y Cronograma de Actividades',
-    badge: 'Paso 7 · Finanzas & Tiempos',
+    badge: 'Paso 8 · Recursos y tiempos',
+    referenciaEjemplo: {
+      fuente: 'Formato Proyecto Capacidad Instalada · CAP-14-2026',
+      secciones: ['9. Cronograma'],
+      nota: 'El cronograma aparece después de los resultados. El presupuesto se registra como dato complementario de la aplicación y debe coincidir con la fuente aprobada.'
+    },
     queInformacionAgregar: [
       {
-        campo: 'Rubros elegibles SENNOVA',
-        instruccion: 'Desglosa los gastos en los rubros aprobados: 1) Talento Humano, 2) Materiales y Suministros, 3) Servicios Tecnológicos y Software, 4) Viáticos y Salidas de Campo, 5) Maquinaria y Equipos.',
-        ejemplo: 'Materiales: Reactivos y sensores ($ 12.000.000) · Equipos: Biorreactor ($ 20.000.000) · Servicios: Pruebas de laboratorio ($ 8.000.000) · Viáticos: Salidas a fincas ($ 5.000.000)'
+        campo: 'Rubros del presupuesto',
+        instruccion: 'Usa las categorías y conceptos del presupuesto aprobado y del formato vigente de la convocatoria. La aplicación no determina la elegibilidad de un gasto.',
+        ejemplo: 'Rubro: [categoría del formato vigente] · Concepto: [descripción sustentada] · Valor: [valor aprobado].'
       },
       {
         campo: 'Balance y coherencia presupuestal',
-        instruccion: 'La suma de todos los rubros planeados debe ser exactamente igual al Presupuesto Total definido en el Paso 1. Cualquier diferencia generará una alerta de inconsistencia.',
-        ejemplo: 'Suma de rubros: $ 45.000.000 COP = Presupuesto Total: $ 45.000.000 COP (Balance: 100%)'
+        instruccion: 'Contrasta el desglose con el presupuesto total que aparece en la fuente aprobada. La validación aritmética de la aplicación no confirma la elegibilidad ni la aprobación de los valores.',
+        ejemplo: 'Total del desglose: [valor calculado] · Total aprobado: [valor de la fuente].'
       },
       {
         campo: 'Cronograma de actividades y entregables',
-        instruccion: 'Relaciona cada actividad con su período (ej. Mes 1 a Mes 3 o Bimestre 1), el encargado del equipo y el entregable concreto que sustentará el avance.',
-        ejemplo: 'Actividad: Adquisición de componentes | Mes 1-2 | Encargado: Coinvestigador | Entregable: Facturas e inventario de piezas'
+        instruccion: 'Relaciona las actividades con los períodos, responsables y entregables del cronograma aprobado. Usa la unidad de tiempo exigida por el formato vigente.',
+        ejemplo: 'Actividad: [actividad confirmada] · Período: [según cronograma] · Responsable: [asignado] · Entregable: [verificable].'
       }
     ],
     checklist: [
-      'Todos los rubros presupuestales cuentan con justificación técnica vinculada a los objetivos.',
-      'La suma del desglose presupuestal coincide al 100% con el presupuesto total del proyecto.',
-      'Las actividades del cronograma cubren toda la vigencia y cuentan con un entregable verificable.'
-    ],
-    documentosEnConstruccion: [
-      {
-        id: 'reporte_seguimiento',
-        nombre: 'Reporte de Seguimiento y Cronograma (PDF)',
-        tipo: 'pdf',
-        descripcion: 'Reporte institucional con los hitos y el cronograma programado del proyecto.',
-        accion: 'seguimiento'
-      }
+      'Los conceptos presupuestales están justificados y respaldados por la fuente aprobada.',
+      'La suma del desglose coincide con el total documentado; la elegibilidad debe confirmarse aparte.',
+      'Las actividades, períodos, responsables y entregables coinciden con el cronograma aprobado.'
     ],
     ejemploModelo: {
-      titulo: 'Ejemplo de Balance Presupuestal y Cronograma',
-      texto: 'Rubro Materiales: $ 15.000.000 COP (Acero 304, microcontroladores, sensores, reactivos de titulación)\nRubro Equipos: $ 18.000.000 COP (Medidor multiparamétrico de pH y conductividad)\nRubro Servicios: $ 7.000.000 COP (Análisis cromatográfico en laboratorio acreditado)\nRubro Viáticos: $ 5.000.000 COP (Transporte y visitas de recolección en fincas de Vélez)\nTotal: $ 45.000.000 COP\n\nCronograma: Bimestre 1 (Línea base), Bimestre 2 (Construcción), Bimestre 3 (Ensayos), Bimestre 4 (Validación), Bimestre 5-6 (Catación y entrega final).'
+      titulo: 'Estructura para contrastar presupuesto y cronograma',
+      texto: 'Presupuesto: [rubros y valores de la fuente aprobada].\nTotal: [valor confirmado].\n\nCronograma: [actividades, períodos, responsables y entregables aprobados].'
     }
   },
   resultados: {
-    titulo: 'Resultados Esperados, Impactos y Productos MinCiencias',
-    badge: 'Paso 8 · Productos CTeI',
+    titulo: 'Resultados, productos e impactos esperados',
+    badge: 'Paso 7 · Resultados esperados',
+    referenciaEjemplo: {
+      fuente: 'Formato Proyecto Capacidad Instalada · CAP-14-2026',
+      secciones: ['8. Resultados esperados'],
+      nota: 'La muestra presenta resultados esperados después de la metodología y antes del cronograma. Distingue las expectativas de los logros que se comprueben durante la ejecución.'
+    },
     queInformacionAgregar: [
       {
-        campo: 'Tipología de Productos MinCiencias',
-        instruccion: 'Todo proyecto SENNOVA debe clasificar sus resultados en las 4 categorías MinCiencias: 1) Generación de Nuevo Conocimiento (artículos, ponencias), 2) Desarrollo Tecnológico e Innovación (software, prototipos, patentes), 3) Apropiación Social del Conocimiento (talleres, manuales, eventos), 4) Formación de Talento (aprendices en semillero).',
-        ejemplo: '1 Prototipo funcional (DTI) + 1 Registro de Software (DTI) + 1 Artículo de investigación (NC) + 1 Cartilla técnica (ASC).'
-      },
-      {
-        campo: 'Indicadores, Metas y Medios de Verificación',
-        instruccion: 'Define para cada resultado su indicador (ej. Cantidad de prototipos evaluados), la meta numérica (ej. 1), la unidad (ej. prototipo) y el archivo o soporte de verificación.',
-        ejemplo: 'Meta: 1 | Indicador: Prototipo validado en ambiente relevante | Evidencia: Informe técnico de pruebas y fotografías.'
+        campo: 'Resultados esperados',
+        instruccion: 'Describe los productos o cambios previstos y su relación con los objetivos. Incluye indicadores, metas, unidades y medios de verificación cuando estén definidos.',
+        ejemplo: 'Resultado: [descripción prevista] · Indicador: [si está definido] · Meta: [valor y unidad confirmados] · Verificación: [soporte previsto].'
       },
       {
         campo: 'Impactos previstos',
-        instruccion: 'Describe impactos tangibles en cuatro dimensiones: 1) Impacto económico (reducción de costos), 2) Impacto social (bienestar comunitario), 3) Impacto ambiental (sostenibilidad), 4) Impacto en la formación SENA.',
-        ejemplo: 'Aumento del 25% en ingresos de 15 fincas productoras y actualización curricular del programa Agroindustria.'
+        instruccion: 'Describe los impactos que tengan relación con los objetivos y puedan sustentarse. No presentes beneficios, porcentajes o población como hechos si son proyecciones sin validar.',
+        ejemplo: 'Impacto esperado: [descripción] · Población o proceso: [dato confirmado] · Indicador: [si está definido].'
       }
     ],
     checklist: [
-      'Se comprometió al menos un producto de desarrollo tecnológico (software, prototipo o diseño).',
-      'Se definieron indicadores y metas numéricas con sus unidades de medida claras.',
-      'Los impactos contemplan beneficios concretos en el sector productivo y en la formación de aprendices.'
-    ],
-    documentosEnConstruccion: [
-      {
-        id: 'informe_final',
-        nombre: 'Modelo de Informe Final y Productos (PDF)',
-        tipo: 'pdf',
-        descripcion: 'Formato preliminar de cierre y relación de productos de Ciencia, Tecnología e Innovación.',
-        accion: 'informe_final'
-      }
+      'Los resultados previstos responden a los objetivos del proyecto.',
+      'Los indicadores, metas, unidades y soportes corresponden a la información aprobada.',
+      'Los impactos esperados se distinguen de resultados comprobados.'
     ],
     ejemploModelo: {
-      titulo: 'Matriz Modelo de Productos MinCiencias',
-      texto: 'Producto 1 (Desarrollo Tecnológico): Prototipo de Biorreactor Automatizado para Fermentación de Café (TRL 5). Evidencia: Ficha técnica y video demostrativo.\nProducto 2 (Apropiación Social): Cartilla Práctica de Buenas Prácticas de Fermentación para Caficultores de Santander. Evidencia: Publicación con registro ISBN/Depósito legal.\nProducto 3 (Formación): 4 Aprendices certificados en desarrollo de prototipos agroindustriales y análisis sensorial.'
+      titulo: 'Estructura para completar con compromisos aprobados',
+      texto: 'Producto o resultado: [descripción confirmada].\nClasificación: [solo si se requiere].\nMeta e indicador: [según fuente aprobada].\nEvidencia prevista: [soporte correspondiente].'
+    }
+  },
+  referencias: {
+    titulo: 'Referencias',
+    badge: 'Paso 9 · Fuentes consultadas',
+    referenciaEjemplo: {
+      fuente: 'Formato Proyecto Capacidad Instalada · CAP-14-2026',
+      secciones: ['10. Referencias'],
+      nota: 'La muestra cierra el contenido del proyecto con sus referencias. Incluye las fuentes que citaste en la formulación y verifica sus datos.'
+    },
+    queInformacionAgregar: [
+      {
+        campo: 'Referencias bibliográficas y documentales',
+        instruccion: 'Relaciona las fuentes que consultaste y citaste en los apartados anteriores. Registra autor o entidad, título, año y un enlace o identificador cuando exista.',
+        ejemplo: 'Autor o entidad. (Año). Título. Editorial o sitio. [Enlace o identificador, si existe].'
+      }
+    ],
+    checklist: [
+      'Cada fuente citada en el texto aparece en la lista de referencias.',
+      'Los datos bibliográficos permiten identificar y consultar las fuentes.'
+    ],
+    ejemploModelo: {
+      titulo: 'Registro de una fuente',
+      texto: 'Autor o entidad. (Año). Título de la fuente. Editorial o sitio. [Enlace o identificador, si existe].'
     }
   },
   generar: {
-    titulo: 'Consolidación, Auditoría y Descarga de Documentación',
-    badge: 'Paso 9 · Radicación & Cierre',
+    titulo: 'Consolidación, revisión y descarga de borradores',
+    badge: 'Paso 10 · Revisión y preparación',
+    referenciaEjemplo: {
+      fuente: 'Formato Proyecto Capacidad Instalada · CAP-14-2026',
+      secciones: [],
+      nota: 'La revisión y la generación de borradores son funciones de la aplicación; no corresponden a apartados del documento de ejemplo.'
+    },
     queInformacionAgregar: [
       {
-        campo: 'Revisión y Auditoría Integral de Formulación',
-        instruccion: 'Verifica que todos los pasos previos no presenten campos obligatorios vacíos ni inconsistencias en el presupuesto o en los objetivos. El sistema valida automáticamente el cumplimiento antes de generar las versiones finales.',
-        ejemplo: 'Estado: 100% de requisitos completados. Listo para generación oficial.'
+        campo: 'Revisión de la formulación',
+        instruccion: 'Revisa los campos que la aplicación marca como pendientes y comprueba la coherencia entre el presupuesto, los objetivos y las fuentes del proyecto. Esta revisión no valida requisitos externos ni confirma la vigencia del formato.',
+        ejemplo: 'Campos configurados completos; falta validar los requisitos de la convocatoria.'
       },
       {
-        campo: 'Generación de Documentos Oficiales Word (.docx) y PowerPoint (.pptx)',
-        instruccion: 'Genera el documento oficial de formulación técnica SGPS listo para radicación y las diapositivas oficiales de sustentación del proyecto para el comité evaluador.',
-        ejemplo: 'Formulación SGPS v1.0 (.docx) y Presentación de Sustentación v1.0 (.pptx).'
+        campo: 'Generación de borradores Word (.docx) y PowerPoint (.pptx)',
+        instruccion: 'Genera borradores editables con la información registrada y compáralos con el formato vigente de la convocatoria. Confirma con la coordinación si su estructura sirve para presentar el proyecto.',
+        ejemplo: 'Borrador de formulación (.docx) y presentación de apoyo (.pptx).'
       },
       {
-        campo: 'Gestión de Firmas y Radicación',
-        instruccion: 'Descarga los documentos, revisa ortografía y redacción, recopila las firmas de los investigadores y del Subdirector de Centro, y adjunta la copia final al Expediente institucional.',
-        ejemplo: 'Radicación en el Sistema de Gestión de Proyectos SGPS.'
+        campo: 'Revisión, firmas y presentación',
+        instruccion: 'La aplicación no gestiona firmas ni radica el proyecto. Confirma responsables, requisitos y canal de presentación con la convocatoria; si corresponde, carga la copia final aprobada y la constancia en el Expediente.',
+        ejemplo: 'Requisitos y responsables confirmados; versión revisada y constancia anexada cuando aplique.'
       }
     ],
     checklist: [
       'Todos los pasos metodológicos se encuentran completos y verificados.',
       'Se generaron las versiones preliminares en Word y PowerPoint.',
-      'Se descargó el paquete documental completo para socialización y firmas.'
-    ],
-    documentosEnConstruccion: [
-      {
-        id: 'ficha_tecnica',
-        nombre: 'Ficha Técnica Consolidada (PDF)',
-        tipo: 'pdf',
-        descripcion: 'Ficha resumen completa con todos los datos y el equipo del proyecto.',
-        accion: 'ficha'
-      },
-      {
-        id: 'acta_inicio',
-        nombre: 'Acta de Inicio Oficial (PDF)',
-        tipo: 'pdf',
-        descripcion: 'Acta formal con compromisos, cronograma y equipo vinculante.',
-        accion: 'acta'
-      },
-      {
-        id: 'seguimiento',
-        nombre: 'Reporte de Seguimiento (PDF)',
-        tipo: 'pdf',
-        descripcion: 'Seguimiento técnico para monitoreo del avance.',
-        accion: 'seguimiento'
-      },
-      {
-        id: 'informe_final',
-        nombre: 'Informe de Cierre Preliminar (PDF)',
-        tipo: 'pdf',
-        descripcion: 'Estructura de informe final y productos.',
-        accion: 'informe_final'
-      }
+      'Se descargaron los borradores necesarios para revisión y se contrastaron con los requisitos vigentes.'
     ],
     ejemploModelo: {
-      titulo: 'Recomendaciones Finales de Radicación',
-      texto: 'Antes de radicar en la convocatoria:\n1. Revisa que el código SGPS coincida con el formulario oficial.\n2. Confirma que el presupuesto sume exactamente el valor registrado en la plataforma.\n3. Adjunta las cartas de intención o acuerdos de confidencialidad con las fincas o empresas beneficiarias.\n4. Imprime el Acta de Inicio para recolección de firmas en el CGAO.'
+      titulo: 'Verificaciones antes de presentar',
+      texto: 'Antes de presentar el proyecto:\n1. Confirma con la convocatoria el formato, el código y los campos requeridos.\n2. Contrasta presupuesto, fechas y cifras con las fuentes del proyecto y resuelve las diferencias.\n3. Adjunta los soportes que exige la convocatoria y que hayan aprobado sus responsables.\n4. Tramita la revisión y las firmas por el canal vigente; carga la versión final y la constancia en el Expediente cuando corresponda.'
     }
   }
 };
@@ -393,8 +346,7 @@ export function getMethodologyGuideForStep(stepId) {
     badge: 'Orientación Metodológica',
     queInformacionAgregar: [],
     checklist: [],
-    documentosEnConstruccion: [],
-    ejemploModelo: { titulo: 'Orientación General', texto: 'Diligencie los campos solicitados.' }
+    ejemploModelo: { titulo: 'Orientación general', texto: 'Diligencia los campos solicitados.' }
   };
 }
 

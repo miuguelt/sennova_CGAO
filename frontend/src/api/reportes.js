@@ -32,6 +32,28 @@ function getAuthHeaders() {
 
 export const ReportesAPI = {
   /**
+   * Descarga la matriz descriptiva anual de indicadores por investigador
+   */
+  async descargarIndicadoresMinciencias(año = null) {
+    const params = new URLSearchParams();
+    if (año) params.append('año', año);
+    const response = await fetch(`${API_URL}${API_BASE}/indicadores-minciencias?${params}`, {
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error('Error generando la matriz de indicadores de MinCiencias');
+    }
+
+    const blob = await response.blob();
+    const filename = response.headers.get('content-disposition')?.split('filename=')[1]?.replace(/"/g, '') ||
+                     `matriz_indicadores_minciencias${año ? `_${año}` : ''}.xlsx`;
+
+    downloadBlob(blob, filename);
+    return { success: true, filename };
+  },
+
+  /**
    * Genera reporte consolidado de proyectos en Excel / CSV
    */
   async descargarConsolidadoProyectos(año = null, formato = 'excel') {

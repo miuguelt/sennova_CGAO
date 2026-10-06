@@ -13,8 +13,8 @@ const SSoT_FOLDERS = [
 
 export default function ProjectTraceabilityPanel({ documentos }) {
   const getStatus = (doc) => {
-    if (doc.historial && doc.historial.some(v => v.estado === 'revisado')) return 'completo';
-    if (doc.historial && doc.historial.length > 0) return 'generado';
+    if (doc.historial && doc.historial.some(v => v.estado === 'revisado' && v.vigente && v.disponible)) return 'completo';
+    if (doc.historial && doc.historial.some(v => v.vigente && v.disponible)) return 'generado';
     const hasData = Object.keys(doc.datos || {}).length > 0;
     if (hasData) return 'borrador';
     return 'falta';
@@ -53,7 +53,6 @@ export default function ProjectTraceabilityPanel({ documentos }) {
     });
   });
 
-  const progressPercent = totalDocs === 0 ? 0 : Math.round((completedDocs / totalDocs) * 100);
 
   return (
     <section aria-label="Trazabilidad del expediente" className="space-y-4 rounded-2xl border border-blue-200 bg-white p-4 sm:p-5">
@@ -61,21 +60,11 @@ export default function ProjectTraceabilityPanel({ documentos }) {
         <div>
           <h3 className="text-lg font-bold text-slate-900">Trazabilidad del expediente</h3>
           <p className="mt-1 text-sm text-slate-600">
-            Control de documentos por fase según la estructura SSoT SENNOVA.
+            Consulta qué documentos tienen un archivo vigente y cuáles requieren actualización.
           </p>
         </div>
-        <div className="mt-3 sm:mt-0 text-right">
-          <div className="text-2xl font-black text-blue-700">{progressPercent}%</div>
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Completado</div>
-        </div>
+        <p className="mt-3 text-sm font-semibold text-slate-700">{completedDocs} de {totalDocs} documentos con archivo vigente</p>
       </div>
-      
-      <progress
-        aria-label="Avance del expediente"
-        max="100"
-        value={progressPercent}
-        className="h-2.5 w-full accent-blue-600 rounded-full bg-slate-100"
-      />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SSoT_FOLDERS.map(folder => {

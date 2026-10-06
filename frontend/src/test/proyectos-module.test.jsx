@@ -99,9 +99,6 @@ vi.mock('../utils/pdfGenerator', () => ({
   PDFGenerator: {
     generateProjectPDF: vi.fn(),
     generateActaInicio: vi.fn(),
-    generateEtapaProductiva: vi.fn(),
-    generateSeguimiento: vi.fn(),
-    generateInformeFinal: vi.fn(),
     generateProjectCertificate: vi.fn(),
   }
 }));
@@ -129,6 +126,7 @@ describe('ProyectosModule', () => {
     equipo: [
       { id: 'user-2', nombre: 'Investigador Principal', email: 'inv@sena.edu.co', rol: 'Investigador', horas_dedicadas: 20 }
     ],
+    avance_documental: { porcentaje: 32, campos_completados: 4, campos_totales: 10, documentos_totales: 2, documentos_generados: 0, documentos_revisados: 0 },
     entregables: []
   };
 
@@ -165,6 +163,25 @@ describe('ProyectosModule', () => {
     cleanup();
   });
 
+  it('abre el proyecto directamente en Documentación y ocupa todo el espacio de trabajo', async () => {
+    render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
+    fireEvent.click(await screen.findByText('SENNOVA Core'));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('tab', { name: /^Documentación$/i })).toHaveAttribute('aria-selected', 'true');
+    expect(await within(dialog).findByRole('region', { name: 'Construcción de documentación' })).toBeVisible();
+    expect(dialog.querySelector('.project-workspace')).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /Aprovechar ancho de pantalla/i })).not.toBeInTheDocument();
+  });
+
+  it('muestra el avance documental del servidor en la tarjeta del proyecto', async () => {
+    render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
+    await screen.findByText('SENNOVA Core');
+    const progress = screen.getByRole('region', { name: 'Avance documental' });
+    expect(within(progress).getByText('32%')).toBeVisible();
+    expect(within(progress).getByText('4 de 10 requisitos completos')).toBeVisible();
+    expect(within(progress).getByRole('progressbar')).toHaveAttribute('value', '32');
+  });
+
   it('renders project list and handles project detail opening with team tab', async () => {
     render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
 
@@ -187,8 +204,8 @@ describe('ProyectosModule', () => {
       expect(screen.getByText('1 Miembro')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: /Formatos/i }));
-    expect(await screen.findByText(/Aún no hay una formulación DOCX adjunta/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /^Documentación$/i }));
+    expect(await screen.findByText('Construye la documentación de tu proyecto')).toBeInTheDocument();
   });
 
   it('conserva Referencia como estado propio en columna, tarjeta, filtro y detalle', async () => {
@@ -350,36 +367,27 @@ describe('ProyectosModule', () => {
     expect(ProyectosAPI.importFormulation).not.toHaveBeenCalled();
   });
 
-  it('handles formats tab and PDF generation', async () => {
+  it('keeps document generation in the central project documentation workspace', async () => {
     render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
-
-    await waitFor(() => {
-      expect(screen.getByText('SENNOVA Core')).toBeInTheDocument();
-    });
-
+    await screen.findByText('SENNOVA Core');
     fireEvent.click(screen.getByText('SENNOVA Core'));
 
-    await waitFor(() => {
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-    });
+    const detail = await screen.findByRole('dialog');
+    expect(within(detail).getByRole('tab', { name: /^Documentación$/i })).toHaveAttribute('aria-selected', 'true');
+    expect(within(detail).queryByRole('tab', { name: /Formatos/i })).not.toBeInTheDocument();
+    expect(await within(detail).findByText('Construye la documentación de tu proyecto')).toBeVisible();
+    expect(within(detail).queryByText(/Reportes de gestión del proyecto/i)).not.toBeInTheDocument();
+  });
 
-    const formatsTabBtn = screen.getByRole('tab', { name: /Formatos/i });
-    fireEvent.click(formatsTabBtn);
+  it('opens guided methodology from the project detail header action', async () => {
+    render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText('SENNOVA Core')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('SENNOVA Core'));
 
-    await waitFor(() => {
-      expect(screen.getByText('Reportes de gestión del proyecto')).toBeInTheDocument();
-      expect(screen.getByText('Acta de inicio y socialización I+D+i')).toBeInTheDocument();
-      expect(screen.getByText('Ficha técnica de formulación I+D+i')).toBeInTheDocument();
-      expect(screen.getByText('Reporte de seguimiento técnico y financiero')).toBeInTheDocument();
-      expect(screen.getByText('Informe final de resultados de investigación')).toBeInTheDocument();
-      expect(screen.getByText(/no reemplazan los formatos institucionales vigentes/i)).toBeInTheDocument();
-    });
+    const detail = await screen.findByRole('dialog');
+    fireEvent.click(within(detail).getByRole('button', { name: /^Documentación/i }));
 
-    const generateButtons = screen.getAllByRole('button', { name: /Generar/i });
-    // Botón 1 corresponde al Acta de inicio y socialización I+D+i
-    fireEvent.click(generateButtons[1]);
-
-    expect(PDFGenerator.generateActaInicio).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-1' }));
+    expect(await within(detail).findByText('Construye la documentación de tu proyecto')).toBeInTheDocument();
   });
 
   it('allows adding a researcher to the project team', async () => {
@@ -520,14 +528,7 @@ describe('ProyectosModule', () => {
     await waitFor(() => expect(PDFGenerator.generateProjectCertificate).toHaveBeenCalledTimes(2));
     expect(onNotify).toHaveBeenCalledWith('Certificados generados exitosamente', 'success');
 
-    fireEvent.click(screen.getByRole('tab', { name: /Formatos/i }));
-    const formatButtons = screen.getAllByRole('button', { name: 'Generar' });
-    fireEvent.click(formatButtons[1]);
-    fireEvent.click(formatButtons[2]);
-    fireEvent.click(formatButtons[3]);
-    await waitFor(() => expect(PDFGenerator.generateActaInicio).toHaveBeenCalledWith(project));
-    expect(PDFGenerator.generateSeguimiento).toHaveBeenCalledWith(project);
-    expect(PDFGenerator.generateInformeFinal).toHaveBeenCalledWith(project);
+    expect(screen.queryByRole('tab', { name: /Formatos/i })).not.toBeInTheDocument();
     expect(screen.queryByText('Bitácora consolidada')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Requisitos Liquidación/i }));
@@ -542,11 +543,14 @@ describe('ProyectosModule', () => {
 
   it('abre el expediente documental del proyecto desde su pestaña', async () => {
     ProyectosAPI.getExpediente.mockResolvedValue({ proyecto_id: 'p-1', completo: false, porcentaje_completitud: 0, pendientes: ['Adjunte el acta de inicio.'], etapas: [] });
+    DocumentosAPI.getProyectoDocumentos.mockResolvedValue([{ id: 'source-1', tipo: 'formulacion_proyecto', nombre_archivo: 'formulacion-cap.docx' }]);
     render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
     fireEvent.click(await screen.findByText('SENNOVA Core'));
     fireEvent.click(await screen.findByRole('tab', { name: 'Expediente' }));
     expect(await screen.findByText('Adjunte el acta de inicio.')).toBeInTheDocument();
+    expect(await screen.findByText('formulacion-cap.docx')).toBeInTheDocument();
     expect(ProyectosAPI.getExpediente).toHaveBeenCalledWith('p-1');
+    expect(DocumentosAPI.getProyectoDocumentos).toHaveBeenCalledWith('p-1');
   });
 
   it('refresca los datos confirmados sin cerrar el detalle ni su pestaña', async () => {
@@ -752,6 +756,7 @@ describe('ProyectosModule', () => {
     fireEvent.click(screen.getByRole('row', { name: /SENNOVA Core/ }));
 
     const detail = await screen.findByRole('dialog', { name: 'Plataforma SENNOVA 2026' });
+    fireEvent.click(screen.getByRole('tab', { name: /Resumen/i }));
     fireEvent.click(within(detail).getByText('Cambiar / Mover Semillero'));
     fireEvent.change(screen.getByLabelText('Semillero de Destino'), { target: { value: 'sem-1' } });
     fireEvent.click(screen.getByText('Confirmar Traslado'));
@@ -780,26 +785,14 @@ describe('ProyectosModule', () => {
     fireEvent.click(within(liquidation).getByLabelText('Cerrar ventana modal'));
   });
 
-  it('permite abrir y explorar la pestaña de Metodología Guiada con descargas directas', async () => {
-    ProyectosAPI.list.mockResolvedValue([mockProyecto]);
+  it('prioriza el constructor y no ofrece formatos internos paralelos', async () => {
     render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
-    await waitFor(() => expect(screen.getByText('SENNOVA Core')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('SENNOVA Core'));
-
+    fireEvent.click(await screen.findByText('SENNOVA Core'));
     const detail = await screen.findByRole('dialog');
-    const guiaTab = within(detail).getByRole('tab', { name: /Metodología Guiada/i });
-    expect(guiaTab).toBeInTheDocument();
-    fireEvent.click(guiaTab);
-
-    expect(await within(detail).findByText('Guía Metodológica para la Construcción del Proyecto')).toBeInTheDocument();
-    expect(within(detail).getByText(/Estructure paso a paso su propuesta de investigación aplicada/i)).toBeInTheDocument();
-
-    const pdfFichaBtn = within(detail).getByRole('button', { name: /Ficha Técnica \(PDF\)/i });
-    fireEvent.click(pdfFichaBtn);
-    expect(PDFGenerator.generateProjectPDF).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-1' }), expect.any(Array));
-
-    const pdfActaBtn = within(detail).getByRole('button', { name: /Acta de Inicio \(PDF\)/i });
-    fireEvent.click(pdfActaBtn);
-    expect(PDFGenerator.generateActaInicio).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-1' }));
+    expect(within(detail).getByRole('tab', { name: /^Documentación$/i })).toHaveAttribute('aria-selected', 'true');
+    expect(await within(detail).findByText('Construye la documentación de tu proyecto')).toBeVisible();
+    expect(within(detail).queryByRole('button', { name: /Ficha Técnica \(PDF\)/i })).not.toBeInTheDocument();
+    expect(within(detail).queryByRole('tab', { name: /Formatos/i })).not.toBeInTheDocument();
+    expect(within(detail).queryByText(/etapa productiva|bitácora/i)).not.toBeInTheDocument();
   });
 });

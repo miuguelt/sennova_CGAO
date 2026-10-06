@@ -16,9 +16,6 @@ import Modal from '../ui/Modal';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import { DocumentosAPI } from '../../api/documentos';
 import { ProyectosAPI } from '../../api/proyectos';
-import { PlantillasAPI } from '../../api/plantillas';
-import { PDFGenerator } from '../../utils/pdfGenerator';
-import { SENNOVA_FORMATS, downloadFormatTemplate } from '../../data/sennovaFormats';
 
 const FileIcon = ({ type, size = 24 }) => {
   const mime = (type || '').toLowerCase();
@@ -31,7 +28,7 @@ const FileIcon = ({ type, size = 24 }) => {
 
 const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
   // Estado principal
-  const [activeTab, setActiveTab] = useState('formatos'); // 'formatos' | 'boveda' | 'minciencias'
+  const [activeTab, setActiveTab] = useState('boveda');
   const [documents, setDocuments] = useState([]);
   const [proyectos, setProyectos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,13 +36,10 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
   const [viewMode, setViewMode] = useState('grid');
   const [filterType, setFilterType] = useState('all');
   const [filterProject, setFilterProject] = useState('all');
-  const [filterCategory, setFilterCategory] = useState('all');
 
   // Modales
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [deleteDocConfirm, setDeleteDocConfirm] = useState(null);
-  const [isSmartGenModalOpen, setIsSmartGenModalOpen] = useState(false);
-  const [previewFormat, setPreviewFormat] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
 
   // Estado del formulario de subida
@@ -55,12 +49,6 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
   const [uploadEntidadId, setUploadEntidadId] = useState('');
   const [uploadDescription, setUploadDescription] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-
-  // Estado del generador inteligente
-  const [smartDocType, setSmartDocType] = useState('monthly_report');
-  const [selectedSmartProjectId, setSelectedSmartProjectId] = useState('');
-  const [isGeneratingSmart, setIsGeneratingSmart] = useState(false);
-  const [copiedId, setCopiedId] = useState(null);
 
   // Carga de datos
   const loadData = async () => {
@@ -72,9 +60,6 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
       ]);
       setDocuments(Array.isArray(docsData) ? docsData : []);
       setProyectos(Array.isArray(projsData) ? projsData : []);
-      if (projsData && projsData.length > 0 && !selectedSmartProjectId) {
-        setSelectedSmartProjectId(projsData[0].id);
-      }
     } catch (err) {
       onNotify?.('Error al sincronizar datos del repositorio', 'error');
     } finally {
@@ -187,69 +172,6 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
     }
   };
 
-  // Generador de reportes internos con datos del sistema
-  const handleGenerateSmartDoc = async (type, targetProjectId = null) => {
-    const projId = targetProjectId || selectedSmartProjectId || proyectos[0]?.id;
-    setIsGeneratingSmart(true);
-    onNotify?.('Generando reporte interno con datos del sistema...', 'info');
-
-    try {
-      if (type === 'monthly_report') {
-        const data = await PlantillasAPI.getReporteMensual(currentUser?.id);
-        PDFGenerator.generateMonthlyReport(data);
-        onNotify?.('Reporte mensual interno generado con éxito', 'success');
-      } else if (type === 'presupuesto_detalle') {
-        if (!projId) throw new Error('Seleccione un proyecto para exportar el presupuesto');
-        const data = await PlantillasAPI.getReportePresupuesto(projId);
-        PDFGenerator.generateBudgetReport(data);
-        onNotify?.('Reporte financiero y presupuesto generado con éxito', 'success');
-      } else if (type === 'etapa_productiva') {
-        if (!projId) throw new Error('Seleccione un proyecto');
-        let proj = proyectosMap[projId] || proyectos[0];
-        try {
-          const fullProj = await ProyectosAPI.get(proj.id);
-          if (fullProj && fullProj.id) proj = fullProj;
-        } catch {
-          // fallback
-        }
-        PDFGenerator.generateEtapaProductiva(proj);
-        onNotify?.('Formato de etapa productiva generado', 'success');
-      } else if (type === 'ficha_proyecto') {
-        if (!projId) throw new Error('Seleccione un proyecto');
-        let proj = proyectosMap[projId] || proyectos[0];
-        let team = [];
-        try {
-          const [fullProj, teamData] = await Promise.all([
-            ProyectosAPI.get(proj.id).catch(() => null),
-            ProyectosAPI.getInvestigadores(proj.id).catch(() => [])
-          ]);
-          if (fullProj && fullProj.id) proj = fullProj;
-          if (teamData && teamData.length > 0) team = teamData;
-        } catch {
-          // fallback
-        }
-        PDFGenerator.generateProjectPDF(proj, team.length > 0 ? team : proj.equipo);
-        onNotify?.('Ficha técnica del proyecto generada', 'success');
-      }
-      setIsSmartGenModalOpen(false);
-    } catch (err) {
-      onNotify?.('Error al generar plantilla: ' + (err.message || 'Verifique que existan registros asociados'), 'error');
-    } finally {
-      setIsGeneratingSmart(false);
-    }
-  };
-
-  // Filtros del catálogo de modelos de referencia
-  const filteredFormats = useMemo(() => {
-    return SENNOVA_FORMATS.filter(fmt => {
-      const matchSearch = fmt.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          fmt.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          fmt.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchCat = filterCategory === 'all' || fmt.categoria === filterCategory;
-      return matchSearch && matchCat;
-    });
-  }, [searchTerm, filterCategory]);
-
   // Filtros de documentos de la bóveda
   const filteredDocs = useMemo(() => {
     return documents.filter(doc => {
@@ -265,25 +187,16 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
   // Métricas SSoT calculadas de la BD real
   const stats = useMemo(() => {
     const totalDocs = documents.length;
-    const totalFormats = SENNOVA_FORMATS.length;
     const projectDocs = documents.filter(d => d.entidad_tipo === 'proyecto');
     const uniqueProjectsCount = new Set(projectDocs.map(d => d.entidad_id)).size;
     const myDocsCount = documents.filter(d => d.owner_id === currentUser?.id).length;
 
     return {
       totalDocs,
-      totalFormats,
       uniqueProjectsCount,
       myDocsCount
     };
   }, [documents, currentUser]);
-
-  const copyToClipboard = (text, id) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    onNotify?.('Texto de plantilla copiado al portapapeles', 'info');
-    setTimeout(() => setCopiedId(null), 2000);
-  };
 
   if (loading) {
     return (
@@ -311,21 +224,16 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
               <span>SENA CGAO • Repositorio Institucional & Normatividad CTeI</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-              Repositorio & Formatos SENNOVA
+              Repositorio documental SENNOVA
             </h1>
             <p className="text-slate-300 text-sm sm:text-base font-normal max-w-2xl leading-relaxed">
-              Consulte modelos de referencia, gestione evidencias de proyectos y revise las guías de tipologías Minciencias.
+              Gestione evidencias y soportes institucionales. La documentación de cada proyecto se construye desde su espacio documental.
             </p>
           </div>
 
           {/* Métricas Reales SSoT */}
           <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-4 px-6 py-3.5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 shadow-inner">
-              <div className="text-center">
-                <p className="text-[10px] font-black text-emerald-300 uppercase tracking-widest">Modelos</p>
-                <p className="text-2xl font-black text-white">{stats.totalFormats}</p>
-              </div>
-              <div className="w-px h-8 bg-white/15" />
               <div className="text-center">
                 <p className="text-[10px] font-black text-emerald-300 uppercase tracking-widest">Evidencias</p>
                 <p className="text-2xl font-black text-white">{stats.totalDocs}</p>
@@ -346,15 +254,6 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
                 <Plus size={18} strokeWidth={2.5} />
                 <span>Subir Evidencia</span>
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsSmartGenModalOpen(true)}
-                className="bg-white/10 hover:bg-white/20 border-white/20 text-white font-bold px-4 py-3.5 rounded-2xl flex items-center gap-2 justify-center"
-                title="Generar documentos inteligentes con datos reales"
-              >
-                <Sparkles size={18} className="text-amber-300" />
-                <span className="hidden sm:inline">Generador Rápido</span>
-              </Button>
             </div>
           </div>
         </div>
@@ -362,21 +261,6 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
 
       {/* ── Navegación por Pestañas ── */}
       <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/70 backdrop-blur-md rounded-2xl border border-slate-300/50 max-w-fit">
-        <button
-          onClick={() => { setActiveTab('formatos'); setSearchTerm(''); }}
-          className={`flex items-center gap-2.5 px-6 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-            activeTab === 'formatos'
-              ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-          }`}
-        >
-          <BookOpen size={16} />
-          <span>Modelos de referencia</span>
-          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${activeTab === 'formatos' ? 'bg-emerald-500 text-white' : 'bg-slate-300 text-slate-700'}`}>
-            {SENNOVA_FORMATS.length}
-          </span>
-        </button>
-
         <button
           onClick={() => { setActiveTab('boveda'); setSearchTerm(''); }}
           className={`flex items-center gap-2.5 px-6 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
@@ -404,146 +288,6 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
           <span>Guías & Normatividad Minciencias</span>
         </button>
       </div>
-
-      {/* ─────────────────────────────────────────────────────────────
-          PESTAÑA 1: MODELOS DE REFERENCIA SENNOVA CGAO
-      ─────────────────────────────────────────────────────────────── */}
-      {activeTab === 'formatos' && (
-        <div className="space-y-6">
-          {/* Barra de Filtros de Formatos */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
-            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-              {[
-                { id: 'all', label: 'Todos' },
-                { id: 'contractual', label: 'Contractual & GTH' },
-                { id: 'semilleros', label: 'Semilleros & F-023' },
-                { id: 'formulacion', label: 'Formulación SGPS' },
-                { id: 'legal', label: 'Propiedad Intelectual' },
-                { id: 'proyectos', label: 'Gestión & Cierre' },
-                { id: 'divulgacion', label: 'Ponencias & CTeI' },
-                { id: 'logistica', label: 'Salidas de Campo' },
-              ].map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => setFilterCategory(cat.id)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    filterCategory === cat.id
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="relative w-full md:w-72">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Buscar por código, nombre o tema..." 
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-            <strong>Modelos internos pendientes de validación.</strong> Las descargas de esta pestaña son archivos HTML de referencia; no son plantillas institucionales controladas y no reemplazan los documentos vigentes para radicación.
-          </div>
-
-          {/* Grid de modelos de referencia */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredFormats.map(fmt => (
-              <Card 
-                key={fmt.id} 
-                className="p-6 bg-white rounded-3xl border border-slate-200/80 hover:border-emerald-500/40 hover:shadow-xl hover:shadow-emerald-900/5 transition-all flex flex-col justify-between group"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="flex items-center gap-2.5">
-                      <span className={`px-2.5 py-1 rounded-lg text-[11px] font-black tracking-wide uppercase ${
-                        fmt.extension === 'docx' ? 'bg-sky-100 text-sky-700' :
-                        fmt.extension === 'xlsx' ? 'bg-emerald-100 text-emerald-700' :
-                        fmt.extension === 'pptx' ? 'bg-purple-100 text-purple-700' :
-                        'bg-rose-100 text-rose-700'
-                      }`}>
-                        .{fmt.extension}
-                      </span>
-                      <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200" title="Identificador de referencia no validado">
-                        {fmt.codigo}
-                      </span>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] font-black uppercase text-slate-600 bg-slate-50 border-slate-200">
-                      {fmt.categoriaLabel}
-                    </Badge>
-                  </div>
-
-                  <p className="text-[11px] font-semibold text-amber-800 mb-1">
-                    Identificador de referencia por validar: {fmt.codigo}
-                  </p>
-                  <h3 className="text-base font-bold text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-2">
-                    {fmt.titulo}
-                  </h3>
-                  <p className="text-xs text-slate-500 font-normal mt-2.5 leading-relaxed line-clamp-3">
-                    {fmt.descripcion}
-                  </p>
-
-                  <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
-                    <p className="text-[11px] text-slate-600 font-medium">
-                      <strong className="text-slate-800">Aplica a:</strong> {fmt.aplicaA}
-                    </p>
-                    {fmt.requisitos && (
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {fmt.requisitos.map((req, rIdx) => (
-                          <span key={rIdx} className="text-[10px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md flex items-center gap-1">
-                            <Check size={10} className="text-emerald-600" />
-                            {req}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="sena" 
-                      onClick={() => downloadFormatTemplate(fmt)}
-                      className="flex-1 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-sm"
-                    >
-                      <Download size={14} />
-                      <span>Descargar modelo HTML</span>
-                    </Button>
-
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setPreviewFormat(fmt)}
-                      className="p-2.5 text-slate-600 hover:text-slate-900 border-slate-200 rounded-xl"
-                      title="Ver estructura del modelo de referencia"
-                    >
-                      <Eye size={15} />
-                    </Button>
-                  </div>
-
-                  {fmt.isSmartTemplate && (
-                    <button
-                      onClick={() => handleGenerateSmartDoc(fmt.smartType)}
-                      disabled={isGeneratingSmart}
-                      className="w-full text-center text-xs font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 py-2 rounded-xl border border-emerald-200/70 transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <Sparkles size={13} className="text-amber-500" />
-                      <span>Generar reporte PDF de apoyo</span>
-                    </button>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ─────────────────────────────────────────────────────────────
           PESTAÑA 2: BÓVEDA DE EVIDENCIAS & ARCHIVOS DE PROYECTOS
@@ -898,10 +642,6 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
                 </li>
                 <li className="flex items-start gap-2">
                   <BookmarkCheck size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                  <span><strong>Bitácoras de Etapa Productiva:</strong> Formato F-023 diligenciado con juicio evaluativo aprobado.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <BookmarkCheck size={16} className="text-amber-600 shrink-0 mt-0.5" />
                   <span><strong>Dirección de Proyectos de Innovación:</strong> Actas de sustanciación de proyectos de aprendices.</span>
                 </li>
               </ul>
@@ -1095,60 +835,6 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
       </Modal>
 
       {/* ─────────────────────────────────────────────────────────────
-          MODAL: VISTA PREVIA DE ESTRUCTURA DE FORMATO
-      ─────────────────────────────────────────────────────────────── */}
-      {previewFormat && (
-        <Modal
-          isOpen={Boolean(previewFormat)}
-          onClose={() => setPreviewFormat(null)}
-          title={previewFormat.titulo}
-          subtitle={`Identificador de referencia por validar: ${previewFormat.codigo}${previewFormat.versionReferencia ? ` | Versión declarada en el modelo: ${previewFormat.versionReferencia}` : ''}`}
-          icon={FileText}
-          variant="sena"
-          size="xl"
-        >
-          <div className="space-y-4">
-            <div className="flex items-center justify-between bg-slate-100 p-3 rounded-xl">
-              <span className="text-xs font-bold text-slate-700">
-                Contenido del modelo de referencia
-              </span>
-              <div className="flex gap-2">
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => copyToClipboard(previewFormat.templateContent, previewFormat.id)}
-                  className="text-xs flex items-center gap-1.5 bg-white"
-                >
-                  {copiedId === previewFormat.id ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-                  <span>{copiedId === previewFormat.id ? 'Copiado' : 'Copiar contenido'}</span>
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="sena"
-                  onClick={() => downloadFormatTemplate(previewFormat)}
-                  className="text-xs flex items-center gap-1.5"
-                >
-                  <Download size={14} />
-                  <span>Descargar modelo HTML</span>
-                </Button>
-              </div>
-            </div>
-
-            <div className="bg-slate-900 text-slate-100 p-5 rounded-2xl font-mono text-xs overflow-x-auto max-h-96 whitespace-pre-wrap leading-relaxed shadow-inner">
-              {previewFormat.templateContent}
-            </div>
-
-            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200/60 flex items-start gap-3">
-              <Info size={18} className="text-emerald-700 shrink-0 mt-0.5" />
-              <div className="text-xs text-emerald-900 leading-relaxed">
-                <strong>Uso:</strong> La descarga es un archivo HTML editable. No tiene la estructura del formato institucional controlado; confirme el documento y la versión vigentes con la Coordinación SENNOVA antes de radicarlo.
-              </div>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* ─────────────────────────────────────────────────────────────
           MODAL: DETALLES DE EVIDENCIA EN BÓVEDA
       ─────────────────────────────────────────────────────────────── */}
       {previewDoc && (
@@ -1206,94 +892,6 @@ const DocumentCenterModule = ({ currentUser, onNotify, onNavigate }) => {
           </div>
         </Modal>
       )}
-
-      {/* ─────────────────────────────────────────────────────────────
-          MODAL: GENERADOR RÁPIDO INTELIGENTE
-      ─────────────────────────────────────────────────────────────── */}
-      <Modal
-        isOpen={isSmartGenModalOpen}
-        onClose={() => setIsSmartGenModalOpen(false)}
-        title="Generador Rápido de Documentos Oficiales"
-        subtitle="Generación automática en PDF conectada a la base de datos de SENNOVA CGAO"
-        icon={Sparkles}
-        variant="indigo"
-        size="lg"
-      >
-        <div className="space-y-5">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Tipo de Documento a Generar *
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {[
-                { id: 'monthly_report', label: 'Informe Mensual GTH-F-074', desc: 'Con actividades del usuario autenticado' },
-                { id: 'presupuesto_detalle', label: 'Informe Financiero de Proyecto', desc: 'Desglose por rubros SENNOVA' },
-                { id: 'ficha_proyecto', label: 'Ficha Técnica Oficial de Proyecto', desc: 'Objetivos, equipo y vigencia' }
-              ].map(item => (
-                <div 
-                  key={item.id}
-                  onClick={() => setSmartDocType(item.id)}
-                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                    smartDocType === item.id 
-                      ? 'border-indigo-600 bg-indigo-50/70 shadow-sm' 
-                      : 'border-slate-200 bg-white hover:bg-slate-50'
-                  }`}
-                >
-                  <p className="text-xs font-bold text-slate-900">{item.label}</p>
-                  <p className="text-[10px] text-slate-500 mt-1">{item.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {smartDocType !== 'monthly_report' && (
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Seleccionar Proyecto I+D+i *
-              </label>
-              <select
-                value={selectedSmartProjectId}
-                onChange={(e) => setSelectedSmartProjectId(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20"
-              >
-                {proyectos.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.codigo_sgps ? `[${p.codigo_sgps}] ` : ''}{p.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-200/60 text-xs text-indigo-950 leading-relaxed flex items-start gap-2.5">
-            <Info size={18} className="text-indigo-600 shrink-0 mt-0.5" />
-            <span>
-              El documento se generará en formato PDF con la identidad visual corporativa del SENA CGAO Vélez, listo para imprimir, firmar o radicar ante la coordinación SENNOVA.
-            </span>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setIsSmartGenModalOpen(false)}
-              disabled={isGeneratingSmart}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              type="button" 
-              variant="sena" 
-              onClick={() => handleGenerateSmartDoc(smartDocType)}
-              disabled={isGeneratingSmart}
-              className="font-bold flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-            >
-              {isGeneratingSmart ? <RefreshCw className="animate-spin" size={16} /> : <Printer size={16} />}
-              <span>{isGeneratingSmart ? 'Generando PDF...' : 'Generar PDF Oficial'}</span>
-            </Button>
-          </div>
-        </div>
-      </Modal>
 
       {/* ── Confirm Delete Document ── */}
       <ConfirmDialog

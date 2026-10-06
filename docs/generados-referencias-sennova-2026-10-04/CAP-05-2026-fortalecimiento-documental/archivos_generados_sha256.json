@@ -1,0 +1,66 @@
+{
+  "borradores_generados/formulacion_proyecto.docx": {
+    "bytes": 43676,
+    "sha256": "598caceebbf3370b53affbec6c253c27d9f9acf5721e2812d507f6d3dac378f8"
+  },
+  "borradores_generados/presentacion_proyecto.pptx": {
+    "bytes": 17803603,
+    "sha256": "5e288531df5e94f89fe9a9bb24058f5b089ae8a8e067badb592275ffea3e0fbb"
+  },
+  "borradores_generados/acta_inicio.docx": {
+    "bytes": 71296,
+    "sha256": "d82a405558282fe5034fb34637addb2b1f19fded1c320ea33b055694fd6fa75e"
+  },
+  "borradores_generados/producto_resultado.docx": {
+    "bytes": 40532,
+    "sha256": "6090cb649c457af532286aac400b8e711371c1b16ee7c2158a3fd0773c2a7c8a"
+  },
+  "borradores_generados/poster_producto.pptx": {
+    "bytes": 2456440,
+    "sha256": "bc1c4779573411398d0668995c2ef14e54fc124c6b4910e811b3d4ed6012e500"
+  },
+  "borradores_generados/informe_bimensual__b1.docx": {
+    "bytes": 62908,
+    "sha256": "041ce7e329db5224e769a7b9b278e893adcbd231ef8939f40af0003b0690bc0f"
+  },
+  "borradores_generados/informe_bimensual__b2.docx": {
+    "bytes": 40638,
+    "sha256": "b573f2bb57a903a49f27afbf68a297d34426343ac6509b1fdca95b2f6421b95b"
+  },
+  "borradores_generados/informe_bimensual__b3.docx": {
+    "bytes": 40638,
+    "sha256": "9ec4eaa581fc137ee446a70d414ed48f8e796c7db8a51b59be83e7b406a9e7b2"
+  },
+  "borradores_generados/informe_bimensual__b4.docx": {
+    "bytes": 40638,
+    "sha256": "21bc0a65ab0bb710cee140397eee45d94a46eb25b69549e4dfc474229b080816"
+  },
+  "borradores_generados/informe_bimensual__b5.docx": {
+    "bytes": 40640,
+    "sha256": "71203e133466dc797b2a04029bb2e6aa7f1bd50e65396086771f212982e046e8"
+  },
+  "borradores_generados/informe_bimensual__b6.docx": {
+    "bytes": 40640,
+    "sha256": "e469e5310fef46987828b6f67f8b53624ac99628c45a834ec4f2818761bf6f75"
+  },
+  "borradores_generados/informe_bimensual__b7.docx": {
+    "bytes": 40640,
+    "sha256": "2aca1c7ec44dd252986a05bb4425fde633ec926a8a9187c23c4bff3c457733ce"
+  },
+  "borradores_generados/informe_bimensual__b8.docx": {
+    "bytes": 40638,
+    "sha256": "92729fa4887244387b1375ecfc284daf8f1f06a29ef20fa7f29b732e04377fe9"
+  },
+  "borradores_generados/acta_cierre.docx": {
+    "bytes": 183275,
+    "sha256": "4e98bc2828d8633d140953a3b1c7f8a80815b8711526c157b0b9dcb3689f75b1"
+  },
+  "borradores_generados/informe_final.docx": {
+    "bytes": 42790,
+    "sha256": "2dd69c2ef73ee16377355cef75455190a564bc492ea726eb5ff5ec50f35b14d8"
+  },
+  "borradores_generados/registro_evidencias.docx": {
+    "bytes": 195623,
+    "sha256": "aa405b37e9740cf7467b44604038f9f300ba6be1d56c761ed38da452e6a662fd"
+  }
+}

@@ -21,7 +21,7 @@ Feature: Importar una formulación CAP
     When confirma la creación
     Then la aplicación crea el proyecto con los valores revisados
     And adjunta el DOCX como formulación del proyecto
-    And permite descargar el DOCX desde la pestaña Formatos del proyecto
+    And permite descargar el DOCX desde el Expediente del proyecto
 ```
 
 ## Escenario 3: archivo no válido

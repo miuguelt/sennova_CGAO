@@ -4,7 +4,7 @@
 2. La aplicación muestra la lectura en curso mientras valida y analiza el contenido.
 3. La persona revisa los datos propuestos en las pestañas del formulario, corrige lo necesario y confirma.
 4. La aplicación guarda el proyecto con el DOCX original y presenta confirmación.
-5. Desde **Formatos**, las personas con acceso al proyecto consultan y descargan el DOCX fuente.
+5. Desde **Expediente**, las personas con acceso al proyecto consultan y descargan el DOCX fuente.
 
 ## Estados de la carga
 

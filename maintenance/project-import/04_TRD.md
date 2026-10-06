@@ -21,7 +21,7 @@
 - El proyecto y su registro `Documento` se confirman juntos; si falla el almacenamiento, se revierte la creación.
 - Los archivos se nombran internamente con UUID y se guardan en el almacenamiento configurado.
 - El servidor aplica autenticación y bloquea el flujo de importación para aprendices.
-- El DOCX original se lista y descarga desde la pestaña Formatos. Los permisos del adjunto heredan la política del proyecto, incluidos los aprendices vinculados al semillero.
+- El DOCX original se lista y descarga desde Expediente. Los permisos del adjunto heredan la política del proyecto, incluidos los aprendices vinculados al semillero.
 
 ## Alineación institucional
 

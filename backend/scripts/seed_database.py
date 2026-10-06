@@ -23,16 +23,19 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from app.database import SessionLocal, engine, Base
+from app.database import (
+    SessionLocal,
+    engine,
+)
+from app.services.database_startup import initialize_schema
 from app.models import (
     User, Grupo, Semillero, Aprendiz, Convocatoria, Proyecto,
     Producto, Documento, Entregable, Notificacion, Actividad,
-    Reto, BitacoraEntry, AuditLog, Mensaje, MensajeAdjunto,
+    Reto, AuditLog, Mensaje, MensajeAdjunto,
     grupo_integrantes, proyecto_equipo, semillero_investigadores
 )
 from app.auth import get_password_hash
 from app.research_catalog import CANONICAL_GROUP_NAME
-from scripts.fix_db_schema import fix_schema
 
 # ─────────────────────────────────────────────────────────────────────────────
 # BANCOS DE DATOS REALISTAS (SENA SENNOVA CGAO — Santander)
@@ -149,12 +152,11 @@ def seed_database(verbose: bool = True):
         print("═" * 70)
 
     # 1. Asegurar tablas y esquema actualizado
-    Base.metadata.create_all(bind=engine)
     try:
-        fix_schema()
+        initialize_schema(engine)
     except Exception as e:
         if verbose:
-            print(f"  ℹ️ fix_schema info: {e}")
+            print(f"  ℹ️ initialize_schema info: {e}")
 
     db = SessionLocal()
 
@@ -170,7 +172,6 @@ def seed_database(verbose: bool = True):
             db.query(MensajeAdjunto).delete()
             db.query(Mensaje).delete()
             db.query(AuditLog).delete()
-            db.query(BitacoraEntry).delete()
             db.query(Actividad).delete()
             db.query(Notificacion).delete()
             db.query(Entregable).delete()
@@ -967,61 +968,7 @@ def seed_database(verbose: bool = True):
             print(f"   ✅ {len(actividades_creadas)} registros de actividad creados.")
 
         # ─────────────────────────────────────────────────────────────────────
-        # TABLA 16: BITÁCORA TÉCNICA (25 Entradas con firmas duales)
-        # ─────────────────────────────────────────────────────────────────────
-        if verbose:
-            print("\n📝 17. Generando Bitácoras Técnicas con Firma Dual (Mínimo 20)...")
-
-        bitacoras_creadas = []
-        bitacoras_data = [
-            ("Calibración y verificación de sensores de humedad DHT22", "Se realizaron mediciones repetidas en cámara climática. Se corrigió offset térmico.", "técnica"),
-            ("Reunión de coordinación con empresa solicitante Fedeveleño", "Se establecieron especificaciones de temperatura para el empaque en bijao.", "administrativa"),
-            ("Desarrollo de API Rest y esquemas de validación Pydantic", "Se completaron los endpoints para recepción de telemetría de campo.", "técnica"),
-            ("Ensayo de hidrólisis ácida para corteza de guayaba", "Evaluación de rendimiento en base seca obteniendo 12.4% de pectina.", "resultado"),
-            ("Pruebas de conectividad LoRaWAN en zona rural de Vélez", "Transmisión exitosa a 4.2 km de distancia con línea de vista.", "técnica"),
-            ("Socialización de avances con aprendices semilleristas", "Explicación de metodología de toma de muestras en fincas piloto.", "administrativa"),
-            ("Inspección de trapiches en el municipio de Güepsa", "Medición de temperatura en fondo de paila y flujo de bagazo.", "observación"),
-            ("Optimización del algoritmo de detección por visión artificial", "Mejora del tiempo de inferencia a 45 ms en procesador embebido.", "técnica"),
-            ("Diseño de circuitos impresos (PCB) para nodo sensor", "Envío a fabricación de 5 tarjetas prototipo para pruebas de estrés.", "técnica"),
-            ("Validación microbiológica de empaques biodegradables", "Conteo de mesófilos y coliformes en laboratorio de alimentos SENA.", "resultado"),
-        ]
-
-        for i in range(25):
-            proy = proyectos_creados[i % len(proyectos_creados)]
-            titulo_b, contenido_b, cat_b = bitacoras_data[i % len(bitacoras_data)]
-            autor = proy.owner
-
-            firmado_inv = (i % 5 != 0)
-            firmado_apr = (i % 2 == 0)
-
-            bit = BitacoraEntry(
-                proyecto_id=proy.id,
-                user_id=autor.id,
-                fecha=datetime.now(timezone.utc) - timedelta(days=random.randint(2, 120)),
-                titulo=f"{titulo_b} — Bitácora #{i + 1}",
-                contenido=f"{contenido_b} Proyecto: {proy.nombre_corto}. Protocolo verificado.",
-                categoria=cat_b,
-                adjuntos=[{"nombre": f"anexo_tecnico_{i+1}.pdf", "url": f"/storage/bitacora/{i+1}.pdf"}],
-                is_firmado_investigador=firmado_inv,
-                fecha_firma_investigador=datetime.now(timezone.utc) - timedelta(days=1) if firmado_inv else None,
-                is_firmado_aprendiz=firmado_apr,
-                fecha_firma_aprendiz=datetime.now(timezone.utc) - timedelta(hours=12) if firmado_apr else None,
-                signature_metadata={
-                    "hash_sha256": hashlib.sha256(f"bitacora_{i}".encode()).hexdigest(),
-                    "ip_firma": "190.25.14.88",
-                    "algoritmo": "ECDSA-SHA256"
-                },
-                created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(2, 120))
-            )
-            db.add(bit)
-            bitacoras_creadas.append(bit)
-
-        db.flush()
-        if verbose:
-            print(f"   ✅ {len(bitacoras_creadas)} entradas de bitácora técnica generadas.")
-
-        # ─────────────────────────────────────────────────────────────────────
-        # TABLA 17: AUDIT_LOGS (25 Logs estrictos de auditoría HTTP)
+        # TABLA 16: AUDIT_LOGS (25 Logs estrictos de auditoría HTTP)
         # ─────────────────────────────────────────────────────────────────────
         if verbose:
             print("\n🛡️ 18. Generando Registros de Auditoría (Audit Logs) (Mínimo 20)...")
@@ -1035,7 +982,6 @@ def seed_database(verbose: bool = True):
             ("POST", "/semilleros", 201),
             ("DELETE", "/documentos/{id}", 200),
             ("POST", "/retos", 201),
-            ("PUT", "/bitacoras/{id}/firmar", 200),
             ("POST", "/entregables/{id}/upload", 201),
         ]
 
@@ -1069,7 +1015,7 @@ def seed_database(verbose: bool = True):
         mensajes_creados = []
         mensajes_asuntos = [
             ("Convocatoria SENNOVA: Fechas de cierre", "Recordatorio a todos los investigadores sobre la fecha límite de carga."),
-            ("Entrega de bitácora técnica quincenal", "Favor revisar y firmar digitalmente las bitácoras pendientes de la fase."),
+            ("Revisión de informe bimensual", "Favor revisar los avances y los soportes asociados al período."),
             ("Capacitación Minciencias CvLAC y GrupLAC", "Sesión virtual este viernes a las 10:00 AM sobre actualización de perfiles."),
             ("Revisión de avance del prototipo IoT", "Hemos subido los diagramas esquemáticos para validación técnica."),
             ("Bienvenida a semilleristas periodo 2025", "Estimados aprendices, bienvenidos al equipo de investigación aplicada CGAO."),
@@ -1170,7 +1116,6 @@ def seed_database(verbose: bool = True):
             ("documentos", Documento),
             ("notificaciones", Notificacion),
             ("actividades", Actividad),
-            ("bitacora_entries", BitacoraEntry),
             ("audit_logs", AuditLog),
             ("mensajes", Mensaje),
             ("mensaje_adjuntos", MensajeAdjunto),

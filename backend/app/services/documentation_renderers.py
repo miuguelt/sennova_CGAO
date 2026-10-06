@@ -17,12 +17,17 @@ from app.services.documentation_rendering_values import PENDING, format_value, p
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
-def _project_rows(context, common):
+def _project_rows(context, common, required_common=()):
     """Conserva la información institucional registrada y el contexto del proyecto."""
     rows = [("Nombre del proyecto", context["nombre"]), ("Código SGPS", str(context.get("codigo_sgps") or PENDING))]
+    required_common = set(required_common)
     for field in COMMON_FIELDS:
-        if field["type"] not in {"rows", "textarea"}:
-            rows.append((field["label"], format_value(common.get(field["key"]), field)))
+        if field["type"] == "rows" or (field["type"] == "textarea" and not field.get("project_summary")):
+            continue
+        value = common.get(field["key"])
+        if value in (None, "") and field["key"] not in required_common:
+            continue
+        rows.append((field["label"], format_value(value, field)))
     rows.extend([
         ("Grupo de investigación", str(context.get("grupo") or PENDING)),
         ("Semillero", str(context.get("semillero") or PENDING)),
@@ -110,15 +115,20 @@ def _table(document, headers, rows, *, signature=False):
 
 
 
-def _write_field(document, field, values):
+def _write_field(document, field, values, *, include_optional_detail=False):
     """Escribe un campo narrativo o una tabla sin truncar párrafos ni filas."""
     document.add_heading(field["label"], level=2)
     if field["type"] == "rows":
         columns = field["columns"]
-        rows = [[format_value(row.get(column["key"]), column) for column in columns] for row in (values.get(field["key"]) or [])]
+        source_rows = values.get(field["key"]) or []
+        eligible_columns = [column for column in columns
+                            if include_optional_detail or not column.get("optional_detail")]
+        active_columns = [column for column in eligible_columns if column.get("required", True)
+                          or any(row.get(column["key"]) not in (None, "") for row in source_rows)]
+        rows = [[format_value(row.get(column["key"]), column) for column in active_columns] for row in source_rows]
         if not rows:
-            rows = [[PENDING] + [""] * (len(columns) - 1)]
-        _table(document, [column["label"] for column in columns], rows, signature=field["key"] == "asistentes")
+            rows = [[PENDING] + [""] * (len(active_columns) - 1)]
+        _table(document, [column["label"] for column in active_columns], rows, signature=field["key"] == "asistentes")
     else:
         text = format_value(values.get(field["key"]), field)
         for paragraph in text.splitlines():
@@ -161,12 +171,12 @@ def _render_docx(kind, context, common, data, photos):
             if field["key"] in {"temas", "objetivo_reunion"}:
                 _write_field(document, field, data)
     document.add_heading("Información general del proyecto", level=1)
-    _table(document, ["Dato", "Información registrada"], _project_rows(context, common))
+    _table(document, ["Dato", "Información registrada"], _project_rows(context, common, definition.get("required_common", ())))
     _write_objectives(document, context)
     if kind in {"acta_inicio", "formulacion_proyecto"}:
         for field in COMMON_FIELDS:
             if field["type"] == "rows":
-                _write_field(document, field, common)
+                _write_field(document, field, common, include_optional_detail=kind == "formulacion_proyecto")
     skipped = {"tipo_cierre", "periodo_desde", "periodo_hasta", "fecha_reunion", "hora_inicio", "hora_fin", "lugar", "temas", "objetivo_reunion"} if kind in {"acta_inicio", "acta_cierre"} else set()
     document.add_heading("Desarrollo y soportes", level=1)
     for field in definition["fields"]:

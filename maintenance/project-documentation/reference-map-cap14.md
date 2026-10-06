@@ -25,3 +25,11 @@ El proyecto no recibe un código SGPS por equivalencia con CAP. Las asociaciones
 ## Formatos de salida y verificación
 
 El catálogo define la formulación y el acta de inicio como DOCX, y la presentación como PPTX. Las pruebas comprueban los paquetes Office y sus partes internas para ambos formatos. Los servicios de generación mantienen pendientes los campos obligatorios ausentes; el renderizador puede preparar una salida de vista previa, pero esa salida no equivale a una versión guardada o revisada.
+
+El objetivo específico de diseñar una herramienta Excel de indicadores se cubre con el reporte **Indicadores de clasificación** en el Centro de Reportes. La descarga organiza perfiles y productos registrados por investigador, aplica el año de reporte o, si falta, el año de publicación, e indica categorías y soportes faltantes. Es una matriz descriptiva; no calcula puntajes ni certifica una clasificación de MinCiencias. Los criterios, la edición del modelo y el periodo deben confirmarse antes de usarla para decisiones institucionales.
+
+## Correspondencia de objetivos y validación
+
+La [matriz de trazabilidad de CAP-14](../../docs/generados-referencias-sennova-2026-10-04/CAP-14-2026-sistema-informacion/trazabilidad_cap14_objetivos.md) cruza los seis objetivos de la formulación con módulos y rutas del repositorio. La revisión encontró implementados en el código los módulos centrales de proyectos, cronogramas, productos y reportes, además de la matriz Excel recién agregada. La evidencia de requisitos aprobados y la validación con usuarios siguen pendientes; las pruebas automatizadas del software no las reemplazan. El documento incluye un protocolo propuesto y los datos que debe confirmar el equipo antes de ejecutarlo.
+
+El objetivo de diseño funcional y de datos tiene una descripción técnica vigente en [Modelo funcional y de datos de SENNOVA CGAO](../../docs/architecture/modelo-funcional-y-datos.md). El documento deriva las entidades y relaciones del código; el equipo aún debe validarlo contra los requisitos institucionales aprobados.

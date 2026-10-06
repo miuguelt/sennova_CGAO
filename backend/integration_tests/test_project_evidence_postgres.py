@@ -34,7 +34,12 @@ os.environ.setdefault("JWT_SECRET", secrets.token_urlsafe(32))
 
 from app.auth import get_current_user
 from app.config import get_settings
-from app.database import Base, ensure_document_period_column, get_db
+from app.database import (
+    Base,
+    ensure_document_period_column,
+    get_db,
+    remove_retired_stage_productivity_schema,
+)
 from app.documentation_models import ProjectDocumentation, ProjectDocumentDraft, ProjectDocumentVersion
 from app.models import Documento, Grupo, Producto, Proyecto, Semillero, User
 from app.research_catalog import RESEARCH_SEEDBED_CATALOG, ensure_research_catalog
@@ -121,6 +126,57 @@ def test_postgres_period_migration_preserves_legacy_document_and_is_idempotent(p
     assert "periodo_bimestre" in {column["name"] for column in inspect(engine).get_columns("documentos")}
     with engine.connect() as connection:
         assert connection.execute(text("SELECT nombre_archivo, periodo_bimestre FROM documentos")).one() == ("informe_heredado.docx", None)
+
+
+def test_postgres_removes_retired_bitacora_schema_and_preserves_project_audit(postgres_context):
+    engine, db, owner, project, *_ = postgres_context
+    project_id = project.id
+    owner_id = owner.id
+    expected_project_name = project.nombre
+    db.rollback()
+    with engine.begin() as connection:
+        connection.execute(text(
+            "ALTER TABLE proyectos ADD COLUMN formato_bitacora_path TEXT"
+        ))
+        connection.execute(text(
+            "ALTER TABLE proyectos ADD COLUMN formato_seguimiento_path TEXT"
+        ))
+        connection.execute(text(
+            "UPDATE proyectos SET formato_bitacora_path = 'bitacora.docx', "
+            "formato_seguimiento_path = 'seguimiento.docx' WHERE id = :project_id"
+        ), {"project_id": project_id})
+        connection.execute(text(
+            "CREATE TABLE bitacora_entries ("
+            "id UUID PRIMARY KEY, proyecto_id UUID NOT NULL REFERENCES proyectos(id), "
+            "user_id UUID NOT NULL REFERENCES users(id), contenido TEXT NOT NULL)"
+        ))
+        connection.execute(text(
+            "INSERT INTO bitacora_entries (id, proyecto_id, user_id, contenido) "
+            "VALUES (:entry_id, :project_id, :user_id, 'Registro heredado')"
+        ), {"entry_id": uuid.uuid4(), "project_id": project_id, "user_id": owner_id})
+
+    assert remove_retired_stage_productivity_schema(engine) == {
+        "table_removed": True,
+        "columns_removed": ("formato_bitacora_path", "formato_seguimiento_path"),
+    }
+    assert remove_retired_stage_productivity_schema(engine) == {
+        "table_removed": False,
+        "columns_removed": (),
+    }
+
+    inspector = inspect(engine)
+    assert "bitacora_entries" not in inspector.get_table_names()
+    assert "audit_logs" in inspector.get_table_names()
+    columns = {column["name"] for column in inspector.get_columns("proyectos")}
+    assert "formato_bitacora_path" not in columns
+    assert "formato_seguimiento_path" not in columns
+    assert "informe_final_path" in columns
+    with engine.connect() as connection:
+        persisted_project_name = connection.execute(
+            text("SELECT nombre FROM proyectos WHERE id = :project_id"),
+            {"project_id": project_id},
+        ).scalar_one()
+    assert persisted_project_name == expected_project_name
 
 
 def test_postgres_evaluates_six_stages_and_exports_actual_product_supports(postgres_context):

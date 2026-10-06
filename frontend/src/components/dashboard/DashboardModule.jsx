@@ -67,6 +67,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
   const isAprendiz = rol === 'aprendiz';
   const isAdmin = rol === 'admin';
   const isInvestigador = !isAprendiz && !isAdmin;
+  const documentationPercent = userImpact?.avance_documental?.porcentaje ?? 0;
 
   useEffect(() => {
     loadDashboardData();
@@ -181,12 +182,12 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
           onClick={() => onModuleAction?.({ module: 'proyectos' })}
         />
         <StatCard
-          title="Cumplimiento de Tareas"
-          value={`${userImpact?.cumplimiento || 100}%`}
+          title="Avance documental"
+          value={`${documentationPercent}%`}
           icon={Target}
           color="bg-teal-600"
-          subtitle="Entregables al día"
-          onClick={() => onModuleAction?.({ module: 'cronograma' })}
+          subtitle="Datos y documentos de tus proyectos"
+          onClick={() => onModuleAction?.({ module: 'proyectos' })}
         />
       </div>
 
@@ -334,10 +335,10 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             </Button>
           </Card>
 
-          {/* Formatos y Repositorio */}
+          {/* Repositorio documental */}
           <Card className="p-8 border border-slate-200/80 shadow-sm overflow-hidden bg-white">
             <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
-              <FileSpreadsheet size={16} className="text-indigo-600" /> Formatos de Etapa Productiva
+              <FileSpreadsheet size={16} className="text-indigo-600" /> Repositorio documental
             </h3>
             <div className="space-y-3">
               <button
@@ -345,18 +346,8 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 className="w-full p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 rounded-xl text-left transition-all flex items-center justify-between group"
               >
                 <div>
-                  <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Formatos de etapa productiva</p>
-                  <p className="text-[10px] text-slate-600 font-medium">Consulta modelos de planeación y seguimiento</p>
-                </div>
-                <ChevronRight size={14} className="text-slate-500 group-hover:text-indigo-700" />
-              </button>
-              <button
-                onClick={() => onModuleAction?.({ module: 'repositorio' })}
-                className="w-full p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 rounded-xl text-left transition-all flex items-center justify-between group"
-              >
-                <div>
                   <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Documentos del centro</p>
-                  <p className="text-[10px] text-slate-600 font-medium">Consulta documentos institucionales y modelos de referencia</p>
+                  <p className="text-[10px] text-slate-600 font-medium">Consulta evidencias y soportes institucionales registrados</p>
                 </div>
                 <ChevronRight size={14} className="text-slate-500 group-hover:text-indigo-700" />
               </button>
@@ -754,16 +745,16 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             </div>
 
             <div className="p-8 lg:w-1/3 bg-white/5 border-l border-white/10 flex flex-col justify-center items-center text-center space-y-4">
-              <div className="relative">
+              <div className="relative" role="progressbar" aria-label="Avance documental de mis proyectos" aria-valuenow={documentationPercent} aria-valuemin={0} aria-valuemax={100}>
                 <svg className="w-24 h-24 transform -rotate-90">
                   <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-white/15" />
-                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={251.2} strokeDashoffset={251.2 - (251.2 * (userImpact.cumplimiento || 100)) / 100} className="text-emerald-400" strokeLinecap="round" />
+                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={251.2} strokeDashoffset={251.2 - (251.2 * documentationPercent) / 100} className="text-emerald-400" strokeLinecap="round" />
                 </svg>
-                <div className="absolute inset-0 flex items-center justify-center text-xl font-black text-white">{userImpact.cumplimiento || 100}%</div>
+                <div className="absolute inset-0 flex items-center justify-center text-xl font-black text-white">{documentationPercent}%</div>
               </div>
               <div>
-                <p className="text-sm font-bold text-white">Nivel de Desempeño</p>
-                <p className="text-[10px] text-emerald-400 font-black uppercase tracking-tighter mt-1">Impacto Investigativo</p>
+                <p className="text-sm font-bold text-white">Documentación de mis proyectos</p>
+                <p className="text-[10px] text-emerald-400 font-black uppercase tracking-tighter mt-1">Información y documentos guardados</p>
               </div>
               <Button
                 variant="outline"
@@ -797,12 +788,12 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
           onClick={() => onModuleAction?.({ module: 'productos' })}
         />
         <StatCard
-          title="Cumplimiento Técnico"
-          value={`${userImpact?.cumplimiento || 100}%`}
+          title="Avance documental"
+          value={`${documentationPercent}%`}
           icon={Target}
           color="bg-amber-600"
-          subtitle="Metas logradas en cronograma"
-          onClick={() => onModuleAction?.({ module: 'cronograma' })}
+          subtitle="Datos y documentos de tus proyectos"
+          onClick={() => onModuleAction?.({ module: 'proyectos' })}
         />
         <StatCard
           title="Aprendices Tutelados"
@@ -920,11 +911,11 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-[10px] font-bold uppercase text-slate-300">
-                  <span>Cumplimiento Global</span>
-                  <span>{userImpact?.cumplimiento || 100}%</span>
+                  <span>Avance documental global</span>
+                  <span>{documentationPercent}%</span>
                 </div>
-                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-400 rounded-full" style={{width: `${userImpact?.cumplimiento || 100}%`}} />
+                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden" role="progressbar" aria-label="Avance documental global" aria-valuenow={documentationPercent} aria-valuemin={0} aria-valuemax={100}>
+                  <div className="h-full bg-emerald-400 rounded-full" style={{width: `${documentationPercent}%`}} />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2">

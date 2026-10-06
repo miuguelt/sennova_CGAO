@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.main import app
 from app.database import Base, get_db
-from app.models import User, Grupo, Semillero, Proyecto, Producto, Entregable, Aprendiz, BitacoraEntry, Actividad
+from app.models import User, Grupo, Semillero, Proyecto, Producto, Entregable, Aprendiz, Actividad
 from app.auth import get_password_hash
 from datetime import datetime, date, timezone
 
@@ -127,18 +127,6 @@ def setup_db():
     )
     db.add(entregable)
 
-    # Registro histórico de bitácora
-    bitacora = BitacoraEntry(
-        proyecto_id=str(proyecto.id),
-        user_id=str(aprendiz.id),
-        titulo="Avance de Bitácora",
-        contenido="Desarrollo inicial de pruebas",
-        fecha=datetime.now(timezone.utc),
-        is_firmado_investigador=True,
-        is_firmado_aprendiz=False
-    )
-    db.add(bitacora)
-
     # Actividad
     actividad = Actividad(
         user_id=str(admin.id),
@@ -185,11 +173,6 @@ def test_dashboard_stats_all_roles():
         res = client.get("/stats/dashboard", headers=headers)
         assert res.status_code == 200, f"Failed for {email}: {res.status_code} - {res.text}"
         data = res.json()
-        db = TestingSessionLocal()
-        try:
-            assert db.query(BitacoraEntry).count() == 1
-        finally:
-            db.close()
         assert "proyectos" in data
         assert "productos" in data
         assert "aprendices" in data

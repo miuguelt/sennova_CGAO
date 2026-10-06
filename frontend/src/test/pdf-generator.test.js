@@ -81,7 +81,6 @@ describe('PDFGenerator Suite Completa', () => {
 
         const generatedText = generatedPdf.output();
         expect(generatedText).toContain('Actualizar entregables y actividades conforme al cronograma');
-        expect(generatedText).not.toContain('Actualizar bitácoras y registros de actividades en la plataforma');
       } finally {
         saveSpy.mockRestore();
       }
@@ -195,77 +194,6 @@ describe('PDFGenerator Suite Completa', () => {
     });
   });
 
-  describe('5. generateEtapaProductiva (Formato Etapa Productiva)', () => {
-    it('genera formato de etapa productiva con equipo de trabajo', () => {
-      const mockProyecto = {
-        nombre: 'Innovación en Postcosecha de Guayaba',
-        codigo_sgps: 'SGPS-2026-102',
-        tipologia: 'I+D Aplicada',
-        vigencia: 12,
-        presupuesto_total: 18000000,
-        equipo: [
-          { nombre: 'Carlos Ruiz', pivot: { rol_en_proyecto: 'Investigador Principal', horas_dedicadas: 20 } },
-          { nombre: 'María López', pivot: { rol_en_proyecto: 'Aprendiz Investigador', horas_dedicadas: 15 } }
-        ]
-      };
-
-      expect(() => PDFGenerator.generateEtapaProductiva(mockProyecto)).not.toThrow();
-      expect(jsPDF.API.save).toHaveBeenCalled();
-    });
-
-    it('genera formato de etapa productiva sin equipo sin fallar', () => {
-      expect(() => PDFGenerator.generateEtapaProductiva({})).not.toThrow();
-      expect(jsPDF.API.save).toHaveBeenCalled();
-    });
-  });
-
-  describe('6. generateSeguimiento (Formato Seguimiento)', () => {
-    it('genera formato de seguimiento con cronograma de entregables', () => {
-      const mockProyecto = {
-        nombre: 'Automatización de Invernaderos',
-        codigo_sgps: 'SGPS-2026-554',
-        entregables: [
-          { fase: 'Fase I: Planeación', titulo: 'Documento de Arquitectura', fecha_entrega: '2026-03-15', estado: 'aprobado' },
-          { fase: 'Fase II: Ejecución', titulo: 'Prototipo Electrónico', fecha_entrega: '2026-06-30', estado: 'en_progreso' }
-        ]
-      };
-
-      expect(() => PDFGenerator.generateSeguimiento(mockProyecto)).not.toThrow();
-      expect(jsPDF.API.save).toHaveBeenCalled();
-    });
-
-    it('genera formato de seguimiento vacío sin fallar', () => {
-      expect(() => PDFGenerator.generateSeguimiento({})).not.toThrow();
-      expect(jsPDF.API.save).toHaveBeenCalled();
-    });
-  });
-
-  describe('7. generateInformeFinal (Informe Final)', () => {
-    it('genera informe final con resultados de cierre y entregables', () => {
-      const mockProyecto = {
-        nombre: 'Cierre Proyecto Robótica Agrícola',
-        codigo_sgps: 'SGPS-2025-998',
-        linea_programatica: 'Innovación y Desarrollo Tecnológico',
-        estado: 'finalizado',
-        total_productos: 4,
-        presupuesto_total: 35000000,
-        entregables: [
-          { fase: 'Fase I', titulo: 'E1', estado: 'aprobado' },
-          { fase: 'Fase II', titulo: 'E2', estado: 'aprobado' },
-          { fase: 'Fase III', titulo: 'E3', estado: 'aprobado' }
-        ]
-      };
-
-      expect(() => PDFGenerator.generateInformeFinal(mockProyecto)).not.toThrow();
-      expect(jsPDF.API.save).toHaveBeenCalled();
-    });
-
-    it('genera informe final con datos vacíos sin fallar', () => {
-      expect(() => PDFGenerator.generateInformeFinal({})).not.toThrow();
-      expect(jsPDF.API.save).toHaveBeenCalled();
-    });
-  });
-
   describe('8. generateProjectPDF (Ficha Técnica)', () => {
     it('genera ficha técnica con semillero, presupuesto y equipo', () => {
       const mockProject = {
@@ -305,27 +233,5 @@ describe('PDFGenerator Suite Completa', () => {
       }
     });
 
-    it('marca los PDF de seguimiento como modelos y advierte que no son formatos controlados', () => {
-      const generatedPdfs = [];
-      const saveSpy = vi.spyOn(jsPDF.API, 'save').mockImplementation(function () {
-        generatedPdfs.push(this.output());
-      });
-      saveSpy.mockClear();
-
-      try {
-        PDFGenerator.generateEtapaProductiva({});
-        PDFGenerator.generateSeguimiento({});
-        PDFGenerator.generateInformeFinal({});
-        PDFGenerator.generateProjectPDF({});
-
-        expect(generatedPdfs).toHaveLength(4);
-        for (const generatedPdf of generatedPdfs) {
-          expect(generatedPdf).toContain('REFERENCIA INTERNA');
-          expect(generatedPdf).toContain('No reemplaza el formato institucional vigente');
-        }
-      } finally {
-        saveSpy.mockRestore();
-      }
-    });
   });
 });

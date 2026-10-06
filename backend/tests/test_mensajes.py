@@ -152,8 +152,8 @@ def test_messaging_flow_between_all_roles():
     # 5. Investigador sends message to Aprendiz
     msg_aprendiz_payload = {
         "destinatario_id": str(aprendiz.id),
-        "asunto": "Tarea de bitácora",
-        "contenido": "Por favor actualiza tu bitácora de la semana."
+        "asunto": "Revisión de avance del proyecto",
+        "contenido": "Por favor actualiza el informe de avance del proyecto."
     }
     aprendiz_msg_resp = client.post("/mensajes", json=msg_aprendiz_payload)
     assert aprendiz_msg_resp.status_code == 201
@@ -167,7 +167,7 @@ def test_messaging_flow_between_all_roles():
     assert thread_resp.status_code == 200
     thread = thread_resp.json()
     assert len(thread) == 1
-    assert thread[0]["contenido"] == "Por favor actualiza tu bitácora de la semana."
+    assert thread[0]["contenido"] == "Por favor actualiza el informe de avance del proyecto."
 
     # 7. Aprendiz replies to Investigador
     current_test_user = aprendiz

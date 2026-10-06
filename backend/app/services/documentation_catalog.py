@@ -6,8 +6,9 @@ def _field(key, label, type="text", *, required=True, help=None, **extra):
             "required": required, **extra}
 
 
-def _rows(key, label, columns, *, required=True, help=None):
-    return _field(key, label, "rows", columns=columns, required=required, help=help)
+def _rows(key, label, columns, *, required=True, help=None, details_label=None, details_help=None):
+    details = {key: value for key, value in (("details_label", details_label), ("details_help", details_help)) if value}
+    return _field(key, label, "rows", columns=columns, required=required, help=help, **details)
 
 
 COMMON_FIELDS = (
@@ -18,12 +19,25 @@ COMMON_FIELDS = (
     _field("responsable", "Responsable del proyecto", required=False, help="Registra a la persona o al equipo encargado de coordinar el proyecto. Su designación no acredita por sí sola asistencia, autoría ni aprobación de documentos."),
     _field("fecha_inicio", "Fecha de inicio del proyecto", "date", required=False, help="Indica la fecha de inicio respaldada por el acta o la planeación confirmada. Si las fuentes difieren, registra la inconsistencia antes de darla por validada."),
     _field("fecha_fin", "Fecha de terminación del proyecto", "date", required=False, help="Indica la fecha de terminación registrada en la planeación confirmada. Debe ser igual o posterior al inicio; no la sustituyas por una fecha de cierre parcial."),
+    _field("nivel_formacion", "Nivel de formación", required=False, help="Registra el nivel de formación solo si el proyecto formativo o la convocatoria lo solicita. Usa la denominación confirmada; de lo contrario, déjalo vacío."),
+    _field("programa_formacion", "Programa de formación", required=False, help="Indica el programa vinculado únicamente cuando corresponda y su nombre esté confirmado en la ficha institucional."),
+    _field("competencia", "Competencia relacionada", "textarea", required=False, project_summary=True, help="Relaciona la competencia con el proyecto solo cuando aplique. Usa la formulación institucional confirmada y no la deduzcas del tema."),
+    _field("resultados_aprendizaje", "Resultados de aprendizaje relacionados", "textarea", required=False, project_summary=True, help="Registra los resultados de aprendizaje asociados únicamente cuando el proyecto formativo o la convocatoria los solicite. Distingue los resultados previstos de los ya alcanzados."),
+    _field("fase_proyecto_formativo", "Fase del proyecto formativo", required=False, help="Indica la fase institucional confirmada cuando el proyecto haga parte de un proceso formativo."),
+    _field("categoria_proyecto", "Categoría del proyecto", required=False, help="Registra la categoría si la convocatoria la solicita. Usa la clasificación vigente y confirma su pertinencia con la coordinación."),
+    _field("area_investigacion", "Área de investigación", required=False, help="Escribe el área de investigación cuando la convocatoria la solicite y la clasificación esté confirmada."),
     _rows("equipo", "Personal vinculado", [
         _field("nombre", "Nombre", help="Registra el nombre de la persona realmente vinculada al proyecto. No copies integrantes de otro proyecto o de una plantilla."),
         _field("rol", "Rol", help="Describe la función acordada dentro del equipo. Ejemplo ilustrativo: coordinación metodológica; no equivale a una aprobación del documento."),
         _field("actividades", "Actividades a liderar", "textarea", help="Relaciona las actividades concretas que liderará esta persona, su alcance y su aporte a los objetivos. Evita asignaciones genéricas como apoyo a todo el proyecto."),
         _field("programa", "Programa", required=False, help="Indica el programa de formación o la dependencia vinculada cuando corresponda. Déjalo vacío si no está confirmado."),
-    ], required=False, help="Incluye una fila por integrante real y define sus roles y actividades. Comprueba que todas las responsabilidades del cronograma tengan una persona o equipo encargado."),
+        _field("identificacion", "Documento de identidad", required=False, optional_detail=True, help="Regístralo únicamente si el formato vigente lo solicita y tienes autorización para tratar este dato. Déjalo vacío si no aplica."),
+        _field("correo_contacto", "Correo de contacto", required=False, optional_detail=True, help="Inclúyelo solo si el formato exige un contacto y la persona autorizó su uso para este proyecto."),
+        _field("telefono_contacto", "Teléfono de contacto", required=False, optional_detail=True, help="Inclúyelo solo si el formato exige un teléfono y la persona autorizó su uso para este proyecto."),
+    ], required=False,
+       help="Incluye una fila por integrante real y define sus roles y actividades. Comprueba que todas las responsabilidades del cronograma tengan una persona o equipo encargado.",
+       details_label="Datos de autoría y contacto (cuando el formato los solicite)",
+       details_help="Usa esta sección solo si el formato vigente requiere identificar o contactar a cada autor y tienes autorización para registrar esos datos."),
     _rows("presupuesto", "Presupuesto y cronograma de ejecución", [
         _field("rubro", "Rubro", help="Identifica la categoría del gasto según el presupuesto del proyecto. Ejemplos ilustrativos: personal o materiales; usa únicamente las categorías que correspondan."),
         _field("valor_planeado", "Valor planeado", "number", unit="COP", help="Registra el monto previsto en pesos colombianos según su soporte. Este campo no representa el gasto ejecutado; no completes valores ausentes con estimaciones sin respaldo."),

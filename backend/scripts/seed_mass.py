@@ -7,11 +7,12 @@ from faker import Faker
 # Añadir el directorio base al path para importar app
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.database import SessionLocal, engine, Base
+from app.database import SessionLocal, engine
+from app.services.database_startup import initialize_schema
 from app.models import (
     User, Grupo, Semillero, Aprendiz, Convocatoria, Proyecto, 
     Producto, Documento, Entregable, Notificacion, Actividad, 
-    Reto, BitacoraEntry, AuditLog
+    Reto, AuditLog
 )
 from app.auth import get_password_hash
 
@@ -23,12 +24,12 @@ def seed_data():
         print("❌ Define INITIAL_ADMIN_PASSWORD o DEV_SEED_PASSWORD en el entorno seguro antes de poblar la base de datos.")
         return False
 
+    initialize_schema(engine)
     db = SessionLocal()
     try:
         print("🌱 Iniciando poblamiento de base de datos...")
         
-        # 1. Crear Tablas si no existen
-        Base.metadata.create_all(bind=engine)
+        # 1. Crear tablas y aplicar las migraciones vigentes.
         print("✅ Tablas verificadas")
 
         # Limpiar tablas previas (opcional, pero mejor para empezar de cero si es nueva conexión)
@@ -219,17 +220,7 @@ def seed_data():
             )
             db.add(act)
 
-        # 14. Bitacora (100)
-        for i in range(100):
-            bit = BitacoraEntry(
-                proyecto_id=random.choice(proyectos).id,
-                user_id=random.choice(users).id,
-                titulo="Avance Semanal",
-                contenido=fake.text()
-            )
-            db.add(bit)
-
-        # 15. Audit Logs (100)
+        # 14. Audit Logs (100)
         for i in range(100):
             audit = AuditLog(
                 user_id=random.choice(users).id,

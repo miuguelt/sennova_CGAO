@@ -68,6 +68,16 @@ const CATALOG = [
     bg: 'bg-purple-100',
     impact: 'Talento Humano'
   },
+  {
+    id: 'indicadoresMinciencias',
+    title: 'Indicadores de clasificación',
+    desc: 'Matriz por investigador con productos registrados, categorías, verificación y datos de perfil pendientes.',
+    icon: FileSpreadsheet,
+    color: 'text-emerald-700',
+    bg: 'bg-emerald-100',
+    impact: 'Seguimiento',
+    excelOnly: true,
+  },
 ];
 
 const COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
@@ -132,6 +142,7 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
     try {
       let result;
       switch (tipo) {
+        case 'indicadoresMinciencias': result = await ReportesAPI.descargarIndicadoresMinciencias(params.año || null); break;
         case 'proyectos':  result = await ReportesAPI.descargarConsolidadoProyectos(params.año || null, formato); break;
         case 'grupos':     result = await ReportesAPI.descargarConsolidadoGrupos(formato); break;
         case 'productos':  result = await ReportesAPI.descargarConsolidadoProductos(params.año || null, params.verificados || false, formato); break;
@@ -341,12 +352,14 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
                     <h4 className="font-black text-slate-900 text-lg mb-2">{rep.title}</h4>
                     <p className="text-xs text-slate-500 font-medium leading-relaxed mb-8 flex-1">{rep.desc}</p>
                     <div className="flex gap-2">
-                      <Select
-                        className="flex-1 text-[10px] font-black uppercase"
-                        options={[{ value: 'excel', label: 'EXCEL' }, { value: 'csv', label: 'CSV' }]}
-                        value={formato}
-                        onChange={(e) => setFormato(e.target.value)}
-                      />
+                      {!rep.excelOnly && (
+                        <Select
+                          className="flex-1 text-[10px] font-black uppercase"
+                          options={[{ value: 'excel', label: 'EXCEL' }, { value: 'csv', label: 'CSV' }]}
+                          value={formato}
+                          onChange={(e) => setFormato(e.target.value)}
+                        />
+                      )}
                       <Button variant="sena" className="flex-1" onClick={() => descargarReporte(rep.id, { año })} disabled={loading}>
                         <CloudDownload size={14} className="mr-2" /> GENERAR
                       </Button>

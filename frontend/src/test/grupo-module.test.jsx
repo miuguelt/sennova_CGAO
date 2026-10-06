@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import GrupoModule from '../components/groups/GrupoModule';
 import { GruposAPI } from '../api/grupos';
 import { SemillerosAPI } from '../api/semilleros';
@@ -11,6 +11,7 @@ import { AprendicesAPI } from '../api/aprendices';
 import { PlantillasAPI } from '../api/plantillas';
 import { ReportesAPI } from '../api/reportes';
 import { PDFGenerator } from '../utils/pdfGenerator';
+import { ProjectDocumentationAPI } from '../api/projectDocumentation';
 
 vi.mock('recharts', () => {
   const Wrapper = ({ children }) => <div>{children}</div>;
@@ -74,8 +75,11 @@ vi.mock('../api/proyectos', () => ({
     delete: vi.fn(),
     addEquipo: vi.fn(),
     removeEquipo: vi.fn(),
+    getExpediente: vi.fn().mockResolvedValue({ completo: false, porcentaje_completitud: 0, etapas: [] }),
   }
 }));
+
+vi.mock('../api/projectDocumentation', () => ({ ProjectDocumentationAPI: { get: vi.fn() } }));
 
 vi.mock('../api/productos', () => ({
   ProductosAPI: {
@@ -111,7 +115,9 @@ vi.mock('../api/documentos', () => ({
   DocumentosAPI: {
     list: vi.fn().mockResolvedValue([]),
     upload: vi.fn(),
-    getViewUrl: vi.fn()
+    getViewUrl: vi.fn(),
+    getProyectoDocumentos: vi.fn().mockResolvedValue([]),
+    download: vi.fn(),
   }
 }));
 
@@ -128,9 +134,6 @@ vi.mock('../api/reportes', () => ({
 
 vi.mock('../utils/pdfGenerator', () => ({
   PDFGenerator: {
-    generateEtapaProductiva: vi.fn(),
-    generateSeguimiento: vi.fn(),
-    generateInformeFinal: vi.fn(),
     generateBudgetReport: vi.fn(),
     generateProjectPDF: vi.fn(),
     generateCertificate: vi.fn(),
@@ -155,6 +158,7 @@ const mockStats = {
   total_aprendices: 8,
   horas_formativas: 80,
   avance_promedio: 45,
+  avance_documental: { porcentaje: 23, campos_completados: 3, campos_totales: 10, documentos_generados: 0, documentos_revisados: 0, documentos_totales: 3 },
   presupuesto_total: 80000000,
   presupuesto_ejecutado: 35000000,
   produccion: [{ name: 'Software', value: 3 }, { name: 'Artículos', value: 2 }],
@@ -185,6 +189,7 @@ const mockProyectos = [
     estado: 'En ejecución',
     presupuesto_total: 38000000,
     avance_porcentaje: 60,
+    avance_documental: { porcentaje: 8, campos_completados: 1, campos_totales: 10, documentos_generados: 0, documentos_revisados: 0, documentos_totales: 2 },
     linea_investigacion: 'Agroindustria',
     semillero_nombre: 'ALIMENSA',
     owner: { nombre: 'Dra. Marta Rodríguez' },
@@ -219,6 +224,7 @@ describe('GrupoModule Integration Tests', () => {
     ProductosAPI.list.mockResolvedValue(mockProductos);
     AprendicesAPI.list.mockResolvedValue(mockAprendices);
     ProyectosAPI.list.mockResolvedValue(mockProyectos);
+    ProjectDocumentationAPI.get.mockResolvedValue({ proyecto: mockProyectos[0], revision: 1, comunes: { centro: 'CGAO' }, campos_comunes: [{ key: 'centro', label: 'Centro de formación', type: 'text' }], documentos: [], avance_documental: mockProyectos[0].avance_documental });
   });
 
   afterEach(() => {
@@ -337,6 +343,98 @@ describe('GrupoModule Integration Tests', () => {
       expect(screen.getByText('Expediente')).toBeDefined();
       expect(screen.getByText('Línea de Tiempo')).toBeDefined();
     });
+  });
+
+  it('abre la documentación a lo ancho y conserva el borrador al consultar otras pestañas del proyecto', async () => {
+    render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin' }} onNotify={vi.fn()} />);
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    fireEvent.click(screen.getByText('Pectina Guayaba').closest('.cursor-pointer'));
+    const drawer = await screen.findByRole('dialog', { name: 'Pectina Guayaba' });
+    expect(within(drawer).getAllByRole('tab')[0]).toHaveTextContent('Documentación');
+    expect(within(drawer).getByRole('tab', { name: 'Documentación' })).toHaveAttribute('aria-selected', 'true');
+    expect(drawer.querySelector('.project-workspace')).toHaveClass('max-w-[96vw]');
+    expect(drawer.querySelector('.project-workspace-body')).toBeInTheDocument();
+    expect(within(drawer).queryByRole('button', { name: 'Aprovechar ancho de pantalla' })).not.toBeInTheDocument();
+    const editor = await within(drawer).findByRole('region', { name: 'Construcción de documentación' });
+    expect(within(editor).getByRole('heading', { name: 'Construye la documentación de tu proyecto' })).toBeVisible();
+    fireEvent.click(within(editor).getByText('Datos comunes'));
+    fireEvent.change(within(editor).getByLabelText('Centro de formación'), { target: { value: 'CGAO: borrador de trabajo' } });
+    fireEvent.click(within(drawer).getByRole('tab', { name: 'Resumen & Presupuesto' }));
+    expect(editor).not.toBeVisible();
+    fireEvent.click(within(drawer).getByRole('tab', { name: 'Expediente' }));
+    await within(drawer).findByRole('region', { name: 'Expediente del proyecto' });
+    expect(await within(drawer).findByRole('region', { name: 'Formulación fuente del proyecto' })).toBeVisible();
+    expect(ProjectDocumentationAPI.get).toHaveBeenCalledOnce();
+    fireEvent.click(within(drawer).getByRole('tab', { name: 'Documentación' }));
+    expect(editor).toBeVisible();
+    expect(within(editor).getByLabelText('Centro de formación')).toHaveValue('CGAO: borrador de trabajo');
+    expect(ProjectDocumentationAPI.get).toHaveBeenCalledWith('p-1');
+  });
+
+  it('presenta el avance documental servido y abre el proyecto desde su acción de construcción', async () => {
+    render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin' }} />);
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    expect(screen.getByRole('heading', { name: 'Proyectos de investigación y documentación' })).toBeVisible();
+    const progress = screen.getAllByRole('progressbar', { name: 'Avance documental del proyecto' });
+    expect(progress.map(item => item.getAttribute('value'))).toEqual(['23', '8']);
+    expect(screen.queryByText('45%')).not.toBeInTheDocument();
+    expect(screen.queryByText('60%')).not.toBeInTheDocument();
+    expect(screen.queryByText(/entregables aprobados/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Construir documentación' }));
+    expect(await screen.findByRole('dialog', { name: 'Pectina Guayaba' })).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Documentación' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('abre el mismo espacio documental desde los proyectos asociados a un semillero del grupo', async () => {
+    GruposAPI.getProyectos.mockResolvedValue([{ ...mockProyectos[0], semillero_id: 's-1' }]);
+    render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin' }} />);
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-semilleros'));
+    fireEvent.click(screen.getByText('Semillero de Alimentos SENA'));
+    const semillero = await screen.findByRole('dialog', { name: 'Semillero de Alimentos SENA' });
+    fireEvent.click(within(semillero).getByRole('tab', { name: 'Proyectos Asociados' }));
+    expect(within(semillero).getByRole('progressbar', { name: 'Avance documental del proyecto' })).toHaveAttribute('value', '8');
+    fireEvent.click(within(semillero).getByRole('button', { name: 'Construir documentación' }));
+    const proyecto = await screen.findByRole('dialog', { name: 'Pectina Guayaba' });
+    expect(within(proyecto).getByRole('tab', { name: 'Documentación' })).toHaveAttribute('aria-selected', 'true');
+    expect(await within(proyecto).findByLabelText('Centro de formación')).toHaveValue('CGAO');
+    expect(screen.queryByRole('dialog', { name: 'Semillero de Alimentos SENA' })).not.toBeInTheDocument();
+  });
+
+  it('consulta los datos guardados del proyecto que se elige sin trasladar el borrador de otro proyecto', async () => {
+    const segundo = { ...mockProyectos[0], id: 'p-2', nombre: 'Proyecto de software', nombre_corto: 'Software CGAO' };
+    GruposAPI.getProyectos.mockResolvedValue([...mockProyectos, segundo]);
+    ProjectDocumentationAPI.get.mockImplementation(async id => ({ proyecto: id === 'p-1' ? mockProyectos[0] : segundo, revision: 1, comunes: { centro: `Datos guardados de ${id}` }, campos_comunes: [{ key: 'centro', label: 'Centro de formación', type: 'text' }], documentos: [] }));
+    render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin' }} />);
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    fireEvent.click(screen.getByText('Pectina Guayaba').closest('.cursor-pointer'));
+    const primero = await screen.findByRole('dialog', { name: 'Pectina Guayaba' });
+    const centro = await within(primero).findByLabelText('Centro de formación');
+    fireEvent.change(centro, { target: { value: 'Borrador del primer proyecto' } });
+    fireEvent.click(within(primero).getByRole('button', { name: 'Cerrar' }));
+    fireEvent.click(screen.getByText('Software CGAO').closest('.cursor-pointer'));
+    const seleccionado = await screen.findByRole('dialog', { name: 'Software CGAO' });
+    expect(await within(seleccionado).findByLabelText('Centro de formación')).toHaveValue('Datos guardados de p-2');
+    expect(ProjectDocumentationAPI.get).toHaveBeenNthCalledWith(1, 'p-1');
+    expect(ProjectDocumentationAPI.get).toHaveBeenNthCalledWith(2, 'p-2');
+  });
+
+  it('omite el porcentaje cuando falta el resumen documental y conserva las restricciones de administración', async () => {
+    GruposAPI.getStats.mockResolvedValue({ ...mockStats, avance_documental: undefined });
+    GruposAPI.getProyectos.mockResolvedValue([{ ...mockProyectos[0], avance_documental: undefined }]);
+    render(<GrupoModule currentUser={{ id: 'otro-investigador', rol: 'investigador' }} />);
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    expect(screen.queryByRole('progressbar', { name: 'Avance documental del proyecto' })).not.toBeInTheDocument();
+    expect(screen.queryByText('60%')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Pectina Guayaba').closest('.cursor-pointer'));
+    const drawer = await screen.findByRole('dialog', { name: 'Pectina Guayaba' });
+    expect(within(drawer).queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument();
+    expect(within(drawer).queryByRole('button', { name: 'Eliminar Proyecto' })).not.toBeInTheDocument();
+    expect(await within(drawer).findByRole('region', { name: 'Construcción de documentación' })).toBeVisible();
   });
 
   it('opens semillero detail drawer and displays apprentices when a semillero card is clicked', async () => {
@@ -494,18 +592,13 @@ describe('GrupoModule Integration Tests', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
 
     fireEvent.click(document.getElementById('tab-plan'));
-    expect(screen.getByText(/PDF se generan como modelos de referencia/i)).toBeInTheDocument();
-    expect(screen.queryByText('Formatos Oficiales SENNOVA')).not.toBeInTheDocument();
-    expect(screen.queryByText(/F-0[123]-SENN/)).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Plan Operativo del Grupo' })).toBeVisible();
+    expect(screen.getByText(/no hace parte de los documentos requeridos en el expediente/i)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Generar PDF' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/etapa productiva|bitácora/i)).not.toBeInTheDocument();
     const upload = screen.getByLabelText(/Subir Plan Operativo/i);
     fireEvent.change(upload, { target: { files: [new File(['plan'], 'plan.pdf', { type: 'application/pdf' })] } });
     await waitFor(() => expect(GruposAPI.uploadPlanOperativo).toHaveBeenCalledWith('g-1', expect.any(File)));
-    for (const button of screen.getAllByRole('button', { name: 'Generar PDF' })) fireEvent.click(button);
-    await waitFor(() => expect(PDFGenerator.generateEtapaProductiva).toHaveBeenCalled());
-    await waitFor(() => expect(PDFGenerator.generateSeguimiento).toHaveBeenCalled());
-    await waitFor(() => expect(PDFGenerator.generateInformeFinal).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: /Ir al Repositorio Documental Completo/i }));
-    expect(onNavigate).toHaveBeenCalledWith('repositorio');
   });
 
   it('creates, edits and deletes a research line with confirmation', async () => {
@@ -552,12 +645,12 @@ describe('GrupoModule Integration Tests', () => {
     await waitFor(() => expect(ProyectosAPI.create).toHaveBeenCalledWith(expect.objectContaining({ nombre: 'Proyecto nuevo', grupo_id: 'g-1' })));
 
     fireEvent.click(screen.getByText('Pectina Guayaba').closest('.cursor-pointer'));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Resumen & Presupuesto' }));
     expect(await screen.findByText('Ejecución Presupuestal por Rubros')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Liquidación' }));
-    fireEvent.click(screen.getByRole('tab', { name: 'Formatos' }));
-    expect(screen.getByText(/PDF se generan como modelos de referencia/i)).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Descargar' })[0]);
-    await waitFor(() => expect(PDFGenerator.generateEtapaProductiva).toHaveBeenCalled());
+    expect(screen.queryByRole('tab', { name: 'Formatos' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Documentación' }));
+    expect(await screen.findByText('Construye la documentación de tu proyecto')).toBeVisible();
     fireEvent.click(screen.getByRole('tab', { name: 'Línea de Tiempo' }));
     expect(screen.getByText(/Línea de Tiempo/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));

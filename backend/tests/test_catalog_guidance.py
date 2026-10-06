@@ -3,6 +3,8 @@
 import os
 import secrets
 
+import pytest
+from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -15,6 +17,7 @@ from app.services.documentation_catalog import (
     ATTENDEE_FIELDS, COMMON_FIELDS, FORMULATION_FIELDS, MEETING_FIELDS, RESULT_FIELDS,
 )
 from app.services.documentation_state import documentation_view
+from app.services.documentation_validation import missing_fields, normalize_value
 
 
 def test_all_shared_catalog_fields_and_columns_have_specific_instructions():
@@ -72,3 +75,12 @@ def test_documentation_view_exposes_specific_shared_guidance_without_creating_do
         assert all(db.query(model).count() == 0 for model in
                    (ProjectDocumentation, ProjectDocumentDraft, ProjectDocumentVersion, Documento))
     engine.dispose()
+
+
+def test_form_validation_feedback_addresses_the_researcher_as_tu():
+    with pytest.raises(HTTPException) as invalid_number:
+        normalize_value("sin cifra", {"key": "presupuesto", "label": "Presupuesto", "type": "number"}, "Formulario")
+    assert "ingresa un número válido" in invalid_number.value.detail
+
+    pending = missing_fields({}, [{"key": "nombre", "label": "Nombre del proyecto", "required": True, "type": "text"}])
+    assert pending[0]["mensaje"] == "Completa nombre del proyecto."

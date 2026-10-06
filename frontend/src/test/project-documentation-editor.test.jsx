@@ -46,6 +46,53 @@ async function open(expandDocument = true, expandCommon = true) {
 }
 
 describe('Construcción guiada de documentación', () => {
+  it('abre el espacio de escritura y conserva borradores al consultar documentos y datos compartidos', async () => {
+    data.avance_documental = { porcentaje: 16, campos_completados: 2, campos_totales: 10, documentos_totales: 1, documentos_generados: 0, documentos_revisados: 0, descripcion: 'El avance usa información guardada y versiones vigentes.' };
+    data.documentos[0].generable = true;
+    data.documentos[0].faltantes = [];
+    data.ruta_formulacion = {
+      pasos: [{ id: 'identificacion', numero: 1, titulo: 'Identificación y objetivos', fuente: 'proyecto', campos: ['nombre'], faltantes: [], advertencias: [] }],
+      total: 1, completados: 0, porcentaje: 0, siguiente_paso: 'identificacion',
+      campos_proyecto: [{ key: 'nombre', label: 'Título del proyecto', type: 'text' }], valores_proyecto: { nombre: 'Proyecto agrícola' },
+    };
+    mount({ initialOpened: true, workspace: true });
+    const wizard = await screen.findByRole('region', { name: 'Asistente de formulación de proyectos' });
+    expect(screen.queryByRole('button', { name: 'Construir documentación' })).not.toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Avance documental del proyecto' })).toHaveAttribute('value', '16');
+    fireEvent.change(within(wizard).getByLabelText('Título del proyecto'), { target: { value: 'Título que estoy redactando' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Documentos y versiones' }));
+    expect(screen.getByRole('button', { name: 'Documentos y versiones' })).toHaveAttribute('aria-pressed', 'true');
+    expect(wizard).not.toBeVisible();
+    expect(screen.getByRole('region', { name: 'Informe bimensual 1' })).toBeVisible();
+    fireEvent.click(screen.getByText('Informe bimensual 1'));
+    expect(screen.getByRole('button', { name: 'Generar Informe bimensual 1' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Datos compartidos' }));
+    const common = screen.getByRole('region', { name: 'Datos comunes' });
+    fireEvent.click(within(common).getByText('Datos comunes'));
+    fireEvent.change(within(common).getByLabelText('Centro de formación *'), { target: { value: 'Centro actualizado' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Redactar proyecto' }));
+    expect(within(wizard).getByLabelText('Título del proyecto')).toHaveValue('Título que estoy redactando');
+    act(() => emitDataRefresh({ endpoint: '/documentos/upload', method: 'POST' }));
+    await waitFor(() => expect(ProjectDocumentationAPI.get).toHaveBeenCalledTimes(2));
+    expect(within(wizard).getByLabelText('Título del proyecto')).toHaveValue('Título que estoy redactando');
+    expect(screen.getByRole('progressbar', { name: 'Avance documental del proyecto' })).toHaveAttribute('value', '16');
+  });
+
+  it('actualiza el avance con la respuesta confirmada al guardar, conservando los permisos del aprendiz', async () => {
+    data.avance_documental = { porcentaje: 8, campos_completados: 1, campos_totales: 10, documentos_totales: 1, documentos_generados: 0, documentos_revisados: 0 };
+    mount(); const common = await open();
+    fireEvent.change(within(common).getByLabelText('Centro de formación *'), { target: { value: 'Información guardada' } });
+    expect(screen.getByRole('progressbar', { name: 'Avance documental del proyecto' })).toHaveAttribute('value', '8');
+    data.avance_documental.porcentaje = 16;
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar datos comunes' }));
+    await waitFor(() => expect(screen.getByRole('progressbar', { name: 'Avance documental del proyecto' })).toHaveAttribute('value', '16'));
+    cleanup();
+    mount({ initialOpened: true, workspace: true, currentUser: { rol: 'aprendiz' } });
+    const readOnly = await screen.findByRole('region', { name: 'Datos comunes' });
+    fireEvent.click(within(readOnly).getByText('Datos comunes'));
+    expect(within(readOnly).getByLabelText('Centro de formación *')).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Guardar datos comunes' })).not.toBeInTheDocument();
+  });
   it('mantiene los formularios de documentos cerrados y resume sus pendientes para elegir qué completar', async () => {
     mount(); await open(false);
     const document = screen.getByRole('region', { name: 'Informe bimensual 1' });
@@ -148,7 +195,8 @@ describe('Construcción guiada de documentación', () => {
     await waitFor(() => expect(generate).toBeEnabled());
     fireEvent.click(generate);
     await waitFor(() => expect(ProjectDocumentationAPI.generate).toHaveBeenCalledWith('p-1', 'informe:1', 3, 1));
-    expect(await screen.findByRole('status')).toHaveTextContent('Versión 1 generada');
+    expect(await screen.findByRole('status')).toHaveTextContent('Borrador, versión 1, generado');
+    expect(screen.getByRole('status')).toHaveTextContent('confirma el formato vigente antes de tramitar firmas o presentarlo');
   });
 
   it('conserva los cambios locales al recargar después de un conflicto 409', async () => {
@@ -174,7 +222,7 @@ describe('Construcción guiada de documentación', () => {
     fireEvent.change(screen.getByLabelText('Observación de revisión de versión 1'), { target: { value: 'Se contrastaron cifras y evidencias.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Marcar revisada la versión 1 de Informe bimensual 1' }));
     await waitFor(() => expect(ProjectDocumentationAPI.review).toHaveBeenCalledWith('p-1', 'doc-1', 'Se contrastaron cifras y evidencias.'));
-    expect(screen.getByText('Revise contenido y gestione firmas antes de radicar.')).toBeInTheDocument();
+    expect(screen.getByText('La aplicación prepara borradores; confirma su vigencia y tramita las firmas y la presentación por el canal de la convocatoria.')).toBeInTheDocument();
   });
 
   it('permite consultar y descargar al aprendiz, con campos de solo lectura', async () => {

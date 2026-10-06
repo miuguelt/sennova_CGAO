@@ -1,0 +1,1885 @@
+{
+  "fuente": "Base de datos local de desarrollo SENNOVA; campos derivados de fuentes adjuntas y registrados con revisión.",
+  "fecha_generacion": "2026-10-04",
+  "proyecto": {
+    "id": "2f8ac792-c560-524c-8962-95a8a3236e0b",
+    "nombre": "CAP-14-2026 Sistema de información para la gestión de proyectos de investigación del CGAO (referencia de validación)",
+    "codigo_sgps": null,
+    "vigencia_meses": 6,
+    "presupuesto_total_cop": 10000000.0,
+    "productos_registrados": 0
+  },
+  "versiones_antes": 0,
+  "fuentes_originales": [
+    {
+      "archivo": "fuentes_originales/Informe bimensual.docx",
+      "tipo": "informe_bimensual",
+      "bytes": 58894,
+      "sha256": "d54c17349867c3aedd409713e31666875039b190e94cb9c63e86f4cc6ece1f0f"
+    },
+    {
+      "archivo": "fuentes_originales/GCDTP-F-023_V01_Formato_Informe_Final.docx",
+      "tipo": "informe_final",
+      "bytes": 57413,
+      "sha256": "3f02d01c22ce56cfc42a35b4d37bb2b7f0d2b620a4fa5e681719064ad3747ced"
+    },
+    {
+      "archivo": "fuentes_originales/GIC-F-037ActaIniciodeProyectoSistemaInformacionInvestigacion.docx",
+      "tipo": "acta_inicio",
+      "bytes": 54501,
+      "sha256": "4de72506474e9b07fa9b4ea88b35748692116e5c32f35e1d4e697e9adecc1dd9"
+    },
+    {
+      "archivo": "fuentes_originales/Presentación propuesta investigacion herramienta de indicadores de investigación Final (1).pptx",
+      "tipo": "presentacion_proyecto",
+      "bytes": 3610790,
+      "sha256": "c34e19b903faf5217851bbfce25be4a9768318cce65d6d3114c32ae398027990"
+    },
+    {
+      "archivo": "fuentes_originales/Proyecto CAPSistema Informacion Investigación (2).docx",
+      "tipo": "formulacion_proyecto",
+      "bytes": 292152,
+      "sha256": "bc84a9bad9e1eb103e314308117f56d7ab85d73e08a130b13b6ea531703e8d65"
+    }
+  ],
+  "borradores": [
+    {
+      "archivo": "borradores_generados/formulacion_proyecto.docx",
+      "tipo": "formulacion_proyecto",
+      "clave": "formulacion_proyecto",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "bytes": 292152,
+      "sha256": "bc84a9bad9e1eb103e314308117f56d7ab85d73e08a130b13b6ea531703e8d65",
+      "version_persistida": false,
+      "generable_con_campos_actuales": false,
+      "campos_pendientes": [
+        {
+          "campo": "comunes.presupuesto.0.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.2.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.3.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.3.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.3.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.4.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.4.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.4.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.5.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.5.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.5.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.6.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.6.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.6.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.7.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.7.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.7.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.8.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.8.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.8.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.cronograma.0.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.1.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.2.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.3.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.4.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "marco_normativo",
+          "mensaje": "Complete marco normativo."
+        },
+        {
+          "campo": "resultados_esperados.0.indicador",
+          "mensaje": "Complete indicador."
+        },
+        {
+          "campo": "resultados_esperados.0.meta",
+          "mensaje": "Complete meta."
+        },
+        {
+          "campo": "resultados_esperados.0.unidad",
+          "mensaje": "Complete unidad."
+        },
+        {
+          "campo": "resultados_esperados.0.medio_verificacion",
+          "mensaje": "Complete medio de verificación."
+        },
+        {
+          "campo": "resultados_esperados.1.indicador",
+          "mensaje": "Complete indicador."
+        },
+        {
+          "campo": "resultados_esperados.1.meta",
+          "mensaje": "Complete meta."
+        },
+        {
+          "campo": "resultados_esperados.1.unidad",
+          "mensaje": "Complete unidad."
+        },
+        {
+          "campo": "resultados_esperados.1.medio_verificacion",
+          "mensaje": "Complete medio de verificación."
+        },
+        {
+          "campo": "impactos",
+          "mensaje": "Complete impactos institucional formativo y social."
+        },
+        {
+          "campo": "conclusiones",
+          "mensaje": "Complete conclusiones."
+        }
+      ],
+      "modo_renderizado": "Copia exacta del archivo de referencia actualmente asociado al proyecto en SENNOVA",
+      "archivo_fuente": "fuentes_originales/Proyecto CAPSistema Informacion Investigación (2).docx",
+      "identico_a_muestra": true
+    },
+    {
+      "archivo": "borradores_generados/presentacion_proyecto.pptx",
+      "tipo": "presentacion_proyecto",
+      "clave": "presentacion_proyecto",
+      "mime": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "bytes": 3610790,
+      "sha256": "c34e19b903faf5217851bbfce25be4a9768318cce65d6d3114c32ae398027990",
+      "version_persistida": false,
+      "generable_con_campos_actuales": false,
+      "campos_pendientes": [
+        {
+          "campo": "comunes.presupuesto.0.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.2.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.3.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.3.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.3.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.4.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.4.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.4.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.5.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.5.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.5.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.6.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.6.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.6.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.7.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.7.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.7.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.8.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.8.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.8.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.cronograma.0.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.1.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.2.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.3.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.4.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "referente_teorico",
+          "mensaje": "Complete referente teórico."
+        },
+        {
+          "campo": "marco_normativo",
+          "mensaje": "Complete marco normativo."
+        },
+        {
+          "campo": "resultados_esperados",
+          "mensaje": "Complete resultados esperados."
+        },
+        {
+          "campo": "impactos",
+          "mensaje": "Complete impactos institucional formativo y social."
+        },
+        {
+          "campo": "conclusiones",
+          "mensaje": "Complete conclusiones."
+        },
+        {
+          "campo": "referencias",
+          "mensaje": "Complete referencias."
+        }
+      ],
+      "modo_renderizado": "Copia exacta del archivo de referencia actualmente asociado al proyecto en SENNOVA",
+      "archivo_fuente": "fuentes_originales/Presentación propuesta investigacion herramienta de indicadores de investigación Final (1).pptx",
+      "identico_a_muestra": true
+    },
+    {
+      "archivo": "borradores_generados/acta_inicio.docx",
+      "tipo": "acta_inicio",
+      "clave": "acta_inicio",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "bytes": 54501,
+      "sha256": "4de72506474e9b07fa9b4ea88b35748692116e5c32f35e1d4e697e9adecc1dd9",
+      "version_persistida": false,
+      "generable_con_campos_actuales": false,
+      "campos_pendientes": [
+        {
+          "campo": "comunes.presupuesto.0.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.2.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.3.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.3.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.3.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.4.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.4.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.4.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.5.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.5.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.5.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.6.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.6.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.6.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.7.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.7.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.7.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.8.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.8.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.8.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.cronograma.0.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.1.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.2.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.3.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.4.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "alcance_formacion",
+          "mensaje": "Complete alcance e impacto en la academia y la formación."
+        }
+      ],
+      "modo_renderizado": "Copia exacta del archivo de referencia actualmente asociado al proyecto en SENNOVA",
+      "archivo_fuente": "fuentes_originales/GIC-F-037ActaIniciodeProyectoSistemaInformacionInvestigacion.docx",
+      "identico_a_muestra": true
+    },
+    {
+      "archivo": "borradores_generados/producto_resultado.docx",
+      "tipo": "producto_resultado",
+      "clave": "producto_resultado",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "bytes": 39725,
+      "sha256": "b127c841d604cfbd6bf1ba72a1f06881603bda45079da29272506dab847af492",
+      "version_persistida": false,
+      "generable_con_campos_actuales": false,
+      "campos_pendientes": [
+        {
+          "campo": "comunes.presupuesto.0.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.2.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.3.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.3.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.3.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.4.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.4.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.4.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.5.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.5.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.5.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.6.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.6.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.6.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.7.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.7.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.7.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.8.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.8.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.8.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.cronograma.0.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.1.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.2.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.3.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.4.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "descripcion_resultado",
+          "mensaje": "Complete descripción del resultado."
+        },
+        {
+          "campo": "metodologia",
+          "mensaje": "Complete metodología para obtener el producto."
+        },
+        {
+          "campo": "indicadores",
+          "mensaje": "Complete indicadores del producto."
+        },
+        {
+          "campo": "requisitos_minciencias",
+          "mensaje": "Complete requisitos y soportes de minciencias."
+        },
+        {
+          "campo": "impacto",
+          "mensaje": "Complete impacto y población beneficiaria."
+        },
+        {
+          "campo": "referencias",
+          "mensaje": "Complete referencias."
+        },
+        {
+          "campo": "proyecto.productos",
+          "mensaje": "Registre el producto que documentará en el módulo de productos."
+        }
+      ],
+      "modo_renderizado": "Renderer programático de SENNOVA; no se encontró un archivo de muestra del mismo tipo",
+      "identico_a_muestra": false
+    },
+    {
+      "archivo": "borradores_generados/poster_producto.pptx",
+      "tipo": "poster_producto",
+      "clave": "poster_producto",
+      "mime": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "bytes": 30853,
+      "sha256": "23fd2a94d16ab933bb412f442b4ae91260359b4d384310a6b76f3d3c84dc03db",
+      "version_persistida": false,
+      "generable_con_campos_actuales": false,
+      "campos_pendientes": [
+        {
+          "campo": "comunes.presupuesto.0.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.2.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.3.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.3.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.3.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.4.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.4.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.4.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.5.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.5.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.5.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.6.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.6.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.6.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.7.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.7.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.7.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.8.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.8.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.8.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.cronograma.0.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.1.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.2.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.3.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.4.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "introduccion",
+          "mensaje": "Complete introducción."
+        },
+        {
+          "campo": "planteamiento_problema",
+          "mensaje": "Complete planteamiento del problema."
+        },
+        {
+          "campo": "justificacion",
+          "mensaje": "Complete justificación."
+        },
+        {
+          "campo": "referente_teorico",
+          "mensaje": "Complete referente teórico."
+        },
+        {
+          "campo": "metodologia",
+          "mensaje": "Complete metodología."
+        },
+        {
+          "campo": "avances",
+          "mensaje": "Complete avances y resultados cuantificables."
+        },
+        {
+          "campo": "bibliografia",
+          "mensaje": "Complete bibliografía."
+        },
+        {
+          "campo": "proyecto.productos",
+          "mensaje": "Registre el producto que documentará en el módulo de productos."
+        }
+      ],
+      "modo_renderizado": "Renderer programático de SENNOVA; no se encontró un archivo de muestra del mismo tipo",
+      "identico_a_muestra": false
+    },
+    {
+      "archivo": "borradores_generados/informe_bimensual__b1.docx",
+      "tipo": "informe_bimensual",
+      "clave": "informe_bimensual__b1",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "bytes": 58894,
+      "sha256": "d54c17349867c3aedd409713e31666875039b190e94cb9c63e86f4cc6ece1f0f",
+      "version_persistida": false,
+      "generable_con_campos_actuales": false,
+      "campos_pendientes": [
+        {
+          "campo": "comunes.presupuesto.0.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.2.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.3.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.3.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.3.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.4.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.4.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.4.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.5.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.5.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.5.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.6.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.6.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.6.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.7.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.7.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.7.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.8.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.8.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.8.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.cronograma.0.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.1.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.2.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.3.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.4.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "periodo_desde",
+          "mensaje": "Complete inicio del período informado."
+        },
+        {
+          "campo": "periodo_hasta",
+          "mensaje": "Complete fin del período informado."
+        },
+        {
+          "campo": "resultados",
+          "mensaje": "Complete resultados alcanzados."
+        },
+        {
+          "campo": "lecciones_aprendidas",
+          "mensaje": "Complete lecciones aprendidas."
+        }
+      ],
+      "modo_renderizado": "Copia exacta del archivo de referencia actualmente asociado al proyecto en SENNOVA",
+      "archivo_fuente": "fuentes_originales/Informe bimensual.docx",
+      "identico_a_muestra": true
+    },
+    {
+      "archivo": "borradores_generados/informe_bimensual__b2.docx",
+      "tipo": "informe_bimensual",
+      "clave": "informe_bimensual__b2",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "bytes": 39840,
+      "sha256": "0545aeb5c590ec83a97378db9ea5849f656b15de337d705e728501bd8bfc06d1",
+      "version_persistida": false,
+      "generable_con_campos_actuales": false,
+      "campos_pendientes": [
+        {
+          "campo": "comunes.presupuesto.0.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.2.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.3.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.3.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.3.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.4.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.4.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.4.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.5.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.5.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.5.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.6.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.6.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.6.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.7.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.7.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.7.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.8.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.8.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.8.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.cronograma.0.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.1.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.2.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.3.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.4.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "periodo_desde",
+          "mensaje": "Complete inicio del período informado."
+        },
+        {
+          "campo": "periodo_hasta",
+          "mensaje": "Complete fin del período informado."
+        },
+        {
+          "campo": "antecedentes",
+          "mensaje": "Complete antecedentes."
+        },
+        {
+          "campo": "metodologia",
+          "mensaje": "Complete metodología."
+        },
+        {
+          "campo": "resultados",
+          "mensaje": "Complete resultados alcanzados."
+        },
+        {
+          "campo": "discusion",
+          "mensaje": "Complete discusión de resultados."
+        },
+        {
+          "campo": "fortalezas",
+          "mensaje": "Complete fortalezas."
+        },
+        {
+          "campo": "dificultades",
+          "mensaje": "Complete dificultades y limitaciones."
+        },
+        {
+          "campo": "acciones_futuras",
+          "mensaje": "Complete acciones futuras."
+        },
+        {
+          "campo": "lecciones_aprendidas",
+          "mensaje": "Complete lecciones aprendidas."
+        },
+        {
+          "campo": "conclusiones",
+          "mensaje": "Complete conclusiones."
+        },
+        {
+          "campo": "referencias",
+          "mensaje": "Complete referencias."
+        }
+      ],
+      "modo_renderizado": "Renderer programático de SENNOVA; no se encontró un archivo de muestra del mismo tipo",
+      "identico_a_muestra": false
+    },
+    {
+      "archivo": "borradores_generados/informe_bimensual__b3.docx",
+      "tipo": "informe_bimensual",
+      "clave": "informe_bimensual__b3",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "bytes": 39841,
+      "sha256": "8bb5267eb55345386919d9687c2f0bf3c28234251643d3b5630eaf220ea3f71b",
+      "version_persistida": false,
+      "generable_con_campos_actuales": false,
+      "campos_pendientes": [
+        {
+          "campo": "comunes.presupuesto.0.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.2.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.3.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.3.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.3.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.4.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.4.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.4.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.5.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.5.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.5.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.6.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.6.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.6.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.7.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.7.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.7.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.8.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.8.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.8.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.cronograma.0.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.1.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.2.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.3.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.4.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "periodo_desde",
+          "mensaje": "Complete inicio del período informado."
+        },
+        {
+          "campo": "periodo_hasta",
+          "mensaje": "Complete fin del período informado."
+        },
+        {
+          "campo": "antecedentes",
+          "mensaje": "Complete antecedentes."
+        },
+        {
+          "campo": "metodologia",
+          "mensaje": "Complete metodología."
+        },
+        {
+          "campo": "resultados",
+          "mensaje": "Complete resultados alcanzados."
+        },
+        {
+          "campo": "discusion",
+          "mensaje": "Complete discusión de resultados."
+        },
+        {
+          "campo": "fortalezas",
+          "mensaje": "Complete fortalezas."
+        },
+        {
+          "campo": "dificultades",
+          "mensaje": "Complete dificultades y limitaciones."
+        },
+        {
+          "campo": "acciones_futuras",
+          "mensaje": "Complete acciones futuras."
+        },
+        {
+          "campo": "lecciones_aprendidas",
+          "mensaje": "Complete lecciones aprendidas."
+        },
+        {
+          "campo": "conclusiones",
+          "mensaje": "Complete conclusiones."
+        },
+        {
+          "campo": "referencias",
+          "mensaje": "Complete referencias."
+        }
+      ],
+      "modo_renderizado": "Renderer programático de SENNOVA; no se encontró un archivo de muestra del mismo tipo",
+      "identico_a_muestra": false
+    },
+    {
+      "archivo": "borradores_generados/acta_cierre.docx",
+      "tipo": "acta_cierre",
+      "clave": "acta_cierre",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "bytes": 40139,
+      "sha256": "68d1904a0d87d6a6c373b5f1706005bae09ce2a5424cd4d71a407559b78ca6df",
+      "version_persistida": false,
+      "generable_con_campos_actuales": false,
+      "campos_pendientes": [
+        {
+          "campo": "comunes.presupuesto.0.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.2.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.3.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.3.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.3.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.4.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.4.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.4.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.5.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.5.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.5.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.6.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.6.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.6.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.7.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.7.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.7.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.8.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.8.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.8.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.cronograma.0.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.1.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.2.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.3.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.4.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "tipo_cierre",
+          "mensaje": "Complete alcance del cierre."
+        },
+        {
+          "campo": "periodo_desde",
+          "mensaje": "Complete inicio del período que se cierra."
+        },
+        {
+          "campo": "periodo_hasta",
+          "mensaje": "Complete fin del período que se cierra."
+        },
+        {
+          "campo": "fecha_reunion",
+          "mensaje": "Complete fecha de la reunión."
+        },
+        {
+          "campo": "hora_inicio",
+          "mensaje": "Complete hora de inicio."
+        },
+        {
+          "campo": "hora_fin",
+          "mensaje": "Complete hora de finalización."
+        },
+        {
+          "campo": "lugar",
+          "mensaje": "Complete lugar."
+        },
+        {
+          "campo": "temas",
+          "mensaje": "Complete temas."
+        },
+        {
+          "campo": "objetivo_reunion",
+          "mensaje": "Complete objetivos de la reunión."
+        },
+        {
+          "campo": "evaluacion_actividades",
+          "mensaje": "Complete evaluación de actividades y entregables."
+        },
+        {
+          "campo": "balance",
+          "mensaje": "Complete balance presupuestal."
+        },
+        {
+          "campo": "fortalezas",
+          "mensaje": "Complete fortalezas."
+        },
+        {
+          "campo": "dificultades",
+          "mensaje": "Complete dificultades."
+        },
+        {
+          "campo": "acciones_futuras",
+          "mensaje": "Complete acciones futuras."
+        },
+        {
+          "campo": "lecciones_aprendidas",
+          "mensaje": "Complete lecciones aprendidas."
+        },
+        {
+          "campo": "listado_activos",
+          "mensaje": "Complete listado de activos del proyecto."
+        },
+        {
+          "campo": "observaciones",
+          "mensaje": "Complete observaciones y conclusiones."
+        },
+        {
+          "campo": "asistentes",
+          "mensaje": "Complete asistentes."
+        }
+      ],
+      "modo_renderizado": "Renderer programático de SENNOVA; no se encontró un archivo de muestra del mismo tipo",
+      "identico_a_muestra": false
+    },
+    {
+      "archivo": "borradores_generados/informe_final.docx",
+      "tipo": "informe_final",
+      "clave": "informe_final",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "bytes": 42918,
+      "sha256": "705fd6cbc9e56ce4c0fbdbf686982d821bd4d6648f80c1111f1a755a766e842b",
+      "version_persistida": false,
+      "generable_con_campos_actuales": false,
+      "campos_pendientes": [
+        {
+          "campo": "comunes.presupuesto.0.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.2.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.3.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.3.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.3.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.4.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.4.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.4.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.5.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.5.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.5.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.6.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.6.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.6.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.7.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.7.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.7.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.8.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.8.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.8.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.cronograma.0.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.1.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.2.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.3.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.4.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "autor_informe",
+          "mensaje": "Complete autor del informe."
+        },
+        {
+          "campo": "fecha_entrega",
+          "mensaje": "Complete fecha de entrega del informe."
+        },
+        {
+          "campo": "clasificacion_informacion",
+          "mensaje": "Complete clasificación de la información."
+        },
+        {
+          "campo": "introduccion",
+          "mensaje": "Complete introducción."
+        },
+        {
+          "campo": "planteamiento_problema",
+          "mensaje": "Complete planteamiento del problema."
+        },
+        {
+          "campo": "estado_arte_tecnica",
+          "mensaje": "Complete estado del arte y estado de la técnica."
+        },
+        {
+          "campo": "antecedentes",
+          "mensaje": "Complete antecedentes."
+        },
+        {
+          "campo": "metodologia",
+          "mensaje": "Complete metodología."
+        },
+        {
+          "campo": "resultados",
+          "mensaje": "Complete resultados alcanzados."
+        },
+        {
+          "campo": "discusion",
+          "mensaje": "Complete discusión de resultados."
+        },
+        {
+          "campo": "fortalezas",
+          "mensaje": "Complete fortalezas."
+        },
+        {
+          "campo": "dificultades",
+          "mensaje": "Complete dificultades y limitaciones."
+        },
+        {
+          "campo": "acciones_futuras",
+          "mensaje": "Complete acciones futuras."
+        },
+        {
+          "campo": "lecciones_aprendidas",
+          "mensaje": "Complete lecciones aprendidas."
+        },
+        {
+          "campo": "conclusiones",
+          "mensaje": "Complete conclusiones."
+        },
+        {
+          "campo": "referencias",
+          "mensaje": "Complete referencias."
+        },
+        {
+          "campo": "desarrollo_proyecto",
+          "mensaje": "Complete desarrollo del proyecto."
+        },
+        {
+          "campo": "viabilidad_tecnica",
+          "mensaje": "Complete viabilidad técnica."
+        },
+        {
+          "campo": "viabilidad_operativa",
+          "mensaje": "Complete viabilidad operativa."
+        },
+        {
+          "campo": "viabilidad_economica",
+          "mensaje": "Complete viabilidad económica."
+        },
+        {
+          "campo": "viabilidad_normativa",
+          "mensaje": "Complete viabilidad normativa."
+        },
+        {
+          "campo": "viabilidad_mercado",
+          "mensaje": "Complete viabilidad de mercado."
+        },
+        {
+          "campo": "propiedad_intelectual_transferencia",
+          "mensaje": "Complete propiedad intelectual y transferencia tecnológica."
+        },
+        {
+          "campo": "impacto_proyecto",
+          "mensaje": "Complete impacto del proyecto."
+        },
+        {
+          "campo": "anexos",
+          "mensaje": "Complete anexos."
+        },
+        {
+          "campo": "cumplimiento_objetivos",
+          "mensaje": "Complete cumplimiento de los objetivos."
+        },
+        {
+          "campo": "balance_final",
+          "mensaje": "Complete balance final y asuntos pendientes."
+        }
+      ],
+      "modo_renderizado": "Plantilla GCDTP-F-023 V01 de muestra, completada con datos actuales y pendientes explícitos",
+      "identico_a_muestra": false,
+      "usa_plantilla_muestra": true,
+      "fuente_plantilla": "GCDTP-F-023 V01 (muestra vacía)"
+    },
+    {
+      "archivo": "borradores_generados/registro_evidencias.docx",
+      "tipo": "registro_evidencias",
+      "clave": "registro_evidencias",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "bytes": 39755,
+      "sha256": "f01afb92bc0f88efa020492d2653eba856b61e59c42e2372e7022ab10674faf6",
+      "version_persistida": false,
+      "generable_con_campos_actuales": false,
+      "campos_pendientes": [
+        {
+          "campo": "comunes.presupuesto.0.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.2.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.2.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.3.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.3.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.3.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.4.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.4.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.4.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.5.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.5.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.5.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.6.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.6.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.6.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.7.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.7.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.7.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.presupuesto.8.valor_planeado",
+          "mensaje": "Complete valor planeado."
+        },
+        {
+          "campo": "comunes.presupuesto.8.uso",
+          "mensaje": "Complete descripción de su uso."
+        },
+        {
+          "campo": "comunes.presupuesto.8.fecha_ejecucion",
+          "mensaje": "Complete fecha de ejecución."
+        },
+        {
+          "campo": "comunes.cronograma.0.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.1.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.2.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.3.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "comunes.cronograma.4.resultado",
+          "mensaje": "Complete entregable o resultado."
+        },
+        {
+          "campo": "indice",
+          "mensaje": "Complete índice de evidencias."
+        }
+      ],
+      "modo_renderizado": "Renderer programático de SENNOVA; no se encontró un archivo de muestra del mismo tipo",
+      "identico_a_muestra": false
+    }
+  ],
+  "nota": "Las fuentes originales se copiaron sin cambios. Los borradores se renderizaron desde los datos vigentes; los campos ausentes aparecen como pendientes y no se guardaron en el expediente.",
+  "muestras_exactas": [
+    {
+      "archivo": "muestras_exactas/informe_bimensual__b1.docx",
+      "tipo": "informe_bimensual",
+      "clave": "informe_bimensual__b1",
+      "fuente_original": "fuentes_originales/Informe bimensual.docx",
+      "sha256": "d54c17349867c3aedd409713e31666875039b190e94cb9c63e86f4cc6ece1f0f",
+      "identica_byte_a_byte": true,
+      "es_plantilla_vacia": false
+    },
+    {
+      "archivo": "muestras_exactas/informe_final_plantilla.docx",
+      "tipo": "informe_final",
+      "clave": null,
+      "fuente_original": "fuentes_originales/GCDTP-F-023_V01_Formato_Informe_Final.docx",
+      "sha256": "3f02d01c22ce56cfc42a35b4d37bb2b7f0d2b620a4fa5e681719064ad3747ced",
+      "identica_byte_a_byte": true,
+      "es_plantilla_vacia": true
+    },
+    {
+      "archivo": "muestras_exactas/acta_inicio.docx",
+      "tipo": "acta_inicio",
+      "clave": "acta_inicio",
+      "fuente_original": "fuentes_originales/GIC-F-037ActaIniciodeProyectoSistemaInformacionInvestigacion.docx",
+      "sha256": "4de72506474e9b07fa9b4ea88b35748692116e5c32f35e1d4e697e9adecc1dd9",
+      "identica_byte_a_byte": true,
+      "es_plantilla_vacia": false
+    },
+    {
+      "archivo": "muestras_exactas/presentacion_proyecto.pptx",
+      "tipo": "presentacion_proyecto",
+      "clave": "presentacion_proyecto",
+      "fuente_original": "fuentes_originales/Presentación propuesta investigacion herramienta de indicadores de investigación Final (1).pptx",
+      "sha256": "c34e19b903faf5217851bbfce25be4a9768318cce65d6d3114c32ae398027990",
+      "identica_byte_a_byte": true,
+      "es_plantilla_vacia": false
+    },
+    {
+      "archivo": "muestras_exactas/formulacion_proyecto.docx",
+      "tipo": "formulacion_proyecto",
+      "clave": "formulacion_proyecto",
+      "fuente_original": "fuentes_originales/Proyecto CAPSistema Informacion Investigación (2).docx",
+      "sha256": "bc84a9bad9e1eb103e314308117f56d7ab85d73e08a130b13b6ea531703e8d65",
+      "identica_byte_a_byte": true,
+      "es_plantilla_vacia": false
+    }
+  ],
+  "nota_fidelidad": "Cuando SENNOVA ya tiene un archivo fuente del mismo tipo, el paquete copia ese archivo byte a byte al slot correspondiente. El informe final se llena desde la plantilla GCDTP-F-023 V01 de muestra. Los tipos o períodos sin muestra usan el renderer programático y no se declaran visualmente idénticos.",
+  "cambios_aplicados": [
+    {
+      "tipo": "borrador",
+      "clave": "formulacion_proyecto",
+      "campos": [
+        "referente_teorico",
+        "referencias",
+        "resultados_esperados"
+      ],
+      "fuente": "fuentes_originales/Proyecto CAPSistema Informacion Investigación (2).docx",
+      "sha256": "bc84a9bad9e1eb103e314308117f56d7ab85d73e08a130b13b6ea531703e8d65"
+    }
+  ]
+}

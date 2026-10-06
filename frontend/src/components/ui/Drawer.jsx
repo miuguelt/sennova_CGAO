@@ -150,7 +150,7 @@ export const Drawer = ({
       />
 
       {/* Slide-over Container */}
-      <div className={`absolute inset-y-0 right-0 flex max-w-full ${isExpanded ? 'pl-0 sm:pl-2' : 'pl-0 sm:pl-10'} transition-all duration-300`}>
+      <div className={`absolute inset-y-0 right-0 flex max-w-full ${size === 'full' ? 'pl-0' : isExpanded ? 'pl-0 sm:pl-2' : 'pl-0 sm:pl-10'} transition-all duration-300`}>
         <div
           ref={contentRef}
           className={`${effectiveSizeCls} h-full bg-white shadow-2xl flex flex-col animate-slideInRight border-l border-slate-200/60 relative z-10 transition-all duration-300 ${className}`}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import AuditoriaModule from '../components/admin/AuditoriaModule';
 import CVLACAdminModule from '../components/admin/CVLACAdminModule';
 import StatisticsModule from '../components/dashboard/StatisticsModule';
@@ -35,6 +35,7 @@ vi.mock('../api/reportes', () => ({
     descargarConsolidadoProyectos: vi.fn(), descargarConsolidadoGrupos: vi.fn(),
     descargarConsolidadoProductos: vi.fn(), descargarConsolidadoSemilleros: vi.fn(),
     descargarConsolidadoTalento: vi.fn(),
+    descargarIndicadoresMinciencias: vi.fn(),
   },
 }));
 vi.mock('../api/auth', () => ({
@@ -92,6 +93,7 @@ beforeEach(() => {
     ReportesAPI.descargarConsolidadoProductos,
     ReportesAPI.descargarConsolidadoSemilleros,
     ReportesAPI.descargarConsolidadoTalento,
+    ReportesAPI.descargarIndicadoresMinciencias,
   ]) fn.mockResolvedValue({ filename: 'reporte.xlsx' });
   AuthAPI.updateMe.mockResolvedValue({ nombre: 'Laura Actualizada' });
   AuthAPI.logout.mockResolvedValue({});
@@ -245,6 +247,27 @@ describe('administración CVLAC y auditoría', () => {
 });
 
 describe('analítica institucional y reportes', () => {
+  it('muestra la documentación guardada sin inferir porcentajes por estado o progreso técnico', async () => {
+    ProyectosAPI.list.mockResolvedValue([
+      { id: 'doc-cero', nombre: 'Proyecto finalizado sin documentación', estado: 'Finalizado', progreso: 100, presupuesto_total: 3000, avance_documental: { porcentaje: 0, campos_completados: 0, campos_totales: 10 } },
+      { id: 'doc-parcial', nombre: 'Proyecto con documentación parcial', estado: 'En ejecución', progreso: 99, presupuesto_total: 2000, avance_documental: { porcentaje: 23, campos_completados: 3, campos_totales: 10 } },
+      { id: 'doc-ausente', nombre: 'Proyecto sin resumen documental', estado: 'Finalizado', progreso: 100, presupuesto_total: 1000 },
+    ]);
+    render(<StatisticsModule />);
+    await screen.findByRole('heading', { name: 'Analítica SENNOVA' });
+    expect(screen.getByRole('columnheader', { name: 'Documentación' })).toBeVisible();
+    const cero = screen.getByText('Proyecto finalizado sin documentación').closest('tr');
+    expect(within(cero).getByRole('progressbar', { name: 'Avance documental del proyecto' })).toHaveAttribute('value', '0');
+    const parcial = screen.getByText('Proyecto con documentación parcial').closest('tr');
+    expect(within(parcial).getByRole('progressbar', { name: 'Avance documental del proyecto' })).toHaveAttribute('value', '23');
+    const ausente = screen.getByText('Proyecto sin resumen documental').closest('tr');
+    expect(within(ausente).getByText('Sin información documental')).toBeVisible();
+    expect(within(ausente).queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(within(cero).queryByText('100%')).not.toBeInTheDocument();
+    expect(within(parcial).queryByText('99%')).not.toBeInTheDocument();
+    expect(within(parcial).getByText('$2.000')).toBeVisible();
+  });
+
   it('filtra proyectos por periodo, recarga datos e imprime el consolidado', async () => {
     const { container } = render(<StatisticsModule onNotify={vi.fn()} />);
     expect(await screen.findByRole('heading', { name: 'Analítica SENNOVA' })).toBeVisible();
@@ -266,8 +289,9 @@ describe('analítica institucional y reportes', () => {
     expect(onNotify).toHaveBeenCalledWith(expect.stringMatching(/SENN-INVESTIG/), 'success');
     fireEvent.click(screen.getByRole('button', { name: /Consolidados/i }));
 
+    expect(screen.getAllByRole('combobox')).toHaveLength(5);
     const generateButtons = screen.getAllByRole('button', { name: /GENERAR/i });
-    expect(generateButtons).toHaveLength(5);
+    expect(generateButtons).toHaveLength(6);
     for (const button of generateButtons) {
       await act(async () => {
         fireEvent.click(button);
@@ -279,6 +303,7 @@ describe('analítica institucional y reportes', () => {
     expect(ReportesAPI.descargarConsolidadoProductos).toHaveBeenCalled();
     expect(ReportesAPI.descargarConsolidadoSemilleros).toHaveBeenCalled();
     expect(ReportesAPI.descargarConsolidadoTalento).toHaveBeenCalled();
+    expect(ReportesAPI.descargarIndicadoresMinciencias).toHaveBeenCalledWith(new Date().getFullYear());
     expect(onNotify).toHaveBeenCalledWith(expect.stringMatching(/reporte "reporte.xlsx"/), 'success');
   });
 

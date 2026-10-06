@@ -36,6 +36,9 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 import StatusBadge from '../ui/StatusBadge';
 import ProyectoEquipoTab from '../projects/ProyectoEquipoTab';
 import ProjectEvidenceFile from '../projects/ProjectEvidenceFile';
+import ProjectDocumentationEditor from '../projects/ProjectDocumentationEditor';
+import ProjectDocumentationProgress from '../projects/ProjectDocumentationProgress';
+import ProjectSourceDocuments from '../projects/ProjectSourceDocuments';
 import UserInsightPanel from '../users/UserInsightPanel';
 import MoverProyectoSemilleroModal from '../projects/MoverProyectoSemilleroModal';
 
@@ -73,12 +76,6 @@ const TIPOLOGIAS_PRODUCTO = [
   { value: 'Libro / Capítulo', label: 'Libro o Capítulo de Investigación' },
   { value: 'Patente / Modelo', label: 'Patente o Modelo de Utilidad' },
   { value: 'Informe Técnico', label: 'Informe Técnico Final' },
-];
-
-const MODELOS_REFERENCIA = [
-  { id: 'etapa_productiva', nombre: 'Planeación de etapa productiva' },
-  { id: 'seguimiento',      nombre: 'Seguimiento técnico' },
-  { id: 'informe_final',    nombre: 'Informe final de proyecto' },
 ];
 
 const EMPTY_PROJECT_FORM = {
@@ -279,13 +276,12 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
   // ── Modales de Proyecto (CRUD Unificado) ──
   const [selectedProyecto, setSelectedProyecto] = useState(null);
   const [isProjectDrawerOpen, setIsProjectDrawerOpen] = useState(false);
-  const [projectDrawerTab, setProjectDrawerTab] = useState('summary');
+  const [projectDrawerTab, setProjectDrawerTab] = useState('documentation');
   const [showProjectFormModal, setShowProjectFormModal] = useState(false);
   const [isEditingProject, setIsEditingProject] = useState(false);
   const [projectFormData, setProjectFormData] = useState(EMPTY_PROJECT_FORM);
   const [savingProject, setSavingProject] = useState(false);
   const [showDeleteProjectConfirm, setShowDeleteProjectConfirm] = useState({ isOpen: false, id: null, nombre: '' });
-  const [generatingFormatId, setGeneratingFormatId] = useState(null);
   const [showLiquidationModal, setShowLiquidationModal] = useState(false);
   const [showElaboracionModal, setShowElaboracionModal] = useState(false);
   const [projectToMove, setProjectToMove] = useState(null);
@@ -423,7 +419,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
   // ─── Proyectos CRUD Handlers ──────────────────────────────────────────────
   const handleOpenProjectDetail = (p) => {
     setSelectedProyecto(p);
-    setProjectDrawerTab('summary');
+    setProjectDrawerTab('documentation');
     setIsProjectDrawerOpen(true);
   };
 
@@ -515,54 +511,6 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
       await loadData();
     } catch (err) {
       onNotify?.('Error al desvincular miembro: ' + err.message, 'error');
-    }
-  };
-
-  const handleGenerateFormat = async (formatId, p) => {
-    const target = p || selectedProyecto;
-    if (!target) return;
-    setGeneratingFormatId(formatId);
-    try {
-      if (formatId === 'etapa_productiva') {
-        let fullTarget = target;
-        try {
-          const loaded = await ProyectosAPI.get(target.id);
-          if (loaded && loaded.id) fullTarget = loaded;
-        } catch {
-          // fallback to target
-        }
-        PDFGenerator.generateEtapaProductiva(fullTarget);
-      } else if (formatId === 'seguimiento') {
-        let fullTarget = target;
-        try {
-          const loaded = await ProyectosAPI.get(target.id);
-          if (loaded && loaded.id) fullTarget = loaded;
-        } catch {
-          // fallback to target
-        }
-        PDFGenerator.generateSeguimiento(fullTarget);
-      } else if (formatId === 'informe_final') {
-        let fullTarget = target;
-        try {
-          const loaded = await ProyectosAPI.get(target.id);
-          if (loaded && loaded.id) fullTarget = loaded;
-        } catch {
-          // fallback to target
-        }
-        PDFGenerator.generateInformeFinal(fullTarget);
-      } else if (formatId === 'presupuesto') {
-        try {
-          const data = await PlantillasAPI.getReportePresupuesto(target.id);
-          PDFGenerator.generateBudgetReport(data);
-        } catch {
-          PDFGenerator.generateBudgetReport({ proyecto: target });
-        }
-      }
-      onNotify?.('PDF de referencia generado correctamente', 'success');
-    } catch (err) {
-      onNotify?.('Error al generar formato: ' + err.message, 'error');
-    } finally {
-      setGeneratingFormatId(null);
     }
   };
 
@@ -1136,7 +1084,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
               { label: 'Aprendices', value: stats?.total_aprendices || aprendicesGrupo.length || 0, icon: Star, action: () => setShowAprendicesModal(true), hint: 'Abrir directorio de aprendices' },
               { label: 'Investigadores', value: investigadores.length, icon: Users, action: () => setActiveTab('gruplac'), hint: 'Ver investigadores CvLAC' },
               { label: 'Productos I+D', value: stats?.total_productos || productosGrupo.length || 0, icon: Award, action: () => setShowProductosModal(true), hint: 'Abrir catálogo de productos' },
-              { label: 'Proyectos', value: stats?.total_proyectos || proyectosGrupo.length || 0, icon: FolderOpen, action: () => setActiveTab('proyectos'), hint: 'Ver proyectos y avance' },
+              { label: 'Proyectos', value: stats?.total_proyectos || proyectosGrupo.length || 0, icon: FolderOpen, action: () => setActiveTab('proyectos'), hint: 'Ver proyectos y documentación' },
               { label: 'Líneas I+D', value: lineas.length, icon: Target, action: () => setActiveTab('lineas'), hint: 'Ver líneas temáticas' },
             ].map(({ label, value, icon: Icon, action, hint }) => (
               <div
@@ -1164,11 +1112,11 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
         <ScrollableTabs
           tabs={[
             { id: 'stats', label: 'Estadísticas e Indicadores', icon: BarChart3 },
-            { id: 'proyectos', label: 'Proyectos & Avance', icon: FolderOpen, count: proyectosGrupo.length },
+            { id: 'proyectos', label: 'Proyectos y documentación', icon: FolderOpen, count: proyectosGrupo.length },
             { id: 'semilleros', label: 'Semilleros', icon: GraduationCap, count: semilleros.length },
             { id: 'lineas', label: 'Líneas de Investigación', icon: Target, count: lineas.length },
             { id: 'info', label: 'Información Institucional', icon: Info },
-            { id: 'plan', label: 'Plan Operativo & Formatos', icon: FileText },
+            { id: 'plan', label: 'Plan anual del grupo', icon: FileText },
             { id: 'gruplac', label: 'Control GrupLAC / CvLAC', icon: Globe }
           ]}
           activeTab={activeTab}
@@ -1233,7 +1181,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                 value={stats?.total_proyectos || proyectosGrupo.length || 0}
                 icon={FolderOpen}
                 color="indigo"
-                subtext={`Cumplimiento promedio: ${stats?.cumplimiento || stats?.avance_promedio || 0}%`}
+                subtext={stats?.avance_documental ? `Avance documental: ${stats.avance_documental.porcentaje}%` : 'Construye la documentación de los proyectos'}
                 onClick={() => setActiveTab('proyectos')}
               />
               <StatCard
@@ -1437,10 +1385,10 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <FolderOpen size={16} className="text-emerald-600" /> Proyectos de Investigación & Avance Institucional
+                  <FolderOpen size={16} className="text-emerald-600" /> Proyectos de investigación y documentación
                 </h2>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Seguimiento del progreso técnico, entregables aprobados y ejecución presupuestal de los proyectos del grupo.
+                  Construye la documentación de los proyectos y consulta sus requisitos, versiones y presupuesto.
                 </p>
               </div>
 
@@ -1473,28 +1421,18 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
               <div className="relative z-10 space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
-                      Avance Técnico Global del Grupo
-                    </span>
-                    <h3 className="text-2xl sm:text-3xl font-black mt-0.5">
-                      {stats?.avance_promedio || 0}% <span className="text-xs font-normal text-slate-300 opacity-80">promedio ponderado</span>
-                    </h3>
+                    <h3 className="text-lg sm:text-xl font-black">Documentación de los proyectos del grupo</h3>
+                    <p className="mt-1 text-sm text-slate-200">El avance reúne la información guardada y los documentos vigentes de los proyectos vinculados.</p>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs">
-                    <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
-                      {stats?.entregables_aprobados || 0} / {stats?.entregables_totales || 0} Entregables Aprobados
-                    </Badge>
                     <Badge className="bg-white/10 text-white border-white/20">
                       {proyectosGrupo.length} Proyectos Vinculados
                     </Badge>
                   </div>
                 </div>
 
-                <div className="w-full bg-slate-700/60 h-3.5 rounded-full overflow-hidden p-0.5 ring-1 ring-white/10">
-                  <div 
-                    className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-1000 shadow-[0_0_12px_rgba(16,185,129,0.5)]"
-                    style={{ width: `${Math.min(100, Math.max(0, stats?.avance_promedio || 0))}%` }}
-                  />
+                <div className="rounded-2xl bg-white p-4 text-slate-900">
+                  <ProjectDocumentationProgress summary={stats?.avance_documental} />
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-white/10 text-center sm:text-left">
@@ -1568,7 +1506,6 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                 </div>
               ) : (
                 filteredProyectos.map(p => {
-                  const avance = Number(p.avance_porcentaje) || 0;
                   const estadoBadgeColor = 
                     p.estado === 'Finalizado' ? 'bg-slate-100 text-slate-700 border-slate-200' :
                     p.estado === 'En ejecución' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
@@ -1630,30 +1567,10 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
 
                       {/* Barra de Progreso y Acciones */}
                       <div className="lg:w-72 flex-shrink-0 bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2.5">
-                        <div className="flex justify-between items-center text-xs font-black">
-                          <span className="text-slate-500 uppercase text-[10px] tracking-wider">Avance Técnico</span>
-                          <span className="text-emerald-700">{avance}%</span>
-                        </div>
-
-                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full transition-all duration-700 ${
-                              avance >= 100 ? 'bg-emerald-500' :
-                              avance >= 50 ? 'bg-teal-500' :
-                              avance > 0 ? 'bg-amber-500' : 'bg-slate-300'
-                            }`}
-                            style={{ width: `${Math.min(100, Math.max(0, avance))}%` }}
-                          />
-                        </div>
-
-                        <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 pt-1">
-                          <span>
-                            {p.entregables_aprobados || 0} / {p.total_entregables || 0} entregables
-                          </span>
-                          <span className="text-emerald-700 group-hover:text-emerald-800 font-black flex items-center gap-0.5">
-                            Ver detalles & CRUD <ChevronRight size={12} />
-                          </span>
-                        </div>
+                        <ProjectDocumentationProgress summary={p.avance_documental} compact />
+                        <Button variant="sena" className="w-full" onClick={(event) => { event.stopPropagation(); handleOpenProjectDetail(p); }}>
+                          Construir documentación <ChevronRight size={14} />
+                        </Button>
                       </div>
                     </div>
                   );
@@ -1925,19 +1842,19 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
           </div>
         )}
 
-        {/* ─── PESTAÑA 6: Plan Operativo & Formatos ──────────────────── */}
+        {/* ─── PESTAÑA 6: Plan anual independiente del grupo ─────────── */}
         {activeTab === 'plan' && (
           <div className="p-6 sm:p-8 animate-fadeIn space-y-6">
             <div>
               <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <FolderOpen size={16} className="text-emerald-600" /> Plan Operativo & Documentación SENNOVA
+                <FolderOpen size={16} className="text-emerald-600" /> Plan Operativo del Grupo
               </h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Gestión del plan operativo anual y acceso a formatos estándar de investigación formativa.
+                Espacio opcional para el plan anual del grupo. Este archivo no hace parte de los documentos requeridos en el expediente de cada proyecto.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6">
               {/* Plan Operativo del Centro */}
               <div className="p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white hover:border-emerald-300 transition-colors flex flex-col justify-between">
                 <div>
@@ -2000,52 +1917,6 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                 </div>
               </div>
 
-              {/* Modelos de referencia */}
-              <div className="p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white hover:border-indigo-300 transition-colors flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="p-3 bg-indigo-50 text-indigo-700 rounded-xl">
-                      <BookOpen size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black text-slate-900">Modelos de referencia SENNOVA</h3>
-                      <p className="text-xs text-slate-500 font-medium">PDF generados con datos del registro</p>
-                    </div>
-                  </div>
-
-                  <p role="note" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
-                    Estos PDF se generan como modelos de referencia. Confirme el formato institucional vigente con la Coordinación SENNOVA antes de presentarlos o radicarlos.
-                  </p>
-                  <div className="space-y-2 mb-4">
-                    {MODELOS_REFERENCIA.map(f => (
-                      <div key={f.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-bold text-slate-800">{f.nombre}</p>
-                          <span className="text-[10px] text-slate-500">Modelo interno de referencia</span>
-                        </div>
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          onClick={() => handleGenerateFormat(f.id, proyectosGrupo[0])}
-                          className="text-[11px]"
-                        >
-                          Generar PDF
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-100">
-                  <Button
-                    onClick={() => onNavigate?.('repositorio')}
-                    variant="outline"
-                    className="w-full text-xs font-bold border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                  >
-                    <BookOpen size={14} className="mr-2" /> Ir al Repositorio Documental Completo
-                  </Button>
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -2171,7 +2042,10 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
       <Drawer
         isOpen={isProjectDrawerOpen && !!selectedProyecto}
         onClose={() => setIsProjectDrawerOpen(false)}
-        size="lg"
+        size="full"
+        allowExpand={false}
+        className="project-workspace"
+        bodyClassName="project-workspace-body"
         variant="emerald"
         title={selectedProyecto?.nombre_corto || selectedProyecto?.nombre}
         subtitle={`Código SGPS: ${selectedProyecto?.codigo_sgps || 'S/C'} • ${selectedProyecto?.tipologia || 'Innovación'}`}
@@ -2201,11 +2075,11 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
           )
         }
         tabs={[
+          { id: 'documentation', label: 'Documentación', icon: FileText },
           { id: 'summary', label: 'Resumen & Presupuesto', icon: DollarSign },
           { id: 'evidence', label: 'Expediente', icon: FolderOpen },
           { id: 'team', label: 'Equipo', icon: Users },
           { id: 'timeline', label: 'Línea de Tiempo', icon: Clock3 },
-          { id: 'formats', label: 'Formatos', icon: FileText },
         ]}
         activeTab={projectDrawerTab}
         onTabChange={setProjectDrawerTab}
@@ -2228,6 +2102,9 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
       >
         {selectedProyecto && (
           <div>
+            <div hidden={projectDrawerTab !== 'documentation'}>
+              <ProjectDocumentationEditor key={selectedProyecto.id} projectId={selectedProyecto.id} currentUser={currentUser} onNotify={onNotify} initialOpened workspace />
+            </div>
             {projectDrawerTab === 'summary' && (
               <div className="space-y-6 animate-fadeIn">
                 <section>
@@ -2320,10 +2197,12 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
 
             {projectDrawerTab === 'evidence' && (
               <div className="space-y-6 animate-fadeIn">
+                <ProjectSourceDocuments projectId={selectedProyecto.id} />
                 <ProjectEvidenceFile
                   projectId={selectedProyecto.id}
                   currentUser={currentUser}
                   onNotify={onNotify}
+                  showConstructor={false}
                 />
               </div>
             )}
@@ -2345,83 +2224,6 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
               <ProjectTimeline entregables={selectedProyecto.entregables || []} />
             )}
 
-            {projectDrawerTab === 'formats' && (
-              <div className="space-y-4 animate-fadeIn">
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-3">
-                  <div className="flex items-start gap-3">
-                    <FolderOpen size={20} className="text-emerald-700 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider">
-                        Expediente y Carpetas Institucionales SENNOVA (SharePoint)
-                      </h4>
-                      <p className="text-xs text-emerald-900 mt-1">
-                        Consulte o genere la documentación oficial en las 7 carpetas del grupo de investigación: Formulación, Acta de inicio, Productos, Informes bimensuales, Acta de cierre, Evidencias fotográficas y Borradores.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <Button
-                      variant="sena"
-                      size="xs"
-                      onClick={() => setProjectDrawerTab('evidence')}
-                      className="text-xs font-bold"
-                    >
-                      <FolderOpen size={13} className="mr-1.5" /> Ver Carpetas y Construir Documentación
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      onClick={async () => {
-                        try {
-                          const blob = await ProyectosAPI.downloadExpediente(selectedProyecto.id);
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `expediente-${selectedProyecto.codigo_sgps || selectedProyecto.id}.zip`;
-                          document.body.appendChild(a);
-                          a.click();
-                          a.remove();
-                          URL.revokeObjectURL(url);
-                          onNotify?.('Descarga del expediente en ZIP iniciada.', 'success');
-                        } catch (err) {
-                          onNotify?.('Error al descargar expediente: ' + err.message, 'error');
-                        }
-                      }}
-                      className="border-emerald-300 text-emerald-800 bg-white hover:bg-emerald-100/50 text-xs font-bold"
-                    >
-                      <Download size={13} className="mr-1.5" /> Descargar Expediente Completo (ZIP)
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-1">Modelos de referencia SENNOVA</h4>
-                  <p className="text-xs text-slate-500">PDF generados con los datos registrados para facilitar el seguimiento.</p>
-                </div>
-
-                <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
-                  Estos PDF se generan como modelos de referencia. Confirme el formato institucional vigente con la Coordinación SENNOVA antes de presentarlos o radicarlos.
-                </p>
-                <div className="space-y-2.5">
-                  {MODELOS_REFERENCIA.map(f => (
-                    <div key={f.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-bold text-slate-800">{f.nombre}</p>
-                        <span className="text-[10px] text-slate-500">Modelo interno de referencia</span>
-                      </div>
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        onClick={() => handleGenerateFormat(f.id, selectedProyecto)}
-                        disabled={generatingFormatId === f.id}
-                      >
-                        {generatingFormatId === f.id ? <Loader2 size={12} className="animate-spin" /> : 'Descargar'}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </Drawer>
@@ -2658,7 +2460,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                   return proys.map(p => (
                     <div
                       key={p.id}
-                      className="p-3.5 bg-white border border-slate-200 hover:border-emerald-400 rounded-xl flex items-center justify-between gap-3 group shadow-xs"
+                      className="p-4 bg-white border border-slate-200 hover:border-emerald-400 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 group shadow-xs"
                     >
                       <div
                         className="flex-1 min-w-0 cursor-pointer"
@@ -2671,6 +2473,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                           {p.nombre_corto || p.nombre}
                         </p>
                         <p className="text-[10px] text-slate-400 font-mono mt-0.5">SGPS: {p.codigo_sgps || 'S/C'} • {p.estado}</p>
+                        <ProjectDocumentationProgress summary={p.avance_documental} compact />
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {canManageRecord(p) && (
@@ -2687,14 +2490,12 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                             <span className="hidden sm:inline text-[10px]">Mover</span>
                           </button>
                         )}
-                        <ChevronRight 
-                          size={14} 
-                          className="text-slate-300 group-hover:text-emerald-600 transition-colors cursor-pointer" 
+                        <Button variant="sena"
                           onClick={() => {
                             setIsSemilleroDrawerOpen(false);
                             handleOpenProjectDetail(p);
                           }}
-                        />
+                        >Construir documentación <ChevronRight size={14} /></Button>
                       </div>
                     </div>
                   ));

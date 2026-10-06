@@ -28,10 +28,11 @@ DEV_USERS = [
 
 
 def seed():
-    from app.database import SessionLocal, engine, Base
+    from app.database import SessionLocal, engine
     from app.models import User
+    from app.services.database_startup import initialize_schema
 
-    Base.metadata.create_all(bind=engine)
+    initialize_schema(engine)
     db = SessionLocal()
 
     print(f"\n🌱 DevAuth Bootstrap — {PROJECT_NAME.upper()}")

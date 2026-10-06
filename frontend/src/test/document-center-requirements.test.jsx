@@ -19,31 +19,16 @@ vi.mock('../utils/pdfGenerator', () => ({
   PDFGenerator: { generateMonthlyReport: vi.fn() },
 }));
 
-vi.mock('../data/sennovaFormats', () => ({
-  SENNOVA_FORMATS: [{
-    id: 'modelo-prueba',
-    codigo: 'GIC-F-001',
-    titulo: 'Modelo con requisitos de evidencia',
-    categoria: 'contractual',
-    categoriaLabel: 'Gestión Contractual',
-    color: 'emerald',
-    extension: 'html',
-    descripcion: 'Modelo usado para validar la presentación de requisitos.',
-    aplicaA: 'Proyectos de investigación',
-    requisitos: ['Soporte del proyecto', 'Aprobación del instructor'],
-    templateContent: 'Contenido de referencia',
-  }],
-  downloadFormatTemplate: vi.fn(),
-}));
-
-describe('DocumentCenterModule, presentación de requisitos', () => {
+describe('DocumentCenterModule, alcance de documentos', () => {
   afterEach(cleanup);
 
-  it('muestra cada requisito disponible en la tarjeta del modelo', async () => {
+  it('no muestra requisitos de modelos internos sin respaldo documental', async () => {
     render(<DocumentCenterModule currentUser={{ id: 'admin-1', rol: 'admin' }} />);
 
-    expect(await screen.findByText('Modelo con requisitos de evidencia')).toBeInTheDocument();
-    expect(screen.getByText('Soporte del proyecto')).toBeInTheDocument();
-    expect(screen.getByText('Aprobación del instructor')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Bóveda de Evidencias CGAO/i })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Modelos de referencia/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Modelo con requisitos de evidencia')).not.toBeInTheDocument();
+    expect(screen.queryByText('Soporte del proyecto')).not.toBeInTheDocument();
+    expect(screen.queryByText('Aprobación del instructor')).not.toBeInTheDocument();
   });
 });

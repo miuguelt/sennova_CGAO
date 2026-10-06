@@ -13,6 +13,7 @@ import {
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
+import ProjectDocumentationProgress from '../projects/ProjectDocumentationProgress';
 import { DashboardAPI } from '../../api/dashboard';
 import { ProyectosAPI } from '../../api/proyectos';
 
@@ -260,7 +261,7 @@ const StatisticsModule = ({ onNotify }) => {
                 <th className="px-8 py-4 text-[10px] font-black text-slate-700 uppercase tracking-widest">Líder</th>
                 <th className="px-8 py-4 text-[10px] font-black text-slate-700 uppercase tracking-widest">Productos</th>
                 <th className="px-8 py-4 text-[10px] font-black text-slate-700 uppercase tracking-widest text-right">Inversión</th>
-                <th className="px-8 py-4 text-[10px] font-black text-slate-700 uppercase tracking-widest text-center">Eficiencia</th>
+                <th className="px-8 py-4 text-[10px] font-black text-slate-700 uppercase tracking-widest text-center">Documentación</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -285,17 +286,7 @@ const StatisticsModule = ({ onNotify }) => {
                     ${(p.presupuesto_total || 0).toLocaleString('es-CO')}
                   </td>
                   <td className="px-8 py-5">
-                    {(() => {
-                      const prog = Math.round(Number(p.progreso) || (p.estado === 'Finalizado' ? 100 : (p.estado === 'En ejecución' ? 50 : 0)));
-                      return (
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${prog}%` }} />
-                          </div>
-                          <span className="text-[10px] font-black text-emerald-600 tabular-nums">{prog}%</span>
-                        </div>
-                      );
-                    })()}
+                    {p.avance_documental ? <ProjectDocumentationProgress summary={p.avance_documental} compact /> : <span className="text-xs text-slate-600">Sin información documental</span>}
                   </td>
                 </tr>
               ))}
@@ -310,7 +301,7 @@ const StatisticsModule = ({ onNotify }) => {
         <div className="space-y-1">
           <p className="text-sm font-black text-amber-900">Nota sobre la veracidad de los datos</p>
           <p className="text-xs text-amber-800 leading-relaxed font-medium">
-            Las estadísticas presentadas se calculan en tiempo real con los datos de proyectos, entregables aprobados y productos cargados al sistema. Consulte los reportes disponibles para revisar el avance institucional.
+            El avance documental reúne la información guardada y los documentos vigentes de cada proyecto. El estado administrativo no determina este porcentaje. Consulte los reportes disponibles para revisar los demás indicadores institucionales.
           </p>
         </div>
       </div>

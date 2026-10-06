@@ -300,11 +300,8 @@ class Proyecto(Base):
     presupuesto_detallado = Column(JSON)  # { "personal": 0, "materiales": 0, ... }
     linea_programatica = Column(String(100))  # Ej: 65, 82, etc.
     
-    # ── Formatos de Etapa Productiva ─────────────────────────────────
-    formato_bitacora_path = Column(String(255))     # Formato de bitácora subido
-    formato_seguimiento_path = Column(String(255))  # Formato de seguimiento subido
-    informe_final_path = Column(String(255))        # Informe final subido
-    # ─────────────────────────────────────────────────────────────────
+    # Ruta heredada de informe final. Los documentos nuevos se registran en Documento.
+    informe_final_path = Column(String(255))
     
     # Vinculación con Retos, Semilleros y Grupos de Investigación
     reto_origen_id = get_uuid_column(ForeignKey("retos.id"))
@@ -326,7 +323,6 @@ class Proyecto(Base):
     equipo = relationship("User", secondary=proyecto_equipo, back_populates="proyectos_miembro")
     productos = relationship("Producto", back_populates="proyecto")
     entregables = relationship("Entregable", back_populates="proyecto", lazy="dynamic", cascade="all, delete-orphan")
-    bitacora = relationship("BitacoraEntry", back_populates="proyecto", cascade="all, delete-orphan")
 
 
 class Producto(Base):
@@ -505,38 +501,6 @@ class Reto(Base):
     owner = relationship("User")
     semillero_asignado = relationship("Semillero")
     proyectos_vinculados = relationship("Proyecto", backref="reto_origen")
-
-
-
-class BitacoraEntry(Base):
-    """Entradas de bitácora técnica de proyectos"""
-    __tablename__ = "bitacora_entries"
-    
-    id = get_uuid_column(primary_key=True, default=uuid.uuid4)
-    proyecto_id = get_uuid_column(ForeignKey("proyectos.id", ondelete="CASCADE"), nullable=False)
-    user_id = get_uuid_column(ForeignKey("users.id"), nullable=False) # Creador de la entrada
-    
-    fecha = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    titulo = Column(String(255), nullable=False)
-    contenido = Column(Text, nullable=False)
-    categoria = Column(String(50)) # técnica, administrativa, observación, resultado
-    adjuntos = Column(JSON, nullable=True) # Lista de URLs o metadatos de archivos
-    
-    # Sistema de Firma Digital Dual
-    is_firmado_investigador = Column(Boolean, default=False)
-    fecha_firma_investigador = Column(DateTime)
-    
-    is_firmado_aprendiz = Column(Boolean, default=False)
-    fecha_firma_aprendiz = Column(DateTime)
-    
-    # Evidencia técnica de la firma (Hash, IP, UserAgent)
-    signature_metadata = Column(JSON, nullable=True) 
-    
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    
-    # Relaciones
-    proyecto = relationship("Proyecto", back_populates="bitacora")
-    user = relationship("User")
 
 
 

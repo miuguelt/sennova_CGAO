@@ -652,49 +652,6 @@ class AuditLogResponse(BaseModel):
 
 
 # ==========================================
-# BITACORA SCHEMAS
-# ==========================================
-
-class BitacoraBase(BaseModel):
-    titulo: str
-    contenido: str
-    categoria: Optional[str] = "técnica" # técnica, administrativa, observación, resultado
-    fecha: Optional[datetime] = None
-    adjuntos: Optional[List[dict]] = None # Soporta lista de metadatos de archivos
-
-class BitacoraCreate(BitacoraBase):
-    proyecto_id: UUID
-
-class BitacoraUpdate(BaseModel):
-    titulo: Optional[str] = None
-    contenido: Optional[str] = None
-    categoria: Optional[str] = None
-    fecha: Optional[datetime] = None
-    adjuntos: Optional[List[dict]] = None
-
-class BitacoraSignRequest(BaseModel):
-    pin: Optional[str] = None # Para futura validación extra si se desea
-    evidence: Optional[dict] = None
-
-class BitacoraResponse(BitacoraBase):
-    id: UUID
-    proyecto_id: UUID
-    user_id: UUID
-    user_nombre: Optional[str] = None
-    
-    is_firmado_investigador: bool = False
-    fecha_firma_investigador: Optional[datetime] = None
-    
-    is_firmado_aprendiz: bool = False
-    fecha_firma_aprendiz: Optional[datetime] = None
-    
-    signature_metadata: Optional[dict] = None
-    created_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# ==========================================
 # MENSAJERÍA SCHEMAS
 # ==========================================
 

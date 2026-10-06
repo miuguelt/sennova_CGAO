@@ -19,12 +19,13 @@ vi.mock('../api/semilleros', () => ({ SemillerosAPI: {
 } }));
 vi.mock('../api/usuarios', () => ({ UsuariosAPI: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn() } }));
 vi.mock('../api/proyectos', () => ({ ProyectosAPI: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), addEquipo: vi.fn(), removeEquipo: vi.fn(), downloadExpediente: vi.fn(), getExpediente: vi.fn() } }));
+vi.mock('../api/documentos', () => ({ DocumentosAPI: { getProyectoDocumentos: vi.fn().mockResolvedValue([]), download: vi.fn() } }));
+vi.mock('../api/projectDocumentation', () => ({ ProjectDocumentationAPI: { get: vi.fn().mockResolvedValue({ proyecto: { id: 'p-1', nombre: 'Proyecto de Pectina' }, revision: 1, comunes: {}, campos_comunes: [], documentos: [] }) } }));
 vi.mock('../api/productos', () => ({ ProductosAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() } }));
 vi.mock('../api/aprendices', () => ({ AprendicesAPI: { list: vi.fn() } }));
 vi.mock('../api/plantillas', () => ({ PlantillasAPI: { getReportePresupuesto: vi.fn(), getDatosCertificado: vi.fn() } }));
 vi.mock('../api/reportes', () => ({ ReportesAPI: { descargarConsolidadoGrupos: vi.fn() } }));
 vi.mock('../utils/pdfGenerator', () => ({ PDFGenerator: {
-  generateEtapaProductiva: vi.fn(), generateSeguimiento: vi.fn(), generateInformeFinal: vi.fn(),
   generateBudgetReport: vi.fn(), generateProjectPDF: vi.fn(), generateCertificate: vi.fn(),
 } }));
 vi.mock('../components/projects/MoverProyectoSemilleroModal', () => ({ default: ({ isOpen, onClose, onSuccess, proyecto }) => (
@@ -386,17 +387,14 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     expect(GruposAPI.list).not.toHaveBeenCalled();
   });
 
-  it('usa los datos del proyecto como respaldo si no se puede cargar el proyecto completo para un formato', async () => {
-    ProyectosAPI.get.mockRejectedValue(new Error('Proyecto no disponible'));
+  it('no expone formatos internos paralelos a la documentación del proyecto', async () => {
     render(<GrupoModule currentUser={admin} onNotify={vi.fn()} />);
     await screen.findByText('GIDTA');
     fireEvent.click(document.getElementById('tab-proyectos'));
     fireEvent.click(screen.getByText('Pectina').closest('.cursor-pointer'));
-    fireEvent.click(await screen.findByRole('tab', { name: 'Formatos' }));
-    for (const download of screen.getAllByRole('button', { name: 'Descargar' })) fireEvent.click(download);
-    await waitFor(() => expect(PDFGenerator.generateEtapaProductiva).toHaveBeenCalledWith(proyecto));
-    expect(PDFGenerator.generateSeguimiento).toHaveBeenCalledWith(proyecto);
-    expect(PDFGenerator.generateInformeFinal).toHaveBeenCalledWith(proyecto);
+    await screen.findByRole('tab', { name: 'Documentación' });
+    expect(screen.queryByRole('tab', { name: 'Formatos' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/etapa productiva|bitácora/i)).not.toBeInTheDocument();
   });
 
   it('informa los errores al guardar proyectos, semilleros, productos e investigadores', async () => {
@@ -720,25 +718,20 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     expect(notify).toHaveBeenCalledWith('Línea de investigación eliminada', 'success');
   });
 
-  it('sube un plan operativo y genera los formatos de referencia del grupo', async () => {
+  it('sube el plan anual del grupo y no mezcla formatos de investigación no confirmados', async () => {
     const notify = vi.fn();
     const onNavigate = vi.fn();
     const file = new File(['plan anual'], 'plan-2026.pdf', { type: 'application/pdf' });
     render(<GrupoModule currentUser={admin} onNotify={notify} onNavigate={onNavigate} initialAction={{ form: 'view', data: { tab: 'plan' } }} />);
-    expect(await screen.findByRole('heading', { name: 'Plan Operativo & Documentación SENNOVA' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Plan Operativo del Grupo' })).toBeVisible();
+    expect(screen.getByText(/no hace parte de los documentos requeridos en el expediente/i)).toBeVisible();
     const uploadInput = screen.getByText('Subir Plan Operativo').closest('label').querySelector('input[type="file"]');
     fireEvent.change(uploadInput, { target: { files: [file] } });
     await waitFor(() => expect(GruposAPI.uploadPlanOperativo).toHaveBeenCalledWith('g-1', file));
     expect(notify).toHaveBeenCalledWith('Plan operativo subido exitosamente', 'success');
 
-    for (const button of screen.getAllByRole('button', { name: 'Generar PDF' })) fireEvent.click(button);
-    await waitFor(() => {
-      expect(PDFGenerator.generateEtapaProductiva).toHaveBeenCalledWith(proyecto);
-      expect(PDFGenerator.generateSeguimiento).toHaveBeenCalledWith(proyecto);
-      expect(PDFGenerator.generateInformeFinal).toHaveBeenCalledWith(proyecto);
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Ir al Repositorio Documental Completo' }));
-    expect(onNavigate).toHaveBeenCalledWith('repositorio');
+    expect(screen.queryByRole('button', { name: 'Generar PDF' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/etapa productiva|bitácora/i)).not.toBeInTheDocument();
   });
 
   it('calcula rubros presupuestales desde los conceptos y muestra hitos con entregables', async () => {
@@ -769,6 +762,7 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'en ejecución' } });
     fireEvent.click(screen.getByText('Pectina').closest('.cursor-pointer'));
     const drawer = await screen.findByRole('dialog', { name: /Pectina/ });
+    fireEvent.click(within(drawer).getByRole('tab', { name: 'Resumen & Presupuesto' }));
     expect(within(drawer).getByText('$300.000 (25.0%)')).toBeVisible();
     expect(within(drawer).getByText('$150.000 (12.5%)')).toBeVisible();
     fireEvent.click(within(drawer).getByRole('tab', { name: 'Línea de Tiempo' }));
@@ -855,8 +849,8 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     const productCatalog = await screen.findByRole('dialog', { name: /Catálogo de Productos/ });
     fireEvent.click(within(productCatalog).getByRole('button', { name: 'Cerrar ventana modal' }));
 
-    fireEvent.click(screen.getByTitle('Ver proyectos y avance'));
-    expect(screen.getByRole('heading', { name: /Proyectos de Investigación & Avance Institucional/ })).toBeVisible();
+    fireEvent.click(screen.getByTitle('Ver proyectos y documentación'));
+    expect(screen.getByRole('heading', { name: 'Proyectos de investigación y documentación' })).toBeVisible();
     fireEvent.click(screen.getByRole('tab', { name: 'Estadísticas e Indicadores' }));
     fireEvent.click(screen.getByTitle('Ver líneas temáticas'));
     expect(screen.getByRole('heading', { name: 'Líneas de Investigación del Grupo CGAO' })).toBeVisible();
@@ -876,7 +870,7 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     fireEvent.click(within(catalog).getByRole('button', { name: 'Cerrar ventana modal' }));
 
     fireEvent.click(screen.getByText('Proyectos I+D+i').closest('.cursor-pointer'));
-    expect(screen.getByRole('heading', { name: /Proyectos de Investigación & Avance Institucional/ })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Proyectos de investigación y documentación' })).toBeVisible();
     fireEvent.click(screen.getByRole('tab', { name: 'Estadísticas e Indicadores' }));
 
     fireEvent.click(screen.getByText('Aprendices Semilleristas').closest('.cursor-pointer'));
@@ -892,7 +886,7 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     const managedCatalog = await screen.findByRole('dialog', { name: /Catálogo de Productos/ });
     fireEvent.click(within(managedCatalog).getByRole('button', { name: 'Cerrar ventana modal' }));
     fireEvent.click(screen.getByRole('button', { name: 'Ver Proyectos' }));
-    expect(screen.getByRole('heading', { name: /Proyectos de Investigación & Avance Institucional/ })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Proyectos de investigación y documentación' })).toBeVisible();
     fireEvent.click(screen.getByRole('tab', { name: 'Estadísticas e Indicadores' }));
     fireEvent.click(screen.getByRole('button', { name: 'Ver Directorio Completo CvLAC' }));
     expect(screen.getByRole('tab', { name: 'Control GrupLAC / CvLAC' })).toHaveAttribute('aria-selected', 'true');
@@ -958,7 +952,7 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     expect(GruposAPI.list).toHaveBeenCalledOnce();
   });
 
-  it('abre el expediente y descarga el zip desde la pestaña formatos del proyecto', async () => {
+  it('abre el expediente y descarga el zip del proyecto', async () => {
     configureApis();
     ProyectosAPI.downloadExpediente.mockResolvedValueOnce(new Blob(['zip data']));
     ProyectosAPI.getExpediente.mockResolvedValueOnce({ completo: true, porcentaje_completitud: 100, etapas: [] });
@@ -966,10 +960,8 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     await screen.findByText('GIDTA');
     fireEvent.click(document.getElementById('tab-proyectos'));
     fireEvent.click((await screen.findByText('Pectina')).closest('.cursor-pointer'));
-    fireEvent.click(await screen.findByRole('tab', { name: 'Formatos' }));
-    fireEvent.click(screen.getByRole('button', { name: /Ver Carpetas y Construir Documentación/i }));
-    fireEvent.click(await screen.findByRole('tab', { name: 'Formatos' }));
-    fireEvent.click(screen.getByRole('button', { name: /Descargar Expediente Completo \(ZIP\)/i }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Expediente' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Descargar expediente (ZIP)' }));
     await waitFor(() => {
       expect(ProyectosAPI.downloadExpediente).toHaveBeenCalledWith('p-1');
     });

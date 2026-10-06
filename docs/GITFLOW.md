@@ -16,7 +16,7 @@ Esta guía define la arquitectura de control de versiones y el ciclo de vida de 
 [develop] ---*------*-----------------*----*---------> (Integración activa)
               \    /                   \  /
                *--*                     *
-          [feature/bitacora-firma]
+          [feature/documentacion-proyecto]
 ```
 
 ### Ramas Principales (Infraestructura Permanente)

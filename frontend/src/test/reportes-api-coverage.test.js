@@ -33,6 +33,7 @@ describe('API de reportes consolidados', () => {
 
   it('descarga consolidado de cada tipo y adjunta la sesión', async () => {
     const downloads = [
+      [() => ReportesAPI.descargarIndicadoresMinciencias(2026), 'reporte.csv'],
       [() => ReportesAPI.descargarConsolidadoProyectos(2026, 'csv'), 'reporte.csv'],
       [() => ReportesAPI.descargarConsolidadoGrupos('csv'), 'reporte.csv'],
       [() => ReportesAPI.descargarConsolidadoProductos(2026, true, 'csv'), 'reporte.csv'],
@@ -53,7 +54,7 @@ describe('API de reportes consolidados', () => {
     expect(window.URL.createObjectURL).toHaveBeenCalledTimes(downloads.length);
     expect(window.URL.revokeObjectURL).toHaveBeenCalledTimes(downloads.length);
     expect(fetch.mock.calls.at(-1)[0]).toContain('/investigador/u-7/certificado');
-    expect(downloads).toHaveLength(6);
+    expect(downloads).toHaveLength(7);
   });
 
   it('consulta consolidados y usa fetch directo si falla el servicio de estadísticas', async () => {
@@ -78,6 +79,9 @@ describe('API de reportes consolidados', () => {
   });
 
   it('propaga errores HTTP en descargas y en las estadísticas', async () => {
+    fetch.mockResolvedValueOnce(response({ ok: false }));
+    await expect(ReportesAPI.descargarIndicadoresMinciencias(2026)).rejects.toThrow('Error generando la matriz de indicadores de MinCiencias');
+
     fetch.mockResolvedValueOnce(response({ ok: false }));
     await expect(ReportesAPI.descargarConsolidadoProyectos()).rejects.toThrow('Error generando reporte de proyectos');
 

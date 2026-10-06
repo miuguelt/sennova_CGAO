@@ -1,14 +1,18 @@
 import sys
 import os
-from datetime import datetime, date, timedelta, timezone
+from datetime import date, timedelta
 
 # Añadir el directorio raíz al path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.database import SessionLocal, engine, Base
+from app.database import (
+    SessionLocal,
+    engine,
+)
+from app.services.database_startup import initialize_schema
 from app.models import (
     User, Grupo, Semillero, Aprendiz, Convocatoria, 
-    Proyecto, Producto, Reto, BitacoraEntry,
+    Proyecto, Producto, Reto,
     grupo_integrantes, proyecto_equipo, semillero_investigadores
 )
 from app.research_catalog import CANONICAL_GROUP_NAME
@@ -20,12 +24,11 @@ def seed_data():
         print("❌ Define INITIAL_ADMIN_PASSWORD o DEV_SEED_PASSWORD en el entorno seguro antes de poblar la base de datos.")
         return False
 
-    Base.metadata.create_all(bind=engine)
+    initialize_schema(engine)
     db = SessionLocal()
     print("🧹 Limpiando datos previos...")
     try:
         # Limpiar tablas en orden inverso de dependencia
-        db.execute(BitacoraEntry.__table__.delete())
         db.execute(Producto.__table__.delete())
         db.execute(Proyecto.__table__.delete())
         db.execute(Reto.__table__.delete())
@@ -291,29 +294,6 @@ def seed_data():
     db.execute(proyecto_equipo.insert().values(proyecto_id=proy2.id, user_id=inv1.id, rol_en_proyecto="Investigador Principal", horas_dedicadas=35))
     db.execute(proyecto_equipo.insert().values(proyecto_id=proy2.id, user_id=apr3.id, rol_en_proyecto="Aprendiz de Laboratorio", horas_dedicadas=20))
 
-    print("📝 Creando Bitácoras y Productos con Firmas Digitales...")
-    # Bitácora Proyecto 1
-    db.add(BitacoraEntry(
-        proyecto_id=proy1.id,
-        user_id=inv2.id,
-        titulo="Calibración de Sensores Humedad Suelo",
-        contenido="Se realizaron pruebas con 10 sensores DHT22 en cámara climática. Se detectó una desviación del 3% en humedades superiores al 85%. Se ajustará el código de compensación térmica.",
-        categoria="técnica",
-        fecha=datetime.now(timezone.utc) - timedelta(days=5),
-        is_firmado_investigador=True,
-        fecha_firma_investigador=datetime.now(timezone.utc) - timedelta(days=4)
-    ))
-    db.add(BitacoraEntry(
-        proyecto_id=proy1.id,
-        user_id=apr1.id,
-        titulo="Implementación de API Rest con FastAPI",
-        contenido="Se definieron los esquemas de Pydantic para la recepción de telemetría. La base de datos PostgreSQL está lista para recibir ráfagas de datos cada 60 segundos.",
-        categoria="técnica",
-        fecha=datetime.now(timezone.utc) - timedelta(days=2),
-        is_firmado_aprendiz=True,
-        fecha_firma_aprendiz=datetime.now(timezone.utc) - timedelta(days=1)
-    ))
-    
     # Productos
     prod1 = Producto(
         tipo="software",

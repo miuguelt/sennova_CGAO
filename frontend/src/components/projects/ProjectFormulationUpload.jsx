@@ -66,9 +66,9 @@ export default function ProjectFormulationUpload({ projectId, canEdit, busy, onA
   return (
     <section aria-label="Carga de formato de formulación" className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5">
       <div>
-        <h4 className="text-base font-bold text-slate-900">Opción 1: Cargar formato oficial diligenciado</h4>
+        <h4 className="text-base font-bold text-slate-900">Opción 1: Importar documento fuente de formulación</h4>
         <p className="mt-1 text-sm text-slate-600">
-          Si ya cuenta con el formato CAP o SENNOVA diligenciado en Word (.docx), cárguelo aquí para extraer automáticamente el título, objetivos, justificación, metodología y resultados.
+          Si tienes un documento de formulación CAP o SENNOVA en Word (.docx), cárgalo aquí para extraer el título, los objetivos, la justificación, la metodología y los resultados. La importación no verifica que el formato siga vigente.
         </p>
       </div>
 

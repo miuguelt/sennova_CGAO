@@ -9,6 +9,7 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from app.auth import get_current_user, get_current_admin, get_current_staff
 from app.database import get_db
 from app.utils import is_valid_uuid
+from app.services.documentation_statistics import documentation_statistics, documentation_statistics_options
 
 from app.models import (
     User, Proyecto, Grupo, Semillero, 
@@ -471,17 +472,18 @@ def get_user_impact(
         user_semillero_ids = [str(s.id) for s in todos_los_semilleros]
 
         # 2. Proyectos (Liderados + Equipo + Heredados de semillero si aplica)
-        proyectos_liderados = db.query(Proyecto).filter(Proyecto.owner_id == uid).all()
-        proyectos_miembro = db.query(Proyecto).join(proyecto_equipo, proyecto_equipo.c.proyecto_id == Proyecto.id).filter(proyecto_equipo.c.user_id == uid).all()
+        proyectos_liderados = db.query(Proyecto).options(*documentation_statistics_options()).filter(Proyecto.owner_id == uid).all()
+        proyectos_miembro = db.query(Proyecto).options(*documentation_statistics_options()).join(proyecto_equipo, proyecto_equipo.c.proyecto_id == Proyecto.id).filter(proyecto_equipo.c.user_id == uid).all()
         proyectos_semillero = []
         if user_semillero_ids:
-            proyectos_semillero = db.query(Proyecto).filter(Proyecto.semillero_id.in_(user_semillero_ids)).all()
+            proyectos_semillero = db.query(Proyecto).options(*documentation_statistics_options()).filter(Proyecto.semillero_id.in_(user_semillero_ids)).all()
 
         proyectos_map = {}
         for p in (proyectos_liderados + proyectos_miembro + proyectos_semillero):
             proyectos_map[str(p.id)] = p
         todos_los_proyectos = list(proyectos_map.values())
         user_proyectos_ids = [str(p.id) for p in todos_los_proyectos]
+        avance_documental, avances_proyectos = documentation_statistics(todos_los_proyectos)
 
         # 3. Productos (Propios + De Proyectos en los que participa)
         productos_propios = db.query(Producto).filter(Producto.owner_id == uid).all()
@@ -493,14 +495,8 @@ def get_user_impact(
             productos_map[str(pr.id)] = pr
         todos_los_productos = list(productos_map.values())
 
-        # 4. Cálculo de Cumplimiento y Progreso Real
-        entregables_asignados = db.query(Entregable).filter(Entregable.responsable_id == uid).all()
-        if not entregables_asignados and user_proyectos_ids:
-            entregables_asignados = db.query(Entregable).filter(Entregable.proyecto_id.in_(user_proyectos_ids)).all()
-        
-        total_e = len(entregables_asignados)
-        aprobados = len([e for e in entregables_asignados if e.estado == 'aprobado'])
-        cumplimiento = int((aprobados / total_e * 100)) if total_e > 0 else (100 if len(todos_los_proyectos) > 0 and all(p.estado == 'Finalizado' for p in todos_los_proyectos) else 0)
+        # 4. Cumplimiento documental a partir de los proyectos vinculados
+        cumplimiento = avance_documental["porcentaje"]
 
         # 5. Finanzas Reales
         presupuesto_total = sum(p.presupuesto_total or 0 for p in todos_los_proyectos)
@@ -528,6 +524,7 @@ def get_user_impact(
             "productos_count": len(todos_los_productos),
             "semilleros_count": len(todos_los_semilleros),
             "cumplimiento": cumplimiento,
+            "avance_documental": avance_documental,
             "presupuesto_total": round(presupuesto_total, 2),
             "presupuesto_ejecutado": round(presupuesto_ejecutado, 2),
             "porcentaje_ejecucion": porcentaje_ejecucion,
@@ -537,7 +534,8 @@ def get_user_impact(
                 "nombre": p.nombre_corto or p.nombre,
                 "rol": "Líder" if str(p.owner_id) == uid else ("Investigador" if user_db.rol != 'aprendiz' else "Aprendiz Investigador"),
                 "estado": p.estado,
-                "progreso": calcular_progreso_entregables(p.entregables),
+                "progreso": avances_proyectos[str(p.id)]["porcentaje"],
+                "avance_documental": avances_proyectos[str(p.id)],
                 "presupuesto": p.presupuesto_total or 0,
                 "ejecutado": round((p.presupuesto_total or 0) * (calcular_progreso_entregables(p.entregables) / 100.0), 2),
                 "equipo": len(p.equipo) if p.equipo else 1,

@@ -9,11 +9,8 @@ import { DashboardAPI } from '../api/dashboard';
 import { AuditAPI } from '../api/audit';
 import { DocumentosAPI } from '../api/documentos';
 import { ProyectosAPI } from '../api/proyectos';
-import { PlantillasAPI } from '../api/plantillas';
-import { PDFGenerator } from '../utils/pdfGenerator';
 import { AuthAPI } from '../api/auth';
 import { CVLACAPI } from '../api/cvlac';
-import { downloadFormatTemplate } from '../data/sennovaFormats';
 
 vi.mock('../api/dashboard', () => ({
   DashboardAPI: {
@@ -47,20 +44,6 @@ vi.mock('../api/proyectos', () => ({
     getInvestigadores: vi.fn(),
   },
 }));
-vi.mock('../api/plantillas', () => ({
-  PlantillasAPI: {
-    getReporteMensual: vi.fn(),
-    getReportePresupuesto: vi.fn(),
-  },
-}));
-vi.mock('../utils/pdfGenerator', () => ({
-  PDFGenerator: {
-    generateMonthlyReport: vi.fn(),
-    generateBudgetReport: vi.fn(),
-    generateEtapaProductiva: vi.fn(),
-    generateProjectPDF: vi.fn(),
-  },
-}));
 vi.mock('../api/auth', () => ({
   AuthAPI: { getMe: vi.fn(), changePassword: vi.fn() },
 }));
@@ -72,10 +55,6 @@ vi.mock('../api/cvlac', () => ({
     subirPDF: vi.fn(),
   },
 }));
-vi.mock('../data/sennovaFormats', async (importOriginal) => {
-  const actual = await importOriginal();
-  return { ...actual, downloadFormatTemplate: vi.fn() };
-});
 vi.mock('../components/users/UserInsightPanel', () => ({
   default: ({ user, isOpen, onClose }) => isOpen ? (
     <section aria-label="Impacto detallado">
@@ -156,7 +135,7 @@ describe('DashboardModule: acciones y paneles por rol', () => {
     fireEvent.click(screen.getByText('Entregar informe'));
     fireEvent.click(screen.getByText('Mis Proyectos I+D+i').closest('[class*="cursor-pointer"]'));
     fireEvent.click(screen.getByText('Mis Productos Minciencias').closest('[class*="cursor-pointer"]'));
-    fireEvent.click(screen.getByText('Cumplimiento Técnico').closest('[class*="cursor-pointer"]'));
+    fireEvent.click(screen.getByText('Avance documental').closest('[class*="cursor-pointer"]'));
     fireEvent.click(screen.getByText('Aprendices Tutelados').closest('[class*="cursor-pointer"]'));
     fireEvent.click(screen.getByText('Impacto 360').closest('[class*="cursor-pointer"]'));
     fireEvent.click(screen.getByRole('button', { name: 'Ver Mis Proyectos' }));
@@ -165,7 +144,7 @@ describe('DashboardModule: acciones y paneles por rol', () => {
     expect(onNotify).toHaveBeenCalledWith('Generando reporte institucional del mes...', 'info');
     expect(onOpenSearch).toHaveBeenCalledOnce();
     expect(onNewProject).toHaveBeenCalledOnce();
-    expect(onModuleAction.mock.calls.map(([action]) => action.module)).toEqual(['cronograma', 'proyectos', 'productos', 'cronograma', 'aprendices', 'proyectos']);
+    expect(onModuleAction.mock.calls.map(([action]) => action.module)).toEqual(['cronograma', 'proyectos', 'productos', 'proyectos', 'aprendices', 'proyectos']);
     expect(await screen.findByText('Ana Investigadora — análisis de impacto')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar análisis' }));
     await waitFor(() => expect(screen.queryByText('Ana Investigadora — análisis de impacto')).not.toBeInTheDocument());
@@ -181,14 +160,14 @@ describe('DashboardModule: acciones y paneles por rol', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ver Cronograma' }));
     fireEvent.click(screen.getByText('Semillero Vinculado').closest('[class*="cursor-pointer"]'));
     fireEvent.click(screen.getByText('Proyectos Asignados').closest('[class*="cursor-pointer"]'));
-    fireEvent.click(screen.getByText('Cumplimiento de Tareas').closest('[class*="cursor-pointer"]'));
+    fireEvent.click(screen.getByText('Avance documental').closest('[class*="cursor-pointer"]'));
     fireEvent.click(screen.getByRole('button', { name: /Ver Perfil Completo/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Explorar Banco de Retos' }));
     fireEvent.click(screen.getByRole('button', { name: 'Ver proyectos' }));
-    fireEvent.click(screen.getByText('Formatos de etapa productiva').closest('button'));
+    expect(screen.queryByText(/Formatos de etapa productiva/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByText('Documentos del centro').closest('button'));
     expect(onModuleAction.mock.calls.map(([action]) => action.module)).toEqual([
-      'proyectos', 'cronograma', 'retos', 'cronograma', 'semilleros', 'proyectos', 'cronograma', 'perfil', 'retos', 'proyectos', 'repositorio', 'repositorio',
+      'proyectos', 'cronograma', 'retos', 'cronograma', 'semilleros', 'proyectos', 'proyectos', 'perfil', 'retos', 'proyectos', 'repositorio',
     ]);
     expect(DashboardAPI.getAnalyticsEvolucion).not.toHaveBeenCalled();
   });
@@ -206,19 +185,15 @@ describe('DashboardModule: acciones y paneles por rol', () => {
 
 });
 
-describe('DocumentCenterModule: filtros, descargas, carga y formatos inteligentes', () => {
+describe('DocumentCenterModule: filtros, descargas y carga de evidencias', () => {
   beforeEach(() => {
     seedDocumentApis({
       projects: [{ id: 'project-1', codigo_sgps: 'SGPS-26', nombre: 'Proyecto de investigación', equipo: ['Equipo base'] }],
     });
-    PlantillasAPI.getReporteMensual.mockResolvedValue({ periodo: '2026-09' });
-    PlantillasAPI.getReportePresupuesto.mockResolvedValue({ proyecto_id: 'project-1' });
-    ProyectosAPI.get.mockResolvedValue({ id: 'project-1', nombre: 'Proyecto completo', equipo: ['Equipo completo'] });
-    ProyectosAPI.getInvestigadores.mockResolvedValue([{ id: 'investigator-1', nombre: 'Investigadora' }]);
     vi.spyOn(window, 'open').mockImplementation(() => {});
   });
 
-  it('filtra modelos y evidencias, previsualiza el modelo y copia su contenido', async () => {
+  it('filtra evidencias, consulta normatividad y no muestra modelos internos', async () => {
     seedDocumentApis({
       documents: [
         { id: 'doc-1', nombre_archivo: 'acta-inicio.pdf', descripcion: 'Acta de proyecto', tipo: 'acta', entidad_tipo: 'proyecto', entidad_id: 'project-1', owner_id: 'admin-1', content_type: 'application/pdf', created_at: '2026-09-01T12:00:00Z' },
@@ -228,31 +203,13 @@ describe('DocumentCenterModule: filtros, descargas, carga y formatos inteligente
       ],
       projects: [{ id: 'project-1', codigo_sgps: 'SGPS-26', nombre: 'Proyecto de investigación' }],
     });
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     render(<DocumentCenterModule currentUser={{ id: 'admin-1', rol: 'admin' }} />);
 
-    expect(await screen.findByText(/Modelos internos pendientes de validación/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Semilleros & F-023' }));
-    expect(screen.getByText(/Planeación, Seguimiento y Evaluación de Etapa Productiva/)).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Descargar modelo HTML' })[0]);
-    expect(downloadFormatTemplate).toHaveBeenCalledOnce();
-    fireEvent.change(screen.getByPlaceholderText(/Buscar por código, nombre o tema/i), { target: { value: 'F-023' } });
-    expect(screen.getByText(/Planeación, Seguimiento y Evaluación de Etapa Productiva/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Semilleros & F-023' }));
-    fireEvent.change(screen.getByPlaceholderText(/Buscar por código, nombre o tema/i), { target: { value: '' } });
-    fireEvent.click(screen.getAllByTitle('Ver estructura del modelo de referencia')[0]);
-    expect(await screen.findByText('Contenido del modelo de referencia')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Copiar contenido' }));
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('FICHA')));
-    expect(await screen.findByRole('button', { name: 'Copiado' })).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Descargar modelo HTML' }).at(-1));
-    expect(downloadFormatTemplate).toHaveBeenCalledTimes(2);
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cerrar ventana modal' }));
+    expect(await screen.findByRole('button', { name: /Bóveda de Evidencias CGAO/i })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Modelos de referencia/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/etapa productiva|bitácora/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Guías & Normatividad Minciencias/i }));
     expect(screen.getByText('Criterios de Homologación y Tipologías Minciencias')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Modelos de referencia/i }));
-
     fireEvent.click(screen.getByRole('button', { name: /Bóveda de Evidencias CGAO/i }));
     expect(screen.getByText('acta-inicio.pdf')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Informes' }));
@@ -299,7 +256,7 @@ describe('DocumentCenterModule: filtros, descargas, carga y formatos inteligente
     const revokeObjectURL = vi.fn();
     vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
     render(<DocumentCenterModule currentUser={{ id: 'admin-1', rol: 'admin' }} onNotify={onNotify} />);
-    await screen.findByText(/Modelos internos pendientes de validación/i);
+    await screen.findByRole('button', { name: /Bóveda de Evidencias CGAO/i });
 
     fireEvent.click(screen.getByRole('button', { name: /Subir Evidencia/i }));
     const uploadDialog = screen.getByRole('dialog');
@@ -352,48 +309,12 @@ describe('DocumentCenterModule: filtros, descargas, carga y formatos inteligente
     expect(onNotify).toHaveBeenCalledWith('Documento eliminado de la bóveda', 'success');
   });
 
-  it('genera reportes para mensualidad, presupuesto, etapa productiva y ficha del proyecto', async () => {
-    seedDocumentApis({ projects: [{ id: 'project-1', nombre: 'Proyecto base', equipo: ['Equipo base'] }] });
-    render(<DocumentCenterModule currentUser={{ id: 'staff-1', rol: 'investigador' }} />);
-    await screen.findByText(/Modelos internos pendientes de validación/i);
-
-    fireEvent.click(screen.getAllByRole('button', { name: /Generar reporte PDF de apoyo/i })[0]);
-    await waitFor(() => expect(PDFGenerator.generateMonthlyReport).toHaveBeenCalledWith({ periodo: '2026-09' }));
-    ProyectosAPI.get.mockRejectedValue(new Error('ficha extendida no disponible'));
-    fireEvent.click(screen.getAllByRole('button', { name: /Generar reporte PDF de apoyo/i })[1]);
-    await waitFor(() => expect(PDFGenerator.generateEtapaProductiva).toHaveBeenCalledWith(expect.objectContaining({ id: 'project-1', nombre: 'Proyecto base' })));
-    fireEvent.click(screen.getByRole('button', { name: 'Generador Rápido' }));
-    const dialog = screen.getByRole('dialog');
-    fireEvent.click(within(dialog).getByText('Informe Financiero de Proyecto'));
-    fireEvent.change(dialog.querySelector('select'), { target: { value: 'project-1' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Generar PDF Oficial' }));
-    await waitFor(() => expect(PDFGenerator.generateBudgetReport).toHaveBeenCalledWith({ proyecto_id: 'project-1' }));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Generador Rápido' }));
-    const cancelDialog = screen.getByRole('dialog');
-    fireEvent.click(within(cancelDialog).getByRole('button', { name: 'Cerrar ventana modal' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Generador Rápido' }));
-    const cancelViaButtonDialog = screen.getByRole('dialog');
-    fireEvent.click(within(cancelViaButtonDialog).getByRole('button', { name: 'Cancelar' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Generador Rápido' }));
-    const fichaDialog = screen.getByRole('dialog');
-    fireEvent.click(within(fichaDialog).getByText('Ficha Técnica Oficial de Proyecto'));
-    fireEvent.change(fichaDialog.querySelector('select'), { target: { value: 'project-1' } });
-    ProyectosAPI.getInvestigadores.mockRejectedValue(new Error('equipo no disponible'));
-    fireEvent.click(within(fichaDialog).getByRole('button', { name: 'Generar PDF Oficial' }));
-    await waitFor(() => expect(PDFGenerator.generateProjectPDF).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'project-1', nombre: 'Proyecto base' }),
-      ['Equipo base'],
-    ));
-    expect(ProyectosAPI.getInvestigadores).toHaveBeenCalledWith('project-1');
-  });
-
   it('muestra fallos de carga y deriva errores de descarga y generación al usuario', async () => {
     const onNotify = vi.fn();
     DocumentosAPI.list.mockRejectedValue(new Error('sin conexión'));
     ProyectosAPI.list.mockRejectedValue(new Error('sin conexión'));
     render(<DocumentCenterModule currentUser={{ id: 'admin-1', rol: 'admin' }} onNotify={onNotify} />);
-    await waitFor(() => expect(screen.getByText(/Modelos internos pendientes de validación/i)).toBeInTheDocument());
+    await screen.findByRole('button', { name: /Bóveda de Evidencias CGAO/i });
 
     cleanup();
     seedDocumentApis({
@@ -403,8 +324,7 @@ describe('DocumentCenterModule: filtros, descargas, carga y formatos inteligente
     DocumentosAPI.download.mockRejectedValue(new Error('falló la descarga'));
     DocumentosAPI.delete.mockRejectedValue(new Error('sin autorización'));
     render(<DocumentCenterModule currentUser={{ id: 'admin-1', rol: 'admin' }} onNotify={onNotify} />);
-    await screen.findByText(/Modelos internos pendientes de validación/i);
-    fireEvent.click(screen.getByRole('button', { name: /Bóveda de Evidencias CGAO/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Bóveda de Evidencias CGAO/ }));
     await screen.findByText('error.pdf');
     fireEvent.click(screen.getByTitle('Descargar'));
     await waitFor(() => expect(window.open).toHaveBeenCalledWith('/documentos/doc-err/ver', '_blank'));
@@ -414,12 +334,6 @@ describe('DocumentCenterModule: filtros, descargas, carga y formatos inteligente
     await waitFor(() => expect(onNotify).toHaveBeenCalledWith('Error al eliminar documento: sin autorización', 'error'));
     fireEvent.click(within(deleteDialog).getByRole('button', { name: 'Cancelar' }));
 
-    PlantillasAPI.getReportePresupuesto.mockRejectedValue(new Error('plantilla no disponible'));
-    fireEvent.click(screen.getByRole('button', { name: /Generador Rápido/ }));
-    const dialog = screen.getByRole('dialog');
-    fireEvent.click(within(dialog).getByText('Informe Financiero de Proyecto'));
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Generar PDF Oficial' }));
-    await waitFor(() => expect(onNotify).toHaveBeenCalledWith('Error al generar plantilla: plantilla no disponible', 'error'));
   });
 });
 

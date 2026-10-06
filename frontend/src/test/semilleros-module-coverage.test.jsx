@@ -14,7 +14,7 @@ vi.mock('../api/usuarios', () => ({ UsuariosAPI: { list: vi.fn(), get: vi.fn() }
 vi.mock('../api/proyectos', () => ({ ProyectosAPI: { list: vi.fn(), update: vi.fn() } }));
 vi.mock('../api/plantillas', () => ({ PlantillasAPI: { getDatosCertificado: vi.fn() } }));
 vi.mock('../utils/pdfGenerator', () => ({ PDFGenerator: {
-  generateSeguimiento: vi.fn(), generateEtapaProductiva: vi.fn(), generateInformeFinal: vi.fn(), generateCertificate: vi.fn(),
+  generateCertificate: vi.fn(),
 } }));
 vi.mock('../components/users/UserInsightPanel', () => ({
   default: ({ user, isOpen, onClose }) => isOpen && user ? (
@@ -63,7 +63,7 @@ const users = [
   { id: 'u-inv-2', nombre: 'Marta Investigadora', email: 'marta@sena.edu.co', rol: 'investigador' },
 ];
 const projects = [
-  { id: 'p-1', nombre: 'Proyecto AgroTech', nombre_corto: 'AgroTech', codigo_sgps: 'SGPS-01', semillero_id: 's-1', estado: 'En ejecución', presupuesto_total: 120000, avance_porcentaje: 55, entregables_aprobados: 2, total_entregables: 4 },
+  { id: 'p-1', nombre: 'Proyecto AgroTech', nombre_corto: 'AgroTech', codigo_sgps: 'SGPS-01', semillero_id: 's-1', estado: 'En ejecución', presupuesto_total: 120000, avance_porcentaje: 55, entregables_aprobados: 2, total_entregables: 4, avance_documental: { porcentaje: 16, campos_completados: 2, campos_totales: 10, documentos_totales: 3, documentos_generados: 0, documentos_revisados: 0 } },
   { id: 'p-2', nombre: 'Proyecto Digital', codigo_sgps: 'SGPS-02', semillero_id: null, estado: 'Aprobado', presupuesto_total: 50000, avance_porcentaje: 0 },
 ];
 
@@ -90,6 +90,29 @@ function configureApi() {
 describe('gestión de semilleros por rol', () => {
   beforeEach(() => { vi.clearAllMocks(); configureApi(); });
   afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+
+  it('muestra el progreso de documentación del proyecto vinculado sin usar sus entregables', async () => {
+    render(<SemillerosModule currentUser={{ id: 'admin', rol: 'admin' }} />);
+    await screen.findByRole('heading', { name: 'Semilleros de Investigación' });
+    fireEvent.click(screen.getByText('Semillero AgroTech'));
+    const drawer = await screen.findByRole('dialog', { name: 'Semillero AgroTech' });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Proyectos' }));
+    expect(within(drawer).getByRole('progressbar', { name: 'Avance documental del proyecto' })).toHaveAttribute('value', '16');
+    expect(within(drawer).getByText('2 de 10 requisitos completos')).toBeVisible();
+    expect(within(drawer).queryByText('55%')).not.toBeInTheDocument();
+    expect(within(drawer).queryByText('2/4 entregables')).not.toBeInTheDocument();
+  });
+
+  it('no sustituye un resumen documental ausente con el avance técnico', async () => {
+    ProyectosAPI.list.mockResolvedValue([{ ...projects[0], avance_documental: undefined }]);
+    render(<SemillerosModule currentUser={{ id: 'admin', rol: 'admin' }} />);
+    await screen.findByRole('heading', { name: 'Semilleros de Investigación' });
+    fireEvent.click(screen.getByText('Semillero AgroTech'));
+    const drawer = await screen.findByRole('dialog', { name: 'Semillero AgroTech' });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Proyectos' }));
+    expect(within(drawer).queryByRole('progressbar', { name: 'Avance documental del proyecto' })).not.toBeInTheDocument();
+    expect(within(drawer).queryByText('55%')).not.toBeInTheDocument();
+  });
 
   it('busca y filtra semilleros, y muestra el pool de grupos', async () => {
     render(<SemillerosModule currentUser={{ id: 'admin', rol: 'admin' }} />);
@@ -141,7 +164,7 @@ describe('gestión de semilleros por rol', () => {
     expect(onNotify).toHaveBeenCalledWith('Semillero eliminado', 'success');
   });
 
-  it('muestra información, estadísticas, perfiles, certificados y formatos', async () => {
+  it('muestra información, estadísticas, perfiles y certificados sin formatos ajenos al semillero', async () => {
     const onNotify = vi.fn();
     render(<SemillerosModule currentUser={{ id: 'admin', rol: 'admin' }} onNotify={onNotify} />);
     await screen.findByRole('heading', { name: 'Semilleros de Investigación' });
@@ -184,19 +207,8 @@ describe('gestión de semilleros por rol', () => {
     fireEvent.click(within(screen.getByRole('alertdialog', { name: '¿Desvincular Aprendiz?' })).getByRole('button', { name: 'Desvincular' }));
     await waitFor(() => expect(SemillerosAPI.deleteAprendiz).toHaveBeenCalledWith('s-1', 'm-1'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Formatos' }));
-    expect(screen.getByText(/PDF se generan como modelos de referencia desde la plataforma/i)).toBeInTheDocument();
-    expect(screen.queryByText('Plantilla Oficial SENA')).not.toBeInTheDocument();
-    expect(screen.queryByText('Bitácora de Seguimiento')).not.toBeInTheDocument();
-    for (const [index, [label, method]] of [
-      ['Formato Planeación Etapa Productiva', 'generateEtapaProductiva'],
-      ['Informe Final de Proyecto', 'generateInformeFinal'],
-    ].entries()) {
-      fireEvent.click(screen.getByText(label));
-      expect(PDFGenerator[method]).toHaveBeenCalled();
-      fireEvent.click(screen.getAllByRole('button', { name: 'Descargar' })[index]);
-      expect(PDFGenerator[method]).toHaveBeenCalledTimes(2);
-    }
+    expect(screen.queryByRole('button', { name: 'Formatos' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/etapa productiva|bitácora/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar Panel' }));
     expect(onNotify).toHaveBeenCalledWith('Certificado generado y descargado', 'success');
   });

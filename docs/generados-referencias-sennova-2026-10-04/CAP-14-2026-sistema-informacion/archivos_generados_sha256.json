@@ -1,0 +1,46 @@
+{
+  "borradores_generados/formulacion_proyecto.docx": {
+    "bytes": 292152,
+    "sha256": "bc84a9bad9e1eb103e314308117f56d7ab85d73e08a130b13b6ea531703e8d65"
+  },
+  "borradores_generados/presentacion_proyecto.pptx": {
+    "bytes": 3610790,
+    "sha256": "c34e19b903faf5217851bbfce25be4a9768318cce65d6d3114c32ae398027990"
+  },
+  "borradores_generados/acta_inicio.docx": {
+    "bytes": 54501,
+    "sha256": "4de72506474e9b07fa9b4ea88b35748692116e5c32f35e1d4e697e9adecc1dd9"
+  },
+  "borradores_generados/producto_resultado.docx": {
+    "bytes": 39725,
+    "sha256": "b127c841d604cfbd6bf1ba72a1f06881603bda45079da29272506dab847af492"
+  },
+  "borradores_generados/poster_producto.pptx": {
+    "bytes": 30853,
+    "sha256": "23fd2a94d16ab933bb412f442b4ae91260359b4d384310a6b76f3d3c84dc03db"
+  },
+  "borradores_generados/informe_bimensual__b1.docx": {
+    "bytes": 58894,
+    "sha256": "d54c17349867c3aedd409713e31666875039b190e94cb9c63e86f4cc6ece1f0f"
+  },
+  "borradores_generados/informe_bimensual__b2.docx": {
+    "bytes": 39840,
+    "sha256": "0545aeb5c590ec83a97378db9ea5849f656b15de337d705e728501bd8bfc06d1"
+  },
+  "borradores_generados/informe_bimensual__b3.docx": {
+    "bytes": 39841,
+    "sha256": "8bb5267eb55345386919d9687c2f0bf3c28234251643d3b5630eaf220ea3f71b"
+  },
+  "borradores_generados/acta_cierre.docx": {
+    "bytes": 40139,
+    "sha256": "68d1904a0d87d6a6c373b5f1706005bae09ce2a5424cd4d71a407559b78ca6df"
+  },
+  "borradores_generados/informe_final.docx": {
+    "bytes": 42918,
+    "sha256": "705fd6cbc9e56ce4c0fbdbf686982d821bd4d6648f80c1111f1a755a766e842b"
+  },
+  "borradores_generados/registro_evidencias.docx": {
+    "bytes": 39755,
+    "sha256": "f01afb92bc0f88efa020492d2653eba856b61e59c42e2372e7022ab10674faf6"
+  }
+}

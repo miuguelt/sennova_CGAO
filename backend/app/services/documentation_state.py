@@ -88,6 +88,8 @@ def version_is_current(version, snapshot, common_revision, draft_revision):
 
 
 def documentation_view(project, db):
+    from app.services.documentation_progress import documentation_progress
+
     common_row = db.query(ProjectDocumentation).filter_by(proyecto_id=project.id).first()
     common, common_revision = (common_row.datos, common_row.revision) if common_row else ({}, 0)
     drafts = {row.clave: row for row in db.query(ProjectDocumentDraft).filter_by(proyecto_id=project.id).all()}
@@ -115,5 +117,6 @@ def documentation_view(project, db):
     formulation_slot = next((item for item in documents if item["clave"] == FORMULATION_KEY), None)
     return {"proyecto": project_context(project), "revision": common_revision, "comunes": common,
             "campos_comunes": COMMON_FIELDS, "documentos": documents,
+            "avance_documental": documentation_progress(project, common_row=common_row, drafts=drafts),
             "advertencias": consistency_issues(project_context(project), common),
             "ruta_formulacion": formulation_route(project, common, formulation_slot, uploaded_source)}

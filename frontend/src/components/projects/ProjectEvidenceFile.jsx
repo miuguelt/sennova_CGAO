@@ -20,7 +20,7 @@ function saveBlob(blob, name) {
   }
 }
 
-export default function ProjectEvidenceFile({ projectId, currentUser, onNotify }) {
+export default function ProjectEvidenceFile({ projectId, currentUser, onNotify, showConstructor = true }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -106,8 +106,8 @@ export default function ProjectEvidenceFile({ projectId, currentUser, onNotify }
   return (
     <section aria-label="Expediente del proyecto" className="min-w-0 space-y-5">
       <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
-        <h3 className="flex items-center gap-2 text-lg font-bold text-emerald-950"><FolderOpen size={22} aria-hidden="true" />Expediente del proyecto (Estructura institucional SharePoint)</h3>
-        <p className="w-full text-sm leading-relaxed text-emerald-950">Organice y consulte la documentación del proyecto en las 7 carpetas institucionales del grupo de investigación CGAO. Revise la guía de cada etapa, genere los formatos requeridos y adjunte los soportes vigentes antes de radicar.</p>
+        <h3 className="flex items-center gap-2 text-lg font-bold text-emerald-950"><FolderOpen size={22} aria-hidden="true" />Expediente del proyecto</h3>
+        <p className="w-full text-sm leading-relaxed text-emerald-950">Consulte los requisitos de las seis etapas, adjunte sus soportes y descargue el expediente. Construya y genere los documentos desde la sección Documentación.</p>
         {data && <>
           <p className="w-full text-sm font-semibold text-emerald-950">{data.completo ? 'Expediente completo' : 'Expediente en construcción'} · {data.porcentaje_completitud}% de requisitos cumplidos.</p>
           <progress aria-label="Completitud del expediente" aria-valuenow={data.porcentaje_completitud} max="100" value={data.porcentaje_completitud} className="h-3 w-full accent-emerald-700" />
@@ -121,7 +121,7 @@ export default function ProjectEvidenceFile({ projectId, currentUser, onNotify }
         <p className="flex w-full items-start gap-2 text-sm"><AlertCircle size={18} aria-hidden="true" className="shrink-0" />{error}</p>
         <button type="button" className={evidenceButtonClass} onClick={() => setRevision(value => value + 1)}>Reintentar consulta</button>
       </div>}
-      <ProjectDocumentationEditor projectId={projectId} currentUser={currentUser} onNotify={onNotify} />
+      {showConstructor && <ProjectDocumentationEditor projectId={projectId} currentUser={currentUser} onNotify={onNotify} />}
       {loading && <div role="status" className="animate-pulse space-y-3 rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">Consultando expediente…<div className="h-16 rounded-xl bg-slate-100" /><div className="h-16 rounded-xl bg-slate-100" /></div>}
       {!loading && data && <>
         {data.pendientes?.length > 0 && <div className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-4"><h4 className="font-bold text-amber-950">Pendientes por resolver</h4><ul className="w-full list-disc space-y-1 pl-5 text-sm text-amber-950">{data.pendientes.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}

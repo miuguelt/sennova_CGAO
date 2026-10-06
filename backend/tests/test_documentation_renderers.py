@@ -111,6 +111,59 @@ def test_start_act_preserves_people_activities_budget_and_unsigned_attendees(pay
     assert len(document.tables) >= 5
 
 
+def test_formulation_includes_confirmed_training_metadata_and_omits_empty_optional_rows(payload):
+    context, common = payload
+    common["nivel_formacion"] = "Tecnólogo"
+    common["programa_formacion"] = "Programa de ejemplo"
+    common["competencia"] = "Competencia confirmada"
+    common["resultados_aprendizaje"] = "Resultado de aprendizaje confirmado"
+    common["fase_proyecto_formativo"] = "Ejecución"
+    common["categoria_proyecto"] = "Investigación aplicada"
+    common["area_investigacion"] = "Gestión de información"
+
+    content, _ = render_document("formulacion_proyecto", context, common, data_for("formulacion_proyecto"))
+    text = texts(content, "docx")
+
+    assert "Nivel de formación" in text and "Tecnólogo" in text
+    assert "Programa de formación" in text and "Programa de ejemplo" in text
+    assert "Competencia confirmada" in text
+    assert "Resultado de aprendizaje confirmado" in text
+    assert "Ejecución" in text
+    assert "Investigación aplicada" in text
+    assert "Gestión de información" in text
+
+    common["nivel_formacion"] = ""
+    content_without_level, _ = render_document("formulacion_proyecto", context, common, data_for("formulacion_proyecto"))
+    assert "Nivel de formación" not in texts(content_without_level, "docx")
+
+
+def test_formulation_includes_author_contact_only_when_supplied(payload):
+    context, common = payload
+    common["equipo"] = [{"nombre": "Autora de prueba", "rol": "Investigación", "actividades": "Analizar datos",
+                         "programa": "", "identificacion": "ID-DE-PRUEBA", "correo_contacto": "autora@example.test",
+                         "telefono_contacto": "000 000 0000"}]
+
+    content, _ = render_document("formulacion_proyecto", context, common, data_for("formulacion_proyecto"))
+    text = texts(content, "docx")
+
+    assert "Documento de identidad" in text and "ID-DE-PRUEBA" in text
+    assert "Correo de contacto" in text and "autora@example.test" in text
+    assert "Teléfono de contacto" in text and "000 000 0000" in text
+
+    acta_content, _ = render_document("acta_inicio", context, common, data_for("acta_inicio"))
+    acta_text = texts(acta_content, "docx")
+    assert "ID-DE-PRUEBA" not in acta_text
+    assert "autora@example.test" not in acta_text
+    assert "000 000 0000" not in acta_text
+
+    common["equipo"][0].update({"identificacion": "", "correo_contacto": "", "telefono_contacto": ""})
+    content_without_contacts, _ = render_document("formulacion_proyecto", context, common, data_for("formulacion_proyecto"))
+    text_without_contacts = texts(content_without_contacts, "docx")
+    assert "Documento de identidad" not in text_without_contacts
+    assert "Correo de contacto" not in text_without_contacts
+    assert "Teléfono de contacto" not in text_without_contacts
+
+
 def test_partial_closure_does_not_assert_final_approval(payload):
     context, common = payload
     data = data_for("acta_cierre")

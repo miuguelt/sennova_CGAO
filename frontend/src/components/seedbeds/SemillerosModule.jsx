@@ -24,6 +24,7 @@ import Drawer from '../ui/Drawer';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import SemilleroCard, { ESTADOS } from './SemilleroCard';
 import MoverProyectoSemilleroModal from '../projects/MoverProyectoSemilleroModal';
+import ProjectDocumentationProgress from '../projects/ProjectDocumentationProgress';
 import { SemillerosAPI } from '../../api/semilleros';
 import { GruposAPI } from '../../api/grupos';
 import { UsuariosAPI } from '../../api/usuarios';
@@ -219,34 +220,6 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
       await loadData(false);
     } catch (err) {
       onNotify?.('Error al guardar semillero', 'error');
-    }
-  };
-
-  const handleDownloadFormato = (tipo) => {
-    if (!selectedSemillero) return;
-    try {
-      if (tipo === 'etapa_productiva') {
-        PDFGenerator.generateEtapaProductiva({
-          nombre: selectedSemillero.nombre,
-          codigo_sgps: selectedSemillero.sigla || selectedSemillero.codigo || 'S-2026',
-          tipologia: `Semillero - ${selectedSemillero.linea_investigacion || 'CGAO'}`,
-          vigencia: 12,
-          presupuesto_total: 0,
-          equipo: investigadores
-        });
-        onNotify?.('Formato de etapa productiva generado', 'success');
-      } else if (tipo === 'informe_final') {
-        PDFGenerator.generateInformeFinal({
-          nombre: selectedSemillero.nombre,
-          codigo_sgps: selectedSemillero.sigla || selectedSemillero.codigo || 'S-2026',
-          total_productos: semilleroStats?.impacto?.reduce((a, b) => a + (b.value || 0), 0) || 0,
-          presupuesto_total: 0,
-          entregables: []
-        });
-        onNotify?.('Informe final generado', 'success');
-      }
-    } catch {
-      onNotify?.('Error al generar formato', 'error');
     }
   };
 
@@ -486,7 +459,6 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
     { id: 'investigadores', label: 'Investigadores', icon: Shield, count: investigadores.length },
     { id: 'aprendices', label: 'Aprendices', icon: GraduationCap, count: aprendices.length },
     { id: 'proyectos', label: 'Proyectos', icon: Target, count: proyectos.filter(p => p.semillero_id === selectedSemillero?.id).length },
-    { id: 'formatos', label: 'Formatos', icon: FileText }
   ];
   const canManageSelectedMembers = currentUser?.rol === 'admin'
     || (Boolean(currentUser?.id) && String(selectedSemillero?.owner_id) === String(currentUser.id));
@@ -1071,25 +1043,7 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
                         <p className="text-xs text-slate-500 font-medium">Presupuesto: ${(p.presupuesto_total || 0).toLocaleString('es-CO')}</p>
                       </div>
 
-                      <div className="sm:w-44 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1 shrink-0">
-                        <div className="flex justify-between items-center text-[10px] font-black">
-                          <span className="text-slate-400 uppercase">Avance</span>
-                          <span className="text-emerald-700">{p.avance_porcentaje || 0}%</span>
-                        </div>
-                        <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full ${
-                              (p.avance_porcentaje || 0) >= 100 ? 'bg-emerald-500' :
-                              (p.avance_porcentaje || 0) >= 50 ? 'bg-teal-500' :
-                              (p.avance_porcentaje || 0) > 0 ? 'bg-amber-500' : 'bg-slate-300'
-                            }`}
-                            style={{ width: `${Math.min(100, Math.max(0, p.avance_porcentaje || 0))}%` }}
-                          />
-                        </div>
-                        <p className="text-[9px] text-slate-400 text-right font-medium">
-                          {p.entregables_aprobados || 0}/{p.total_entregables || 0} entregables
-                        </p>
-                      </div>
+                      <ProjectDocumentationProgress summary={p.avance_documental} compact />
 
                       {currentUser?.rol !== 'aprendiz' && (
                         <div className="flex sm:flex-col gap-1.5 shrink-0 justify-end border-t sm:border-t-0 sm:border-l border-slate-100 pt-2 sm:pt-0 sm:pl-3">
@@ -1122,48 +1076,6 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
           </div>
         )}
 
-        {selectedSemillero && activeTab === 'formatos' && (
-          <div className="space-y-8 animate-fadeIn">
-             <section>
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <FileText size={14} className="text-rose-500" /> Formatos Etapa Productiva / D2
-              </h3>
-              <p role="note" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
-                Los PDF se generan como modelos de referencia desde la plataforma. Confirme el formato institucional vigente antes de presentarlos o radicarlos.
-              </p>
-              <div className="grid grid-cols-1 gap-3">
-                {[
-                  { title: 'Formato Planeación Etapa Productiva', type: 'etapa_productiva' },
-                  { title: 'Informe Final de Proyecto', type: 'informe_final' }
-                ].map((f, i) => (
-                  <div 
-                    key={i} 
-                    onClick={() => handleDownloadFormato(f.type)}
-                    className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-rose-300 transition-all cursor-pointer group shadow-sm"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-rose-50 text-rose-600 rounded-xl group-hover:bg-rose-100 transition-colors">
-                        <FileText size={20} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">{f.title}</p>
-                        <p className="text-[10px] text-slate-500 uppercase">PDF de referencia de la plataforma</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={(e) => { e.stopPropagation(); handleDownloadFormato(f.type); }}
-                      className="sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity"
-                    >
-                      <Download size={14} className="mr-2" /> Descargar
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
-        )}
       </Drawer>
 
       {/* ── Form Modal (Estandarizado en Pila) ── */}

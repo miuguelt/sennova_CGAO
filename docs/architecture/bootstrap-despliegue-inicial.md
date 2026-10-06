@@ -49,7 +49,10 @@ Se eligió el entrypoint sobre un servicio `db-init` dedicado porque:
 El servicio `sennova-db-init` que existía en `docker-compose.coolify.yml` se
 eliminó: ejecutaba `alembic upgrade head` y el repositorio no tiene ni
 `alembic.ini` ni carpeta de migraciones, así que fallaba en todo despliegue. El
-esquema lo materializan `Base.metadata.create_all` y `scripts/fix_db_schema.py`.
+entrypoint usa `app.services.database_startup.initialize_schema` para coordinar
+la creación de tablas y las reparaciones y migraciones idempotentes, incluida la
+eliminación de los campos heredados de bitácora y etapa productiva. Los scripts
+manuales de inicialización y carga de datos usan el mismo servicio.
 
 ## Contrato del bootstrap
 
@@ -78,6 +81,6 @@ Pruebas: `backend/tests/test_bootstrap_admin.py`.
 
 `SEED_INITIAL_DATA=true` ejecuta `scripts/seed_demo_data.py`, que **borra**
 grupos, semilleros, proyectos, productos, retos, convocatorias, aprendices,
-bitácora y todos los usuarios distintos de `admin@sena.edu.co`, y crea usuarios
-con contraseñas de ejemplo. Solo se ejecuta con `DEBUG=true`; en producción se
-ignora con un aviso explícito en el log.
+registros heredados y todos los usuarios distintos de `admin@sena.edu.co`, y
+crea usuarios con contraseñas de ejemplo. Solo se ejecuta con `DEBUG=true`; en
+producción se ignora con un aviso explícito en el log.

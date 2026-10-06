@@ -192,11 +192,11 @@ describe('🧭 Auditoría y Pruebas de Menú por Perspectiva de Usuario', () => 
     expect(screen.getAllByText('Mis Proyectos').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Explorar Retos').length).toBeGreaterThanOrEqual(1);
 
-    // Al abrir Formación, ve 'Mi Semillero' y 'Formatos & Guías'
+    // Al abrir Formación, ve sus opciones formativas y el repositorio documental.
     const formacionButtons = screen.getAllByText('Formación');
     fireEvent.click(formacionButtons[0]);
     expect(screen.getAllByText('Mi Semillero').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Formatos & Guías').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Repositorio documental').length).toBeGreaterThanOrEqual(1);
 
     expect(screen.queryByPlaceholderText('Búsqueda rápida...')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Buscar' })).not.toBeInTheDocument();

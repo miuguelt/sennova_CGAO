@@ -33,10 +33,12 @@ import useClickOutside from '../../hooks/useClickOutside';
 import { PDFGenerator } from '../../utils/pdfGenerator';
 import ProyectoEquipoTab from './ProyectoEquipoTab';
 import ProjectFormulationImport from './ProjectFormulationImport';
-import ProjectSourceDocuments from './ProjectSourceDocuments';
 import ProjectEvidenceFile from './ProjectEvidenceFile';
 import MoverProyectoSemilleroModal from './MoverProyectoSemilleroModal';
 import ProjectDocumentationEditor from './ProjectDocumentationEditor';
+import ProjectCard from './ProjectCard';
+import ProjectDocumentationProgress from './ProjectDocumentationProgress';
+import ProjectSourceDocuments from './ProjectSourceDocuments';
 
 // ─── Gantt Component ──────────────────────────────────────────────────────────
 const ProjectTimeline = ({ entregables = [] }) => {
@@ -185,33 +187,6 @@ const TIPOLOGIA_OPTIONS = [
   { value: 'Modernización',  label: 'Modernización' },
 ];
 
-const REPORTES_GESTION = [
-  {
-    id: 'ficha_tecnica',
-    nombre: 'Ficha técnica de formulación I+D+i',
-    codigo: 'SGPS / SIGP',
-    descripcion: 'Ficha oficial consolidada con la formulación técnica, objetivos, presupuesto y equipo investigador.'
-  },
-  {
-    id: 'acta_inicio',
-    nombre: 'Acta de inicio y socialización I+D+i',
-    codigo: 'ACTA-INI-SENN',
-    descripcion: 'Acta formal de instalación del equipo de investigación, compromisos y cronograma aprobado.'
-  },
-  {
-    id: 'seguimiento',
-    nombre: 'Reporte de seguimiento técnico y financiero',
-    codigo: 'GIC-F-037',
-    descripcion: 'Seguimiento periódico de hitos, entregables y ejecución presupuestal del proyecto de investigación.'
-  },
-  {
-    id: 'informe_final',
-    nombre: 'Informe final de resultados de investigación',
-    codigo: 'GIC-F-038',
-    descripcion: 'Cierre técnico, balance de actividades, productos MinCiencias e impactos generados.'
-  },
-];
-
 const controlValue = (eventOrValue) => eventOrValue?.target ? eventOrValue.target.value : eventOrValue;
 export const formatBudgetCurrency = (value) => `$${value.toLocaleString('es-CO')}`;
 
@@ -227,142 +202,6 @@ const Skeleton = () => (
       </div>
     ))}
   </div>
-);
-
-// ─── Kanban card ──────────────────────────────────────────────────────────────
-const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick, onEdit, onDelete, onLiquidar, onElaboracion, onMoverSemillero, onClickMenu, isMenuOpen, menuRef, canEdit }) => (
-  <Card
-    draggable={canEdit}
-    onDragStart={onDragStart}
-    onDragEnd={onDragEnd}
-    onClick={onClick}
-    tabIndex={0}
-    onKeyDown={(e) => e.key === 'Enter' && onClick()}
-    className={[
-      'p-4 cursor-grab active:cursor-grabbing group transition-shadow',
-      'border-0 ring-1 ring-slate-200 hover:ring-emerald-400 hover:shadow-card-md',
-      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
-      isDragging ? 'opacity-40' : '',
-    ].join(' ')}
-  >
-    {/* Top row */}
-    <div className="flex items-center justify-between gap-2 mb-3">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md font-mono">
-          {p.codigo_sgps || 'S/C'}
-        </span>
-        {p.estado === 'Referencia' && <StatusBadge estado={p.estado} />}
-      </div>
-      <div className="relative" ref={isMenuOpen ? menuRef : null}>
-        <button
-          aria-label="Opciones del proyecto"
-          onClick={(e) => {
-            e.stopPropagation();
-            onClickMenu(p.id);
-          }}
-          className={[
-            "p-1.5 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
-            isMenuOpen ? "bg-emerald-600 text-white shadow-lg shadow-emerald-200" : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-          ].join(" ")}
-        >
-          <MoreVertical size={16} />
-        </button>
-        
-        {/* Dropdown Menu - Glassmorphism style */}
-        {isMenuOpen && (
-          <div className="absolute right-0 mt-2 w-60 bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-white/20 z-[60] py-2 animate-in fade-in zoom-in slide-in-from-top-2 duration-200 ring-1 ring-slate-900/5">
-            <div className="px-3 py-2 mb-1 border-b border-slate-50">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones del Proyecto</p>
-            </div>
-            <button
-              onClick={(e) => { e.stopPropagation(); onElaboracion(p); }}
-              className="w-full flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all group/item"
-            >
-              <div className="p-1.5 bg-slate-100 rounded-lg group-hover/item:bg-emerald-100 group-hover/item:text-emerald-700 transition-colors">
-                <Sparkles size={14} className="text-emerald-600" />
-              </div>
-              Diagnóstico Elaboración
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onLiquidar(p); }}
-              className="w-full flex items-center gap-3 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition-all group/item"
-            >
-              <div className="p-1.5 bg-emerald-100/80 rounded-lg group-hover/item:bg-emerald-200 text-emerald-700 transition-colors">
-                <ShieldCheck size={14} />
-              </div>
-              Requisitos Liquidación
-            </button>
-            {canEdit && (
-              <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onMoverSemillero(p); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-indigo-700 hover:bg-indigo-50 transition-all group/item"
-                >
-                  <div className="p-1.5 bg-indigo-100/80 rounded-lg group-hover/item:bg-indigo-200 text-indigo-700 transition-colors">
-                    <GraduationCap size={14} />
-                  </div>
-                  Mover a Semillero
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onEdit(p); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all group/item"
-                >
-                  <div className="p-1.5 bg-slate-100 rounded-lg group-hover/item:bg-emerald-100 group-hover/item:text-emerald-600 transition-colors">
-                    <Edit2 size={14} />
-                  </div>
-                  Editar Proyecto
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDelete(p.id); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-rose-500 hover:bg-rose-50 transition-all group/item"
-                >
-                  <div className="p-1.5 bg-slate-100 rounded-lg group-hover/item:bg-rose-100 group-hover/item:text-rose-600 transition-colors">
-                    <Trash2 size={14} />
-                  </div>
-                  Eliminar Proyecto
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-
-    {/* Title */}
-    <h4 className="font-semibold text-slate-900 text-sm leading-snug mb-2 line-clamp-2">
-      {p.nombre_corto || p.nombre}
-    </h4>
-    <p className="text-xs text-slate-500 mb-4 line-clamp-2 leading-relaxed">
-      {p.descripcion || 'Sin descripción.'}
-    </p>
-
-    {/* Footer */}
-    <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-      {/* Avatar stack */}
-      <div className="flex -space-x-1.5" aria-label={`${p.equipo?.length || 0} miembros`}>
-        {p.equipo?.slice(0, 3).map((m, i) => (
-          <div
-            key={i}
-            title={m.nombre}
-            className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-600"
-          >
-            {m.nombre.charAt(0)}
-          </div>
-        ))}
-        {p.equipo?.length > 3 && (
-          <div className="w-6 h-6 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center text-[10px] font-semibold text-emerald-700">
-            +{p.equipo.length - 3}
-          </div>
-        )}
-      </div>
-
-      {/* Products count */}
-      <div className="flex items-center gap-1 text-slate-400" aria-label={`${p.total_productos} productos`}>
-        <Award size={12} aria-hidden="true" />
-        <span className="text-xs font-semibold">{p.total_productos ?? 0}</span>
-      </div>
-    </div>
-  </Card>
 );
 
 // ─── Main module ──────────────────────────────────────────────────────────────
@@ -389,7 +228,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [formData,         setFormData]         = useState(EMPTY_FORM);
   const [formulationFile,  setFormulationFile]  = useState(null);
   const [isSavingProject,  setIsSavingProject]  = useState(false);
-  const [activeTab,        setActiveTab]        = useState('summary');
+  const [activeTab,        setActiveTab]        = useState('guia');
   const [menuOpenId,       setMenuOpenId]       = useState(null);
   const [isEditing,        setIsEditing]        = useState(false);
   const [isPoolVisible,    setIsPoolVisible]    = useState(false);
@@ -400,7 +239,6 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [linkingHours,     setLinkingHours]     = useState(20);
   const [formTab,           setFormTab]          = useState('basic'); // 'basic', 'tech', 'budget'
   const [dragOverProjectId, setDragOverProjectId] = useState(null);
-  const [generatingFormatId, setGeneratingFormatId] = useState(null);
   const [projectToMove,     setProjectToMove]     = useState(null);
   const [showMoveModal,     setShowMoveModal]     = useState(false);
   const menuRef = React.useRef(null);
@@ -503,7 +341,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const handleOpenDetail = (proyecto) => {
     setSelectedProyecto(proyecto);
     setIsDetailOpen(true);
-    setActiveTab('summary');
+    setActiveTab('guia');
   };
 
   const handleEdit = (proyecto) => {
@@ -673,37 +511,6 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       onNotify?.('Error al generar certificados: ' + err.message, 'error');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGenerateFormat = async (formatId) => {
-    if (!selectedProyecto) return;
-    setGeneratingFormatId(formatId);
-    try {
-      switch (formatId) {
-        case 'ficha_tecnica':
-          await PDFGenerator.generateProjectPDF(selectedProyecto, teamMembers);
-          onNotify?.('Ficha técnica de investigación generada', 'success');
-          break;
-        case 'acta_inicio':
-          PDFGenerator.generateActaInicio(selectedProyecto);
-          onNotify?.('Acta de inicio de investigación generada', 'success');
-          break;
-        case 'seguimiento':
-          PDFGenerator.generateSeguimiento(selectedProyecto);
-          onNotify?.('Reporte de seguimiento generado', 'success');
-          break;
-        case 'informe_final':
-          PDFGenerator.generateInformeFinal(selectedProyecto);
-          onNotify?.('Reporte de cierre generado', 'success');
-          break;
-        default:
-          onNotify?.('Formato no soportado', 'error');
-      }
-    } catch (err) {
-      onNotify?.('Error al generar el formato: ' + err.message, 'error');
-    } finally {
-      setGeneratingFormatId(null);
     }
   };
 
@@ -1102,7 +909,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                   <th scope="col" className="px-4 md:px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Proyecto</th>
                   <th scope="col" className="hidden md:table-cell px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Código</th>
                   <th scope="col" className="px-4 md:px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Estado</th>
-                  <th scope="col" className="hidden lg:table-cell px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Avance Técnico</th>
+                  <th scope="col" className="hidden lg:table-cell px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Documentación</th>
                   <th scope="col" className="hidden sm:table-cell px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">Presupuesto</th>
                   <th scope="col" className="px-4 py-4 w-10"></th>
                 </tr>
@@ -1134,22 +941,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                     <td className="hidden md:table-cell px-6 py-4 font-mono text-[10px] text-emerald-700 font-bold">{p.codigo_sgps || 'S/C'}</td>
                     <td className="px-4 md:px-6 py-4"><StatusBadge estado={p.estado} className="text-[10px]" /></td>
                     <td className="hidden lg:table-cell px-6 py-4">
-                      <div className="w-36 space-y-1">
-                        <div className="flex justify-between items-center text-[10px] font-bold">
-                          <span className="text-slate-400">{p.entregables_aprobados || 0}/{p.total_entregables || 0} ent.</span>
-                          <span className="text-emerald-700 font-black">{p.avance_porcentaje || 0}%</span>
-                        </div>
-                        <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              (p.avance_porcentaje || 0) >= 100 ? 'bg-emerald-500' :
-                              (p.avance_porcentaje || 0) >= 50 ? 'bg-teal-500' :
-                              (p.avance_porcentaje || 0) > 0 ? 'bg-amber-500' : 'bg-slate-300'
-                            }`}
-                            style={{ width: `${Math.min(100, Math.max(0, p.avance_porcentaje || 0))}%` }}
-                          />
-                        </div>
-                      </div>
+                      <ProjectDocumentationProgress summary={p.avance_documental} compact />
                     </td>
                     <td className="hidden sm:table-cell px-6 py-4 text-xs font-bold text-slate-700 tabular-nums text-right">
                       ${p.presupuesto_total?.toLocaleString('es-CO')}
@@ -1220,8 +1012,10 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       <Drawer
         isOpen={isDetailOpen && !!selectedProyecto}
         onClose={() => setIsDetailOpen(false)}
-        size="2xl"
-        allowExpand={true}
+        size="full"
+        allowExpand={false}
+        className="project-workspace"
+        bodyClassName="project-workspace-body"
         variant="emerald"
         title={selectedProyecto?.nombre}
         badge={selectedProyecto && <StatusBadge estado={selectedProyecto.estado} />}
@@ -1235,7 +1029,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                 className="h-8 px-2.5 sm:px-3 text-[11px] font-black text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 border-emerald-300 shadow-sm flex items-center gap-1.5"
               >
                 <Sparkles size={13} className="text-emerald-700" />
-                <span className="hidden sm:inline">Metodología Guiada</span>
+                <span className="hidden sm:inline">Documentación</span>
                 <span className="sm:hidden">Guía</span>
               </Button>
               <Button
@@ -1260,20 +1054,20 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
           )
         }
         tabs={[
+          { id: 'guia', label: 'Documentación', icon: FileText },
           { id: 'summary', label: 'Resumen', icon: FileText },
-          { id: 'guia', label: 'Metodología Guiada', icon: Sparkles },
+
           { id: 'evidence', label: 'Expediente', icon: FolderOpen },
           { id: 'team', label: 'Equipo', icon: Users },
           { id: 'timeline', label: 'Línea de Tiempo', icon: Clock3 },
-          { id: 'formats', label: 'Formatos', icon: FileText },
         ]}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         footer={
-          <div className="flex flex-col sm:flex-row gap-3 w-full">
-            <Button className="flex-1 justify-center order-2 sm:order-1" variant="secondary" onClick={() => setIsDetailOpen(false)}>Cerrar</Button>
+          <div className="project-workspace-footer flex gap-3 w-full justify-end">
+            <Button className="justify-center order-2 sm:order-1" variant="secondary" onClick={() => setIsDetailOpen(false)}>Cerrar</Button>
             <Button 
-              className="flex-1 justify-center order-1 sm:order-2" 
+              className="justify-center order-1 sm:order-2"
               variant="sena"
               onClick={() => {
                 handleEdit(selectedProyecto);
@@ -1443,53 +1237,23 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               </div>
             )}
 
-            {activeTab === 'guia' && (
-              <div className="space-y-6 animate-fadeIn">
-                <div className="bg-gradient-to-r from-emerald-50 via-teal-50/70 to-indigo-50/60 p-5 rounded-2xl border border-emerald-200 shadow-xs">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-700 text-white shadow-2xs">
-                        <Sparkles size={12} /> Metodología de Formulación SENNOVA
-                      </span>
-                      <h3 className="text-lg font-black text-slate-900 mt-1.5">
-                        Guía Metodológica para la Construcción del Proyecto
-                      </h3>
-                      <p className="text-xs text-slate-600 mt-0.5 leading-relaxed max-w-3xl">
-                        Estructure paso a paso su propuesta de investigación aplicada, desarrollo tecnológico o innovación (I+D+i). Siga las indicaciones de cada etapa, valide la coherencia técnica y descargue los documentos institucionales en construcción.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs font-bold border-emerald-300 text-emerald-800 bg-white hover:bg-emerald-50 shadow-2xs"
-                        onClick={() => PDFGenerator.generateProjectPDF(selectedProyecto, teamMembers)}
-                      >
-                        <FileText size={13} className="mr-1 text-emerald-600" /> Ficha Técnica (PDF)
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs font-bold border-emerald-300 text-emerald-800 bg-white hover:bg-emerald-50 shadow-2xs"
-                        onClick={() => PDFGenerator.generateActaInicio(selectedProyecto)}
-                      >
-                        <FileText size={13} className="mr-1 text-emerald-600" /> Acta de Inicio (PDF)
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+            <div hidden={activeTab !== 'guia'} className="space-y-6 animate-fadeIn">
 
                 <ProjectDocumentationEditor
                   projectId={selectedProyecto.id}
                   currentUser={currentUser}
                   onNotify={onNotify}
                   initialOpened={true}
+                  workspace={true}
+                  key={selectedProyecto.id}
                 />
-              </div>
-            )}
+            </div>
 
             {activeTab === 'evidence' && (
-              <ProjectEvidenceFile projectId={selectedProyecto.id} currentUser={currentUser} onNotify={onNotify} />
+              <div className="space-y-6">
+                <ProjectSourceDocuments projectId={selectedProyecto.id} />
+                <ProjectEvidenceFile projectId={selectedProyecto.id} currentUser={currentUser} onNotify={onNotify} showConstructor={false} />
+              </div>
             )}
 
             {activeTab === 'team' && (
@@ -1511,101 +1275,6 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               </div>
             )}
 
-            {activeTab === 'formats' && (
-              <div className="space-y-6 animate-fadeIn">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <h3 className="text-sm font-black text-slate-900 mb-0.5 flex items-center gap-2">
-                      <FileText size={18} className="text-emerald-600" />
-                      Reportes de gestión del proyecto
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Genere reportes y formatos institucionales PDF con la información registrada en la plataforma de investigación SENNOVA.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setActiveTab('guia')}
-                    className="h-8 text-xs font-bold border-emerald-300 text-emerald-800 bg-emerald-50/50 hover:bg-emerald-100/80 shrink-0 flex items-center gap-1.5 shadow-2xs"
-                  >
-                    <Sparkles size={13} className="text-emerald-700" />
-                    <span>Construir en Guía Metodológica</span>
-                  </Button>
-                </div>
-
-                <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-950">
-                  Estos reportes corresponden a proyectos de investigación, desarrollo tecnológico e innovación (I+D+i) del Sistema SENNOVA CGAO. Ayudan al seguimiento técnico y contractual, y no reemplazan los formatos institucionales vigentes. La carpeta de referencia incluye un ejemplar de GIC-F-037. Confirme la versión controlada con la Coordinación SENNOVA y cárguela en la bóveda de evidencias antes de radicar.
-                </div>
-
-                {/* Banner de acceso a metodología guiada */}
-                <div className="p-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50/70 to-teal-50/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-2xs">
-                  <div>
-                    <h4 className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
-                      <Sparkles size={14} className="text-emerald-700" />
-                      ¿Desea redactar y estructurar la investigación paso a paso?
-                    </h4>
-                    <p className="text-[11px] text-slate-600 mt-0.5">
-                      La Metodología Guiada le indica qué información agregar en cada fase y le permite descargar los documentos mientras los construye.
-                    </p>
-                  </div>
-                  <Button
-                    variant="sena"
-                    size="sm"
-                    onClick={() => setActiveTab('guia')}
-                    className="text-xs font-bold whitespace-nowrap shadow-xs"
-                  >
-                    Abrir Metodología Guiada
-                  </Button>
-                </div>
-
-                <ProjectSourceDocuments projectId={selectedProyecto.id} />
-
-                <div className="space-y-3">
-                  {REPORTES_GESTION.map(p => (
-                    <div key={p.id} className="p-4 rounded-2xl border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/20 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-                      <div className="flex items-start gap-3.5">
-                        <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-xl mt-0.5 shrink-0 border border-emerald-100">
-                          <FileText size={18} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-xs font-bold text-slate-900">{p.nombre}</h4>
-                            {p.codigo && (
-                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded-md">
-                                {p.codigo}
-                              </span>
-                            )}
-                          </div>
-                          {p.descripcion && (
-                            <p className="text-[11px] text-slate-600 mt-0.5 max-w-xl leading-relaxed">
-                              {p.descripcion}
-                            </p>
-                          )}
-                          <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md mt-1.5 inline-block">
-                            PDF de apoyo SENNOVA
-                          </span>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleGenerateFormat(p.id)}
-                        disabled={generatingFormatId === p.id}
-                        className="text-xs font-bold border-emerald-300 text-emerald-800 hover:bg-emerald-50 shrink-0 self-end sm:self-center shadow-2xs"
-                      >
-                        {generatingFormatId === p.id ? (
-                          <><Loader2 size={12} className="animate-spin mr-1" /> Generando…</>
-                        ) : 'Generar'}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-slate-500 mt-4">
-                  Para conservar el formato oficial, cargue a la bóveda el archivo vigente entregado por la institución.
-                </p>
-              </div>
-            )}
           </div>
         )}
       </Drawer>

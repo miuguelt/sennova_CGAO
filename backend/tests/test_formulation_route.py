@@ -21,6 +21,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.main import app
 from app.models import Base, Producto, Proyecto, User
+from app.services.documentation_catalog import COMMON_FIELDS
 from app.services.formulation_route import (
     _blank,
     _budget_warning,
@@ -129,6 +130,8 @@ def test_formulation_route_helpers():
     invalid_warn = _budget_warning(proj, common_invalid)
     assert len(invalid_warn) == 1
     assert "no numéricos" in invalid_warn[0]
+    assert invalid_warn[0].startswith("Revisa")
+    assert _project_pending({}, ["nombre"])[0].startswith("Completa")
 
     assert _budget_warning(proj, {}) == []
     empty_proj.presupuesto_total = None
@@ -138,7 +141,7 @@ def test_formulation_route_helpers():
 def test_formulation_route_calculation(formulation_env):
     db, user, project, client = formulation_env
     route = formulation_route(project, {}, {})
-    assert route["total"] == 9
+    assert route["total"] == 10
     assert route["pasos"][0]["id"] == "identificacion"
     assert route["pasos"][0]["completo"] is True
     assert route["porcentaje"] > 0
@@ -147,11 +150,75 @@ def test_formulation_route_calculation(formulation_env):
     # Probar con slot generable y con versión vigente en historial
     slot_generable = {"generable": True, "historial": []}
     route_gen = formulation_route(project, {}, slot_generable)
-    assert "Genere la formulación" in route_gen["pasos"][8]["faltantes"][0]
+    assert "Genera la formulación" in route_gen["pasos"][9]["faltantes"][0]
 
     slot_vigente = {"generable": True, "historial": [{"vigente": True}]}
     route_vig = formulation_route(project, {}, slot_vigente)
-    assert route_vig["pasos"][8]["completo"] is True
+    assert route_vig["pasos"][9]["completo"] is True
+
+
+def test_formulation_route_follows_the_reference_project_sequence_and_groups_fields(formulation_env):
+    _db, _user, project, _client = formulation_env
+
+    route = formulation_route(project, {}, {})
+    steps = route["pasos"]
+
+    assert [step["id"] for step in steps] == [
+        "identificacion", "institucional", "problema", "objetivos", "marco",
+        "metodologia", "resultados", "recursos", "referencias", "generar",
+    ]
+    assert route["total"] == 10
+    assert [step["proposito"].split()[0] for step in steps] == [
+        "Identifica", "Completa", "Construye", "Convierte", "Sustenta",
+        "Describe", "Formula", "Conecta", "Cierra", "Revisa",
+    ]
+    assert steps[2]["campos"] == ["introduccion", "contexto", "planteamiento_problema", "justificacion"]
+    assert steps[3]["campos"] == ["objetivo_general", "objetivos_especificos"]
+    assert steps[6]["campos"] == ["resultados_esperados", "impactos", "conclusiones"]
+    assert steps[7]["campos"] == ["presupuesto", "cronograma"]
+    assert steps[8]["campos"] == ["referencias"]
+
+    for step in steps[:-1]:
+        grouped_fields = [field for block in step["bloques"] for field in block["campos"]]
+        assert grouped_fields == step["campos"]
+
+    training_fields = {
+        "nivel_formacion", "programa_formacion", "competencia",
+        "resultados_aprendizaje", "fase_proyecto_formativo",
+        "categoria_proyecto", "area_investigacion",
+    }
+    team_field = next(field for field in COMMON_FIELDS if field["key"] == "equipo")
+    author_fields = {"identificacion", "correo_contacto", "telefono_contacto"}
+    assert author_fields <= {field["key"] for field in team_field["columns"]}
+    assert all(not field["required"] for field in team_field["columns"] if field["key"] in author_fields)
+    assert "autoría y contacto" in team_field["details_label"].lower()
+    assert "autorización" in team_field["details_help"].lower()
+    institutional = steps[1]
+    metadata_block = next(block for block in institutional["bloques"] if block["id"] == "formacion-convocatoria")
+    assert training_fields <= set(metadata_block["campos"])
+    assert training_fields <= set(institutional["campos"])
+    assert all(not field["required"] for field in COMMON_FIELDS if field["key"] in training_fields)
+
+
+def test_optional_cap14_metadata_does_not_block_institutional_step(formulation_env):
+    _db, _user, project, _client = formulation_env
+    common = {
+        "centro": "Centro de formación",
+        "regional": "Regional de prueba",
+        "ciudad": "Municipio de prueba",
+        "responsable": "Responsable de prueba",
+        "fecha_inicio": "2026-01-01",
+        "fecha_fin": "2026-12-31",
+        "equipo": [{"nombre": "Investigador de prueba", "rol": "Investigación", "actividades": "Coordinar el estudio"}],
+        "presupuesto": [{"rubro": "Materiales", "valor_planeado": 50000000, "uso": "Pruebas del proyecto", "fecha_ejecucion": "Mes 1"}],
+        "cronograma": [{"actividad": "Caracterizar el proceso", "encargado": "Investigador de prueba", "fecha_textual": "Mes 1", "resultado": "Caracterización documentada"}],
+    }
+
+    route = formulation_route(project, common, {})
+    institutional = next(step for step in route["pasos"] if step["id"] == "institucional")
+
+    assert institutional["completo"] is True
+    assert institutional["faltantes"] == []
 
 
 

@@ -72,6 +72,92 @@ def test_role_migration_is_safe_when_users_table_has_no_role_column():
         engine.dispose()
 
 
+def test_removes_retired_bitacora_schema_and_preserves_research_data_idempotently():
+    from app.database import remove_retired_stage_productivity_schema
+
+    engine = create_engine("sqlite://")
+    try:
+        with engine.begin() as connection:
+            connection.execute(text(
+                "CREATE TABLE proyectos ("
+                "id INTEGER PRIMARY KEY, nombre TEXT NOT NULL, "
+                "formato_bitacora_path TEXT, formato_seguimiento_path TEXT, "
+                "informe_final_path TEXT)"
+            ))
+            connection.execute(text(
+                "INSERT INTO proyectos "
+                "(id, nombre, formato_bitacora_path, formato_seguimiento_path, informe_final_path) "
+                "VALUES (1, 'CAP de prueba', 'bitacora.docx', 'seguimiento.docx', 'informe.docx')"
+            ))
+            connection.execute(text(
+                "CREATE TABLE bitacora_entries (id INTEGER PRIMARY KEY, contenido TEXT NOT NULL)"
+            ))
+            connection.execute(text(
+                "INSERT INTO bitacora_entries (id, contenido) VALUES (1, 'Registro heredado')"
+            ))
+            connection.execute(text("CREATE TABLE audit_logs (id INTEGER PRIMARY KEY, endpoint TEXT)"))
+            connection.execute(text("INSERT INTO audit_logs (id, endpoint) VALUES (1, '/proyectos')"))
+
+        assert remove_retired_stage_productivity_schema(engine) == {
+            "table_removed": True,
+            "columns_removed": ("formato_bitacora_path", "formato_seguimiento_path"),
+        }
+        assert remove_retired_stage_productivity_schema(engine) == {
+            "table_removed": False,
+            "columns_removed": (),
+        }
+
+        inspector = inspect(engine)
+        assert "bitacora_entries" not in inspector.get_table_names()
+        assert "audit_logs" in inspector.get_table_names()
+        columns = {column["name"] for column in inspector.get_columns("proyectos")}
+        assert "formato_bitacora_path" not in columns
+        assert "formato_seguimiento_path" not in columns
+        assert "informe_final_path" in columns
+        with engine.connect() as connection:
+            project = connection.execute(text(
+                "SELECT nombre, informe_final_path FROM proyectos WHERE id = 1"
+            )).one()
+            audit_count = connection.execute(text("SELECT COUNT(*) FROM audit_logs")).scalar_one()
+        assert project == ("CAP de prueba", "informe.docx")
+        assert audit_count == 1
+    finally:
+        engine.dispose()
+
+
+def test_application_schema_initialization_retires_legacy_bitacora_schema():
+    from app.models import Base
+    from app.services.database_startup import initialize_schema
+
+    engine = create_engine("sqlite://")
+    try:
+        Base.metadata.create_all(bind=engine)
+        with engine.begin() as connection:
+            project_columns = {
+                column["name"] for column in inspect(engine).get_columns("proyectos")
+            }
+            for column_name in ("formato_bitacora_path", "formato_seguimiento_path"):
+                if column_name not in project_columns:
+                    connection.execute(text(
+                        f"ALTER TABLE proyectos ADD COLUMN {column_name} TEXT"
+                    ))
+            if "bitacora_entries" not in inspect(engine).get_table_names():
+                connection.execute(text(
+                    "CREATE TABLE bitacora_entries (id INTEGER PRIMARY KEY, contenido TEXT NOT NULL)"
+                ))
+
+        initialize_schema(engine)
+
+        inspector = inspect(engine)
+        assert "bitacora_entries" not in inspector.get_table_names()
+        columns = {column["name"] for column in inspector.get_columns("proyectos")}
+        assert "formato_bitacora_path" not in columns
+        assert "formato_seguimiento_path" not in columns
+    finally:
+        Base.metadata.drop_all(bind=engine)
+        engine.dispose()
+
+
 def test_application_startup_migrates_existing_instructor_accounts(monkeypatch):
     from app import main
     from app.models import Base, User

@@ -209,6 +209,129 @@ def test_csv_consolidado_productos(client, headers):
     assert "autor" in text
 
 
+def test_excel_indicadores_minciencias_por_investigador(client, headers):
+    """Exporta el seguimiento por investigador y excluye productos fuera del año."""
+    db = TestingSessionLocal()
+    investigator = db.query(User).filter(User.email == "inv_excel@sena.edu.co").first()
+    secondary_investigator = User(
+        email="inv_excel_secondary@sena.edu.co",
+        password_hash=get_password_hash("Inv123!"),
+        nombre="Investigador Secundario",
+        rol="investigador",
+        nivel_academico="Profesional",
+        cv_lac_url="https://example.test/cvlac",
+        estado_cv_lac="Actualizado",
+        lineas_investigacion=["Agroindustria"],
+        is_active=True,
+    )
+    group = db.query(Grupo).first()
+    group.nombre = "Investigadores CGAO"
+    group.integrantes.append(investigator)
+    group.integrantes.append(secondary_investigator)
+    db.add(secondary_investigator)
+    db.add_all([
+        Producto(
+            tipo="A1",
+            categoria=None,
+            nombre='=HYPERLINK("https://example.test/articulo","Artículo de investigación")',
+            fecha_publicacion=date(2025, 3, 1),
+            año_reporte=2026,
+            is_verificado=False,
+            proyecto_id=None,
+            owner_id=investigator.id,
+            url="https://example.test/articulo",
+        ),
+        Producto(
+            tipo="B1",
+            categoria="B",
+            nombre="Libro de investigación",
+            fecha_publicacion=date(2025, 3, 1),
+            año_reporte=2025,
+            is_verificado=True,
+            proyecto_id=None,
+            owner_id=investigator.id,
+        ),
+        Producto(
+            tipo="C2",
+            categoria="C",
+            nombre="Prototipo de investigación",
+            fecha_publicacion=date(2026, 5, 1),
+            is_verificado=False,
+            proyecto_id=None,
+            owner_id=investigator.id,
+        ),
+    ])
+    db.commit()
+    db.close()
+
+    response = client.get("/reportes/indicadores-minciencias?año=2026", headers=headers)
+
+    assert response.status_code == 200
+    assert "spreadsheetml.sheet" in response.headers["content-type"]
+    workbook = load_workbook(filename=BytesIO(response.content), data_only=True)
+    assert workbook.sheetnames == ["Resumen", "Investigadores", "Productos", "Metodología"]
+    summary = workbook["Resumen"]
+    assert summary["A1"].value == "MATRIZ DE SEGUIMIENTO DE INDICADORES MINCIENCIAS"
+    summary_rows = {summary.cell(row, 1).value: summary.cell(row, 2).value for row in range(5, 12)}
+    assert summary_rows["Investigadores incluidos"] == 2
+    assert summary_rows["Productos del período"] == 3
+    assert summary_rows["Productos verificados"] == 1
+    assert summary_rows["Productos sin categoría"] == 1
+    assert summary_rows["Productos sin soporte"] == 1
+
+    researchers = workbook["Investigadores"]
+    researcher_row = {researchers.cell(3, col).value: researchers.cell(4, col).value for col in range(1, researchers.max_column + 1)}
+    assert researcher_row["Investigador"] == "Investigador Excel Test"
+    assert researcher_row["Productos registrados"] == 3
+    assert researcher_row["Categoría A"] == 1
+    assert researcher_row["Categoría B"] == 0
+    assert researcher_row["Categoría C"] == 1
+    assert researcher_row["Sin categoría"] == 1
+    complete_profile = {researchers.cell(3, col).value: researchers.cell(5, col).value for col in range(1, researchers.max_column + 1)}
+    assert complete_profile["Datos de perfil pendientes"] == "Sin faltantes en estos campos"
+
+    products = workbook["Productos"]
+    product_names = {products.cell(row, 2).value for row in range(4, products.max_row + 1)}
+    assert product_names == {"'=HYPERLINK(\"https://example.test/articulo\",\"Artículo de investigación\")", "Prototipo de investigación", "Software de Monitoreo IoT"}
+    assert products["B4"].data_type == "s"
+    methodology = " ".join(str(cell.value or "") for row in workbook["Metodología"].iter_rows() for cell in row)
+    assert "No calcula ni certifica" in methodology
+
+
+def test_excel_indicadores_minciencias_sin_grupo_institucional(client, headers):
+    """Genera un archivo explicativo y vacío si no existe el grupo canónico."""
+    db = TestingSessionLocal()
+    group = db.query(Grupo).first()
+    original_name = group.nombre
+    group.nombre = "Grupo alterno"
+    db.commit()
+    db.close()
+
+    try:
+        response = client.get("/reportes/indicadores-minciencias", headers=headers)
+
+        assert response.status_code == 200
+        workbook = load_workbook(filename=BytesIO(response.content), data_only=True)
+        summary = workbook["Resumen"]
+        summary_rows = {summary.cell(row, 1).value: summary.cell(row, 2).value for row in range(5, 12)}
+        assert summary_rows["Investigadores incluidos"] == 0
+        assert summary_rows["Clasificación registrada del grupo"] == "Sin grupo"
+        assert workbook["Investigadores"].max_row == 3
+        assert workbook["Productos"].max_row == 3
+    finally:
+        db = TestingSessionLocal()
+        group = db.query(Grupo).first()
+        group.nombre = original_name
+        db.commit()
+        db.close()
+
+
+def test_excel_indicadores_minciencias_rechaza_año_fuera_de_rango(client, headers):
+    response = client.get("/reportes/indicadores-minciencias?año=1999", headers=headers)
+
+    assert response.status_code == 422
+
+
 def test_excel_consolidado_semilleros(client, headers):
     """Prueba la generación de Excel consolidado de semilleros y aprendices."""
     response = client.get("/reportes/semilleros-consolidado?formato=excel", headers=headers)

@@ -17,6 +17,7 @@ from sqlalchemy import func
 from app.database import get_db
 from app.auth import get_current_staff
 from app.models import User, Proyecto, Grupo, Semillero, Producto
+from app.services.minciencias_indicator_workbook import build_minciencias_indicator_workbook
 
 # Importar librerías de Excel
 try:
@@ -31,6 +32,42 @@ router = APIRouter(
     prefix="/reportes",
     tags=["Reportes SENNOVA"]
 )
+
+
+@router.get("/indicadores-minciencias")
+def generar_matriz_indicadores_minciencias(
+    año: Optional[int] = Query(None, ge=2000, le=2100, description="Año de reporte; usa año de publicación si el registro no tiene año de reporte"),
+    current_user: User = Depends(get_current_staff),
+    db: Session = Depends(get_db),
+):
+    """Exporta una matriz descriptiva por investigador, sin asignar clasificación oficial."""
+    if not EXCEL_AVAILABLE:
+        raise HTTPException(status_code=500, detail="openpyxl no está instalado")
+
+    try:
+        group = db.query(Grupo).filter(Grupo.nombre == "Investigadores CGAO").first()
+        investigators = sorted(
+            [member for member in (group.integrantes if group else [])
+             if member.rol == "investigador" and member.is_active],
+            key=lambda member: (member.nombre or "").casefold(),
+        )
+        investigator_ids = [str(member.id) for member in investigators]
+        products = (
+            db.query(Producto).filter(Producto.owner_id.in_(investigator_ids)).all()
+            if investigator_ids else []
+        )
+        output = build_minciencias_indicator_workbook(group, investigators, products, año)
+        year_suffix = año or "todos"
+        filename = f"matriz_indicadores_minciencias_{year_suffix}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.xlsx"
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+    except (OperationalError, SQLAlchemyError) as db_err:
+        raise db_err
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=str(error))
 
 # Paleta institucional de estilos Excel (SENA / SENNOVA)
 HEADER_FILL = PatternFill(start_color="047857", end_color="047857", fill_type="solid")  # Emerald 700

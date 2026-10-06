@@ -65,8 +65,6 @@ const CATEGORIA_C = [
 const CATEGORIA_D = [
   { value: 'D1', label: 'D1 · Trabajo de grado (pregrado/maestría)', Icon: Award, color: 'text-purple-700', bg: 'bg-purple-100', border: 'border-purple-200',
     requisitos: ['Acta de grado o certificado', 'Título de la tesis', 'Vinculación al proyecto SENNOVA', 'Nombre del director/asesor'] },
-  { value: 'D2', label: 'D2 · Proyectos de Etapa Productiva SENA', Icon: FileText, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100',
-    requisitos: ['Formato de etapa productiva diligenciado', 'Informe del aprendiz', 'Evaluación del instructor', 'Acta de inicio y fin'] },
   { value: 'D3', label: 'D3 · Jóvenes Investigadores', Icon: Users, color: 'text-pink-700', bg: 'bg-pink-100', border: 'border-pink-200',
     requisitos: ['Contrato o acuerdo formalizado', 'Actas de seguimiento mensuales', 'Informe de actividades', 'Certificado de participación'] },
 ];

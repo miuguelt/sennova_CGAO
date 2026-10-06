@@ -140,18 +140,6 @@ def test_roles_suite():
         entities["semillero_id"] = r.json()["id"]
         print(f"  🔹 Semillero Base Creado (Dueño: Investigador): {entities['semillero_id']}")
 
-        # E. Crear Entrada de Bitácora (vía Investigador)
-        bitacora_payload = {
-            "titulo": "Entrada Base de Pruebas",
-            "contenido": "Esta entrada será utilizada para probar la firma digital por parte de investigadores y aprendices.",
-            "categoria": "técnica",
-            "proyecto_id": entities["proyecto_id"]
-        }
-        r = requests.post(f"{BASE_URL}/bitacora", json=bitacora_payload, headers=investigador_h)
-        r.raise_for_status()
-        entities["bitacora_entry_id"] = r.json()["id"]
-        print(f"  🔹 Entrada de Bitácora Creada: {entities['bitacora_entry_id']}")
-
     except Exception as e:
         print(f"❌ Error crítico preparando entidades base: {e}")
         return
@@ -225,21 +213,7 @@ def test_roles_suite():
             "run": lambda h: requests.post(f"{BASE_URL}/proyectos/{entities['proyecto_id']}/generate-budget-template", headers=h),
             "expected": {"admin": 200, "investigador": 200, "aprendiz": 403}
         },
-        {
-            "name": "Formulario Bitácora (Crear)",
-            "run": lambda h: requests.post(f"{BASE_URL}/bitacora", json={
-                "titulo": "Bitácora Form Test",
-                "contenido": "Esta es una entrada de bitácora técnica creada por un usuario de pruebas.",
-                "categoria": "técnica",
-                "proyecto_id": entities["proyecto_id"]
-            }, headers=h),
-            "expected": {"admin": 201, "investigador": 201, "aprendiz": 201}
-        },
-        {
-            "name": "Formulario Firma Bitácora",
-            "run": lambda h: requests.post(f"{BASE_URL}/bitacora/{entities['bitacora_entry_id']}/sign", json={}, headers=h),
-            "expected": {"admin": 200, "investigador": 200, "aprendiz": 200}
-        }
+
     ]
 
     print(f"\n{Colors.BOLD}🧪 Fase 3: Ejecutando matriz de pruebas cruzadas por rol...{Colors.RESET}")
@@ -329,15 +303,7 @@ def test_roles_suite():
     # 5. Fase de Limpieza
     print(f"{Colors.BOLD}🧹 Fase 5: Limpieza de entidades base creadas...{Colors.RESET}")
     # Limpiar en orden inverso de dependencias
-    # A. Bitácoras
-    try:
-        r = requests.delete(f"{BASE_URL}/bitacora/{entities['bitacora_entry_id']}", headers=admin_h)
-        if r.status_code == 200:
-            print("  ✅ Entrada de Bitácora base eliminada.")
-    except:
-        pass
-
-    # B. Semilleros creados temporalmente
+    # A. Semilleros creados temporalmente
     for k, v in list(entities.items()):
         if "cleanup_sem_" in k:
             try:
@@ -403,7 +369,7 @@ def test_roles_suite():
 def generate_markdown_report(results):
     report_path = "maintenance/test_roles_results.md"
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
-    
+
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(f"# Informe de Auditoría y Pruebas Cruzadas por Rol - SENNOVA CGAO\n\n")
         f.write(f"**Fecha y Hora:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -441,7 +407,7 @@ def generate_markdown_report(results):
         
         if pct == 100.0:
             f.write(f"> [!NOTE]\n")
-            f.write(f"> **CONFORMIDAD TOTAL:** El sistema cumple al 100% con las políticas de control de acceso. Los perfiles restrictivos (Investigador y Aprendiz) tienen bloqueados de forma segura los formularios administrativos, mientras que las operaciones colaborativas (como bitácoras y firmas digitales) funcionan perfectamente para los roles correspondientes.\n")
+            f.write(f"> **CONFORMIDAD TOTAL:** Las solicitudes cubiertas por esta matriz respondieron con los códigos esperados para los tres roles evaluados.\n")
         else:
             f.write(f"> [!WARNING]\n")
             f.write(f"> **ALERTAS DE SEGURIDAD:** Existen fallos en las aserciones de control de acceso. Revise los endpoints marcados con ❌ en la matriz superior.\n")

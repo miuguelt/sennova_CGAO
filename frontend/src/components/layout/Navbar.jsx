@@ -191,7 +191,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
         {
           label: 'Sistema',
           items: [
-            { id: 'repositorio',   label: 'Repositorio & Formatos', icon: Book },
+            { id: 'repositorio',   label: 'Repositorio documental', icon: Book },
             { id: 'cvlac-admin',   label: 'Control CvLAC',          icon: FileText },
             { id: 'auditoria',     label: 'Auditoría & Logs',       icon: Shield },
             { id: 'configuracion', label: 'Configuración Global',   icon: Settings },
@@ -221,7 +221,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
           label: 'Formación',
           items: [
             { id: 'semilleros',  label: 'Mi Semillero',     icon: GraduationCap },
-            { id: 'repositorio', label: 'Formatos & Guías', icon: Book },
+          { id: 'repositorio', label: 'Repositorio documental', icon: Book },
           ]
         }
       ];
@@ -258,7 +258,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
       {
         label: 'Recursos',
         items: [
-          { id: 'repositorio',   label: 'Repositorio & Formatos', icon: Book },
+          { id: 'repositorio',   label: 'Repositorio documental', icon: Book },
           { id: 'reportes',      label: 'Reportes Científicos',   icon: FileText },
         ]
       }

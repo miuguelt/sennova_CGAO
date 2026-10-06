@@ -1,11 +1,7 @@
-"""Servicio de IA (simulado) para asistir en la formulación de proyectos."""
-
-import time
+"""Reglas locales para orientar la redacción metodológica de proyectos."""
 
 def get_field_recommendations(field_key: str, current_text: str) -> list[str]:
-    """Genera recomendaciones metodológicas específicas usando heurísticas y guías SENA."""
-    time.sleep(1) # Simula latencia de IA/LLM
-    
+    """Devuelve recomendaciones basadas en reglas, sin simular una consulta de IA."""
     tips = []
     text_len = len(current_text.strip())
     

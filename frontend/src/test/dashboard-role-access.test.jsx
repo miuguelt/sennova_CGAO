@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import DashboardModule from '../components/dashboard/DashboardModule';
 import { DashboardAPI } from '../api/dashboard';
 
@@ -18,6 +18,28 @@ describe('Acceso a datos del panel principal por rol', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  it.each([
+    ['aprendiz', 0], ['aprendiz', 32], ['aprendiz', 100], ['aprendiz', undefined],
+    ['investigador', 0], ['investigador', 32], ['investigador', 100], ['investigador', undefined],
+  ])('muestra el avance documental autoritativo para %s cuando el porcentaje es %s', async (rol, porcentaje) => {
+    DashboardAPI.getStats.mockResolvedValue(null);
+    DashboardAPI.getAnalyticsEvolucion.mockResolvedValue([]);
+    DashboardAPI.getUserImpact.mockResolvedValue({ proyectos_count: 1, productos_count: 0, semilleros_count: 1, cumplimiento: 87, avance_documental: porcentaje == null ? undefined : { porcentaje } });
+    const onModuleAction = vi.fn();
+    await act(async () => { render(<DashboardModule currentUser={{ id: 'usuario-1', nombre: 'Usuario', rol }} onModuleAction={onModuleAction} />); });
+    const heading = screen.getByText('Avance documental');
+    const card = heading.closest('[class*="cursor-pointer"]');
+    expect(within(card).getByText(`${porcentaje ?? 0}%`)).toBeVisible();
+    expect(screen.queryByText('87%')).not.toBeInTheDocument();
+    if (rol === 'investigador') {
+      const indicators = screen.getAllByRole('progressbar', { name: /Avance documental/ });
+      for (const indicator of indicators) expect(indicator).toHaveAttribute('aria-valuenow', String(porcentaje ?? 0));
+      expect(screen.getByRole('progressbar', { name: 'Avance documental de mis proyectos' }).querySelector('circle[stroke-dasharray]')).toHaveAttribute('stroke-dashoffset', String(251.2 - (251.2 * (porcentaje ?? 0)) / 100));
+    }
+    fireEvent.click(card);
+    expect(onModuleAction).toHaveBeenCalledWith({ module: 'proyectos' });
   });
 
   it('no solicita analítica institucional para el aprendiz', async () => {

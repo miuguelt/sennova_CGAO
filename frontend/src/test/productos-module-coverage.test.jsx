@@ -59,6 +59,8 @@ describe('catálogo de productos de investigación', () => {
     const onNotify = vi.fn();
     render(<ProductosModule currentUser={{ id: 'owner-1', rol: 'investigador' }} onNotify={onNotify} />);
     expect(await screen.findByRole('heading', { name: 'Productos e Innovación' })).toBeVisible();
+    expect(screen.queryByRole('option', { name: /D2.*Etapa Productiva/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Proyectos de Etapa Productiva SENA/i)).not.toBeInTheDocument();
     expect(screen.getByText('Artículo sobre agricultura sostenible')).toBeVisible();
     expect(screen.getByText('Software de trazabilidad')).toBeVisible();
 
