@@ -15,6 +15,8 @@ FORMULATION_IMPORT_REQUEST_LIMIT = (
 FORMULATION_REQUEST_LIMITS = {
     "/proyectos/analizar-formulacion": FORMULATION_PREVIEW_REQUEST_LIMIT,
     "/proyectos/importar-formulacion": FORMULATION_IMPORT_REQUEST_LIMIT,
+    "/expediente/analizar-archivos": 201 * 1024 * 1024,
+    "/expediente/importar-archivos": 201 * 1024 * 1024,
 }
 
 

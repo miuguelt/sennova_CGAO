@@ -158,7 +158,9 @@ def evaluate_project_file(project: Proyecto, db: Session) -> dict:
 
 def build_project_file_zip(project: Proyecto, db: Session):
     """Exporta archivos reales, siete directorios normalizados de SharePoint y diagnóstico."""
+    from app.services.project_file_import.export import export_folder, export_path, imported_sources
     report = evaluate_project_file(project, db)
+    sources, folders = imported_sources(project, db)
     target = SpooledTemporaryFile(max_size=8 * 1024 * 1024, mode="w+b")
     try:
         with ZipFile(target, "w", compression=ZIP_DEFLATED) as archive:
@@ -167,8 +169,16 @@ def build_project_file_zip(project: Proyecto, db: Session):
             archive.writestr("3Productos/1InformeFinal/", b"")
             archive.writestr("3Productos/2PosteryEventos/", b"")
             archive.writestr("3Productos/3.InnovacionGestionEmpresarial/", b"")
+            for folder in sorted(folders):
+                try:
+                    folder = export_folder(folder) + "/"
+                except ValueError:
+                    continue
+                if folder not in archive.namelist():
+                    archive.writestr(folder, b"")
             archive.writestr("expediente.json", json.dumps(report, ensure_ascii=False, indent=2))
             archive.writestr("pendientes.txt", report["alcance"] + "\n\n" + ("\n".join(report["pendientes"]) or "Las etapas documentales están completas."))
+            used = {name.casefold() for name in archive.namelist()}
             for document in project_documents(project, db):
                 content = document_bytes(document)
                 if content is None:
@@ -184,7 +194,9 @@ def build_project_file_zip(project: Proyecto, db: Session):
                 else:
                     folder = next((stage[1] for stage in STAGES if document.tipo in stage[4]), "1ProyectoFomulado/Anexos")
                 safe_name = re.sub(r"[^\w.() -]", "_", (document.nombre_archivo or "documento").replace("\\", "/").split("/")[-1]).replace("..", "_")[:180] or "documento"
-                archive.writestr(f"{folder}/{document.id}_{safe_name}", content)
+                source = sources.get(str(document.id))
+                path = source.ruta if source else f"{folder}/{document.id}_{safe_name}"
+                archive.writestr(export_path(path, str(document.id), used), content)
         target.seek(0)
         return target
     except Exception:

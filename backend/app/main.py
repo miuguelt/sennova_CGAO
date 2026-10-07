@@ -26,7 +26,7 @@ from app.routers import (
     productos, documentos, usuarios, stats, reportes, 
     entregables, notificaciones, cvlac, retos,
     maintenance, audit, plantillas, aprendices, mensajes,
-    mensajes_adjuntos, project_files, project_documentation
+    mensajes_adjuntos, project_files, project_documentation, project_file_import
 )
 from app.middlewares.audit import AuditMiddleware
 from app.middlewares.request_limits import FormulationRequestSizeLimitMiddleware
@@ -230,6 +230,7 @@ app.include_router(auth.router)
 app.include_router(proyectos.router)
 app.include_router(project_files.router)
 app.include_router(project_documentation.router)
+app.include_router(project_file_import.router)
 app.include_router(grupos.router)
 app.include_router(semilleros.router)
 app.include_router(convocatorias.router)

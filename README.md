@@ -12,6 +12,7 @@ La documentación CAP-14 recibida se trata como referencia privada del proyecto.
 - Seguimiento de actividades y entregables mediante fechas, responsables y estados.
 - Registro de productos de investigación y soportes documentales.
 - Construcción, revisión y consulta del expediente documental del proyecto.
+- Importación revisada de un ZIP con subcarpetas o de archivos individuales dentro del expediente. Conserva originales, completa campos vacíos reconocidos y permite descargar el paquete o regenerar documentos desde sus formularios.
 - Consultas y exportación de reportes consolidados.
 - Matriz Excel descriptiva por investigador para revisar productos, categorías registradas y datos pendientes.
 
@@ -39,6 +40,14 @@ El esquema vigente, las relaciones y las referencias polimórficas están descri
 - [Decisiones de arquitectura](docs/architecture/README.md)
 
 Los borradores no son documentos aprobados ni listos para radicar. El protocolo de pruebas con usuarios requiere definir participantes, perfiles, ambiente y criterios antes de registrar resultados.
+
+## Carga de archivos del proyecto
+
+En **Expediente del proyecto → Importar archivos al proyecto**, seleccione un ZIP o archivos individuales. Revise la clasificación, los datos propuestos y los bimestres antes de guardar. La importación conserva los valores existentes e informa sus diferencias con los archivos. En **Documentación**, complete los pendientes y genere nuevas versiones; las descargas individuales y el ZIP incluyen los originales disponibles.
+
+La lectura automática reconoce DOCX, XLSX, PPTX, TXT, CSV y MD con rótulos compatibles con los formularios. Los PDF, imágenes, audio, video y formatos binarios anteriores se conservan como soportes; no se realiza OCR. Los manifiestos JSON se conservan como archivos y no se interpretan como órdenes ni como campos del proyecto.
+
+Límites por carga: un ZIP de 50 MB, hasta 500 archivos, 10 MB por archivo y 200 MB descomprimidos o en conjunto. Se admiten paquetes parciales y se informan las carpetas pendientes. Una repetición del mismo archivo y ruta no duplica el original; si su contenido cambia, se conservan ambas copias. Consulte [el contrato de importación](docs/architecture/importacion-expediente.md).
 
 ## Datos heredados retirados
 

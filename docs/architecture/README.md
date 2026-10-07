@@ -7,6 +7,7 @@ Esta carpeta documenta decisiones que cruzan varios módulos. Cada nota debe ind
 - [Modelo funcional y de datos](modelo-funcional-y-datos.md): resume los módulos y el esquema de datos actual relacionado con la gestión de investigación.
 - [Alcance documental y fuentes](alcance-documental.md): define qué documentos tienen respaldo en los ejemplos aportados y qué datos faltan por confirmar.
 - [Expediente de proyectos](expediente-proyectos.md): describe las etapas, descargas y reglas del expediente.
+- [Importación de archivos al expediente](importacion-expediente.md): detalla la carga ZIP e individual, la lectura de datos, la preservación de originales y la confirmación transaccional.
 - [Construcción documental](construccion-documental.md): explica el editor, los requisitos de los formatos y su generación.
 - [Consistencia de generación documental](consistencia-generacion-documental.md): describe las comprobaciones compartidas de fechas, horas, presupuesto y contenido exportado.
 - [Diligenciamiento de CAP-14 y cronograma](complecion-cap14-y-cronograma.md): documenta el escenario propuesto, la preservación de sus fuentes y las pruebas de todos sus formatos.

@@ -5,6 +5,7 @@ import { DocumentosAPI } from '../../api/documentos';
 import { subscribeToDataRefresh } from '../../utils/dataRefresh';
 import ProjectEvidenceStage, { evidenceButtonClass } from './ProjectEvidenceStage';
 import ProjectDocumentationEditor from './ProjectDocumentationEditor';
+import ProjectFileImport from './ProjectFileImport';
 
 function saveBlob(blob, name) {
   const url = URL.createObjectURL(blob);
@@ -122,6 +123,7 @@ export default function ProjectEvidenceFile({ projectId, currentUser, onNotify, 
         <button type="button" className={evidenceButtonClass} onClick={() => setRevision(value => value + 1)}>Reintentar consulta</button>
       </div>}
       {showConstructor && <ProjectDocumentationEditor projectId={projectId} currentUser={currentUser} onNotify={onNotify} />}
+      {canUpload && <ProjectFileImport key={projectId} projectId={projectId} projectName={data?.proyecto_id === projectId ? data.nombre : undefined} maxPeriods={data?.proyecto_id === projectId ? data.etapas.find(stage => stage.id === 'informes')?.informes_esperados : undefined} onNotify={onNotify} onImported={() => setRevision(value => value + 1)} />}
       {loading && <div role="status" className="animate-pulse space-y-3 rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">Consultando expediente…<div className="h-16 rounded-xl bg-slate-100" /><div className="h-16 rounded-xl bg-slate-100" /></div>}
       {!loading && data && <>
         {data.pendientes?.length > 0 && <div className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-4"><h4 className="font-bold text-amber-950">Pendientes por resolver</h4><ul className="w-full list-disc space-y-1 pl-5 text-sm text-amber-950">{data.pendientes.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}

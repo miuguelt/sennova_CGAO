@@ -11,6 +11,7 @@ from app.database import (
     remove_retired_stage_productivity_schema,
 )
 from app.services.documentation_schema import upgrade_documentation_schema
+from app.services.project_file_import.schema import upgrade_file_import_schema
 from scripts.fix_db_schema import fix_schema
 
 
@@ -20,6 +21,7 @@ def initialize_schema(target_engine: Engine) -> None:
     fix_schema(target_engine)
     remove_retired_stage_productivity_schema(target_engine)
     upgrade_documentation_schema(target_engine)
+    upgrade_file_import_schema(target_engine)
     ensure_document_description_column(target_engine)
     ensure_document_period_column(target_engine)
     ensure_investigador_role(target_engine)
