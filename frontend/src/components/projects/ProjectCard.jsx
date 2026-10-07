@@ -104,11 +104,14 @@ const ProjectCard = ({ proyecto: p, isDragging, onDragStart, onDragEnd, onClick,
     </div>
 
     {/* Title */}
-    <h4 className="font-semibold text-slate-900 text-sm leading-snug mb-2 line-clamp-2">
+    <h4 title={p.nombre} className="font-semibold text-slate-900 text-sm leading-snug mb-2 break-words">
       {p.nombre_corto || p.nombre}
     </h4>
     <p className="text-xs text-slate-500 mb-4 line-clamp-2 leading-relaxed">
       {p.descripcion || 'Sin descripción.'}
+    </p>
+    <p className="text-[11px] font-semibold text-slate-600 mb-3">
+      Investigador responsable: <span className="text-slate-800">{p.owner?.nombre || 'Pendiente de asignación'}</span>
     </p>
 
     <ProjectDocumentationProgress summary={p.avance_documental} compact />

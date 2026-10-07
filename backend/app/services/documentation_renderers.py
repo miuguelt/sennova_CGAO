@@ -121,6 +121,30 @@ def _write_field(document, field, values, *, include_optional_detail=False):
     if field["type"] == "rows":
         columns = field["columns"]
         source_rows = values.get(field["key"]) or []
+        if not source_rows and not field.get("required", True):
+            message = "No se registraron invitados." if field["key"] == "invitados" else f"No se registraron filas para {field['label'].lower()}."
+            document.add_paragraph(message)
+            return
+        if field["key"] == "cronograma" and include_optional_detail:
+            activity_column = next(column for column in columns if column["key"] == "actividad")
+            detail_columns = [column for column in columns if column.get("optional_detail")]
+            core_columns = [column for column in columns if not column.get("optional_detail")]
+            active_columns = [column for column in core_columns if column.get("required", True)
+                              or any(row.get(column["key"]) not in (None, "") for row in source_rows)]
+            rows = [[format_value(row.get(column["key"]), column) for column in active_columns] for row in source_rows]
+            if not rows:
+                rows = [[PENDING] + [""] * (len(active_columns) - 1)]
+            _table(document, [column["label"] for column in active_columns], rows)
+            detail_rows = []
+            for row in source_rows:
+                details = [f"{column['label']}: {format_value(row.get(column['key']), column)}"
+                           for column in detail_columns if row.get(column["key"]) not in (None, "")]
+                if details:
+                    detail_rows.append([format_value(row.get("actividad"), activity_column), "\n".join(details)])
+            if detail_rows:
+                document.add_heading("Programación para el diagrama de Gantt", level=3)
+                _table(document, ["Actividad", "Fase, fechas, horario y lugar"], detail_rows)
+            return
         eligible_columns = [column for column in columns
                             if include_optional_detail or not column.get("optional_detail")]
         active_columns = [column for column in eligible_columns if column.get("required", True)

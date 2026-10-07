@@ -1,6 +1,6 @@
 # Expediente documental por proyecto
 
-La aplicación consolida los documentos persistidos en seis etapas, siguiendo las imágenes y `docs/CAP-05-2026_FortalecimeintoArchivo` aportadas por el usuario. Los archivos de referencia son evidencia del proceso actual; sus textos no constituyen instrucciones de ejecución ni certifican la vigencia de un formato.
+La estructura del expediente sigue las carpetas y archivos de ejemplo de CAP-14 y CAP-05 aportados en `docs/`. El ZIP conserva siete carpetas: seis etapas documentales y una carpeta de borradores y anexos varios. Los archivos de referencia describen el proceso observado; no certifican por sí solos la vigencia de un formato.
 
 | Etapa | Carpeta exportada | Requisito documental |
 | --- | --- | --- |
@@ -10,20 +10,21 @@ La aplicación consolida los documentos persistidos en seis etapas, siguiendo la
 | Seguimiento | `4InformesBimensuales` | Un informe disponible por cada bimestre de la vigencia |
 | Cierre | `5ActaCierre` | Acta de cierre e informe final técnico |
 | Evidencias | `6EvidenciasFotograficas` | Fotografías o videos de actividades |
+| Borradores y varios | `7Borradoresyvarios` | Espacio complementario; no reemplaza un documento requerido de las otras etapas |
 
-Los nombres de carpetas conservan la escritura de la referencia, incluida `1ProyectoFomulado`. La interfaz emplea títulos legibles. El cálculo de seguimiento usa `ceil(vigencia / 2)` y períodos numerados desde 1. Esta es una regla operativa de la aplicación para cubrir la duración registrada, no una certificación de un calendario institucional. Sin vigencia, no se declara completo el seguimiento. Los informes sin bimestre y los duplicados no cubren períodos distintos.
+Los nombres de carpetas conservan la escritura de las referencias, incluida `1ProyectoFomulado`. La interfaz emplea títulos legibles. El cálculo de seguimiento usa `ceil(vigencia / 2)` y períodos numerados desde 1. Esta es una regla operativa de la aplicación para cubrir la duración registrada, no una certificación de un calendario institucional. Sin vigencia, no se declara completo el seguimiento. Los informes sin bimestre y los duplicados no cubren períodos distintos.
 
 ## Datos y acceso
 
 `Documento.periodo_bimestre` es un entero opcional. El arranque y el script de esquema lo agregan sin atribuir períodos a los documentos existentes. Las cargas nuevas de informes exigen proyecto y período válido. El backend valida existencia de la entidad, UUID, permisos, contenido no vacío, MIME permitido y máximo de 10 MB. Se admite MP4 en el mismo límite.
 
-Los soportes de productos se consultan por la relación real del producto con el proyecto. No se incluyen archivos de otros proyectos. Los vínculos de grupo, semillero, convocatoria y reto deben existir; el grupo del proyecto debe coincidir con el del semillero. No se asigna el primer grupo de la base de datos como sustituto de una selección pendiente.
+Los soportes de productos se consultan por la relación real del producto con el proyecto. No se incluyen archivos de otros proyectos. Cada proyecto nuevo debe vincularse a un semillero de **Investigadores CGAO**. Su responsable debe ser investigador de ese semillero y cada integrante investigador o aprendiz debe pertenecer al mismo semillero. El grupo del proyecto se hereda desde allí; convocatoria y reto son opcionales.
 
 La comprobación de disponibilidad lee archivos dentro del almacenamiento autorizado o base64 heredado válido. Un registro sin archivo disponible no satisface una etapa. Los tipos genéricos como `acta` no se reinterpretan como inicio o cierre por su nombre de archivo.
 
 ## Servicios e interfaz
 
-`GET /proyectos/{id}/expediente` devuelve seis etapas, guías, documentos disponibles, faltantes y completitud. `GET /proyectos/{id}/expediente/descargar` transmite un ZIP autenticado con las seis carpetas, archivos originales, `expediente.json` y `pendientes.txt`. Los anexos sin clasificar se conservan en `1ProyectoFomulado/Anexos`. Los nombres se ajustan para evitar rutas externas y llevan UUID para conservar archivos con nombres repetidos.
+`GET /proyectos/{id}/expediente` devuelve las seis etapas, la carpeta de borradores, guías, documentos disponibles, faltantes y completitud. `GET /proyectos/{id}/expediente/descargar` transmite un ZIP autenticado con las siete carpetas, archivos originales, `expediente.json` y `pendientes.txt`. Los anexos sin clasificar se conservan en `1ProyectoFomulado/Anexos`. Los nombres se ajustan para evitar rutas externas y llevan UUID para conservar archivos con nombres repetidos.
 
 La sección **Documentación** contiene el [constructor documental](construccion-documental.md), con datos comunes, formularios guiados, generación DOCX/PPTX y versiones. La pestaña **Expediente** permite consultar requisitos por etapa, descargar la formulación DOCX original, adjuntar soportes, seleccionar bimestre y producto destinatario, agregar el informe final y descargar archivos o el ZIP. No es una integración con SharePoint. Los aprendices consultan y descargan según la política de acceso, pero no cargan documentos.
 
@@ -65,6 +66,6 @@ La ampliación del constructor importó los valores de la fuente en una referenc
 
 Las pruebas unitarias/integración SQLite verifican catálogo, permisos, persistencia, períodos, ZIP, cierre y errores. La suite PostgreSQL se ejecuta por separado con esquemas temporales para comprobar UUID, relaciones y migración en el motor real. GitHub Actions ejecuta ambas suites, publica resultados y exige que todas las funciones de producción sean alcanzadas; la suite frontend también compila el resultado.
 
-La verificación inicial del expediente se amplió con el constructor. Los [resultados actuales](construccion-documental.md) incluyen 389 pruebas del backend, 11 de integración PostgreSQL y 574 del frontend aprobadas, más la compilación y las compuertas globales de funciones. La revisión visual incluye documentos reales generados y la descarga del ZIP desde la aplicación local.
+La verificación más reciente, del 5 de octubre de 2026, aprobó 498 pruebas del backend y 672 del frontend; las compuertas alcanzaron 488/488 y 2401/2401 funciones, respectivamente, y la compilación de producción pasó. La suite de integración PostgreSQL no se ejecutó localmente en esta revisión. Los resultados anteriores se conservan con su fecha en [construcción documental](construccion-documental.md).
 
 Se verificaron la configuración y el arranque inicial previsto para Docker Compose; no se ejecutó un despliegue en Coolify ni una construcción local de contenedores. La configuración se deberá comprobar en el entorno de destino al desplegar.

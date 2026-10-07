@@ -40,9 +40,13 @@ describe('ProjectTraceabilityPanel', () => {
   it('conserva el historial sin presentar versiones anteriores como documentos terminados', () => {
     render(<ProjectTraceabilityPanel documentos={[
       { clave: 'viejo', carpeta: '1ProyectoFomulado', titulo: 'Versión anterior', datos: { texto: 'Actualización' }, historial: [{ estado: 'revisado', vigente: false, disponible: true }] },
+      { clave: 'legado', carpeta: '1ProyectoFormulado', titulo: 'Documento importado', datos: {}, historial: [{ estado: 'borrador', vigente: true, disponible: true }] },
       { clave: 'sin-archivo', carpeta: 'otra', titulo: 'Archivo no disponible', datos: {}, historial: [{ estado: 'borrador', vigente: true, disponible: false }] },
     ]} />);
-    expect(screen.getByText('0 de 2 documentos con archivo vigente')).toBeVisible();
+    expect(screen.getByText('1 de 3 documentos con archivo vigente')).toBeVisible();
+    expect(screen.getByRole('heading', { name: '1. Formulación' })).toBeVisible();
+    expect(screen.getByText(/Versión anterior/)).toBeVisible();
+    expect(screen.getByText(/Documento importado/)).toBeVisible();
     expect(screen.queryByText('Revisado')).not.toBeInTheDocument();
     expect(screen.getByText('En borrador')).toBeVisible();
     expect(screen.getByText('Falta')).toBeVisible();

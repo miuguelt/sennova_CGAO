@@ -49,6 +49,18 @@ def _date(value):
     return ""
 
 
+def _hour(value):
+    """Convierte una hora explícita de la fuente al contrato HH:MM."""
+    if not isinstance(value, str):
+        return ""
+    for pattern in ("%H:%M", "%I:%M %p"):
+        try:
+            return datetime.strptime(value.strip().upper(), pattern).strftime("%H:%M")
+        except ValueError:
+            continue
+    return ""
+
+
 def _amount(value):
     """Convierte únicamente cantidades monetarias explícitas de la fuente."""
     if value is None or value == "" or isinstance(value, bool):
@@ -155,7 +167,7 @@ def _build_form_data(examples, warnings):
             for key, original in {"hora_inicio": "hora_inicio", "hora_fin": "hora_fin", "lugar": "lugar",
                                   "temas": "temas", "objetivo_reunion": "objetivos_reunion",
                                   "observaciones": "observaciones_conclusiones"}.items():
-                data[key] = _text(source.get(original))
+                data[key] = _hour(source.get(original)) if key in {"hora_inicio", "hora_fin"} else _text(source.get(original))
             for key, mapping in (("asistentes", {"nombre": "nombre", "cargo_dependencia_entidad": "cargo_dependencia_entidad"}),
                                  ("invitados", {"nombre": "nombre", "cargo": "cargo", "entidad": "entidad"})):
                 data[key] = _mapped_rows(source.get(key), next(field for field in definition["fields"] if field["key"] == key), mapping)

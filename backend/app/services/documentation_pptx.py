@@ -79,19 +79,59 @@ def _deck_table(presentation, field, values, context):
 
 
 
+def _deck_schedule(presentation, field, common, context):
+    """Separa la tabla base del cronograma de sus datos adicionales para mantenerlos legibles."""
+    columns = field["columns"]
+    activity_column = next(column for column in columns if column["key"] == "actividad")
+    base_field = dict(field, columns=[column for column in columns if not column.get("optional_detail")])
+    _deck_table(presentation, base_field, common, context)
+
+    detail_columns = [column for column in columns if column.get("optional_detail")]
+    detail_key = "programacion_gantt"
+    detail_rows = []
+    for row in common.get(field["key"]) or []:
+        details = [f"{column['label']}: {format_value(row.get(column['key']), column)}"
+                   for column in detail_columns if row.get(column["key"]) not in (None, "")]
+        if details:
+            detail_rows.append({
+                "actividad": format_value(row.get("actividad"), activity_column),
+                detail_key: "\n".join(details),
+            })
+    if detail_rows:
+        detail_field = {
+            "key": "programacion_gantt", "label": "Programación para el diagrama de Gantt",
+            "columns": [
+                activity_column,
+                {"key": detail_key, "label": "Fase, fechas, horario y lugar", "type": "textarea"},
+            ],
+        }
+        _deck_table(presentation, detail_field, {detail_key: detail_rows}, context)
+
+
+
 def render_poster(context, common, data, photos):
     """Mantiene el póster vertical y crea láminas adicionales si el contenido crece."""
     presentation = Presentation()
     presentation.slide_width, presentation.slide_height = Cm(90), Cm(120)
     sections = [(field["label"], field_text(field, data)) for field in DOCUMENT_DEFINITIONS["poster_producto"]["fields"]]
     sections.insert(3, ("Objetivos", str(context.get("objetivo_general") or PENDING) + "\n" + "\n".join(context.get("objetivos_especificos") or [])))
+    authors = "; ".join(str(row.get("nombre") or PENDING) for row in common.get("equipo", [])) or PENDING
+    attribution = "\n".join([
+        str(common.get("centro") or PENDING), str(common.get("regional") or PENDING),
+        f"Responsable: {common.get('responsable') or PENDING}", f"Autoría: {authors}",
+        f"Código SGPS: {context.get('codigo_sgps') or PENDING}",
+        f"Producto: {(context.get('producto') or {}).get('nombre') or PENDING}",
+    ])
+    attribution_parts = text_chunks(attribution, width=100, lines=6)
+    sections.extend(("Autoría y filiación (continuación)", part) for part in attribution_parts[1:])
+    if common.get("inconsistencias_fuente"):
+        sections.append(("Datos pendientes de validación", common["inconsistencias_fuente"]))
     records = [(title, chunk) for title, text in sections for chunk in text_chunks(text, width=55, lines=8)]
     remaining_photos = list(photos)
     for start in range(0, len(records), 10):
         slide = presentation.slides.add_slide(presentation.slide_layouts[6])
         _slide_text(slide, context["nombre"], Cm(4), Cm(3), Cm(82), Cm(12), 68, bold=True, font="Work Sans")
-        attribution = f"{common.get('centro') or PENDING}\n{common.get('responsable') or PENDING}\nCódigo SGPS {context.get('codigo_sgps') or PENDING}"
-        _slide_text(slide, attribution, Cm(4), Cm(16), Cm(82), Cm(7), 32, font="Work Sans")
+        _slide_text(slide, attribution_parts[0], Cm(4), Cm(16), Cm(82), Cm(7), 26, font="Work Sans")
         for index, (title, text) in enumerate(records[start:start + 10]):
             left = Cm(4 + (index % 2) * 43)
             top = Cm(25 + (index // 2) * 17)
@@ -129,6 +169,16 @@ def render_presentation(context, common, data):
     presentation = Presentation()
     presentation.slide_width, presentation.slide_height = Inches(13.3333), Inches(7.5)
     _deck_slide(presentation, "Presentación del proyecto", f"{context['nombre']}\nCódigo SGPS {context.get('codigo_sgps') or PENDING}\n{common.get('centro') or PENDING}\n{common.get('responsable') or PENDING}", context)
+    required_common = DOCUMENT_DEFINITIONS["presentacion_proyecto"]["required_common"]
+    context_lines = [f"{field['label']}: {format_value(common.get(field['key']), field)}" for field in COMMON_FIELDS
+                     if field["type"] != "rows" and field["key"] != "inconsistencias_fuente"
+                     and (common.get(field["key"]) or field["key"] in required_common)]
+    context_lines.append("Presupuesto total: " + format_value(context.get("presupuesto_total"), {"label": "Presupuesto total", "type": "number", "unit": "COP"}))
+    _deck_slide(presentation, "Información general del proyecto", "\n".join(context_lines), context)
+    for key in ("equipo", "presupuesto"):
+        field = next(item for item in COMMON_FIELDS if item["key"] == key)
+        public_field = dict(field, columns=[column for column in field["columns"] if not column.get("optional_detail")])
+        _deck_table(presentation, public_field, common, context)
     for field in DOCUMENT_DEFINITIONS["presentacion_proyecto"]["fields"]:
         if field["type"] == "rows":
             _deck_table(presentation, field, data, context)
@@ -140,7 +190,9 @@ def render_presentation(context, common, data):
             _deck_slide(presentation, "Objetivos específicos", "\n".join(objectives) if isinstance(objectives, list) else objectives, context)
         if field["key"] == "fases":
             schedule = next(item for item in COMMON_FIELDS if item["key"] == "cronograma")
-            _deck_table(presentation, schedule, common, context)
+            _deck_schedule(presentation, schedule, common, context)
+    if common.get("inconsistencias_fuente"):
+        _deck_slide(presentation, "Datos pendientes de validación", common["inconsistencias_fuente"], context)
     output = io.BytesIO()
     presentation.save(output)
     return output.getvalue(), PPTX_MIME

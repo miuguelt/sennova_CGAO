@@ -19,10 +19,14 @@ from app.services.reference_files_sync import _determine_document_type, sync_ref
 
 def test_determine_document_type_covers_all_stages():
     """Valida la clasificación de archivos según la estructura de SharePoint."""
-    doc_type, per = _determine_document_type("1ProyectoFormulado/Presentacion.pptx", "Presentacion.pptx")
+    doc_type, per = _determine_document_type("1ProyectoFomulado/Presentacion.pptx", "Presentacion.pptx")
     assert doc_type == "presentacion_proyecto"
     assert per is None
 
+    doc_type, per = _determine_document_type("1ProyectoFomulado/Proyecto.docx", "Proyecto.docx")
+    assert doc_type == "formulacion_proyecto"
+
+    # Acepta la escritura corregida de referencias históricas ya importadas.
     doc_type, per = _determine_document_type("1ProyectoFormulado/Proyecto.docx", "Proyecto.docx")
     assert doc_type == "formulacion_proyecto"
 

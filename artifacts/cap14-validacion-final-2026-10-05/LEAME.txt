@@ -1,0 +1,7 @@
+CAP-14-2026: expediente para revisión
+
+Escenario de validación preparado para comprobar formularios y generación documental. Las fechas de terminación, metas, distribución de actividades, productos y cierres son propuestas; no acreditan reuniones, gastos, pruebas con usuarios, aceptación ni resultados institucionales. Se conserva la fuente original sin alterarla. El código SGPS, el semillero, la discrepancia CAP-14/CAP-16, la fecha final del 23/12/2026 y la aplicabilidad de GCDTP-F-023 requieren confirmación institucional. El escenario utiliza seis meses desde el 29/05/2026 hasta el 28/11/2026.
+
+Se incluyen trece archivos vigentes: diez documentos Word y tres presentaciones PowerPoint. Los formularios obligatorios están completos. Las actividades y los entregables son propuestas pendientes; los productos no están verificados. Las firmas, aprobaciones y soportes de gasto requieren registro independiente.
+
+La captura de información alcanza el 100 %; el avance general queda en el 90 % porque la revisión institucional no se acredita automáticamente. La fuente original y las versiones anteriores se conservan en la aplicación.

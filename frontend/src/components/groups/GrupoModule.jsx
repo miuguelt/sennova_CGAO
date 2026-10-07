@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { formatCalendarDate } from '../../utils/calendarDate';
 import {
   Layers, Edit2, Globe, Star, Users, Award, Shield, ExternalLink,
   ArrowUpRight, Download, FileText, X, Loader2, ChevronRight,
@@ -39,8 +40,10 @@ import ProjectEvidenceFile from '../projects/ProjectEvidenceFile';
 import ProjectDocumentationEditor from '../projects/ProjectDocumentationEditor';
 import ProjectDocumentationProgress from '../projects/ProjectDocumentationProgress';
 import ProjectSourceDocuments from '../projects/ProjectSourceDocuments';
+import ProjectTimelinePanel from '../projects/ProjectTimelinePanel';
 import UserInsightPanel from '../users/UserInsightPanel';
 import MoverProyectoSemilleroModal from '../projects/MoverProyectoSemilleroModal';
+import { useUnsavedChangesGuard } from '../../context/UnsavedChangesContext';
 
 // ─── Constantes CGAO ─────────────────────────────────────────────────────────
 const CLASIFICACIONES = [
@@ -82,8 +85,8 @@ const EMPTY_PROJECT_FORM = {
   nombre: '',
   nombre_corto: '',
   codigo_sgps: '',
-  estado: 'Aprobado',
-  vigencia: 12,
+  estado: 'En formulación',
+  vigencia: '',
   presupuesto_total: 0,
   tipologia: 'Innovación',
   linea_investigacion: '',
@@ -93,6 +96,7 @@ const EMPTY_PROJECT_FORM = {
   año: new Date().getFullYear(),
   año_fin: new Date().getFullYear(),
   semillero_id: '',
+  investigador_responsable_id: '',
   presupuesto_detallado: { personal: 0, materiales: 0, viaticos: 0, servicios: 0, equipos: 0 }
 };
 
@@ -165,73 +169,6 @@ const InfoRow = ({ label, value, icon: Icon }) => (
   </div>
 );
 
-const ProjectTimeline = ({ entregables = [] }) => {
-  const fases = ['Fase I (Planeación)', 'Fase II (Ejecución Inicial)', 'Fase III (Desarrollo Técnico)', 'Fase Final (Cierre)'];
-  
-  return (
-    <div className="space-y-6 py-4">
-      <div className="relative">
-        <div className="absolute top-0 left-5 bottom-0 w-1 bg-gradient-to-b from-emerald-500/20 via-slate-100 to-slate-100 rounded-full" />
-        
-        {fases.map((fase, idx) => {
-          const itemsDeFase = entregables.filter((_, i) => (i % 4) === idx);
-          
-          return (
-            <div key={fase} className="relative flex items-start gap-5 mb-6 last:mb-0 group">
-              <div className="relative z-10">
-                <div className="w-10 h-10 rounded-2xl bg-white border-2 border-emerald-500 shadow-md shadow-emerald-500/10 flex items-center justify-center text-xs font-black text-emerald-600">
-                  {idx + 1}
-                </div>
-              </div>
-
-              <div className="flex-1 pt-1 bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-                      Hito Metodológico
-                    </span>
-                    <h5 className="font-extrabold text-slate-800 text-xs sm:text-sm mt-0.5">{fase}</h5>
-                  </div>
-                  <span className="text-[10px] font-black text-slate-700 font-mono bg-slate-100 px-2 py-1 rounded-lg">
-                    {itemsDeFase.length} Entregables
-                  </span>
-                </div>
-
-                {itemsDeFase.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                    {itemsDeFase.map((e, eIdx) => (
-                      <div 
-                        key={e.id || eIdx} 
-                        className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col justify-between"
-                      >
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <CheckCircle2 size={13} className={e.estado === 'aprobado' ? 'text-emerald-500' : 'text-slate-400'} />
-                          <span className="text-xs font-bold text-slate-800 truncate">{e.nombre}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-[10px] text-slate-600 font-semibold">
-                          <span>{e.fecha_limite ? new Date(e.fecha_limite).toLocaleDateString('es-CO') : 'Sin fecha'}</span>
-                          <span className={`px-1.5 py-0.5 rounded font-black uppercase text-[8px] ${
-                            e.estado === 'aprobado' ? 'bg-emerald-100 text-emerald-800' :
-                            e.estado === 'en_revision' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-800'
-                          }`}>
-                            {e.estado || 'Pendiente'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-600 italic py-1 font-medium">Sin entregables específicos para esta fase aún.</p>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
 const getRubroValue = (p, rubroId) => {
   if (!p?.presupuesto_detallado) return 0;
   if (typeof p.presupuesto_detallado[rubroId] === 'number') {
@@ -254,7 +191,9 @@ const getRubroValue = (p, rubroId) => {
 };
 
 // ─── Main Module ────────────────────────────────────────────────────────────
-const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActionHandled }) => {
+const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActionHandled, refreshVersion = 0 }) => {
+  const { requestLeave } = useUnsavedChangesGuard();
+  const initialLoad = useRef(true);
   // Datos Maestros del Grupo
   const [grupo, setGrupo] = useState(null);
   const [stats, setStats] = useState(null);
@@ -277,15 +216,19 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
   const [selectedProyecto, setSelectedProyecto] = useState(null);
   const [isProjectDrawerOpen, setIsProjectDrawerOpen] = useState(false);
   const [projectDrawerTab, setProjectDrawerTab] = useState('documentation');
+  const [timelineDocumentKey, setTimelineDocumentKey] = useState('');
+  const [timelineDocumentRequest, setTimelineDocumentRequest] = useState(0);
   const [showProjectFormModal, setShowProjectFormModal] = useState(false);
   const [isEditingProject, setIsEditingProject] = useState(false);
   const [projectFormData, setProjectFormData] = useState(EMPTY_PROJECT_FORM);
   const [savingProject, setSavingProject] = useState(false);
+  const [showProjectApprovalConfirm, setShowProjectApprovalConfirm] = useState(false);
   const [showDeleteProjectConfirm, setShowDeleteProjectConfirm] = useState({ isOpen: false, id: null, nombre: '' });
   const [showLiquidationModal, setShowLiquidationModal] = useState(false);
   const [showElaboracionModal, setShowElaboracionModal] = useState(false);
   const [projectToMove, setProjectToMove] = useState(null);
   const [showMoveSemilleroModal, setShowMoveSemilleroModal] = useState(false);
+  const [moveDestinationSemilleroId, setMoveDestinationSemilleroId] = useState('');
   const [selectedProjectToLinkGrupo, setSelectedProjectToLinkGrupo] = useState('');
 
   // ── Modales de Semillero (CRUD Unificado) ──
@@ -351,9 +294,10 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
   const canManageProject = canManageRecord(selectedProyecto);
   const canManageSemillero = canManageRecord(selectedSemillero);
 
-  useEffect(() => { 
-    loadData(); 
-  }, []);
+  useEffect(() => {
+    loadData(!initialLoad.current);
+    initialLoad.current = false;
+  }, [refreshVersion]);
 
   useEffect(() => {
     if (initialAction?.form === 'view') {
@@ -364,8 +308,18 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
     }
   }, [initialAction, onActionHandled]);
 
-  const loadData = async () => {
-    setLoading(true);
+  const updateProjects = (projects) => {
+    const latest = Array.isArray(projects) ? projects : [];
+    setProyectosGrupo(latest);
+    setSelectedProyecto(previous => {
+      if (!previous) return previous;
+      const updated = latest.find(project => String(project.id) === String(previous.id));
+      return updated ? { ...previous, ...updated } : previous;
+    });
+  };
+
+  const loadData = async (refresh = true) => {
+    if (!refresh) setLoading(true);
     if (currentUser?.rol === 'aprendiz') {
       try {
         const [sems, proys] = await Promise.all([
@@ -373,7 +327,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
           ProyectosAPI.list().catch(() => []),
         ]);
         setSemilleros(sems || []);
-        setProyectosGrupo(proys || []);
+        updateProjects(proys);
       } catch (err) {
         onNotify?.('No se pudo cargar tu información formativa: ' + err.message, 'error');
       }
@@ -405,7 +359,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
             GruposAPI.getProyectos(g.id).catch(() => [])
           ]);
           setStats(s);
-          setProyectosGrupo(proys || []);
+          updateProjects(proys);
         } catch (e) {
           console.warn('No se pudieron cargar estadísticas detalladas:', e);
         }
@@ -418,15 +372,20 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
 
   // ─── Proyectos CRUD Handlers ──────────────────────────────────────────────
   const handleOpenProjectDetail = (p) => {
-    setSelectedProyecto(p);
-    setProjectDrawerTab('documentation');
-    setIsProjectDrawerOpen(true);
+    if (isProjectDrawerOpen && String(selectedProyecto?.id) === String(p.id)) return;
+    requestLeave(() => {
+      setTimelineDocumentKey('');
+      setSelectedProyecto(p);
+      setProjectDrawerTab('documentation');
+      setIsProjectDrawerOpen(true);
+    });
   };
 
   const handleOpenCreateProject = () => {
     setProjectFormData({
       ...EMPTY_PROJECT_FORM,
       semillero_id: semilleros[0]?.id || '',
+      investigador_responsable_id: semilleros[0]?.investigadores?.[0]?.id || '',
       linea_investigacion: lineas[0] || ''
     });
     setIsEditingProject(false);
@@ -435,21 +394,42 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
 
   const handleOpenEditProject = (p, e) => {
     if (e) e.stopPropagation();
-    setProjectFormData({
-      ...p,
-      presupuesto_detallado: p.presupuesto_detallado || { personal: 0, materiales: 0, viaticos: 0, servicios: 0, equipos: 0 }
+    requestLeave(() => {
+      setProjectFormData({
+        ...p,
+        estado: p.estado || '',
+        vigencia: p.vigencia ?? '',
+        investigador_responsable_id: p.owner_id || p.owner?.id || '',
+        presupuesto_detallado: p.presupuesto_detallado || { personal: 0, materiales: 0, viaticos: 0, servicios: 0, equipos: 0 }
+      });
+      setIsEditingProject(true);
+      setShowProjectFormModal(true);
     });
-    setIsEditingProject(true);
-    setShowProjectFormModal(true);
   };
 
-  const handleSaveProject = async () => {
+  const handleSaveProject = async (approvalConfirmed = false) => {
+    if (savingProject) return;
+    if (!projectFormData.semillero_id || !projectFormData.investigador_responsable_id) {
+      onNotify?.('Seleccione un semillero y un investigador responsable vinculado a ese semillero.', 'error');
+      return;
+    }
+    const duration = projectFormData.vigencia === '' || projectFormData.vigencia == null ? null : Number(projectFormData.vigencia);
+    if (duration != null && (!Number.isInteger(duration) || duration < 1 || duration > 60)) {
+      onNotify?.('Registra una duración entre 1 y 60 meses, sin decimales, o déjala pendiente.', 'error');
+      return;
+    }
+    const previousState = proyectosGrupo.find(project => String(project.id) === String(projectFormData.id))?.estado;
+    if (projectFormData.estado === 'Aprobado' && (!isEditingProject || previousState !== 'Aprobado') && approvalConfirmed !== true) {
+      setShowProjectApprovalConfirm(true);
+      return;
+    }
+    setShowProjectApprovalConfirm(false);
     setSavingProject(true);
     try {
       const payload = {
         ...projectFormData,
         presupuesto_total: Number(projectFormData.presupuesto_total) || 0,
-        vigencia: Number(projectFormData.vigencia) || 12,
+        vigencia: duration,
         grupo_id: grupo?.id || null
       };
 
@@ -492,7 +472,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
     if (!selectedProyecto?.id) return;
     try {
       await ProyectosAPI.addEquipo(selectedProyecto.id, userId, rolEnProyecto, horas);
-      onNotify?.('Investigador vinculado al proyecto', 'success');
+      onNotify?.('Integrante vinculado al proyecto', 'success');
       const updated = await ProyectosAPI.get(selectedProyecto.id);
       setSelectedProyecto(updated);
       await loadData();
@@ -505,7 +485,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
     if (!selectedProyecto?.id) return;
     try {
       await ProyectosAPI.removeEquipo(selectedProyecto.id, userId);
-      onNotify?.('Investigador desvinculado del proyecto', 'success');
+      onNotify?.('Integrante desvinculado del proyecto', 'success');
       const updated = await ProyectosAPI.get(selectedProyecto.id);
       setSelectedProyecto(updated);
       await loadData();
@@ -883,7 +863,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
         (p.owner?.nombre || '').toLowerCase().includes(proySearchTerm.toLowerCase()) ||
         (p.semillero_nombre || '').toLowerCase().includes(proySearchTerm.toLowerCase());
       
-      const matchesStatus = proyStatusFilter === 'todos' || (p.estado || '').toLowerCase() === proyStatusFilter.toLowerCase();
+      const matchesStatus = proyStatusFilter === 'todos' || (p.estado || 'Sin estado').toLowerCase() === proyStatusFilter.toLowerCase();
       return matchesSearch && matchesStatus;
     });
   }, [proyectosGrupo, proySearchTerm, proyStatusFilter]);
@@ -907,6 +887,22 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
         (p.autores || '').toLowerCase().includes(productoSearch.toLowerCase());
     });
   }, [productosGrupo, productoSearch]);
+
+  const selectedProjectSeedbed = semilleros.find(
+    item => String(item.id) === String(selectedProyecto?.semillero_id),
+  );
+  const selectedProjectMemberIds = new Set([
+    ...(selectedProjectSeedbed?.investigadores || []).map(member => String(member.id)),
+    ...(selectedProjectSeedbed?.aprendices || []).map(member => String(member.user_id || member.id)),
+    ...aprendicesGrupo
+      .filter(member => String(member.semillero_id) === String(selectedProyecto?.semillero_id))
+      .map(member => String(member.user_id || member.id)),
+  ]);
+  const projectTeamCandidates = todosUsuarios.filter(user =>
+    selectedProjectMemberIds.has(String(user.id))
+    && ['investigador', 'aprendiz'].includes(String(user.rol || '').toLowerCase())
+    && String(user.id) !== String(selectedProyecto?.owner_id),
+  );
 
   if (loading) {
     return (
@@ -965,7 +961,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                 <article key={proyecto.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <h3 className="font-bold text-slate-900">{proyecto.nombre_corto || proyecto.nombre}</h3>
                   <p className="mt-1 text-xs text-slate-600">{proyecto.semillero_nombre || 'Proyecto vinculado a tu formación'}</p>
-                  <p className="mt-3 text-xs font-semibold text-indigo-800">Estado: {proyecto.estado || 'En desarrollo'}</p>
+                  <p className="mt-3 text-xs font-semibold text-indigo-800">Estado: {proyecto.estado || 'Sin estado'}</p>
                 </article>
               ))}
             </div>
@@ -1480,12 +1476,18 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
               <select
                 value={proyStatusFilter}
                 onChange={(e) => setProyStatusFilter(e.target.value)}
+                aria-label="Filtrar proyectos por estado"
                 className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-700 outline-none"
               >
                 <option value="todos">Todos los Estados</option>
+                <option value="en formulación">En formulación</option>
                 <option value="en ejecución">En Ejecución</option>
                 <option value="aprobado">Aprobados</option>
                 <option value="finalizado">Finalizados</option>
+                <option value="referencia">Referencia</option>
+                {Array.from(new Set(proyectosGrupo.map(project => project.estado || 'Sin estado')))
+                  .filter(state => !['En formulación', 'En ejecución', 'Aprobado', 'Finalizado', 'Referencia'].includes(state))
+                  .map(state => <option key={state} value={state.toLowerCase()}>{state}</option>)}
               </select>
             </div>
 
@@ -1523,7 +1525,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                             {p.codigo_sgps || 'S/C'}
                           </span>
                           <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md border ${estadoBadgeColor}`}>
-                            {p.estado || 'Aprobado'}
+                            {p.estado || 'Sin estado'}
                           </span>
                           {p.semillero_nombre ? (
                             <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-md flex items-center gap-1">
@@ -1531,7 +1533,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                             </span>
                           ) : (
                             <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-md">
-                              Iniciativa Directa del Grupo
+                              Pendiente de vincular a un semillero
                             </span>
                           )}
                           {p.tipologia && (
@@ -1557,7 +1559,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                             </span>
                           )}
                           <span>
-                            Equipo: <strong className="text-slate-700 font-bold">{p.total_equipo || p.equipo?.length || 1} investigadores</strong>
+                            Equipo: <strong className="text-slate-700 font-bold">{p.total_equipo ?? p.equipo?.length ?? 0} integrantes</strong>
                           </span>
                           <span>
                             Presupuesto: <strong className="text-emerald-700 font-bold">${(p.presupuesto_total || 0).toLocaleString('es-CO')}</strong>
@@ -1956,10 +1958,10 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                   <div>
                     <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Reconocimiento Scienti</p>
                     <h3 className="text-lg font-black text-slate-900">
-                      {grupo?.clasificacion ? `Categoría ${grupo.clasificacion}` : 'En Proceso de Medición'}
+                      {grupo?.clasificacion ? `Categoría ${grupo.clasificacion}` : 'Clasificación no registrada'}
                     </h3>
                     <p className="text-xs text-slate-600 font-medium mt-0.5">
-                      Código Minciencias: <span className="font-mono font-bold">{grupo?.codigo_gruplac || 'COL000000'}</span>
+                      Código Minciencias: <span className="font-mono font-bold">{grupo?.codigo_gruplac || 'No registrado'}</span>
                     </p>
                   </div>
                 </div>
@@ -1991,13 +1993,13 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
 
               <div className="divide-y divide-slate-100">
                 {investigadores.length > 0 ? (
-                  investigadores.map(inv => {
+                  investigadores.map((inv, idx) => {
                     const status = inv.estado_cv_lac || 'Sin CVLAC';
                     const isActualizado = status.toLowerCase() === 'actualizado';
                     const isDesactualizado = status.toLowerCase() === 'desactualizado';
                     return (
                       <div 
-                        key={inv.id} 
+                        key={`${inv.id || inv.email || 'investigador'}-${idx}`}
                         onClick={() => handleOpenInvestigadorDetail(inv)}
                         className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 cursor-pointer transition-colors group"
                       >
@@ -2042,17 +2044,18 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
       <Drawer
         isOpen={isProjectDrawerOpen && !!selectedProyecto}
         onClose={() => setIsProjectDrawerOpen(false)}
+        protectUnsavedChanges
         size="full"
         allowExpand={false}
         className="project-workspace"
         bodyClassName="project-workspace-body"
         variant="emerald"
-        title={selectedProyecto?.nombre_corto || selectedProyecto?.nombre}
+        title={<span title={selectedProyecto?.nombre}>{selectedProyecto?.nombre_corto || selectedProyecto?.nombre}</span>}
         subtitle={`Código SGPS: ${selectedProyecto?.codigo_sgps || 'S/C'} • ${selectedProyecto?.tipologia || 'Innovación'}`}
-        badge={selectedProyecto && <StatusBadge estado={selectedProyecto.estado || 'Aprobado'} />}
+        badge={selectedProyecto && <StatusBadge estado={selectedProyecto.estado || 'Sin estado'} />}
         headerActions={
           selectedProyecto && (
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -2062,6 +2065,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                 <ShieldCheck size={13} className="mr-1 text-emerald-600" /> Liquidación
               </Button>
               {canManageProject && (
+                <>
                 <Button
                   variant="sena"
                   size="sm"
@@ -2070,6 +2074,13 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                 >
                   <Edit2 size={13} className="mr-1" /> Editar
                 </Button>
+                <details className="rounded-xl border border-slate-200 bg-white text-slate-700">
+                  <summary className="min-h-[42px] cursor-pointer px-3 py-2 text-xs font-bold">Más acciones</summary>
+                  <Button variant="ghost" className="text-rose-700" onClick={() => requestLeave(() => setShowDeleteProjectConfirm({ isOpen: true, id: selectedProyecto.id, nombre: selectedProyecto.nombre }))}>
+                    <Trash2 size={14} /> Eliminar Proyecto
+                  </Button>
+                </details>
+                </>
               )}
             </div>
           )
@@ -2084,17 +2095,8 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
         activeTab={projectDrawerTab}
         onTabChange={setProjectDrawerTab}
         footer={
-          <div className="flex items-center justify-between w-full">
-            {canManageProject ? (
-              <Button 
-                variant="outline" 
-                className="text-rose-600 hover:bg-rose-50 border-rose-200 text-xs"
-                onClick={() => setShowDeleteProjectConfirm({ isOpen: true, id: selectedProyecto?.id, nombre: selectedProyecto?.nombre })}
-              >
-                <Trash2 size={14} className="mr-1" /> Eliminar Proyecto
-              </Button>
-            ) : <div />}
-            <Button variant="secondary" onClick={() => setIsProjectDrawerOpen(false)}>
+          <div className="flex items-center justify-end w-full">
+            <Button variant="secondary" onClick={() => requestLeave(() => setIsProjectDrawerOpen(false))}>
               Cerrar
             </Button>
           </div>
@@ -2103,7 +2105,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
         {selectedProyecto && (
           <div>
             <div hidden={projectDrawerTab !== 'documentation'}>
-              <ProjectDocumentationEditor key={selectedProyecto.id} projectId={selectedProyecto.id} currentUser={currentUser} onNotify={onNotify} initialOpened workspace />
+              <ProjectDocumentationEditor key={selectedProyecto.id} projectId={selectedProyecto.id} currentUser={currentUser} onNotify={onNotify} initialOpened workspace focusDocumentKey={timelineDocumentKey} focusDocumentRequest={timelineDocumentRequest} />
             </div>
             {projectDrawerTab === 'summary' && (
               <div className="space-y-6 animate-fadeIn">
@@ -2140,7 +2142,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                       <p className="text-2xl font-black text-emerald-700 mt-1">
                         ${(selectedProyecto.presupuesto_total || 0).toLocaleString('es-CO')}
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">Vigencia: {selectedProyecto.vigencia || 12} meses • Año: {selectedProyecto.año || 2026}</p>
+                      <p className="text-xs text-slate-500 mt-1">Duración: {selectedProyecto.vigencia != null ? `${selectedProyecto.vigencia} meses` : 'Pendiente de confirmar'} • Año: {selectedProyecto.año || 'Pendiente de confirmar'}</p>
                       <div className="flex gap-2 mt-4">
                         <Button
                           variant="sena"
@@ -2162,14 +2164,14 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                   <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col justify-between">
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase">Semillero Vinculado</p>
-                      <p className="text-xs font-bold text-slate-800 mt-0.5">{selectedProyecto.semillero_nombre || selectedProyecto.semillero?.nombre || 'Iniciativa Directa'}</p>
+                      <p className="text-xs font-bold text-slate-800 mt-0.5">{selectedProyecto.semillero_nombre || selectedProyecto.semillero?.nombre || 'Pendiente de vincular a un semillero'}</p>
                     </div>
                     {canManageProject && (
                       <button
-                        onClick={() => {
+                        onClick={() => requestLeave(() => {
                           setProjectToMove(selectedProyecto);
                           setShowMoveSemilleroModal(true);
-                        }}
+                        })}
                         className="mt-2 text-[10px] font-black text-indigo-700 hover:text-indigo-900 uppercase flex items-center gap-1 self-start cursor-pointer hover:underline"
                       >
                         <GraduationCap size={12} />
@@ -2211,7 +2213,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
               <ProyectoEquipoTab
                 proyecto={selectedProyecto}
                 teamMembers={selectedProyecto.equipo || []}
-                usuarios={todosUsuarios}
+                usuarios={projectTeamCandidates}
                 currentUser={currentUser}
                 isOwnerOrAdmin={currentUser?.rol === 'admin' || currentUser?.id === selectedProyecto?.owner_id}
                 onAddMember={handleAddProjectTeamMember}
@@ -2221,7 +2223,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
             )}
 
             {projectDrawerTab === 'timeline' && (
-              <ProjectTimeline entregables={selectedProyecto.entregables || []} />
+              <ProjectTimelinePanel projectId={selectedProyecto.id} onEditPlanning={() => { setTimelineDocumentKey('__common__'); setTimelineDocumentRequest(value => value + 1); setProjectDrawerTab('documentation'); }} onOpenForm={key => { setTimelineDocumentKey(key); setTimelineDocumentRequest(value => value + 1); setProjectDrawerTab('documentation'); }} />
             )}
 
           </div>
@@ -2421,7 +2423,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                           .map(p => (
                             <option key={p.id} value={p.id}>
                               {p.codigo_sgps ? `[${p.codigo_sgps}] ` : ''}{p.nombre_corto || p.nombre}
-                              {p.semillero_nombre ? ` (De: ${p.semillero_nombre})` : ' (Sin semillero)'}
+                              {p.semillero_nombre ? ` (De: ${p.semillero_nombre})` : ' (Pendiente de vincular)'}
                             </option>
                           ))}
                       </select>
@@ -2429,16 +2431,11 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                         variant="sena"
                         size="xs"
                         disabled={!selectedProjectToLinkGrupo}
-                        onClick={async () => {
+                        onClick={() => {
                           if (!selectedProjectToLinkGrupo) return;
-                          try {
-                            await ProyectosAPI.update(selectedProjectToLinkGrupo, { semillero_id: selectedSemillero.id });
-                            onNotify?.('Proyecto vinculado al semillero con éxito', 'success');
-                            setSelectedProjectToLinkGrupo('');
-                            await loadData();
-                          } catch (err) {
-                            onNotify?.('Error al vincular proyecto: ' + (err.response?.data?.detail || err.message), 'error');
-                          }
+                          setProjectToMove(proyectosGrupo.find(project => String(project.id) === String(selectedProjectToLinkGrupo)) || null);
+                          setMoveDestinationSemilleroId(String(selectedSemillero.id));
+                          setShowMoveSemilleroModal(true);
                         }}
                         className="px-3 text-xs font-bold shrink-0"
                       >
@@ -2852,7 +2849,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
                                 horas: a.horas_dedicadas || sem?.horas_dedicadas || 80
                               },
                               fecha_emision: new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }),
-                              centro: grupo?.nombre_completo || grupo?.nombre || 'Centro de Gestión Agroempresarial y Oriente - CGAO',
+                              centro: grupo?.nombre_completo || grupo?.nombre || 'Centro de Gestión Agroempresarial del Oriente (CGAO) - Subsede Vélez',
                               firmas: [
                                 { nombre: sem?.owner?.nombre || grupo?.director_nombre || 'Líder de Semillero', rol: 'Líder de Semillero SENNOVA' },
                                 { nombre: 'SUBDIRECTOR DE CENTRO', rol: 'Subdirector(a) CGAO' }
@@ -2979,6 +2976,15 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
       </Modal>
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
+      <ConfirmDialog
+        isOpen={showProjectApprovalConfirm}
+        onClose={() => setShowProjectApprovalConfirm(false)}
+        onConfirm={() => handleSaveProject(true)}
+        title="Confirmar aprobación del proyecto"
+        variant="info"
+        description="Confirma que cuentas con la aprobación institucional para registrar este proyecto como Aprobado. El diligenciamiento del formulario no concede esa aprobación."
+        confirmText="Confirmar aprobación"
+      />
       {/* ─── FORM MODAL: PROYECTO (CREAR / EDITAR) ────────────────────────── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       <Modal
@@ -2988,7 +2994,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
         variant="emerald"
         icon={FolderOpen}
         title={isEditingProject ? 'Editar Proyecto de Investigación' : 'Nuevo Proyecto de Investigación'}
-        subtitle="Persistencia directa en la base de datos de SENNOVA"
+        subtitle="Registra los datos confirmados y completa los pendientes durante la formulación."
         footer={
           <>
             <Button variant="outline" onClick={() => setShowProjectFormModal(false)}>
@@ -3008,7 +3014,7 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
             required
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Nombre Corto / Sigla"
               value={projectFormData.nombre_corto || ''}
@@ -3022,15 +3028,19 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Select
               label="Estado"
               options={[
+                { value: '', label: 'Sin estado' },
+                { value: 'En formulación', label: 'En formulación' },
                 { value: 'Aprobado', label: 'Aprobado' },
                 { value: 'En ejecución', label: 'En ejecución' },
-                { value: 'Finalizado', label: 'Finalizado' }
+                { value: 'Finalizado', label: 'Finalizado' },
+                { value: 'Referencia', label: 'Referencia' },
+                ...(!['', 'En formulación', 'Aprobado', 'En ejecución', 'Finalizado', 'Referencia'].includes(projectFormData.estado || '') ? [{ value: projectFormData.estado, label: projectFormData.estado }] : []),
               ]}
-              value={projectFormData.estado || 'Aprobado'}
+              value={projectFormData.estado || ''}
               onChange={(e) => setProjectFormData({ ...projectFormData, estado: e.target.value })}
             />
             <Select
@@ -3047,7 +3057,10 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <Input label="Duración confirmada (meses)" type="number" min="1" max="60" step="1" value={projectFormData.vigencia ?? ''} onChange={(e) => setProjectFormData({ ...projectFormData, vigencia: e.target.value })} placeholder="Pendiente de confirmar" />
+          <p className="text-xs text-slate-600">Si aún no conoces la duración, déjala pendiente y confírmala durante la formulación.</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select
               label="Línea de Investigación"
               options={lineas.map(l => ({ value: l, label: l }))}
@@ -3055,15 +3068,38 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
               onChange={(e) => setProjectFormData({ ...projectFormData, linea_investigacion: e.target.value })}
             />
             <Select
-              label="Semillero Asociado"
+              label="Semillero de Investigación"
               options={[
-                { value: '', label: 'Iniciativa Directa del Grupo' },
+                { value: '', label: 'Seleccionar semillero...' },
                 ...semilleros.map(s => ({ value: s.id, label: s.nombre }))
               ]}
               value={projectFormData.semillero_id || ''}
-              onChange={(e) => setProjectFormData({ ...projectFormData, semillero_id: e.target.value })}
+              onChange={(e) => {
+                const semilleroId = e.target.value;
+                const semillero = semilleros.find(item => String(item.id) === String(semilleroId));
+                setProjectFormData({
+                  ...projectFormData,
+                  semillero_id: semilleroId,
+                  investigador_responsable_id: semillero?.investigadores?.some(
+                    member => (!member.rol || String(member.rol).toLowerCase() === 'investigador')
+                      && String(member.id) === String(projectFormData.investigador_responsable_id),
+                  ) ? projectFormData.investigador_responsable_id : semillero?.investigadores?.[0]?.id || '',
+                });
+              }}
             />
           </div>
+          <Select
+            label="Investigador responsable"
+            options={[
+              { value: '', label: 'Seleccionar investigador responsable...' },
+              ...(semilleros.find(item => String(item.id) === String(projectFormData.semillero_id))?.investigadores || [])
+                .filter(member => !member.rol || String(member.rol).toLowerCase() === 'investigador')
+                .map(member => ({ value: member.id, label: member.nombre })),
+            ]}
+            value={projectFormData.investigador_responsable_id || ''}
+            onChange={(e) => setProjectFormData({ ...projectFormData, investigador_responsable_id: e.target.value })}
+            disabled={!projectFormData.semillero_id}
+          />
 
           <TextArea
             label="Objetivo General"
@@ -3507,9 +3543,12 @@ const GrupoModule = ({ currentUser, onNotify, onNavigate, initialAction, onActio
         onClose={() => {
           setShowMoveSemilleroModal(false);
           setProjectToMove(null);
+          setMoveDestinationSemilleroId('');
         }}
         proyecto={projectToMove}
         semilleros={semilleros}
+        currentUser={currentUser}
+        destinationSemilleroId={moveDestinationSemilleroId}
         onSuccess={async (updated) => {
           if (selectedProyecto?.id === updated?.id) {
             setSelectedProyecto(prev => ({ ...prev, ...updated }));

@@ -15,7 +15,7 @@ export const ProjectDocumentationAPI = {
     const form = new FormData();
     form.append('archivo', file);
     return fetchAPI(`/proyectos/${id}/documentacion/analizar-formato`, {
-      method: 'POST', body: form,
+      method: 'POST', body: form, mutates: false,
     });
   },
   applyFormulation: (id, borrador, proyecto) => fetchAPI(`/proyectos/${id}/documentacion/aplicar-formato`, {
@@ -28,7 +28,7 @@ export const ProjectDocumentationAPI = {
     method: 'POST', body: JSON.stringify({ observacion }),
   }),
   getRecommendation: (id, campo, texto) => fetchAPI(`/proyectos/${id}/documentacion/recomendar`, {
-    method: 'POST', body: JSON.stringify({ campo, texto }),
+    method: 'POST', body: JSON.stringify({ campo, texto }), mutates: false,
   }),
 };
 

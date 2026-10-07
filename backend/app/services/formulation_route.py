@@ -93,7 +93,7 @@ FORMULATION_STEPS = (
 
 
 def _blank(value):
-    return value is None or value == "" or value == []
+    return value is None or value == [] or (isinstance(value, str) and not value.strip())
 
 
 def project_values(project):
@@ -135,7 +135,7 @@ def _cop(amount):
     return "$ " + f"{amount:,.0f}".replace(",", ".") + " COP"
 
 
-def formulation_route(project, common, formulation_slot, uploaded_source=None):
+def formulation_route(project, common, formulation_slot, uploaded_source=None, coherence=None):
     """Calcula el estado de cada paso y el siguiente paso recomendado."""
     required_common = set(DOCUMENT_DEFINITIONS[FORMULATION_KEY]["required_common"])
     common_fields = [dict(field, required=field["key"] in required_common) for field in COMMON_FIELDS]
@@ -162,12 +162,32 @@ def formulation_route(project, common, formulation_slot, uploaded_source=None):
                 pending = ["Genera la formulación del proyecto con los datos actuales."]
             else:
                 pending = ["Completa los pasos anteriores para habilitar la generación de documentos."]
-        steps.append(dict(definition, numero=number, completo=not pending, faltantes=pending, advertencias=warnings))
+        state = "pendiente" if pending else "generado" if source == "generacion" else "diligenciado"
+        steps.append(dict(definition, numero=number, completo=not pending, faltantes=pending, advertencias=warnings, estado_diligenciamiento=state))
     done = sum(step["completo"] for step in steps)
     following = next((step["id"] for step in steps if not step["completo"]), None)
+    history = (formulation_slot or {}).get("historial") or []
+    generated = any(item.get("vigente") for item in history)
+    reviewed = any(item.get("vigente") and item.get("estado") == "revisado" for item in history)
+    filled = all(step["completo"] for step in steps if step["fuente"] != "generacion")
+    pending_review = generated and not reviewed
+    if not filled:
+        next_action = "Completa los campos pendientes de la etapa indicada."
+    elif coherence:
+        next_action = "Consulta los pendientes de coherencia y aclara los datos con sus fuentes antes de revisar."
+    elif not generated:
+        next_action = "Genera el borrador con los datos diligenciados y contrástalo con el formato vigente."
+    elif pending_review:
+        next_action = "Revisa el borrador vigente y registra la revisión documental cuando hayas comprobado sus fuentes."
+    else:
+        next_action = "La revisión documental está registrada. Comprueba si quedan confirmaciones institucionales antes de radicar."
     return {
         "pasos": steps, "completados": done, "total": len(steps),
         "porcentaje": round(done / len(steps) * 100, 1), "siguiente_paso": following,
         "campos_proyecto": list(PROJECT_FIELDS), "valores_proyecto": values,
         "documento_clave": FORMULATION_KEY, "formato_cargado": uploaded_source,
+        "resumen": {"campos_diligenciados": filled, "borrador_generado": generated,
+                    "revision_registrada": reviewed, "revision_pendiente": pending_review,
+                    "pendientes_coherencia": len(coherence or [])},
+        "siguiente_accion": next_action,
     }

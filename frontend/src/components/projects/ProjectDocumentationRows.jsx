@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Plus, Pencil, Eye, Trash2 } from 'lucide-react';
 import ProjectDocumentationModal from './ProjectDocumentationModal';
 import ProjectDocumentationRowEditor from './ProjectDocumentationRowEditor';
+import { getDocumentationErrors } from './projectDocumentationValidation';
 
 function summaryValue(column, value) {
   if (value == null || String(value).trim() === '') return 'Por completar';
@@ -46,12 +47,13 @@ export default function ProjectDocumentationRows({ field, value, disabled, onCha
     <div className="documentation-records-list">
       {rows.map((row, index) => {
         const title = String(row[columns[0]?.key] || `Registro ${index + 1}`);
-        const missing = columns.filter(column => column.required && (row[column.key] == null || String(row[column.key]).trim() === ''));
+        const missing = columns.filter(column => (column.required || field.key === 'aclaraciones_fuente') && (row[column.key] == null || String(row[column.key]).trim() === ''));
+        const invalid = Object.keys(getDocumentationErrors(field.columns, row)).length;
         return <article className="documentation-record" key={index}>
           <div className="documentation-record-heading">
             <div><span className="documentation-record-number">Registro {index + 1}</span><h6>{title}</h6></div>
-            <span className={`documentation-record-status ${missing.length ? '' : 'documentation-record-status--complete'}`}>
-              {missing.length ? `${missing.length} ${missing.length === 1 ? 'campo por completar' : 'campos por completar'}` : 'Campos completos'}
+            <span className={`documentation-record-status ${missing.length || invalid ? '' : 'documentation-record-status--complete'}`}>
+              {invalid ? 'Datos por corregir' : missing.length ? `${missing.length} ${missing.length === 1 ? 'campo por completar' : 'campos por completar'}` : field.key === 'aclaraciones_fuente' ? 'Datos de aclaración diligenciados' : 'Campos completos'}
             </span>
           </div>
           <dl>{columns.slice(1, 4).map(column => <div key={column.key}><dt>{column.label}</dt><dd>{summaryValue(column, row[column.key])}</dd></div>)}</dl>

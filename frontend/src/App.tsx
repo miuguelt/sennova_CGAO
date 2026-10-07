@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { UnsavedChangesProvider, useUnsavedChangesGuard } from './context/UnsavedChangesContext';
 import Navbar from './components/layout/Navbar';
 import LoginScreen from './components/auth/LoginScreen';
 import DashboardModule from './components/dashboard/DashboardModule';
@@ -29,6 +30,7 @@ import { canAccessModule, canStartModuleAction, canUseGlobalSearch, getHomeModul
 
 function AppContent() {
   const { currentUser, loading, login, register, logout, updateUser, apiError } = useAuth();
+  const guard = useUnsavedChangesGuard();
   const [currentView, setCurrentView] = useState('grupos');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
@@ -85,13 +87,16 @@ function AppContent() {
   }
 
   const navigateTo = (view) => {
-    setCurrentView(resolveAccessibleModule(currentUser?.rol, view));
+    const nextView = resolveAccessibleModule(currentUser?.rol, view);
+    if (nextView !== currentView) guard.requestLeave(() => setCurrentView(nextView));
   };
 
   const handleModuleAction = ({ module, form, initialData = null }) => {
     if (!canStartModuleAction(currentUser?.rol, module, form)) return;
-    setPendingAction({ module, form, initialData });
-    setCurrentView(resolveAccessibleModule(currentUser?.rol, module));
+    guard.requestLeave(() => {
+      setPendingAction({ module, form, initialData });
+      setCurrentView(resolveAccessibleModule(currentUser?.rol, module));
+    });
   };
 
   const handleActionHandled = () => {
@@ -139,6 +144,7 @@ function AppContent() {
     }
     
     switch (currentView) {
+      default:
       case 'dashboard':      return <DashboardModule {...props} onOpenSearch={canUseGlobalSearch(rol) ? () => setIsSearchOpen(true) : undefined} onNewProject={() => handleModuleAction({ module: 'proyectos', form: 'create' })} onModuleAction={handleModuleAction} />;
       case 'perfil':         return <PerfilModule {...props} onUpdateUser={updateUser} />;
       case 'proyectos':      return <ProyectosModule {...props} refreshVersion={dataVersion} initialAction={actionFor('proyectos')} onActionHandled={handleActionHandled} />;
@@ -147,7 +153,7 @@ function AppContent() {
       case 'aprendices':     return <AprendicesModule {...props} />;
       case 'productos':      return <ProductosModule {...props} initialAction={actionFor('productos')} onActionHandled={handleActionHandled} />;
       case 'mis-productos':  return <ProductosModule {...props} initialAction={actionFor('mis-productos')} onActionHandled={handleActionHandled} />;
-      case 'grupos':         return <GrupoModule {...props} initialAction={actionFor('grupos')} onActionHandled={handleActionHandled} />;
+      case 'grupos':         return <GrupoModule {...props} refreshVersion={dataVersion} initialAction={actionFor('grupos')} onActionHandled={handleActionHandled} />;
       case 'semilleros':     return <SemillerosModule {...props} initialAction={actionFor('semilleros')} onActionHandled={handleActionHandled} />;
       case 'convocatorias':  return <ConvocatoriasModule {...props} initialAction={actionFor('convocatorias')} onActionHandled={handleActionHandled} />;
       case 'reportes':       return <ReportesModule {...props} />;
@@ -162,23 +168,28 @@ function AppContent() {
       case 'auditoria':      return <AuditoriaModule {...props} />;
       case 'documentos':     return <DocumentCenterModule {...props} />;
       case 'repositorio':    return <DocumentCenterModule {...props} />;
-      default:               return <DashboardModule {...props} />;
     }
   };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
+      <a
+        href="#main-content"
+        className="sr-only z-[100] rounded-md bg-white px-4 py-2 text-sm font-bold text-slate-900 shadow-lg focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        Saltar al contenido principal
+      </a>
       <Navbar
         key={`navbar-${dataVersion}`}
         currentUser={currentUser} 
         currentModule={currentView} 
         onNavigate={navigateTo} 
         onModuleAction={handleModuleAction}
-        onLogout={logout} 
+        onLogout={() => guard.requestLeave(logout)}
         onOpenSearch={() => setIsSearchOpen(true)}
       />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 print:max-w-none print:p-0 print:m-0 print:pt-0">
-        <React.Fragment key={`view-${currentView}-${['proyectos', 'mis-proyectos'].includes(currentView) ? 'persistente' : dataVersion}`}>
+      <main id="main-content" tabIndex={-1} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 print:max-w-none print:p-0 print:m-0 print:pt-0">
+        <React.Fragment key={`view-${currentView}-${['grupos', 'proyectos', 'mis-proyectos'].includes(currentView) ? 'persistente' : dataVersion}`}>
           {renderView()}
         </React.Fragment>
       </main>
@@ -203,7 +214,7 @@ export default function App() {
   return (
     <AuthProvider>
       <Toaster position="top-right" />
-      <AppContent />
+      <UnsavedChangesProvider><AppContent /></UnsavedChangesProvider>
     </AuthProvider>
   );
 }

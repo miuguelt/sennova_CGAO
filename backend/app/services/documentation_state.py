@@ -1,12 +1,17 @@
 """Estado del editor desde el proyecto, sus campos y sus versiones persistidas."""
 
 import math
-from decimal import Decimal
+from calendar import monthrange
+from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation
+
+from fastapi import HTTPException
 
 from app.documentation_models import ProjectDocumentation, ProjectDocumentDraft
 from app.services.documentation_catalog import COMMON_FIELDS, DOCUMENT_DEFINITIONS
-from app.services.documentation_validation import missing_fields
+from app.services.documentation_validation import missing_fields, validate_fields
 from app.services.project_evidence_service import document_bytes
+from app.services.project_general_data import general_project_data
 
 
 def project_context(project, slot=None):
@@ -49,23 +54,86 @@ def slot_for_key(project, key):
     return slot
 
 
-def consistency_issues(context, common):
+def consistency_issues(context, common, *, include_source=True):
+    from app.services.source_resolution import source_is_resolved
+
     issues = []
-    if common.get("inconsistencias_fuente"):
+    if include_source and common.get("inconsistencias_fuente") and not source_is_resolved(common):
         issues.append("Concilie las inconsistencias de los documentos de referencia antes de marcar una versión como revisada.")
     budget = common.get("presupuesto", [])
     if budget and context.get("presupuesto_total") is not None:
-        total = sum(Decimal(str(row.get("valor_planeado") or 0)) for row in budget)
-        if total != Decimal(str(context["presupuesto_total"])):
-            issues.append("El desglose del presupuesto no coincide con el presupuesto total del proyecto.")
+        try:
+            total = sum(Decimal(str(row.get("valor_planeado") or 0)) for row in budget)
+            if total != Decimal(str(context["presupuesto_total"])):
+                issues.append("El desglose del presupuesto no coincide con el presupuesto total del proyecto.")
+        except (InvalidOperation, TypeError, ValueError, AttributeError):
+            issues.append("El presupuesto contiene valores que no se pueden verificar. Corrige los rubros antes de generar o revisar documentos.")
     return issues
+
+
+def _month_offset(start, months):
+    """Avanza meses calendario y conserva el día cuando existe en el mes destino."""
+    month_index = start.year * 12 + start.month - 1 + months
+    year, month = divmod(month_index, 12)
+    return date(year, month + 1, min(start.day, monthrange(year, month + 1)[1]))
+
+
+def _period_pending(slot, common, data):
+    """Impide atribuir resultados a otro bimestre o cerrar períodos fuera del plan."""
+    pending = []
+    if slot["tipo"] not in {"informe_bimensual", "acta_cierre"}:
+        return pending
+    if not all(common.get(key) for key in ("fecha_inicio", "fecha_fin")):
+        return pending
+    start, end = date.fromisoformat(common["fecha_inicio"]), date.fromisoformat(common["fecha_fin"])
+    period = slot.get("periodo_bimestre")
+    if slot["tipo"] == "informe_bimensual" and period:
+        minimum = _month_offset(start, 2 * (period - 1))
+        maximum = min(_month_offset(start, 2 * period) - timedelta(days=1), end)
+    else:
+        minimum, maximum = start, end
+    for key in ("periodo_desde", "periodo_hasta"):
+        if data.get(key) and not minimum <= date.fromisoformat(data[key]) <= maximum:
+            pending.append({"campo": key, "mensaje": f"El período debe estar entre {minimum.isoformat()} y {maximum.isoformat()} para este documento."})
+    if slot["tipo"] == "acta_cierre":
+        if data.get("tipo_cierre") == "final":
+            for key, expected in (("periodo_desde", start), ("periodo_hasta", end)):
+                if data.get(key) and date.fromisoformat(data[key]) != expected:
+                    pending.append({"campo": key, "mensaje": "El cierre final debe abarcar todo el período del proyecto. Selecciona cierre parcial si solo documentas un período."})
+        if data.get("fecha_reunion") and data.get("periodo_hasta") and data["fecha_reunion"] < data["periodo_hasta"]:
+            pending.append({"campo": "fecha_reunion", "mensaje": "La reunión de cierre debe ocurrir al terminar el período que se cierra o después."})
+    return pending
+
+
+def _closure_balance_pending(context, data):
+    """Conserva montos pendientes explícitos y concilia la planeación del cierre final."""
+    pending = []
+    rows = data.get("balance", [])
+    for index, row in enumerate(rows):
+        if row.get("valor_real") in (None, "") and not row.get("observacion"):
+            pending.append({"campo": f"balance.{index}.valor_real", "mensaje": "Registra el valor real del rubro o explica qué monto falta por confirmar en la observación."})
+    if data.get("tipo_cierre") == "final" and rows and context.get("presupuesto_total") is not None:
+        total = sum(Decimal(str(row.get("valor_planeado") or 0)) for row in rows)
+        if total != Decimal(str(context["presupuesto_total"])):
+            pending.append({"campo": "balance", "mensaje": "El valor planeado del balance de cierre final debe coincidir con el presupuesto total del proyecto."})
+    return pending
 
 
 def generation_pending(project, slot, common, data):
     definition = DOCUMENT_DEFINITIONS[slot["tipo"]]
     required_common = set(definition.get("required_common", []))
     fields = [dict(field, required=field["key"] in required_common) for field in COMMON_FIELDS]
+    try:
+        common = validate_fields(common, fields)
+        data = validate_fields(data, definition["fields"])
+    except HTTPException as error:
+        return [{"campo": "formulario", "mensaje": str(error.detail)}]
     pending = missing_fields(common, fields, prefix="comunes.") + missing_fields(data, definition["fields"])
+    context = {"presupuesto_total": getattr(project, "presupuesto_total", None)}
+    pending.extend({"campo": "comunes.presupuesto", "mensaje": issue} for issue in consistency_issues(context, common, include_source=False))
+    pending.extend(_period_pending(slot, common, data))
+    if slot["tipo"] == "acta_cierre":
+        pending.extend(_closure_balance_pending(context, data))
     if not project.objetivo_general:
         pending.append({"campo": "proyecto.objetivo_general", "mensaje": "Complete el objetivo general en la información del proyecto."})
     if slot["tipo"] in {"formulacion_proyecto", "presentacion_proyecto", "informe_final"} and (
@@ -80,7 +148,7 @@ def generation_pending(project, slot, common, data):
 
 
 def current_snapshot(project, slot, common, data):
-    return {"contexto": project_context(project, slot), "comunes": common, "datos": data, "plantilla_version": 1}
+    return {"contexto": project_context(project, slot), "comunes": common, "datos": data, "plantilla_version": 2}
 
 
 def version_is_current(version, snapshot, common_revision, draft_revision):
@@ -111,12 +179,16 @@ def documentation_view(project, db):
         documents.append(dict(slot, datos=data, revision=revision, campos=DOCUMENT_DEFINITIONS[slot["tipo"]]["fields"], faltantes=pending, generable=not pending, historial=history))
     from app.models import Documento
     from app.services.formulation_route import FORMULATION_KEY, formulation_route
+    from app.services.formulation_coherence import coherence_review, relation_options
     uploaded = next((doc for doc in db.query(Documento).filter_by(entidad_tipo="proyecto", entidad_id=str(project.id), tipo=FORMULATION_KEY)
                      .order_by(Documento.created_at.desc()).all() if doc.version_generada is None), None)
     uploaded_source = {"documento_id": str(uploaded.id), "nombre_archivo": uploaded.nombre_archivo} if uploaded else None
     formulation_slot = next((item for item in documents if item["clave"] == FORMULATION_KEY), None)
+    coherence = coherence_review(project, common, (formulation_slot or {}).get("datos") or {})
     return {"proyecto": project_context(project), "revision": common_revision, "comunes": common,
+            "datos_iniciales": general_project_data(project),
             "campos_comunes": COMMON_FIELDS, "documentos": documents,
             "avance_documental": documentation_progress(project, common_row=common_row, drafts=drafts),
             "advertencias": consistency_issues(project_context(project), common),
-            "ruta_formulacion": formulation_route(project, common, formulation_slot, uploaded_source)}
+            "revision_coherencia": coherence, "opciones_relaciones": relation_options(project, common),
+            "ruta_formulacion": formulation_route(project, common, formulation_slot, uploaded_source, coherence)}

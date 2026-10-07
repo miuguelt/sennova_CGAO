@@ -49,8 +49,8 @@ import { PlantillasAPI } from '../api/plantillas';
 import { PDFGenerator } from '../utils/pdfGenerator';
 
 const semilleros = [
-  { id: 's-1', nombre: 'Semillero AgroTech', sigla: 'AGRO', codigo: 'AGRO', estado: 'activo', linea_investigacion: 'Agroindustria', grupo_id: 'g-1', grupo_nombre: 'Grupo CGAO', descripcion: 'Investigación aplicada al agro.', horas_dedicadas: 6, total_aprendices: 4, total_investigadores: 2 },
-  { id: 's-2', nombre: 'Semillero Digital', sigla: 'DIGI', estado: 'inactivo', linea_investigacion: 'Tecnología', descripcion: '', horas_dedicadas: 3, total_aprendices: 0, total_investigadores: 0 },
+  { id: 's-1', nombre: 'Semillero AgroTech', sigla: 'AGRO', codigo: 'AGRO', estado: 'activo', linea_investigacion: 'Agroindustria', grupo_id: 'g-1', grupo_nombre: 'Grupo CGAO', descripcion: 'Investigación aplicada al agro.', horas_dedicadas: 6, total_aprendices: 4, total_investigadores: 2, investigadores: [{ id: 'u-inv-1', nombre: 'Lina Investigadora', rol: 'investigador' }] },
+  { id: 's-2', nombre: 'Semillero Digital', sigla: 'DIGI', estado: 'inactivo', linea_investigacion: 'Tecnología', descripcion: '', horas_dedicadas: 3, total_aprendices: 0, total_investigadores: 1, grupo_id: 'g-1', investigadores: [{ id: 'u-inv-1', nombre: 'Lina Investigadora', rol: 'investigador' }] },
 ];
 const aprendiz = { id: 'm-1', user_id: 'u-apr-1', nombre: 'Ana Aprendiz', email: 'ana@soy.sena.edu.co', rol: 'aprendiz', estado: 'activo', programa: 'ADSO', ficha: '123' };
 const investigator = { id: 'u-inv-1', nombre: 'Lina Investigadora', email: 'lina@sena.edu.co', rol_en_semillero: 'Tutora' };
@@ -63,8 +63,8 @@ const users = [
   { id: 'u-inv-2', nombre: 'Marta Investigadora', email: 'marta@sena.edu.co', rol: 'investigador' },
 ];
 const projects = [
-  { id: 'p-1', nombre: 'Proyecto AgroTech', nombre_corto: 'AgroTech', codigo_sgps: 'SGPS-01', semillero_id: 's-1', estado: 'En ejecución', presupuesto_total: 120000, avance_porcentaje: 55, entregables_aprobados: 2, total_entregables: 4, avance_documental: { porcentaje: 16, campos_completados: 2, campos_totales: 10, documentos_totales: 3, documentos_generados: 0, documentos_revisados: 0 } },
-  { id: 'p-2', nombre: 'Proyecto Digital', codigo_sgps: 'SGPS-02', semillero_id: null, estado: 'Aprobado', presupuesto_total: 50000, avance_porcentaje: 0 },
+  { id: 'p-1', nombre: 'Proyecto AgroTech', nombre_corto: 'AgroTech', codigo_sgps: 'SGPS-01', owner_id: 'u-inv-1', semillero_id: 's-1', estado: 'En ejecución', presupuesto_total: 120000, avance_porcentaje: 55, entregables_aprobados: 2, total_entregables: 4, avance_documental: { porcentaje: 16, campos_completados: 2, campos_totales: 10, documentos_totales: 3, documentos_generados: 0, documentos_revisados: 0 } },
+  { id: 'p-2', nombre: 'Proyecto Digital', codigo_sgps: 'SGPS-02', owner_id: 'u-inv-1', semillero_id: 's-2', estado: 'Aprobado', presupuesto_total: 50000, avance_porcentaje: 0 },
 ];
 
 function configureApi() {
@@ -98,7 +98,7 @@ describe('gestión de semilleros por rol', () => {
     const drawer = await screen.findByRole('dialog', { name: 'Semillero AgroTech' });
     fireEvent.click(within(drawer).getByRole('button', { name: 'Proyectos' }));
     expect(within(drawer).getByRole('progressbar', { name: 'Avance documental del proyecto' })).toHaveAttribute('value', '16');
-    expect(within(drawer).getByText('2 de 10 requisitos completos')).toBeVisible();
+    expect(within(drawer).getByText('Campos diligenciados: 2 de 10')).toBeVisible();
     expect(within(drawer).queryByText('55%')).not.toBeInTheDocument();
     expect(within(drawer).queryByText('2/4 entregables')).not.toBeInTheDocument();
   });
@@ -213,7 +213,7 @@ describe('gestión de semilleros por rol', () => {
     expect(onNotify).toHaveBeenCalledWith('Certificado generado y descargado', 'success');
   });
 
-  it('vincula y mueve proyectos, y confirma su desvinculación', async () => {
+  it('vincula y mueve proyectos con responsable, y conserva su asociación a un semillero', async () => {
     const onNotify = vi.fn();
     render(<SemillerosModule currentUser={{ id: 'admin', rol: 'admin' }} onNotify={onNotify} />);
     await screen.findByRole('heading', { name: 'Semilleros de Investigación' });
@@ -222,23 +222,64 @@ describe('gestión de semilleros por rol', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Proyectos' }));
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p-2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Vincular al Semillero' }));
-    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-2', { semillero_id: 's-1' }));
+    const linkProjectDialog = await screen.findByRole('dialog', { name: 'Mover Proyecto a Semillero' });
+    expect(within(linkProjectDialog).getByLabelText('Semillero de Destino')).toHaveValue('s-1');
+    expect(within(linkProjectDialog).getByLabelText('Investigador responsable')).toHaveValue('u-inv-1');
+    fireEvent.click(within(linkProjectDialog).getByRole('button', { name: 'Confirmar Traslado' }));
+    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-2', { semillero_id: 's-1', investigador_responsable_id: 'u-inv-1' }));
 
     fireEvent.click(screen.getByTitle('Mover proyecto a otro semillero'));
     expect(screen.getByRole('dialog', { name: 'Mover Proyecto a Semillero' })).toBeVisible();
     fireEvent.change(screen.getByLabelText('Semillero de Destino'), { target: { value: 's-2' } });
+    expect(screen.getByLabelText('Investigador responsable')).toHaveValue('u-inv-1');
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar Traslado' }));
-    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenLastCalledWith('p-1', { semillero_id: 's-2' }));
+    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenLastCalledWith('p-1', { semillero_id: 's-2', investigador_responsable_id: 'u-inv-1' }));
     expect(onNotify).toHaveBeenCalledWith('Proyecto movido a "Semillero Digital" correctamente', 'success');
 
-    fireEvent.click(screen.getByTitle('Desvincular del semillero'));
-    expect(screen.getByRole('alertdialog', { name: '¿Desvincular Proyecto del Semillero?' })).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancelar confirmación' }));
-    expect(screen.queryByRole('alertdialog', { name: '¿Desvincular Proyecto del Semillero?' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTitle('Desvincular del semillero'));
-    fireEvent.click(screen.getByRole('button', { name: 'Desvincular Proyecto' }));
-    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenLastCalledWith('p-1', { semillero_id: null }));
-    expect(onNotify).toHaveBeenCalledWith('Proyecto "AgroTech" desvinculado del semillero', 'success');
+    expect(screen.queryByTitle('Desvincular del semillero')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Mover proyecto a otro semillero'));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Mover Proyecto a Semillero' })).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog', { name: 'Mover Proyecto a Semillero' })).not.toBeInTheDocument();
+    expect(ProyectosAPI.update).toHaveBeenCalledTimes(2);
+    expect(ProyectosAPI.update.mock.calls.every(([, payload]) => payload.semillero_id !== null)).toBe(true);
+  });
+
+  it.each([false, true])('valida la pertenencia de los aprendices al trasladar el equipo (integrante pendiente: %s)', async (hasPendingMember) => {
+    const projectTeam = [
+      { id: 'u-inv-1', nombre: 'Lina Investigadora', rol: 'investigador' },
+      { id: 'u-apr-1', nombre: 'Ana Aprendiz', rol: 'aprendiz' },
+      { id: 'u-apr-2', nombre: 'Luis Aprendiz', rol: 'aprendiz' },
+      ...(hasPendingMember ? [{ id: 'u-apr-3', nombre: 'Sara Aprendiz', rol: 'aprendiz' }] : []),
+    ];
+    ProyectosAPI.list.mockResolvedValue([{ ...projects[0], equipo: projectTeam }]);
+    SemillerosAPI.list.mockResolvedValue([
+      semilleros[0],
+      { ...semilleros[1], aprendices: [aprendiz, { id: 'u-apr-2', nombre: 'Luis Aprendiz' }] },
+    ]);
+    const onNotify = vi.fn();
+    render(<SemillerosModule currentUser={{ id: 'admin', rol: 'admin' }} onNotify={onNotify} />);
+    await screen.findByRole('heading', { name: 'Semilleros de Investigación' });
+    fireEvent.click(screen.getByText('Semillero AgroTech'));
+    const drawer = await screen.findByRole('dialog', { name: 'Semillero AgroTech' });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Proyectos' }));
+    fireEvent.click(within(drawer).getByTitle('Mover proyecto a otro semillero'));
+    const transfer = await screen.findByRole('dialog', { name: 'Mover Proyecto a Semillero' });
+    fireEvent.change(within(transfer).getByLabelText('Semillero de Destino'), { target: { value: 's-2' } });
+    const confirm = within(transfer).getByRole('button', { name: 'Confirmar Traslado' });
+    if (hasPendingMember) {
+      expect(confirm).toBeDisabled();
+      expect(within(transfer).getByText(/retire del proyecto a: Sara Aprendiz/)).toBeVisible();
+      fireEvent.click(confirm);
+      expect(ProyectosAPI.update).not.toHaveBeenCalled();
+    } else {
+      expect(confirm).toBeEnabled();
+      expect(within(transfer).queryByText(/Antes del traslado/)).not.toBeInTheDocument();
+      fireEvent.click(confirm);
+      await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-1', {
+        semillero_id: 's-2', investigador_responsable_id: 'u-inv-1',
+      }));
+      expect(onNotify).toHaveBeenCalledWith('Proyecto movido a "Semillero Digital" correctamente', 'success');
+    }
   });
 
   it('ofrece acciones separadas y vincula aprendices e investigadores desde la tarjeta', async () => {
@@ -432,8 +473,11 @@ describe('gestión de semilleros por rol', () => {
     fireEvent.dragOver(projectDrop, { dataTransfer: projectTransfer });
     fireEvent.dragLeave(projectDrop);
     fireEvent.drop(projectDrop, { dataTransfer: projectTransfer });
-    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-2', { semillero_id: 's-1' }));
-    expect(onNotify).toHaveBeenCalledWith('Proyecto vinculado al semillero "Semillero AgroTech" correctamente', 'success');
+    const linkProjectDialog = await screen.findByRole('dialog', { name: 'Mover Proyecto a Semillero' });
+    expect(within(linkProjectDialog).getByLabelText('Semillero de Destino')).toHaveValue('s-1');
+    fireEvent.click(within(linkProjectDialog).getByRole('button', { name: 'Confirmar Traslado' }));
+    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-2', { semillero_id: 's-1', investigador_responsable_id: 'u-inv-1' }));
+    expect(onNotify).toHaveBeenCalledWith('Proyecto movido a "Semillero AgroTech" correctamente', 'success');
   });
 
   it('permite cerrar confirmaciones y cancelar la edición del semillero', async () => {

@@ -9,6 +9,27 @@ coverage_gate = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(coverage_gate)
 
 
+def test_backend_ci_gate_resolves_report_and_sources_from_backend_directory(tmp_path, monkeypatch, capsys):
+    import shlex
+    import yaml
+
+    workflow_path = Path(__file__).resolve().parents[2] / ".github/workflows/ci.yml"
+    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    step = next(item for item in workflow["jobs"]["backend-tests"]["steps"] if item.get("name") == "Enforce 100% Backend Function Coverage")
+    command = shlex.split(step["run"])
+    assert command[:2] == ["python", "scripts/check_changed_function_coverage.py"]
+    assert step["working-directory"] == "./backend"
+    source = tmp_path / "backend/app/example.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("def example():\n    return True\n", encoding="utf-8")
+    report = tmp_path / "backend/coverage.json"
+    report.write_text(json.dumps({"files": {"app/example.py": {"executed_lines": [2]}}}), encoding="utf-8")
+    monkeypatch.setattr(coverage_gate, "REPOSITORY_ROOT", tmp_path)
+    monkeypatch.chdir(tmp_path / "backend")
+    assert coverage_gate.main(command[2:]) == 0
+    assert "1/1 ejecutadas" in capsys.readouterr().out
+
+
 def test_parse_unified_diff_tracks_added_lines_and_skips_deletions():
     diff = """diff --git a/frontend/src/lib/access.js b/frontend/src/lib/access.js
 --- a/frontend/src/lib/access.js

@@ -103,7 +103,7 @@ describe('DashboardModule: acciones y paneles por rol', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reportes CGAO' }));
     fireEvent.click(screen.getByRole('button', { name: /Nuevo Proyecto/i }));
     fireEvent.click(screen.getByText('Proyectos Totales Centro'));
-    fireEvent.click(screen.getByText('Productos Minciencias'));
+    fireEvent.click(screen.getByText('Productos de investigación'));
     fireEvent.click(screen.getByText('Investigadores'));
     fireEvent.click(screen.getByText('Aprendices en Semilleros'));
     fireEvent.click(screen.getByText('Entregar informe'));
@@ -134,7 +134,7 @@ describe('DashboardModule: acciones y paneles por rol', () => {
     fireEvent.click(screen.getByRole('button', { name: /Nuevo Proyecto/i }));
     fireEvent.click(screen.getByText('Entregar informe'));
     fireEvent.click(screen.getByText('Mis Proyectos I+D+i').closest('[class*="cursor-pointer"]'));
-    fireEvent.click(screen.getByText('Mis Productos Minciencias').closest('[class*="cursor-pointer"]'));
+    fireEvent.click(screen.getByText('Mis productos de investigación').closest('[class*="cursor-pointer"]'));
     fireEvent.click(screen.getByText('Avance documental').closest('[class*="cursor-pointer"]'));
     fireEvent.click(screen.getByText('Aprendices Tutelados').closest('[class*="cursor-pointer"]'));
     fireEvent.click(screen.getByText('Impacto 360').closest('[class*="cursor-pointer"]'));

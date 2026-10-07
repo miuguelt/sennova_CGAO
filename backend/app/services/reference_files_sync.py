@@ -29,7 +29,7 @@ def _determine_document_type(rel_path_str: str, filename: str) -> tuple[str, int
     lower_name = filename.lower()
     periodo = None
 
-    if "1ProyectoFormulado" in lower_path or "1proyectoformulado" in lower_path:
+    if "1proyectofomulado" in lower_path or "1proyectoformulado" in lower_path:
         if lower_name.endswith(".pptx"):
             return "presentacion_proyecto", None
         return "formulacion_proyecto", None

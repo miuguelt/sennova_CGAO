@@ -16,7 +16,7 @@ os.environ["DEBUG"] = "true"
 
 from app.database import Base, get_db
 from app.main import app
-from app.models import Aprendiz, User
+from app.models import Aprendiz, Semillero, User
 from app.auth import get_password_hash, create_access_token
 
 test_engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
@@ -112,6 +112,8 @@ def test_sennova_e2e_notification_and_project_lifecycle(setup_db):
     semillero_id = res_sem.json()["id"]
     with TestingSessionLocal() as db:
         db.add(Aprendiz(user_id=apr_id, semillero_id=semillero_id, estado="activo"))
+        semillero = db.get(Semillero, semillero_id)
+        semillero.investigadores.append(db.get(User, inv_id))
         db.commit()
 
     # 4. Crear Convocatoria (Admin) -> Debe generar notificaciones in-app e emails simulados
@@ -146,16 +148,24 @@ def test_sennova_e2e_notification_and_project_lifecycle(setup_db):
         "nombre_corto": "AgroIntellect",
         "tipologia": "Investigación Aplicada",
         "estado": "Formulación",
-        "vigencia": 2026,
+        "vigencia": 12,
+        "año": 2026,
         "semillero_id": semillero_id,
+        "investigador_responsable_id": inv_id,
         "convocatoria_id": conv_id
     }, headers=admin_headers)
     assert res_proj.status_code == 201
+    assert res_proj.json()["vigencia"] == 12
+    assert res_proj.json()["año"] == 2026
     proj_id = res_proj.json()["id"]
     
-    # Asignar investigador al equipo del proyecto
-    res_eq = client.post(f"/proyectos/{proj_id}/equipo", json={"user_id": inv_id, "rol_en_proyecto": "Co-investigador", "horas_dedicadas": 20}, headers=admin_headers)
-    assert res_eq.status_code in (200, 201)
+    # El investigador responsable ya queda asignado por separado.
+    res_responsible_as_support = client.post(
+        f"/proyectos/{proj_id}/equipo",
+        json={"user_id": inv_id, "rol_en_proyecto": "Coinvestigador", "horas_dedicadas": 20},
+        headers=admin_headers,
+    )
+    assert res_responsible_as_support.status_code == 422
 
     res_learner = client.post(f"/proyectos/{proj_id}/equipo", json={
         "user_id": apr_id,
@@ -174,31 +184,34 @@ def test_sennova_e2e_notification_and_project_lifecycle(setup_db):
     }, headers=admin_headers)
     assert res_missing_member.status_code == 404
     res_duplicate_member = client.post(f"/proyectos/{proj_id}/equipo", json={
-        "user_id": inv_id,
-        "rol_en_proyecto": "Coinvestigador",
+        "user_id": apr_id,
+        "rol_en_proyecto": "Aprendiz de apoyo",
     }, headers=admin_headers)
     assert res_duplicate_member.status_code == 400
     project_detail = client.get(f"/proyectos/{proj_id}", headers=admin_headers).json()
-    assert {member["id"] for member in project_detail["equipo"]} == {inv_id, apr_id}
+    assert project_detail["owner_id"] == inv_id
+    assert {member["id"] for member in project_detail["equipo"]} == {apr_id}
 
     project_with_initial_team = client.post("/proyectos", json={
         "nombre": "Proyecto creado con equipo completo",
         "semillero_id": semillero_id,
+        "investigador_responsable_id": inv_id,
         "equipo": [
-            {"user_id": inv_id, "rol_en_proyecto": "Investigador Principal"},
             {"user_id": apr_id, "rol_en_proyecto": "Aprendiz Semillerista"},
         ],
     }, headers=admin_headers)
     assert project_with_initial_team.status_code == 201
     assert {
         member["id"] for member in project_with_initial_team.json()["equipo"]
-    } == {inv_id, apr_id}
+    } == {apr_id}
 
     repeated_team_member = client.post("/proyectos", json={
         "nombre": "Proyecto con integrante repetido",
+        "semillero_id": semillero_id,
+        "investigador_responsable_id": inv_id,
         "equipo": [
-            {"user_id": inv_id},
-            {"user_id": inv_id},
+            {"user_id": apr_id},
+            {"user_id": apr_id},
         ],
     }, headers=admin_headers)
     assert repeated_team_member.status_code == 422

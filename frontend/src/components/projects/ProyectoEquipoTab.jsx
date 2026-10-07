@@ -66,10 +66,10 @@ export default function ProyectoEquipoTab({
         <div>
           <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
             <Users size={16} className="text-emerald-600" />
-            Investigadores Vinculados
+            Equipo del proyecto
           </h3>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Equipo de trabajo responsable de las actividades y entregables del proyecto
+            El investigador responsable coordina a los investigadores de apoyo y aprendices del semillero.
           </p>
         </div>
 
@@ -86,10 +86,15 @@ export default function ProyectoEquipoTab({
               className="px-3.5 py-1.5 text-xs font-bold shadow-sm shadow-emerald-500/10 flex items-center gap-1.5"
             >
               <UserPlus size={14} />
-              <span>Vincular Investigador</span>
+              <span>Vincular integrante</span>
             </Button>
           )}
         </div>
+      </div>
+
+      <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3">
+        <p className="text-[10px] font-black uppercase tracking-wide text-emerald-800">Investigador responsable</p>
+        <p className="mt-0.5 text-sm font-bold text-slate-900">{proyecto?.owner?.nombre || 'Pendiente de asignación'}</p>
       </div>
 
       {/* ── Lista de Miembros del Equipo ── */}
@@ -172,7 +177,7 @@ export default function ProyectoEquipoTab({
               <Users size={28} />
             </div>
             <div className="max-w-sm mx-auto">
-              <p className="text-sm font-bold text-slate-800">No hay investigadores asignados</p>
+              <p className="text-sm font-bold text-slate-800">No hay integrantes asignados</p>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                 Vincula investigadores o aprendices para conformar el equipo de trabajo de este proyecto.
               </p>
@@ -186,7 +191,7 @@ export default function ProyectoEquipoTab({
                   className="px-5 py-2 text-xs font-bold shadow-md shadow-emerald-500/10 inline-flex items-center gap-1.5"
                 >
                   <UserPlus size={14} />
-                  Vincular Primer Investigador
+                  Vincular primer integrante
                 </Button>
               </div>
             )}

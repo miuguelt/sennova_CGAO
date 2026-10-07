@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ProjectDocumentationFields, { documentationButtonClass } from './ProjectDocumentationFields';
+import { getDocumentationErrors } from './projectDocumentationValidation';
 
 function DocumentationVersion({ version, title, canEdit, busy, reviewBlocked, onDownload, onReview }) {
   const [observation, setObservation] = useState('');
@@ -18,15 +19,16 @@ function DocumentationVersion({ version, title, canEdit, busy, reviewBlocked, on
   </div>;
 }
 
-export default function ProjectDocumentationCard({ entry, values, dirty, commonDirty, canEdit, busy, reviewBlocked, onChange, onSave, onGenerate, onDownload, onReview }) {
+export default function ProjectDocumentationCard({ entry, values, dirty, commonDirty, canEdit, busy, reviewBlocked, autoOpen = false, onChange, onSave, onGenerate, onDownload, onReview }) {
+  const invalid = Object.keys(getDocumentationErrors(entry.campos, values)).length > 0;
   return <section aria-label={entry.titulo} className="min-w-0 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-    <details>
+    <details open={autoOpen}>
       <summary className="min-h-[44px] cursor-pointer text-base font-bold text-slate-900"><span>{entry.titulo}</span><span className="mt-1 block text-sm font-medium text-slate-700">{entry.faltantes.length ? `${entry.faltantes.length} ${entry.faltantes.length === 1 ? 'campo pendiente' : 'campos pendientes'}` : 'Campos completos'}</span></summary>
       <div className="space-y-4 pt-3">
         {entry.faltantes.length > 0 && <ul className="w-full list-disc space-y-1 pl-5 text-sm text-amber-950">{entry.faltantes.map(item => <li key={item.campo}>{item.mensaje}</li>)}</ul>}
         <ProjectDocumentationFields fields={entry.campos} values={values} onChange={onChange} disabled={!canEdit || busy} />
         {canEdit && <div className="flex min-w-0 flex-wrap gap-3">
-          <button type="button" className={documentationButtonClass} disabled={busy || !dirty} onClick={onSave} aria-label={`Guardar ${entry.titulo}`}>Guardar borrador</button>
+          <button type="button" className={documentationButtonClass} disabled={busy || !dirty || invalid} onClick={onSave} aria-label={`Guardar ${entry.titulo}`}>Guardar borrador</button>
           <button type="button" className={documentationButtonClass} disabled={busy || dirty || commonDirty || !entry.generable || entry.faltantes.length > 0} onClick={onGenerate} aria-label={`Generar ${entry.titulo}`}>Generar {entry.formato.toUpperCase()}</button>
         </div>}
       </div>

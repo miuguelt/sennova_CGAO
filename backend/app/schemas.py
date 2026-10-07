@@ -312,7 +312,7 @@ class ProyectoBase(BaseModel):
     codigo_sgps: Optional[str] = None
     nombre: str
     nombre_corto: Optional[str] = None
-    estado: str = "Aprobado"  # Aprobado, En ejecución, Finalizado
+    estado: str = "En formulación"  # Conserva también los estados de registros anteriores.
     vigencia: Optional[int] = None
     presupuesto_total: Optional[float] = None
     tipologia: Optional[str] = None
@@ -334,6 +334,9 @@ class ProyectoBase(BaseModel):
 
 
 class ProyectoCreate(ProyectoBase):
+    vigencia: Optional[int] = Field(default=None, ge=1, le=60, strict=True)
+    semillero_id: UUID
+    investigador_responsable_id: Optional[UUID] = None
     convocatoria_id: Optional[UUID] = None
     equipo: Optional[List[EquipoMiembro]] = []
 
@@ -343,7 +346,7 @@ class ProyectoUpdate(BaseModel):
     nombre: Optional[str] = None
     nombre_corto: Optional[str] = None
     estado: Optional[str] = None
-    vigencia: Optional[int] = None
+    vigencia: Optional[int] = Field(default=None, ge=1, le=60, strict=True)
     presupuesto_total: Optional[float] = None
     tipologia: Optional[str] = None
     linea_investigacion: Optional[str] = None
@@ -353,6 +356,7 @@ class ProyectoUpdate(BaseModel):
     objetivos_especificos: Optional[List[str]] = None
     is_publico: Optional[bool] = None
     convocatoria_id: Optional[UUID] = None
+    investigador_responsable_id: Optional[UUID] = None
     presupuesto_detallado: Optional[dict] = None
     linea_programatica: Optional[str] = None
     reto_origen_id: Optional[UUID] = None
@@ -402,8 +406,8 @@ class ProyectoResponse(ProyectoBase):
 # ==========================================
 
 class ProductoBase(BaseModel):
-    # Tipología Minciencias: A1-A7, B1-B6, C1-C6, D1-D4
-    tipo: str   # Código Minciencias (A1, B1, C2, D2, etc.)
+    # Catálogo interno CGAO v1; la clasificación oficial exige evaluación separada.
+    tipo: str   # Código interno o descripción conservada de registros anteriores.
     categoria: Optional[str] = None   # A, B, C, D
     nombre: str
     descripcion: Optional[str] = None

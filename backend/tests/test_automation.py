@@ -103,13 +103,24 @@ def headers(client):
 
 def test_sennova_automation_flow(client, headers):
     """Valida la suite de automatización completa para SENNOVA."""
+    group = client.post("/grupos", json={"nombre": "Grupo de prueba de automatización", "clasificacion": "A1"}, headers=headers)
+    assert group.status_code == 201, group.text
+    semillero = client.post("/semilleros", json={"nombre": "Semillero de prueba de automatización", "grupo_id": group.json()["id"]}, headers=headers)
+    assert semillero.status_code == 201, semillero.text
+    registered = client.post("/auth/users", json={"nombre": "Investigador de prueba de automatización", "email": "automatizacion@example.com", "password": secrets.token_urlsafe(24), "rol": "investigador"}, headers=headers)
+    assert registered.status_code == 201, registered.text
+    researcher = registered.json().get("user") or registered.json()
+    linked = client.post(f"/semilleros/{semillero.json()['id']}/investigadores", json={"user_id": researcher["id"]}, headers=headers)
+    assert linked.status_code == 200, linked.text
     # 1. Crear Proyecto
     proyecto_data = {
         "nombre": f"Proyecto Test Automatización {uuid.uuid4().hex[:8]}",
         "nombre_corto": "PROY-TEST",
+        "semillero_id": semillero.json()["id"],
+        "investigador_responsable_id": researcher["id"],
         "tipologia": "Investigación",
         "estado": "Formulación",
-        "vigencia": 2026,
+        "vigencia": 12,
     }
     res_proj = client.post("/proyectos", json=proyecto_data, headers=headers)
     assert res_proj.status_code == 201, f"Error creando proyecto: {res_proj.text}"

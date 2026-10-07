@@ -1,6 +1,7 @@
 """Validación de campos guiados sin completar hechos ausentes."""
 
 import json
+import re
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
@@ -34,6 +35,8 @@ def normalize_value(value, field, path):
     if not isinstance(value, str) or len(value) > (20000 if kind == "textarea" else 2000):
         invalid_field(path, "ingresa un texto dentro de la longitud permitida.")
     value = value.strip()
+    if field["key"] in {"hora_inicio", "hora_fin"} and value and not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", value):
+        invalid_field(path, "ingresa una hora válida en formato HH:MM de 24 horas.")
     if kind == "date" and value:
         try:
             if date.fromisoformat(value).isoformat() != value:
@@ -58,6 +61,8 @@ def validate_fields(data, fields, *, path="Formulario"):
     for start, end in (("fecha_inicio", "fecha_fin"), ("periodo_desde", "periodo_hasta")):
         if normalized.get(start) and normalized.get(end) and normalized[start] > normalized[end]:
             invalid_field(path, "la fecha final debe ser igual o posterior a la fecha inicial.")
+    if normalized.get("hora_inicio") and normalized.get("hora_fin") and normalized["hora_inicio"] >= normalized["hora_fin"]:
+        invalid_field(path, "la hora final debe ser posterior a la hora inicial.")
     return normalized
 
 

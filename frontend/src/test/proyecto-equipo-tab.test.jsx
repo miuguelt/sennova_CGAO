@@ -8,6 +8,7 @@ describe('ProyectoEquipoTab', () => {
     id: 'proj-123',
     nombre: 'Proyecto de Innovación Tecnológica 2026',
     owner_id: 'user-admin',
+    owner: { nombre: 'Admin Principal' },
     equipo: []
   };
 
@@ -63,10 +64,12 @@ describe('ProyectoEquipoTab', () => {
       />
     );
 
-    expect(screen.getByText('Investigadores Vinculados')).toBeInTheDocument();
+    expect(screen.getByText('Equipo del proyecto')).toBeInTheDocument();
+    expect(screen.getByText('Investigador responsable')).toBeInTheDocument();
+    expect(screen.getByText('Admin Principal')).toBeInTheDocument();
     expect(screen.getByText('0 Miembros')).toBeInTheDocument();
-    expect(screen.getByText('No hay investigadores asignados')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Vincular Primer Investigador/i })).toBeInTheDocument();
+    expect(screen.getByText('No hay integrantes asignados')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Vincular primer integrante/i })).toBeInTheDocument();
   });
 
   it('renders linked team members with their details, roles and hours', () => {
@@ -120,8 +123,8 @@ describe('ProyectoEquipoTab', () => {
       />
     );
 
-    // Click on Vincular Investigador button
-    const openAddBtn = screen.getByRole('button', { name: /Vincular Investigador/i });
+    // Abre la vinculación de un integrante
+    const openAddBtn = screen.getByRole('button', { name: /Vincular integrante/i });
     fireEvent.click(openAddBtn);
 
     // Modal should be open
@@ -162,13 +165,39 @@ describe('ProyectoEquipoTab', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Vincular Investigador/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Vincular integrante/i }));
 
     const searchInput = screen.getByPlaceholderText(/Buscar por nombre/i);
     fireEvent.change(searchInput, { target: { value: 'Andrés' } });
 
     expect(screen.getByText('Andrés Gómez')).toBeInTheDocument();
     expect(screen.queryByText('Diana Morales')).not.toBeInTheDocument();
+  });
+
+  it('assigns an apprentice the support role and does not offer researcher roles', async () => {
+    const handleAddMember = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ProyectoEquipoTab
+        proyecto={mockProyecto}
+        teamMembers={[]}
+        usuarios={mockUsers}
+        currentUser={mockCurrentUser}
+        isOwnerOrAdmin
+        onAddMember={handleAddMember}
+        onRemoveMember={vi.fn()}
+        onNotify={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Vincular primer integrante/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Andrés Gómez/i }));
+
+    const roleSelector = screen.getByRole('combobox');
+    expect(roleSelector).toHaveValue('Aprendiz de apoyo');
+    expect(Array.from(roleSelector.options).map(option => option.value)).toEqual(['Aprendiz de apoyo']);
+
+    fireEvent.click(screen.getByRole('button', { name: /Vincular al Proyecto/i }));
+    await waitFor(() => expect(handleAddMember).toHaveBeenCalledWith('u-3', 'Aprendiz de apoyo', 20));
   });
 
   it('handles remove researcher confirmation flow', async () => {

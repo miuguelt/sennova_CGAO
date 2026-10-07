@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useId, useState } from 'react';
 import { X, Maximize2, Minimize2 } from 'lucide-react';
 import { useModalStack } from '../../hooks/useModalStack';
 import ScrollableTabs from './ScrollableTabs';
+import { useUnsavedChangesGuard } from '../../context/UnsavedChangesContext';
 
 const DRAWER_SIZES = {
   md: 'sm:max-w-xl',
@@ -63,6 +64,7 @@ export const Drawer = ({
   variant = 'emerald',
   closeOnEsc = true,
   closeOnBackdrop = true,
+  protectUnsavedChanges = false,
   allowExpand = true,
   defaultExpanded = false,
   children,
@@ -73,9 +75,11 @@ export const Drawer = ({
   ariaLabel
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const guard = useUnsavedChangesGuard();
+  const requestClose = () => protectUnsavedChanges ? guard.requestLeave(onClose) : onClose();
   const { zIndex, isTop } = useModalStack({
     isOpen,
-    onClose,
+    onClose: requestClose,
     closeOnEsc,
     customId
   });
@@ -127,7 +131,7 @@ export const Drawer = ({
 
   const handleBackdropClick = (e) => {
     if (closeOnBackdrop && e.target === e.currentTarget) {
-      onClose();
+      requestClose();
     }
   };
 
@@ -179,7 +183,7 @@ export const Drawer = ({
                 )}
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={requestClose}
                   aria-label="Cerrar panel"
                   className="p-2.5 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl shadow-sm border border-slate-300 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-600"
                 >
@@ -214,7 +218,7 @@ export const Drawer = ({
               onTabChange={onTabChange}
               variant={variant}
               size="md"
-              ariaLabel={`Pestañas de ${title || 'detalle'}`}
+              ariaLabel={`Pestañas de ${ariaLabel || (typeof title === 'string' ? title : 'detalle')}`}
             />
           )}
 

@@ -7,6 +7,7 @@ describe('LoginScreen, accesos rápidos', () => {
   it('carga las credenciales de desarrollo y alterna la visibilidad de la contraseña', () => {
     render(<LoginScreen onLogin={vi.fn()} onRegister={vi.fn()} apiError="Error de autenticación" />);
     expect(screen.getByRole('alert')).toHaveTextContent('Error de autenticación');
+    expect(screen.getByText(/datos preparados para aprender/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Admin Sistema/i }));
     expect(screen.getByPlaceholderText('nombre@sena.edu.co')).toHaveValue('admin@sena.edu.co');

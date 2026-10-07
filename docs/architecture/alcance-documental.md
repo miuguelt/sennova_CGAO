@@ -16,7 +16,13 @@ El expediente se construye en el espacio **Documentación** del proyecto. Los ej
 
 El plan anual del grupo se conserva como archivo opcional de gestión interna. Los ejemplos CAP no lo establecen como requisito del expediente de cada proyecto.
 
-La interfaz ya no ofrece modelos inventados de planeación de etapa productiva ni formatos de seguimiento ajenos al expediente de investigación. Las rutas y pantallas de bitácora se retiraron. La inicialización actual elimina la tabla heredada `bitacora_entries` y las columnas `formato_bitacora_path` y `formato_seguimiento_path`; conserva los registros técnicos `actividades` y `audit_logs`, los documentos de proyecto y la ruta heredada de informe final. Las cargas nuevas del tipo `evidencia_bitacora` se rechazan y las notificaciones antiguas dirigen a Proyectos. La migración no elimina archivos físicos que pudieran estar referenciados por los adjuntos heredados; primero se debe confirmar que son exclusivos de las bitácoras. La [descripción del modelo funcional y de datos](modelo-funcional-y-datos.md) documenta el esquema vigente.
+## Organización funcional confirmada
+
+El grupo institucional **Investigadores CGAO** contiene los semilleros. Investigadores y aprendices se vinculan a semilleros; cada proyecto pertenece a un semillero, tiene un investigador de ese semillero como responsable y puede incluir investigadores y aprendices del mismo semillero como equipo de apoyo. El grupo del proyecto se hereda desde el semillero. Los proyectos históricos sin semillero se deben revisar y vincular con información confirmada; el sistema no elige uno automáticamente.
+
+Para mantener una colaboración fluida, conviene asignar a cada apoyo una tarea con resultado esperado y fecha, y pedir al investigador responsable que revise los aportes antes de incorporarlos al expediente. Las frecuencias de reunión, los tiempos de revisión, la aprobación y la firma están pendientes de definición institucional.
+
+La interfaz ya no ofrece modelos de planeación de etapa productiva ni formatos de seguimiento ajenos al expediente de investigación. Las rutas y pantallas de bitácora se retiraron. La inicialización elimina la tabla heredada `bitacora_entries`, los campos de esos formatos, los documentos y notificaciones asociados y los archivos exclusivos dentro del almacenamiento configurado. Conserva la actividad, la auditoría y la documentación del proyecto. Las cargas nuevas del tipo `evidencia_bitacora` se rechazan. La [descripción del modelo funcional y de datos](modelo-funcional-y-datos.md) documenta el esquema vigente.
 
 ## Estado de las dos referencias
 

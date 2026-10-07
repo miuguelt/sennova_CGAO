@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
+import json
 
 from db_support import db_path_for, sqlite_url_for
 
@@ -72,8 +73,17 @@ def test_role_migration_is_safe_when_users_table_has_no_role_column():
         engine.dispose()
 
 
-def test_removes_retired_bitacora_schema_and_preserves_research_data_idempotently():
+def test_removes_retired_bitacora_data_files_and_preserves_research_data_idempotently(tmp_path):
     from app.database import remove_retired_stage_productivity_schema
+
+    storage = tmp_path / "storage"
+    (storage / "adjuntos").mkdir(parents=True)
+    (storage / "documentos").mkdir(parents=True)
+    diary_file = storage / "adjuntos" / "diario.pdf"
+    retired_document_file = storage / "documentos" / "evidencia.pdf"
+    shared_file = storage / "documentos" / "compartido.pdf"
+    for path in (diary_file, retired_document_file, shared_file):
+        path.write_bytes(b"archivo")
 
     engine = create_engine("sqlite://")
     try:
@@ -90,25 +100,53 @@ def test_removes_retired_bitacora_schema_and_preserves_research_data_idempotentl
                 "VALUES (1, 'CAP de prueba', 'bitacora.docx', 'seguimiento.docx', 'informe.docx')"
             ))
             connection.execute(text(
-                "CREATE TABLE bitacora_entries (id INTEGER PRIMARY KEY, contenido TEXT NOT NULL)"
+                "CREATE TABLE bitacora_entries (id INTEGER PRIMARY KEY, contenido TEXT NOT NULL, adjuntos TEXT)"
             ))
             connection.execute(text(
-                "INSERT INTO bitacora_entries (id, contenido) VALUES (1, 'Registro heredado')"
+                "INSERT INTO bitacora_entries (id, contenido, adjuntos) "
+                "VALUES (1, 'Registro heredado', :adjuntos)"
+            ), {"adjuntos": json.dumps(["adjuntos/diario.pdf"])})
+            connection.execute(text(
+                "CREATE TABLE documentos (id INTEGER PRIMARY KEY, entidad_tipo TEXT, "
+                "entidad_id TEXT, tipo TEXT, file_path TEXT)"
+            ))
+            connection.execute(text(
+                "INSERT INTO documentos VALUES "
+                "(1, 'bitacora', '1', 'evidencia_bitacora', :retired), "
+                "(2, 'proyecto', '1', 'acta_inicio', :shared), "
+                "(3, 'proyecto', '1', 'evidencia', :shared)"
+            ), {"retired": str(retired_document_file), "shared": "documentos/compartido.pdf"})
+            connection.execute(text(
+                "CREATE TABLE notificaciones (id INTEGER PRIMARY KEY, entidad_tipo TEXT)"
+            ))
+            connection.execute(text(
+                "INSERT INTO notificaciones VALUES (1, 'bitacora'), (2, 'proyecto')"
             ))
             connection.execute(text("CREATE TABLE audit_logs (id INTEGER PRIMARY KEY, endpoint TEXT)"))
             connection.execute(text("INSERT INTO audit_logs (id, endpoint) VALUES (1, '/proyectos')"))
 
-        assert remove_retired_stage_productivity_schema(engine) == {
+        migration_result = remove_retired_stage_productivity_schema(engine, storage_root=storage)
+        assert diary_file.exists() is False
+        assert retired_document_file.exists() is False
+        assert shared_file.exists() is True
+        assert migration_result == {
             "table_removed": True,
             "columns_removed": ("formato_bitacora_path", "formato_seguimiento_path"),
+            "documents_removed": 1,
+            "notifications_removed": 1,
+            "files_removed": 2,
         }
-        assert remove_retired_stage_productivity_schema(engine) == {
+        assert remove_retired_stage_productivity_schema(engine, storage_root=storage) == {
             "table_removed": False,
             "columns_removed": (),
+            "documents_removed": 0,
+            "notifications_removed": 0,
+            "files_removed": 0,
         }
 
         inspector = inspect(engine)
         assert "bitacora_entries" not in inspector.get_table_names()
+        assert "notificaciones" in inspector.get_table_names()
         assert "audit_logs" in inspector.get_table_names()
         columns = {column["name"] for column in inspector.get_columns("proyectos")}
         assert "formato_bitacora_path" not in columns
@@ -121,6 +159,9 @@ def test_removes_retired_bitacora_schema_and_preserves_research_data_idempotentl
             audit_count = connection.execute(text("SELECT COUNT(*) FROM audit_logs")).scalar_one()
         assert project == ("CAP de prueba", "informe.docx")
         assert audit_count == 1
+        with engine.connect() as connection:
+            assert connection.execute(text("SELECT COUNT(*) FROM documentos")).scalar_one() == 2
+            assert connection.execute(text("SELECT COUNT(*) FROM notificaciones")).scalar_one() == 1
     finally:
         engine.dispose()
 

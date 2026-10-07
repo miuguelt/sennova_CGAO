@@ -76,6 +76,9 @@ services:
       # ── App ──
       APP_ENV: production
       APP_NAME: ${APP_NAME:-SENNOVA CGAO API}
+      PROJECT_DEFAULT_CENTRO: ${PROJECT_DEFAULT_CENTRO:-Centro de Gestión Agroempresarial del Oriente (CGAO) - Subsede Vélez}
+      PROJECT_DEFAULT_REGIONAL: ${PROJECT_DEFAULT_REGIONAL:-Santander}
+      PROJECT_DEFAULT_CIUDAD: ${PROJECT_DEFAULT_CIUDAD:-Vélez}
       APP_VERSION: ${APP_VERSION:-1.0.0}
       LOG_LEVEL: ${LOG_LEVEL:-WARNING}
       DEBUG: "false"

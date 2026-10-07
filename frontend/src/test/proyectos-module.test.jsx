@@ -10,6 +10,7 @@ import { RetosAPI } from '../api/retos';
 import { ConvocatoriasAPI } from '../api/convocatorias';
 import { PlantillasAPI } from '../api/plantillas';
 import { DocumentosAPI } from '../api/documentos';
+import { ProjectDocumentationAPI } from '../api/projectDocumentation';
 import { PDFGenerator } from '../utils/pdfGenerator';
 import { formatBudgetCurrency } from '../components/projects/ProyectosModule';
 
@@ -110,6 +111,17 @@ describe('ProyectosModule', () => {
     rol: 'admin'
   };
 
+  const mockInvestigator = {
+    id: 'user-owner',
+    nombre: 'Investigador responsable',
+    rol: 'investigador',
+  };
+  const mockApprentice = {
+    id: 'user-apprentice',
+    nombre: 'Aprendiz de apoyo',
+    rol: 'aprendiz',
+  };
+
   const mockProyecto = {
     id: 'p-1',
     nombre: 'Plataforma SENNOVA 2026',
@@ -122,9 +134,12 @@ describe('ProyectosModule', () => {
     linea_investigacion: 'Software',
     descripcion: 'Sistema integrado SENNOVA',
     objetivo_general: 'Desarrollar la plataforma central',
-    owner_id: 'user-1',
+    owner_id: 'user-owner',
+    owner: mockInvestigator,
+    semillero_id: 'sem-0',
+    grupo_id: 'group-0',
     equipo: [
-      { id: 'user-2', nombre: 'Investigador Principal', email: 'inv@sena.edu.co', rol: 'Investigador', horas_dedicadas: 20 }
+      { id: 'user-2', nombre: 'Carlos Investigador', email: 'inv@sena.edu.co', rol: 'investigador', rol_en_proyecto: 'Coinvestigador', horas_dedicadas: 20 }
     ],
     avance_documental: { porcentaje: 32, campos_completados: 4, campos_totales: 10, documentos_totales: 2, documentos_generados: 0, documentos_revisados: 0 },
     entregables: []
@@ -133,9 +148,9 @@ describe('ProyectosModule', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ProyectosAPI.list.mockResolvedValue([mockProyecto]);
-    UsuariosAPI.list.mockResolvedValue([mockUser]);
+    UsuariosAPI.list.mockResolvedValue([mockUser, mockInvestigator, ...mockProyecto.equipo, mockApprentice]);
     RetosAPI.list.mockResolvedValue([]);
-    SemillerosAPI.list.mockResolvedValue([]);
+    SemillerosAPI.list.mockResolvedValue([{ id: 'sem-0', nombre: 'Semillero de origen', grupo_id: 'group-0', investigadores: [mockInvestigator, ...mockProyecto.equipo], aprendices: [{ user_id: mockApprentice.id }] }]);
     ConvocatoriasAPI.list.mockResolvedValue([]);
     GruposAPI.list.mockResolvedValue([]);
     ProyectosAPI.create.mockResolvedValue({ id: 'p-created' });
@@ -163,6 +178,113 @@ describe('ProyectosModule', () => {
     cleanup();
   });
 
+  it('muestra los estados de formulación y heredados sin inventar una aprobación', async () => {
+    ProyectosAPI.list.mockResolvedValue([
+      { ...mockProyecto, estado: 'En formulación' },
+      { ...mockProyecto, id: 'missing', nombre_corto: 'Pendiente de estado', estado: null },
+      { ...mockProyecto, id: 'legacy', nombre_corto: 'Proyecto en revisión', estado: 'En revisión' },
+    ]);
+    render(<ProyectosModule currentUser={mockUser} />);
+    await screen.findByText('SENNOVA Core');
+    expect(within(screen.getByLabelText('Columna En formulación')).getByText('SENNOVA Core')).toBeVisible();
+    expect(within(screen.getByLabelText('Columna Sin estado')).getByText('Pendiente de estado')).toBeVisible();
+    expect(within(screen.getByLabelText('Columna En revisión')).getByText('Proyecto en revisión')).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Filtrar por estado'), { target: { value: 'En formulación' } });
+    expect(screen.queryByText('Proyecto en revisión')).not.toBeInTheDocument();
+  });
+
+  it('crea un borrador en formulación y registra una duración pendiente sin asignar doce meses', async () => {
+    render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
+    await screen.findByText('SENNOVA Core');
+    fireEvent.click(screen.getByRole('button', { name: /Nuevo Proyecto/i }));
+    expect(screen.getByLabelText('Estado')).toHaveValue('En formulación');
+    expect(screen.getByLabelText('Duración confirmada (meses)')).toHaveValue(null);
+    fireEvent.change(screen.getByPlaceholderText('Nombre completo del proyecto...'), { target: { value: 'Borrador sin duración' } });
+    fireEvent.change(screen.getByLabelText(/Semillero de Investigación/), { target: { value: 'sem-0' } });
+    fireEvent.change(screen.getByLabelText(/Investigador responsable/), { target: { value: mockInvestigator.id } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear Proyecto' }));
+    await waitFor(() => expect(ProyectosAPI.create).toHaveBeenCalledWith(expect.objectContaining({ estado: 'En formulación', vigencia: null })));
+  });
+
+  it('conserva el estado al cancelar un arrastre a aprobado y solo lo modifica tras confirmar', async () => {
+    ProyectosAPI.list.mockResolvedValue([{ ...mockProyecto, estado: 'En formulación' }]);
+    render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
+    await screen.findByText('SENNOVA Core');
+    const dataTransfer = { getData: (key) => key === 'projectId' ? 'p-1' : '' };
+    fireEvent.drop(screen.getByLabelText('Columna Aprobado'), { dataTransfer });
+    const confirmation = await screen.findByRole('dialog', { name: 'Confirmar aprobación del proyecto' });
+    expect(ProyectosAPI.update).not.toHaveBeenCalled();
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancelar' }));
+    expect(within(screen.getByLabelText('Columna En formulación')).getByText('SENNOVA Core')).toBeVisible();
+    fireEvent.drop(screen.getByLabelText('Columna Aprobado'), { dataTransfer });
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Confirmar aprobación del proyecto' })).getByRole('button', { name: 'Confirmar aprobación' }));
+    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-1', { estado: 'Aprobado' }));
+    expect(within(screen.getByLabelText('Columna Aprobado')).getByText('SENNOVA Core')).toBeVisible();
+  });
+
+  it('solicita aprobación expresa al crear desde el formulario y conserva la duración elegida', async () => {
+    render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
+    await screen.findByText('SENNOVA Core');
+    fireEvent.click(screen.getByRole('button', { name: /Nuevo Proyecto/i }));
+    fireEvent.change(screen.getByPlaceholderText('Nombre completo del proyecto...'), { target: { value: 'Proyecto aprobado' } });
+    fireEvent.change(screen.getByLabelText(/Semillero de Investigación/), { target: { value: 'sem-0' } });
+    fireEvent.change(screen.getByLabelText(/Investigador responsable/), { target: { value: mockInvestigator.id } });
+    fireEvent.change(screen.getByLabelText('Duración confirmada (meses)'), { target: { value: '60' } });
+    fireEvent.change(screen.getByLabelText('Estado'), { target: { value: 'Aprobado' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear Proyecto' }));
+    const approval = await screen.findByRole('dialog', { name: 'Confirmar aprobación del proyecto' });
+    expect(ProyectosAPI.create).not.toHaveBeenCalled();
+    fireEvent.click(within(approval).getByRole('button', { name: 'Confirmar aprobación' }));
+    await waitFor(() => expect(ProyectosAPI.create).toHaveBeenCalledWith(expect.objectContaining({ estado: 'Aprobado', vigencia: 60 })));
+  });
+
+  it.each(['0', '61', '1.5'])('rechaza la duración %s sin convertirla en una duración predeterminada', async (value) => {
+    const notify = vi.fn();
+    render(<ProyectosModule currentUser={mockUser} onNotify={notify} />);
+    await screen.findByText('SENNOVA Core');
+    fireEvent.click(screen.getByRole('button', { name: /Nuevo Proyecto/i }));
+    fireEvent.change(screen.getByPlaceholderText('Nombre completo del proyecto...'), { target: { value: 'Proyecto para validar' } });
+    fireEvent.change(screen.getByLabelText(/Semillero de Investigación/), { target: { value: 'sem-0' } });
+    fireEvent.change(screen.getByLabelText(/Investigador responsable/), { target: { value: mockInvestigator.id } });
+    fireEvent.change(screen.getByLabelText('Duración confirmada (meses)'), { target: { value } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear Proyecto' }));
+    expect(ProyectosAPI.create).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith('Registra una duración entre 1 y 60 meses, sin decimales, o déjala pendiente.', 'error');
+    expect(screen.getByRole('dialog', { name: 'Iniciar Proyecto' })).toBeVisible();
+  });
+
+  it('conserva el editor al consultar el diagnóstico de elaboración y los requisitos', async () => {
+    render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
+    fireEvent.click(await screen.findByText('SENNOVA Core'));
+    const workspace = await screen.findByRole('region', { name: 'Construcción de documentación' });
+    const callsBefore = ProjectDocumentationAPI.get.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: /Diagnóstico.*Elaboración/ }));
+    const diagnostic = await screen.findByRole('dialog', { name: 'Diagnóstico de Elaboración SENNOVA' });
+    expect(screen.getByRole('region', { name: 'Construcción de documentación' })).toBe(workspace);
+    fireEvent.click(within(diagnostic).getByRole('button', { name: 'Cerrar Diagnóstico' }));
+    fireEvent.click(screen.getByRole('button', { name: /Requisitos.*Liquidación/ }));
+    await screen.findByRole('dialog', { name: 'Requisitos Institucionales SENNOVA' });
+    expect(screen.getByRole('region', { name: 'Construcción de documentación' })).toBe(workspace);
+    expect(ProjectDocumentationAPI.get).toHaveBeenCalledTimes(callsBefore);
+  });
+
+  it('mantiene la eliminación en Más acciones y la exige confirmar desde el detalle', async () => {
+    render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
+    fireEvent.click(await screen.findByText('SENNOVA Core'));
+    const drawer = await screen.findByRole('dialog', { name: 'SENNOVA Core' });
+    expect(within(drawer).getByRole('button', { name: 'Eliminar Proyecto' })).not.toBeVisible();
+    fireEvent.click(within(drawer).getByText('Más acciones'));
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Eliminar Proyecto' }));
+    const confirm = await screen.findByRole('dialog', { name: '¿Eliminar Proyecto?' });
+    expect(ProyectosAPI.delete).not.toHaveBeenCalled();
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Cancelar' }));
+    expect(drawer).toBeVisible();
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Eliminar Proyecto' }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: '¿Eliminar Proyecto?' })).getByRole('button', { name: 'Eliminar Proyecto' }));
+    await waitFor(() => expect(ProyectosAPI.delete).toHaveBeenCalledWith('p-1'));
+    expect(screen.queryByRole('dialog', { name: 'SENNOVA Core' })).not.toBeInTheDocument();
+  });
+
   it('abre el proyecto directamente en Documentación y ocupa todo el espacio de trabajo', async () => {
     render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
     fireEvent.click(await screen.findByText('SENNOVA Core'));
@@ -178,8 +300,32 @@ describe('ProyectosModule', () => {
     await screen.findByText('SENNOVA Core');
     const progress = screen.getByRole('region', { name: 'Avance documental' });
     expect(within(progress).getByText('32%')).toBeVisible();
-    expect(within(progress).getByText('4 de 10 requisitos completos')).toBeVisible();
+    expect(within(progress).getByText('Campos diligenciados: 4 de 10')).toBeVisible();
     expect(within(progress).getByRole('progressbar')).toHaveAttribute('value', '32');
+  });
+
+  it('consulta el cronograma del detalle y abre Documentación para completar su formulario', async () => {
+    ProyectosAPI.get.mockResolvedValue({ ...mockProyecto, cronograma_documental: [{ actividad: 'Actividad propuesta del detalle', encargado: 'Equipo del proyecto', fecha_textual: 'Mes 1', resultado: 'Diagnóstico previsto' }] });
+    ProjectDocumentationAPI.get.mockResolvedValue({
+      proyecto: { id: 'p-1', nombre: 'SENNOVA Core' }, revision: 0, comunes: {}, campos_comunes: [],
+      documentos: [{ clave: 'acta_inicio', titulo: 'Acta de inicio del proyecto', tipo: 'acta_inicio', carpeta: '2ActadeInicio', formato: 'docx',
+        periodo_bimestre: null, producto_id: null, revision: 0, datos: { observaciones: '' },
+        campos: [{ key: 'observaciones', label: 'Observaciones', type: 'textarea', required: true, help: 'Registra los acuerdos confirmados.' }],
+        faltantes: [{ campo: 'observaciones', mensaje: 'Completa observaciones.' }], generable: false, historial: [] }],
+    });
+    render(<ProyectosModule currentUser={mockUser} />);
+    fireEvent.click(await screen.findByText('SENNOVA Core'));
+    fireEvent.click(screen.getByRole('tab', { name: /Línea de Tiempo/i }));
+    expect(await screen.findByText('Actividad propuesta del detalle')).toBeVisible();
+    expect(ProyectosAPI.get).toHaveBeenCalledWith('p-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Completar fase, fechas y lugar en Documentación' }));
+    expect(screen.getByRole('tab', { name: /^Documentación$/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('region', { name: 'Construcción de documentación' })).toBeVisible();
+    fireEvent.click(screen.getByRole('tab', { name: /Línea de Tiempo/i }));
+    const phaseOne = await screen.findByRole('region', { name: 'Fase I' });
+    fireEvent.click(within(phaseOne).getByRole('button', { name: 'Abrir formulario: Acta de inicio del proyecto' }));
+    const form = await screen.findByRole('region', { name: 'Acta de inicio del proyecto' });
+    expect(within(form).getByLabelText('Observaciones *')).toBeVisible();
   });
 
   it('renders project list and handles project detail opening with team tab', async () => {
@@ -200,7 +346,7 @@ describe('ProyectosModule', () => {
     fireEvent.click(teamTabBtn);
 
     await waitFor(() => {
-      expect(screen.getByText('Investigador Principal')).toBeInTheDocument();
+      expect(screen.getByText('Carlos Investigador')).toBeInTheDocument();
       expect(screen.getByText('1 Miembro')).toBeInTheDocument();
     });
 
@@ -244,7 +390,7 @@ describe('ProyectosModule', () => {
     const sourceFile = new File(['docx original'], 'proyecto-cap.docx');
     let finishImport;
     GruposAPI.list.mockResolvedValue([{ id: 'group-1', nombre: 'Grupo de Investigación' }]);
-    SemillerosAPI.list.mockResolvedValue([{ id: 'seedbed-1', nombre: 'Semillero Prueba' }]);
+    SemillerosAPI.list.mockResolvedValue([{ id: 'seedbed-1', nombre: 'Semillero Prueba', grupo_id: 'group-1', investigadores: [mockInvestigator] }]);
     ProyectosAPI.analyzeFormulation.mockResolvedValue({
       suggested_fields: {
         nombre: 'Proyecto extraído',
@@ -266,6 +412,7 @@ describe('ProyectosModule', () => {
     const projectName = screen.getByPlaceholderText('Nombre completo del proyecto...');
     expect(projectName).toHaveValue('Proyecto extraído');
     fireEvent.change(projectName, { target: { value: 'Nombre revisado' } });
+    fireEvent.change(screen.getByLabelText(/Investigador responsable/), { target: { value: mockInvestigator.id } });
     fireEvent.click(screen.getByRole('tab', { name: /Técnicos/i }));
     expect(screen.getByPlaceholderText('Formular el objetivo general del proyecto...')).toHaveValue('Objetivo detectado');
     fireEvent.click(screen.getByRole('button', { name: /Crear Proyecto/i }));
@@ -276,6 +423,7 @@ describe('ProyectosModule', () => {
         objetivo_general: 'Objetivo detectado',
         grupo_id: 'group-1',
         semillero_id: 'seedbed-1',
+        investigador_responsable_id: mockInvestigator.id,
       }),
       sourceFile,
     ));
@@ -340,7 +488,7 @@ describe('ProyectosModule', () => {
     const editDialog = screen.getAllByRole('dialog').at(-1);
     fireEvent.click(within(editDialog).getByRole('button', { name: 'Cerrar ventana modal' }));
     await waitFor(() => expect(screen.getAllByRole('dialog')).toHaveLength(1));
-    expect(screen.getByText('SENNOVA Core')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toHaveTextContent('SENNOVA Core');
   });
 
   it('cancela una importación y vuelve a permitir la creación manual', async () => {
@@ -361,10 +509,34 @@ describe('ProyectosModule', () => {
     fireEvent.change(screen.getByPlaceholderText('Nombre completo del proyecto...'), {
       target: { value: 'Proyecto manual' },
     });
+    fireEvent.change(screen.getByLabelText(/Semillero de Investigación/), { target: { value: 'sem-0' } });
+    fireEvent.change(screen.getByLabelText(/Investigador responsable/), { target: { value: mockInvestigator.id } });
     fireEvent.click(screen.getByRole('button', { name: /Crear Proyecto/i }));
 
     await waitFor(() => expect(ProyectosAPI.create).toHaveBeenCalledWith(expect.objectContaining({ nombre: 'Proyecto manual' })));
     expect(ProyectosAPI.importFormulation).not.toHaveBeenCalled();
+  });
+
+  it('exige semillero e investigador responsable y hereda el grupo institucional', async () => {
+    render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
+    await screen.findByText('SENNOVA Core');
+    fireEvent.click(screen.getByRole('button', { name: /Nuevo Proyecto/i }));
+
+    const createButton = screen.getByRole('button', { name: /Crear Proyecto/i });
+    expect(createButton).toBeDisabled();
+    expect(screen.queryByLabelText('Grupo de Investigación')).not.toBeInTheDocument();
+    expect(screen.getByText(/Grupo institucional: Investigadores CGAO/)).toBeVisible();
+
+    fireEvent.change(screen.getByLabelText(/Semillero de Investigación/), { target: { value: 'sem-0' } });
+    const responsible = screen.getByLabelText(/Investigador responsable/);
+    expect(responsible.querySelectorAll('option')).toHaveLength(3);
+    expect(responsible.querySelector('option[value="user-1"]')).not.toBeInTheDocument();
+    expect(createButton).toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText('Nombre completo del proyecto...'), {
+      target: { value: 'Proyecto de verificación' },
+    });
+    fireEvent.change(responsible, { target: { value: mockInvestigator.id } });
+    expect(createButton).toBeEnabled();
   });
 
   it('keeps document generation in the central project documentation workspace', async () => {
@@ -392,20 +564,27 @@ describe('ProyectosModule', () => {
 
   it('allows adding a researcher to the project team', async () => {
     const newUser = {
-      id: 'user-3',
+      id: 'user-4',
       nombre: 'María Investigadora',
       email: 'maria@sena.edu.co',
       rol: 'investigador',
       rol_sennova: 'Investigadora'
     };
 
-    UsuariosAPI.list.mockResolvedValue([mockUser, newUser]);
+    UsuariosAPI.list.mockResolvedValue([mockUser, mockInvestigator, ...mockProyecto.equipo, newUser]);
+    SemillerosAPI.list.mockResolvedValue([{
+      id: 'sem-0',
+      nombre: 'Semillero de origen',
+      grupo_id: 'group-0',
+      investigadores: [mockInvestigator, ...mockProyecto.equipo, newUser],
+      aprendices: [{ user_id: mockApprentice.id }],
+    }]);
     ProyectosAPI.addEquipo.mockResolvedValue({ message: 'Miembro añadido correctamente' });
     ProyectosAPI.get.mockResolvedValue({
       ...mockProyecto,
       equipo: [
         ...mockProyecto.equipo,
-        { id: 'user-3', nombre: 'María Investigadora', email: 'maria@sena.edu.co', rol_en_proyecto: 'Coinvestigador', horas_dedicadas: 20 }
+        { id: 'user-4', nombre: 'María Investigadora', email: 'maria@sena.edu.co', rol_en_proyecto: 'Coinvestigador', horas_dedicadas: 20 }
       ]
     });
 
@@ -425,11 +604,11 @@ describe('ProyectosModule', () => {
     fireEvent.click(teamTabBtn);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Vincular Investigador/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Vincular integrante/i })).toBeInTheDocument();
     });
 
     // Open Add Modal
-    fireEvent.click(screen.getByRole('button', { name: /Vincular Investigador/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Vincular integrante/i }));
 
     await waitFor(() => {
       expect(screen.getByText('María Investigadora')).toBeInTheDocument();
@@ -443,14 +622,14 @@ describe('ProyectosModule', () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(ProyectosAPI.addEquipo).toHaveBeenCalledWith('p-1', 'user-3', 'Investigador', 20);
+      expect(ProyectosAPI.addEquipo).toHaveBeenCalledWith('p-1', 'user-4', 'Investigador de apoyo', 20);
     });
   });
 
   it('creates a project through every form section and calculates the budget total', async () => {
     const onNotify = vi.fn();
     GruposAPI.list.mockResolvedValue([{ id: 'g-1', nombre: 'Grupo CGAO' }]);
-    SemillerosAPI.list.mockResolvedValue([{ id: 's-1', nombre: 'AgroTech', sigla: 'AT' }]);
+    SemillerosAPI.list.mockResolvedValue([{ id: 's-1', nombre: 'AgroTech', sigla: 'AT', grupo_id: 'g-1', investigadores: [mockInvestigator] }]);
     RetosAPI.list.mockResolvedValue([{ id: 'r-1', titulo: 'Reto de riego', estado: 'abierto' }]);
     ConvocatoriasAPI.list.mockResolvedValue([{ id: 'c-1', nombre: 'SENNOVA', año: 2026, numero_oe: 'OE-1' }]);
     render(<ProyectosModule currentUser={mockUser} onNotify={onNotify} />);
@@ -460,8 +639,8 @@ describe('ProyectosModule', () => {
     fireEvent.change(screen.getByPlaceholderText('Nombre completo del proyecto...'), { target: { value: 'Proyecto de riego' } });
     fireEvent.change(screen.getByLabelText('Nombre Corto / Acrónimo'), { target: { value: 'Riego IA' } });
     fireEvent.change(screen.getByLabelText('Código SGPS'), { target: { value: 'SGPS-42' } });
-    fireEvent.change(screen.getByLabelText('Grupo de Investigación'), { target: { value: 'g-1' } });
-    fireEvent.change(screen.getByLabelText('Semillero de Investigación Vinculado'), { target: { value: 's-1' } });
+    fireEvent.change(screen.getByLabelText(/Semillero de Investigación/), { target: { value: 's-1' } });
+    fireEvent.change(screen.getByLabelText(/Investigador responsable/), { target: { value: mockInvestigator.id } });
     fireEvent.change(screen.getByLabelText('Convocatoria SENNOVA'), { target: { value: 'c-1' } });
     fireEvent.click(screen.getByLabelText(/Continúa el siguiente año/));
 
@@ -485,6 +664,7 @@ describe('ProyectosModule', () => {
     await waitFor(() => expect(ProyectosAPI.create).toHaveBeenCalledWith(expect.objectContaining({
       nombre: 'Proyecto de riego', nombre_corto: 'Riego IA', codigo_sgps: 'SGPS-42',
       grupo_id: 'g-1', semillero_id: 's-1', convocatoria_id: 'c-1', reto_origen_id: 'r-1',
+      investigador_responsable_id: mockInvestigator.id,
       linea_programatica: '65', linea_investigacion: 'Agroindustria', red_conocimiento: 'Agro',
       objetivo_general: 'Optimizar el riego', objetivos_especificos: ['Diseñar sensores', 'Evaluar resultados'],
       descripcion: 'Proyecto aplicado', presupuesto_total: 1500, continua_siguiente_año: true
@@ -506,6 +686,7 @@ describe('ProyectosModule', () => {
       ]
     };
     ProyectosAPI.list.mockResolvedValue([project]);
+    ProyectosAPI.get.mockResolvedValue(project);
     PlantillasAPI.generarCronograma.mockResolvedValue({});
     render(<ProyectosModule currentUser={mockUser} onNotify={onNotify} />);
     await waitFor(() => expect(screen.getByText('SENNOVA Core')).toBeInTheDocument());
@@ -513,7 +694,7 @@ describe('ProyectosModule', () => {
 
     const detail = await screen.findByRole('dialog');
     fireEvent.click(screen.getByRole('tab', { name: /Línea de Tiempo/i }));
-    expect(screen.getByText('Acta inicial')).toBeInTheDocument();
+    expect(await screen.findByText('Acta inicial')).toBeInTheDocument();
     expect(screen.getByText('Prototipo')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: /Resumen/i }));
     fireEvent.click(screen.getByText('Generar Cronograma'));
@@ -562,7 +743,7 @@ describe('ProyectosModule', () => {
     ProyectosAPI.list.mockResolvedValue([{ ...mockProyecto, nombre: 'Proyecto actualizado' }]);
     view.rerender(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} refreshVersion={1} />);
     await waitFor(() => expect(ProyectosAPI.list).toHaveBeenCalledTimes(2));
-    expect(screen.getByRole('dialog')).toHaveTextContent('Proyecto actualizado');
+    expect(within(screen.getByRole('dialog')).getByTitle('Proyecto actualizado')).toBeVisible();
     expect(screen.getByRole('tab', { name: 'Expediente' })).toHaveAttribute('aria-selected', 'true');
   });
 
@@ -572,7 +753,7 @@ describe('ProyectosModule', () => {
   });
 
   it('filters projects, links challenge drops and moves cards between workflow states', async () => {
-    const project = { ...mockProyecto, año: 2026, estado: 'Aprobado', owner_id: mockUser.id };
+    const project = { ...mockProyecto, año: 2026, estado: 'Aprobado', owner_id: mockInvestigator.id, owner: mockInvestigator };
     ProyectosAPI.list.mockResolvedValue([project]);
     RetosAPI.list.mockResolvedValue([
       { id: 'reto-1', titulo: 'Reto de riego', estado: 'abierto' },
@@ -627,8 +808,8 @@ describe('ProyectosModule', () => {
 
   it('supports project details, owner actions and list menus including delete confirmation', async () => {
     const onNotify = vi.fn();
-    ProyectosAPI.list.mockResolvedValue([{ ...mockProyecto, owner_id: mockUser.id }]);
-    SemillerosAPI.list.mockResolvedValue([{ id: 'sem-1', nombre: 'AgroTech', sigla: 'AT' }]);
+    ProyectosAPI.list.mockResolvedValue([{ ...mockProyecto, owner_id: mockInvestigator.id, owner: mockInvestigator }]);
+    SemillerosAPI.list.mockResolvedValue([{ id: 'sem-0', nombre: 'Semillero de origen', grupo_id: 'group-0', investigadores: [mockInvestigator, ...mockProyecto.equipo] }, { id: 'sem-1', nombre: 'AgroTech', sigla: 'AT', grupo_id: 'group-1', investigadores: [mockInvestigator, ...mockProyecto.equipo] }]);
     render(<ProyectosModule currentUser={mockUser} onNotify={onNotify} />);
     await waitFor(() => expect(screen.getByText('SENNOVA Core')).toBeInTheDocument());
 
@@ -644,8 +825,9 @@ describe('ProyectosModule', () => {
     fireEvent.click(screen.getByText('Mover a Semillero'));
     expect(await screen.findByText('Mover Proyecto a Semillero')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Semillero de Destino'), { target: { value: 'sem-1' } });
+    fireEvent.change(screen.getByLabelText(/Investigador responsable/), { target: { value: mockInvestigator.id } });
     fireEvent.click(screen.getByText('Confirmar Traslado'));
-    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-1', { semillero_id: 'sem-1' }));
+    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-1', { semillero_id: 'sem-1', investigador_responsable_id: mockInvestigator.id }));
     await waitFor(() => expect(screen.queryByText('Mover Proyecto a Semillero')).not.toBeInTheDocument());
 
     fireEvent.click(within(projectRow).getByRole('button'));
@@ -666,7 +848,7 @@ describe('ProyectosModule', () => {
   it('handles initial project actions, finalization and removal from the team', async () => {
     const onActionHandled = vi.fn();
     const learner = { ...mockUser, rol: 'aprendiz' };
-    const project = { ...mockProyecto, owner_id: mockUser.id };
+    const project = { ...mockProyecto, owner_id: mockInvestigator.id, owner: mockInvestigator };
     ProyectosAPI.checkLiquidacion.mockResolvedValueOnce({
       porcentaje_completitud: 100,
       can_liquidate: true,
@@ -704,13 +886,13 @@ describe('ProyectosModule', () => {
     await waitFor(() => expect(screen.getByText('SENNOVA Core')).toBeInTheDocument());
     fireEvent.click(screen.getByText('SENNOVA Core'));
     fireEvent.click(screen.getByRole('tab', { name: /Equipo/i }));
-    fireEvent.click(screen.getByLabelText('Desvincular a Investigador Principal'));
+    fireEvent.click(screen.getByLabelText('Desvincular a Carlos Investigador'));
     fireEvent.click(screen.getByRole('alertdialog').querySelector('button:last-child'));
     await waitFor(() => expect(ProyectosAPI.removeEquipo).toHaveBeenCalledWith('p-1', 'user-2'));
   });
 
   it('runs every owner action from the project card menu and closes overlays from outside', async () => {
-    ProyectosAPI.list.mockResolvedValue([{ ...mockProyecto, owner_id: mockUser.id }]);
+    ProyectosAPI.list.mockResolvedValue([{ ...mockProyecto, owner_id: mockInvestigator.id, owner: mockInvestigator }]);
     render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
     await waitFor(() => expect(screen.getByText('SENNOVA Core')).toBeInTheDocument());
 
@@ -746,21 +928,22 @@ describe('ProyectosModule', () => {
   });
 
   it('opens details from the list and applies a semillero move to the selected project', async () => {
-    const project = { ...mockProyecto, owner_id: mockUser.id };
+    const project = { ...mockProyecto, owner_id: mockInvestigator.id, owner: mockInvestigator };
     ProyectosAPI.list.mockResolvedValue([project]);
     ProyectosAPI.update.mockResolvedValue({ ...project, semillero_id: 'sem-1', semillero_nombre: 'AgroTech' });
-    SemillerosAPI.list.mockResolvedValue([{ id: 'sem-1', nombre: 'AgroTech' }]);
+    SemillerosAPI.list.mockResolvedValue([{ id: 'sem-1', nombre: 'AgroTech', investigadores: [mockInvestigator, ...mockProyecto.equipo] }]);
     render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
     await waitFor(() => expect(screen.getByText('SENNOVA Core')).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText('Vista lista'));
     fireEvent.click(screen.getByRole('row', { name: /SENNOVA Core/ }));
 
-    const detail = await screen.findByRole('dialog', { name: 'Plataforma SENNOVA 2026' });
+    const detail = await screen.findByRole('dialog', { name: 'SENNOVA Core' });
     fireEvent.click(screen.getByRole('tab', { name: /Resumen/i }));
     fireEvent.click(within(detail).getByText('Cambiar / Mover Semillero'));
     fireEvent.change(screen.getByLabelText('Semillero de Destino'), { target: { value: 'sem-1' } });
+    fireEvent.change(screen.getByLabelText(/Investigador responsable/), { target: { value: mockInvestigator.id } });
     fireEvent.click(screen.getByText('Confirmar Traslado'));
-    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-1', { semillero_id: 'sem-1' }));
+    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-1', { semillero_id: 'sem-1', investigador_responsable_id: mockInvestigator.id }));
     await waitFor(() => expect(screen.queryByText('Mover Proyecto a Semillero')).not.toBeInTheDocument());
     expect(screen.getByText('AgroTech')).toBeInTheDocument();
 
@@ -772,7 +955,7 @@ describe('ProyectosModule', () => {
   });
 
   it('opens liquidation requirements when saving a project reports a closure prerequisite', async () => {
-    ProyectosAPI.list.mockResolvedValue([{ ...mockProyecto, owner_id: mockUser.id }]);
+    ProyectosAPI.list.mockResolvedValue([{ ...mockProyecto, owner_id: mockInvestigator.id, owner: mockInvestigator }]);
     ProyectosAPI.update.mockRejectedValueOnce(new Error('Debe completar el cierre técnico antes de finalizar el proyecto'));
     render(<ProyectosModule currentUser={mockUser} onNotify={vi.fn()} />);
     await waitFor(() => expect(screen.getByText('SENNOVA Core')).toBeInTheDocument());

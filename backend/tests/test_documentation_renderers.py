@@ -37,6 +37,7 @@ def payload():
                "grupo": "Grupo sintético", "semillero": "Semillero sintético", "version": 3, "periodo_bimestre": 2,
                "producto": {"nombre": "Producto sintético", "tipo": "A1", "descripcion": "Resultado medible"}}
     common = {field["key"]: sample_field(field) for field in COMMON_FIELDS}
+    common["inconsistencias_fuente"] = ""
     return context, common
 
 
@@ -109,6 +110,22 @@ def test_start_act_preserves_people_activities_budget_and_unsigned_attendees(pay
     attendee_table = next(table for table in document.tables if any(cell.text == "Firma" for cell in table.rows[0].cells))
     assert all(row.cells[-1].text == "" for row in attendee_table.rows[1:])
     assert len(document.tables) >= 5
+
+
+@pytest.mark.parametrize(("kind", "fmt"), [("formulacion_proyecto", "docx"), ("presentacion_proyecto", "pptx")])
+def test_gantt_planning_values_are_preserved_in_generated_project_formats(payload, kind, fmt):
+    context, common = payload
+    common["cronograma"][0].update({
+        "fase": "Fase II", "fecha_inicio": "2026-10-01", "hora_inicio": "09:00",
+        "fecha_fin": "2026-10-05", "hora_fin": "10:30", "lugar": "CGAO, Subsede Vélez",
+    })
+    content, _mime = render_document(kind, context, common, data_for(kind))
+    text = " ".join(texts(content, fmt).split())
+    assert "Programación para el diagrama de Gantt" in text
+    assert "Fase II · Ejecución Inicial" in text
+    assert "01/10/2026" in text and "05/10/2026" in text
+    assert "09:00" in text and "10:30" in text
+    assert "CGAO, Subsede Vélez" in text
 
 
 def test_formulation_includes_confirmed_training_metadata_and_omits_empty_optional_rows(payload):
@@ -442,7 +459,7 @@ def test_poster_includes_first_real_photo_in_single_slide(payload):
     assert "Fotografía del producto" in texts(content, "pptx")
 
 
-def test_draft_preserves_missing_optional_rows_as_pending_and_accepts_datetime(payload):
+def test_draft_marks_empty_optional_rows_without_pending_fields_and_accepts_datetime(payload):
     from datetime import datetime
     context, common = payload
     context["objetivos_especificos"] = "Objetivo uno\nObjetivo dos"
@@ -451,7 +468,8 @@ def test_draft_preserves_missing_optional_rows_as_pending_and_accepts_datetime(p
     data["invitados"] = []
     content, _ = render_document("acta_inicio", context, common, data)
     text = texts(content, "docx")
-    assert "Pendiente por diligenciar" in text
+    assert "No se registraron invitados." in text
+    assert "Pendiente por diligenciar" not in text
     assert "Objetivo uno" in text and "Objetivo dos" in text
     assert "01/10/2026" in text
 

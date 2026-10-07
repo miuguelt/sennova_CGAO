@@ -2,13 +2,15 @@ import React, { useState, useMemo } from 'react';
 import { UserPlus, Search, Briefcase, Clock, Check, X, Loader2 } from 'lucide-react';
 import Button from '../ui/Button';
 
-const ROLES_PROYECTO = [
-  { value: 'Investigador Principal', label: 'Investigador Principal' },
+const ROLES_INVESTIGADOR = [
+  { value: 'Investigador de apoyo', label: 'Investigador de apoyo' },
   { value: 'Coinvestigador', label: 'Coinvestigador' },
-  { value: 'Investigador', label: 'Investigador' },
-  { value: 'Asesor Temático', label: 'Asesor Temático' },
-  { value: 'Líder Técnico', label: 'Líder Técnico' },
-  { value: 'Aprendiz Investigador', label: 'Aprendiz Investigador' },
+  { value: 'Asesor temático', label: 'Asesor temático' },
+  { value: 'Líder técnico', label: 'Líder técnico' },
+];
+
+const ROLES_APRENDIZ = [
+  { value: 'Aprendiz de apoyo', label: 'Aprendiz de apoyo' },
 ];
 
 export default function VincularInvestigadorModal({
@@ -22,7 +24,7 @@ export default function VincularInvestigadorModal({
   onNotify
 }) {
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [rolEnProyecto, setRolEnProyecto] = useState('Investigador');
+  const [rolEnProyecto, setRolEnProyecto] = useState('Investigador de apoyo');
   const [horasDedicadas, setHorasDedicadas] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -41,13 +43,14 @@ export default function VincularInvestigadorModal({
     if (!selectedUserId) return null;
     return usuarios.find(u => String(u.id) === String(selectedUserId)) || null;
   }, [usuarios, selectedUserId]);
+  const projectRoleOptions = selectedUserObj?.rol === 'aprendiz' ? ROLES_APRENDIZ : ROLES_INVESTIGADOR;
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!selectedUserId) {
-      onNotify?.('Por favor selecciona un investigador para vincular.', 'warning');
+      onNotify?.('Selecciona una persona del semillero para vincularla al equipo.', 'warning');
       return;
     }
     const hours = parseInt(horasDedicadas, 10);
@@ -74,7 +77,7 @@ export default function VincularInvestigadorModal({
             </div>
             <div>
               <h4 id="modal-add-member-title" className="text-sm font-black tracking-wide">
-                Vincular Investigador
+                Vincular persona al equipo
               </h4>
               <p className="text-[11px] text-emerald-100">
                 {proyecto?.nombre || 'Proyecto SENNOVA'}
@@ -96,7 +99,7 @@ export default function VincularInvestigadorModal({
           {/* Selección de Usuario */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-              <span>Seleccionar Investigador / Usuario</span>
+              <span>Seleccionar integrante</span>
               <span className="text-[10px] text-slate-400 font-normal">
                 {availableUsers.length} disponibles
               </span>
@@ -129,7 +132,10 @@ export default function VincularInvestigadorModal({
                   <button
                     key={user.id}
                     type="button"
-                    onClick={() => setSelectedUserId(String(user.id))}
+                    onClick={() => {
+                      setSelectedUserId(String(user.id));
+                      setRolEnProyecto(user.rol === 'aprendiz' ? 'Aprendiz de apoyo' : 'Investigador de apoyo');
+                    }}
                     className={`w-full text-left p-2.5 rounded-xl transition-all flex items-center justify-between gap-3 ${
                       isSelected
                         ? 'bg-emerald-50 border border-emerald-300 shadow-sm'
@@ -180,7 +186,7 @@ export default function VincularInvestigadorModal({
                 onChange={(e) => setRolEnProyecto(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
               >
-                {ROLES_PROYECTO.map(r => (
+                {projectRoleOptions.map(r => (
                   <option key={r.value} value={r.value}>{r.label}</option>
                 ))}
               </select>

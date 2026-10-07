@@ -32,7 +32,14 @@ def evidence_context(tmp_path, monkeypatch):
     owner = User(email="expediente@example.com", nombre="Investigadora", password_hash="example", rol="investigador")
     db.add(owner)
     db.flush()
-    project = Proyecto(nombre="Proyecto de organización documental", codigo_sgps="CAP-05-2026", owner_id=owner.id, vigencia=4, estado="En ejecución", presupuesto_total=1000, tipologia="Red")
+    group = Grupo(nombre="Investigadores CGAO", owner_id=owner.id)
+    db.add(group)
+    db.flush()
+    seedbed = Semillero(nombre="Gestión documental", grupo_id=group.id, owner_id=owner.id)
+    seedbed.investigadores.append(owner)
+    db.add(seedbed)
+    db.flush()
+    project = Proyecto(nombre="Proyecto de organización documental", codigo_sgps="CAP-05-2026", owner_id=owner.id, semillero_id=seedbed.id, grupo_id=group.id, vigencia=4, estado="En ejecución", presupuesto_total=1000, tipologia="Red")
     db.add(project)
     db.commit()
     app.dependency_overrides[get_db] = lambda: db
@@ -71,7 +78,7 @@ def test_empty_project_has_exact_six_stages_and_actionable_missing_items(evidenc
     assert res.status_code == 200
     data = res.json()
     assert [s["carpeta"] for s in data["etapas"]] == [
-        "1ProyectoFormulado", "2ActadeInicio", "3Productos", "4InformesBimensuales",
+        "1ProyectoFomulado", "2ActadeInicio", "3Productos", "4InformesBimensuales",
         "5ActaCierre", "6EvidenciasFotograficas", "7Borradoresyvarios"
     ]
     assert data["completo"] is False
@@ -221,18 +228,20 @@ def test_finalization_transaction_rolls_back_state_activity_and_notifications(ev
 def test_project_group_is_never_assigned_arbitrarily_and_invalid_links_are_rejected(evidence_context):
     db, owner, _, _, client = evidence_context
     db.execute(text("DROP INDEX IF EXISTS uq_grupos_singleton"))
-    first = Grupo(nombre="SEMIPROVEL", owner_id=owner.id)
+    first = db.query(Grupo).one()
     second = Grupo(nombre="SIADM", owner_id=owner.id)
-    db.add_all([first, second])
+    db.add(second)
     db.flush()
     semillero = Semillero(nombre="Semillero administrativo", grupo_id=second.id, owner_id=owner.id)
+    semillero.investigadores.append(owner)
     db.add(semillero)
     db.commit()
     basic = {"nombre": "Nuevo proyecto sin atribución"}
+    original_count = db.query(Proyecto).count()
     created = client.post("/proyectos", json=basic)
-    assert created.status_code == 201
-    assert created.json()["grupo_id"] is None
-    assert client.post("/proyectos", json={**basic, "grupo_id": str(uuid.uuid4())}).status_code == 404
+    assert created.status_code == 422
+    assert db.query(Proyecto).count() == original_count
+    assert client.post("/proyectos", json={**basic, "semillero_id": str(semillero.id), "grupo_id": str(uuid.uuid4())}).status_code == 404
     assert client.post("/proyectos", json={**basic, "semillero_id": str(semillero.id), "grupo_id": str(first.id)}).status_code == 422
     inherited = client.post("/proyectos", json={**basic, "semillero_id": str(semillero.id)})
     assert inherited.status_code == 201
@@ -243,7 +252,7 @@ def test_project_group_is_never_assigned_arbitrarily_and_invalid_links_are_rejec
 
 def test_project_cannot_be_created_finalized_without_documentation(evidence_context):
     client = evidence_context[-1]
-    response = client.post("/proyectos", json={"nombre": "Proyecto sin expediente", "estado": "Finalizado"})
+    response = client.post("/proyectos", json={"nombre": "Proyecto sin expediente", "estado": "Finalizado", "semillero_id": str(evidence_context[2].semillero_id)})
     assert response.status_code == 400
     assert evidence_context[0].query(Proyecto).count() == 1
 

@@ -518,11 +518,17 @@ def test_audit_proyectos_lifecycle(client, auth_tokens):
     admin_headers = auth_tokens["admin"]["headers"]
     inv_headers = auth_tokens["investigador"]["headers"]
     inv_id = auth_tokens["investigador"]["user_id"]
+    responsible_id = auth_tokens["instructor"]["user_id"]
 
     res_sem = client.get("/semilleros", headers=admin_headers)
     semillero_id = res_sem.json()[0]["id"]
     res_conv = client.get("/convocatorias", headers=admin_headers)
     conv_id = res_conv.json()[0]["id"]
+
+    with TestingSessionLocal() as db:
+        semillero = db.get(Semillero, semillero_id)
+        semillero.investigadores.append(db.get(User, inv_id))
+        db.commit()
 
     # 5.1 Crear Proyecto
     res_proj = client.post("/proyectos", json={
@@ -531,15 +537,19 @@ def test_audit_proyectos_lifecycle(client, auth_tokens):
         "nombre_corto": "BoviSmart",
         "tipologia": "Investigación Aplicada",
         "estado": "En ejecución",
-        "vigencia": 2026,
+        "vigencia": 12,
+        "año": 2026,
         "presupuesto_total": 45000000.0,
         "objetivo_general": "Implementar sensores IoT y visión por computador para monitoreo animal.",
         "objetivos_especificos": ["Diseñar arquitectura de hardware", "Desarrollar algoritmo de visión"],
         "semillero_id": semillero_id,
+        "investigador_responsable_id": responsible_id,
         "convocatoria_id": conv_id
     }, headers=admin_headers)
     assert res_proj.status_code in (200, 201)
     proj = res_proj.json()
+    assert proj["vigencia"] == 12
+    assert proj["año"] == 2026
     proj_id = proj["id"]
 
     # 5.2 Asignar Miembro al Equipo
@@ -592,6 +602,7 @@ def test_audit_proyectos_lifecycle(client, auth_tokens):
         "nombre": "Proyecto Temporal a Eliminar",
         "estado": "Aprobado",
         "semillero_id": semillero_id,
+        "investigador_responsable_id": responsible_id,
         "convocatoria_id": conv_id
     }, headers=admin_headers)
     assert res_temp_p.status_code in (200, 201)
@@ -760,9 +771,25 @@ def test_audit_documentos(client, auth_tokens, tmp_path, monkeypatch):
     if existing_projects:
         proj_id = existing_projects[0]["id"]
     else:
+        with TestingSessionLocal() as db:
+            researcher = db.get(User, auth_tokens["investigador"]["user_id"])
+            group = db.query(Grupo).first()
+            if group is None:
+                group = Grupo(nombre="Investigadores CGAO", owner_id=researcher.id)
+                db.add(group)
+                db.flush()
+            seedbed = Semillero(nombre="Gestión documental", grupo_id=group.id, owner_id=researcher.id)
+            seedbed.investigadores.append(researcher)
+            db.add(seedbed)
+            db.commit()
+            seedbed_id = str(seedbed.id)
         res_proj = client.post(
             "/proyectos",
-            json={"nombre": "Proyecto de prueba de documentos", "estado": "En ejecución"},
+            json={
+                "nombre": "Proyecto de prueba de documentos", "estado": "En ejecución",
+                "semillero_id": seedbed_id,
+                "investigador_responsable_id": auth_tokens["investigador"]["user_id"],
+            },
             headers=headers,
         )
         assert res_proj.status_code == 201, res_proj.text

@@ -162,11 +162,16 @@ def complete_forms(ctx):
     *_, client = ctx
     base = f"/proyectos/{ctx[2].id}/documentacion"
     view = client.get(base).json()
-    common = {field["key"]: field_value(field) for field in view["campos_comunes"] if field["key"] != "inconsistencias_fuente"}
+    common = {field["key"]: field_value(field) for field in view["campos_comunes"] if field["key"] not in {"inconsistencias_fuente", "aclaraciones_fuente"}}
     response = client.put(base + "/comunes", json={"revision": 0, "datos": common})
     assert response.status_code == 200
     for item in view["documentos"]:
         data = {field["key"]: field_value(field) for field in item["campos"]}
+        if item["tipo"] == "informe_bimensual":
+            data.update(periodo_desde="2026-03-01" if item["periodo_bimestre"] == 1 else "2026-05-01",
+                        periodo_hasta="2026-04-30" if item["periodo_bimestre"] == 1 else "2026-06-30")
+        if item["tipo"] == "acta_cierre":
+            data["fecha_reunion"] = "2026-06-30"
         response = client.put(base + "/borradores/" + item["clave"], json={"revision": 0, "datos": data})
         assert response.status_code == 200
     return client.get(base).json()
@@ -212,7 +217,7 @@ def test_all_document_kinds_generate_real_office_files_individual_download_and_z
     with ZipFile(io.BytesIO(archive.content)) as package:
         assert all(any(path.endswith(name) for path in package.namelist()) for name in names)
         expected_folders = {
-            "1ProyectoFormulado/", "2ActadeInicio/", "3Productos/",
+            "1ProyectoFomulado/", "2ActadeInicio/", "3Productos/",
             "3Productos/1InformeFinal/", "3Productos/2PosteryEventos/", "3Productos/3.InnovacionGestionEmpresarial/",
             "4InformesBimensuales/", "5ActaCierre/", "6EvidenciasFotograficas/", "7Borradoresyvarios/",
         }

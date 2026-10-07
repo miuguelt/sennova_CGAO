@@ -61,6 +61,15 @@ const mockRecord = {
 };
 
 describe('Asistente de formulación (ProjectFormulationWizard)', () => {
+  it('recibe los datos generales del servidor y los incorpora al borrador institucional', () => {
+    const onChange = vi.fn();
+    const record = structuredClone(mockRecord);
+    record.datos_iniciales = { centro: 'CGAO', regional: 'Santander' };
+    record.ruta_formulacion.siguiente_paso = 'institucional';
+    render(<ProjectFormulationWizard projectId="p-1" record={record} drafts={{ comunes: {} }} dirty={{}} canEdit onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Completar campos vacíos' }));
+    expect(onChange.mock.calls).toEqual([['comunes', 'centro', 'CGAO'], ['comunes', 'regional', 'Santander']]);
+  });
   beforeEach(() => { vi.clearAllMocks(); });
   afterEach(() => { cleanup(); });
 
@@ -91,8 +100,8 @@ describe('Asistente de formulación (ProjectFormulationWizard)', () => {
     expect(screen.getByRole('note')).toHaveTextContent(/verifica la autorización y vigencia antes de incluir nombres, identificaciones o contactos/i);
     fireEvent.click(screen.getByRole('button', { name: /Mostrar guía y ejemplos/i }));
     expect(screen.getByText(/Esta orientación local no define requisitos institucionales ni aporta datos para el proyecto/i)).toBeInTheDocument();
-    expect(screen.getByText('1 de 10 pasos completados')).toBeInTheDocument();
-    expect(screen.getByText('10% de avance en formulación')).toBeInTheDocument();
+    expect(screen.getByText('1 de 10 etapas diligenciadas o con borrador generado')).toBeInTheDocument();
+    expect(screen.getByText('10% de diligenciamiento y generación')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Volver al formulario' }));
     fireEvent.click(screen.getByRole('button', { name: 'Ver etapas' }));
     expect(screen.getByText('1. Identificación del proyecto')).toBeInTheDocument();
@@ -121,7 +130,7 @@ describe('Asistente de formulación (ProjectFormulationWizard)', () => {
     fireEvent.click(screen.getByText('Consultar grupo y semillero'));
     expect(screen.getByRole('region', { name: 'Vinculación del proyecto' })).toBeInTheDocument();
     expect(screen.getByText('Sin grupo vinculado')).toBeInTheDocument();
-    expect(screen.getByText('Sin semillero vinculado')).toBeInTheDocument();
+    expect(screen.getByText('Pendiente de vincular')).toBeInTheDocument();
     expect(screen.getByText(/si aplica, completa esa vinculación en la ficha antes de generar documentos/i)).toBeInTheDocument();
   });
 
@@ -185,7 +194,7 @@ describe('Asistente de formulación (ProjectFormulationWizard)', () => {
     fireEvent.change(screen.getByLabelText(/Título del proyecto/i), { target: { value: 'Nuevo título modificado' } });
     fireEvent.click(screen.getByRole('button', { name: /guardar identificación/i }));
     await waitFor(() => {
-      expect(ProjectDocumentationAPI.saveIdentification).toHaveBeenCalledWith('p-1', expect.objectContaining({ nombre: 'Nuevo título modificado' }));
+      expect(ProjectDocumentationAPI.saveIdentification).toHaveBeenCalledWith('p-1', { nombre: 'Nuevo título modificado' });
     });
   });
 

@@ -278,7 +278,7 @@ class Proyecto(Base):
     nombre_corto = Column(String(255))
     
     # Estado: solo Aprobado, En ejecución, Finalizado (Formulación eliminado)
-    estado = Column(String(50), default='Aprobado')  # Aprobado, En ejecución, Finalizado
+    estado = Column(String(50), default='En formulación')  # Solo para registros nuevos; conserva los estados existentes.
     vigencia = Column(Integer)  # meses
     presupuesto_total = Column(Float)
     
@@ -329,7 +329,7 @@ class Producto(Base):
     __tablename__ = "productos"
     
     id = get_uuid_column(primary_key=True, default=uuid.uuid4)
-    # Tipología Minciencias: A1-A7, B1-B6, C1-C6, D1-D4
+    # Catálogo interno CGAO v1. No equivale a los códigos oficiales de Minciencias.
     tipo = Column(String(50), nullable=False)   # Código: A1, B1, C2, D2, etc. (ajustado para soportar descripciones de tipo)
     categoria = Column(String(5))               # Categoría: A, B, C, D
     nombre = Column(Text, nullable=False)

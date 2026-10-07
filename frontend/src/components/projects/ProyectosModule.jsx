@@ -39,81 +39,11 @@ import ProjectDocumentationEditor from './ProjectDocumentationEditor';
 import ProjectCard from './ProjectCard';
 import ProjectDocumentationProgress from './ProjectDocumentationProgress';
 import ProjectSourceDocuments from './ProjectSourceDocuments';
-
-// ─── Gantt Component ──────────────────────────────────────────────────────────
-const ProjectTimeline = ({ entregables = [] }) => {
-  const fases = ['Fase I', 'Fase II', 'Fase III', 'Fase Final'];
-  
-  return (
-    <div className="space-y-10 py-6">
-      <div className="relative">
-        {/* Barra de progreso de fondo con gradiente */}
-        <div className="absolute top-0 left-5 bottom-0 w-1 bg-gradient-to-b from-emerald-500/20 via-slate-100 to-slate-100 rounded-full" />
-        
-        {fases.map((fase, idx) => {
-          const itemsDeFase = entregables.filter((_, i) => (i % 4) === idx);
-          
-          return (
-            <div key={fase} className="relative flex items-start gap-6 mb-8 last:mb-0 group">
-              {/* Nodo indicador con pulso para fases activas */}
-              <div className="relative z-10">
-                <div className="w-10 h-10 rounded-2xl bg-white border-2 border-emerald-500 shadow-lg shadow-emerald-500/10 flex items-center justify-center text-xs font-black text-emerald-600 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300">
-                  {idx + 1}
-                </div>
-              </div>
-
-              {/* Contenido de la Fase */}
-              <div className="flex-1 pt-1 bg-white/50 backdrop-blur-xs p-4 rounded-2xl border border-slate-100 hover:border-emerald-100 hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-                      Hito Metodológico
-                    </span>
-                    <h5 className="font-extrabold text-slate-800 text-sm mt-0.5">{fase}</h5>
-                  </div>
-                  <span className="text-[11px] font-black text-slate-400 font-mono bg-slate-50 px-2 py-1 rounded-lg">
-                    {itemsDeFase.length} Entregables
-                  </span>
-                </div>
-
-                {itemsDeFase.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-                    {itemsDeFase.map(e => (
-                      <div 
-                        key={e.id} 
-                        className="p-3 bg-slate-50/80 rounded-xl border border-slate-100/80 flex flex-col justify-between hover:bg-emerald-50/30 hover:border-emerald-200/60 transition-all"
-                      >
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <CheckCircle2 size={13} className={e.estado === 'aprobado' ? 'text-emerald-500' : 'text-slate-300'} />
-                          <span className="text-xs font-bold text-slate-700 truncate">{e.nombre}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                          <span>{e.fecha_limite ? new Date(e.fecha_limite).toLocaleDateString('es-CO') : 'Sin fecha'}</span>
-                          <span className={`px-1.5 py-0.5 rounded font-black uppercase text-[8px] ${
-                            e.estado === 'aprobado' ? 'bg-emerald-100 text-emerald-700' :
-                            e.estado === 'en_revision' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'
-                          }`}>
-                            {e.estado}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400 italic py-1">No hay entregables mapeados para esta fase aún.</p>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
+import ProjectTimelinePanel from './ProjectTimelinePanel';
+import { useUnsavedChangesGuard } from '../../context/UnsavedChangesContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const STATES = ['Aprobado', 'En ejecución', 'Finalizado', 'Referencia'];
+const STATES = ['En formulación', 'Aprobado', 'En ejecución', 'Finalizado', 'Referencia'];
 
 const RUBROS = [
   { id: 'personal', label: 'Talento Humano', icon: Users, color: 'text-emerald-600' },
@@ -145,6 +75,7 @@ const getRubroValue = (p, rubroId) => {
 };
 
 const STATE_DOT = {
+  'En formulación': 'bg-amber-500',
   'Aprobado':     'bg-blue-500',
   'En ejecución': 'bg-emerald-500',
   'Finalizado':   'bg-slate-500',
@@ -152,9 +83,7 @@ const STATE_DOT = {
 };
 
 const normalizeEstado = (estado) => {
-  if (!estado) return 'Aprobado';
-  if (STATES.includes(estado)) return estado;
-  return 'Aprobado';
+  return estado || 'Sin estado';
 };
 
 const normalizeEntityReference = (value = '') => value
@@ -168,8 +97,8 @@ const isEmptyFormField = (value) => value == null ||
   (Array.isArray(value) && value.length === 0);
 
 const EMPTY_FORM = {
-  nombre: '', nombre_corto: '', codigo_sgps: '', estado: 'Aprobado',
-  vigencia: 12, presupuesto_total: 0, tipologia: 'Innovación',
+  nombre: '', nombre_corto: '', codigo_sgps: '', estado: 'En formulación',
+  vigencia: '', presupuesto_total: 0, tipologia: 'Innovación',
   linea_investigacion: '', red_conocimiento: '', descripcion: '',
   objetivo_general: '',
   linea_programatica: '', reto_origen_id: null,
@@ -178,6 +107,8 @@ const EMPTY_FORM = {
   año_fin: new Date().getFullYear(),
   continua_siguiente_año: false,
   objetivos_especificos: [],
+  semillero_id: '',
+  investigador_responsable_id: '',
   presupuesto_detallado: { personal: 0, materiales: 0, viaticos: 0, servicios: 0, equipos: 0 }
 };
 
@@ -206,6 +137,7 @@ const Skeleton = () => (
 
 // ─── Main module ──────────────────────────────────────────────────────────────
 const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled, refreshVersion = 0 }) => {
+  const { requestLeave } = useUnsavedChangesGuard();
   const [proyectos,        setProyectos]        = useState([]);
   const [retosDisponibles, setRetosDisponibles] = useState([]);
   const [convocatorias,    setConvocatorias]    = useState([]);
@@ -229,6 +161,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [formulationFile,  setFormulationFile]  = useState(null);
   const [isSavingProject,  setIsSavingProject]  = useState(false);
   const [activeTab,        setActiveTab]        = useState('guia');
+  const [documentationTarget, setDocumentationTarget] = useState({ key: '', request: 0 });
   const [menuOpenId,       setMenuOpenId]       = useState(null);
   const [isEditing,        setIsEditing]        = useState(false);
   const [isPoolVisible,    setIsPoolVisible]    = useState(false);
@@ -241,12 +174,15 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const [dragOverProjectId, setDragOverProjectId] = useState(null);
   const [projectToMove,     setProjectToMove]     = useState(null);
   const [showMoveModal,     setShowMoveModal]     = useState(false);
+  const [approvalRequest, setApprovalRequest] = useState(null);
   const menuRef = React.useRef(null);
 
   const handleOpenMoveSemillero = (proyecto) => {
-    setProjectToMove(proyecto);
-    setShowMoveModal(true);
-    setMenuOpenId(null);
+    requestLeave(() => {
+      setProjectToMove(proyecto);
+      setShowMoveModal(true);
+      setMenuOpenId(null);
+    });
   };
 
   const isOwnerOrAdmin = (project) => currentUser?.rol !== 'aprendiz' && (currentUser?.rol === 'admin' || project?.owner_id === currentUser?.id);
@@ -339,47 +275,55 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   };
 
   const handleOpenDetail = (proyecto) => {
-    setSelectedProyecto(proyecto);
-    setIsDetailOpen(true);
-    setActiveTab('guia');
+    if (isDetailOpen && String(selectedProyecto?.id) === String(proyecto.id)) return;
+    requestLeave(() => {
+      setSelectedProyecto(proyecto);
+      setIsDetailOpen(true);
+      setActiveTab('guia');
+    });
   };
 
   const handleEdit = (proyecto) => {
-    setFormulationFile(null);
-    setFormData({
-      id: proyecto.id,
-      nombre: proyecto.nombre || '',
-      nombre_corto: proyecto.nombre_corto || '',
-      codigo_sgps: proyecto.codigo_sgps || '',
-      estado: proyecto.estado || 'Aprobado',
-      vigencia: proyecto.vigencia || 12,
-      presupuesto_total: proyecto.presupuesto_total || 0,
-      tipologia: proyecto.tipologia || 'Innovación',
-      linea_investigacion: proyecto.linea_investigacion || '',
-      red_conocimiento: proyecto.red_conocimiento || '',
-      descripcion: proyecto.descripcion || '',
-      objetivo_general: proyecto.objetivo_general || '',
-      objetivos_especificos: proyecto.objetivos_especificos || [],
-      linea_programatica: proyecto.linea_programatica || '',
-      reto_origen_id: proyecto.reto_origen_id || '',
-      semillero_id: proyecto.semillero_id || '',
-      grupo_id: proyecto.grupo_id || '',
-      convocatoria_id: proyecto.convocatoria_id || '',
-      año: proyecto.año || new Date().getFullYear(),
-      año_fin: proyecto.año_fin || new Date().getFullYear(),
-      continua_siguiente_año: proyecto.continua_siguiente_año || false,
-      presupuesto_detallado: proyecto.presupuesto_detallado || { personal: 0, materiales: 0, viaticos: 0, servicios: 0, equipos: 0 }
+    requestLeave(() => {
+      setFormulationFile(null);
+      setFormData({
+        id: proyecto.id,
+        nombre: proyecto.nombre || '',
+        nombre_corto: proyecto.nombre_corto || '',
+        codigo_sgps: proyecto.codigo_sgps || '',
+        estado: proyecto.estado || '',
+        vigencia: proyecto.vigencia ?? '',
+        presupuesto_total: proyecto.presupuesto_total || 0,
+        tipologia: proyecto.tipologia || 'Innovación',
+        linea_investigacion: proyecto.linea_investigacion || '',
+        red_conocimiento: proyecto.red_conocimiento || '',
+        descripcion: proyecto.descripcion || '',
+        objetivo_general: proyecto.objetivo_general || '',
+        objetivos_especificos: proyecto.objetivos_especificos || [],
+        linea_programatica: proyecto.linea_programatica || '',
+        reto_origen_id: proyecto.reto_origen_id || '',
+        semillero_id: proyecto.semillero_id || '',
+        investigador_responsable_id: proyecto.owner_id || proyecto.owner?.id || '',
+        grupo_id: proyecto.grupo_id || '',
+        convocatoria_id: proyecto.convocatoria_id || '',
+        año: proyecto.año || new Date().getFullYear(),
+        año_fin: proyecto.año_fin || new Date().getFullYear(),
+        continua_siguiente_año: proyecto.continua_siguiente_año || false,
+        presupuesto_detallado: proyecto.presupuesto_detallado || { personal: 0, materiales: 0, viaticos: 0, servicios: 0, equipos: 0 }
+      });
+      setIsEditing(true);
+      setShowForm(true);
+      setMenuOpenId(null);
     });
-    setIsEditing(true);
-    setShowForm(true);
-    setMenuOpenId(null);
   };
 
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
 
   const handleDelete = (id) => {
-    setDeleteConfirm({ isOpen: true, id });
-    setMenuOpenId(null);
+    requestLeave(() => {
+      setDeleteConfirm({ isOpen: true, id });
+      setMenuOpenId(null);
+    });
   };
 
   const confirmDeleteAction = async () => {
@@ -395,8 +339,19 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (approvalConfirmed = false) => {
     if (isSavingProject) return;
+    const duration = formData.vigencia === '' || formData.vigencia == null ? null : Number(formData.vigencia);
+    if (duration != null && (!Number.isInteger(duration) || duration < 1 || duration > 60)) {
+      onNotify?.('Registra una duración entre 1 y 60 meses, sin decimales, o déjala pendiente.', 'error');
+      return;
+    }
+    const previousState = proyectos.find(project => String(project.id) === String(formData.id))?.estado;
+    if (formData.estado === 'Aprobado' && (!isEditing || previousState !== 'Aprobado') && approvalConfirmed !== true) {
+      setApprovalRequest({ kind: 'form' });
+      return;
+    }
+    setApprovalRequest(null);
     setIsSavingProject(true);
     try {
       const sanitizedData = {
@@ -404,7 +359,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
         reto_origen_id: (formData.reto_origen_id && formData.reto_origen_id !== '') ? formData.reto_origen_id : null,
         semillero_id: (formData.semillero_id && formData.semillero_id !== '') ? formData.semillero_id : null,
         convocatoria_id: (formData.convocatoria_id && formData.convocatoria_id !== '') ? formData.convocatoria_id : null,
-        vigencia: parseInt(formData.vigencia) || 12,
+        vigencia: duration,
         año: parseInt(formData.año) || new Date().getFullYear(),
         año_fin: parseInt(formData.año_fin) || new Date().getFullYear(),
         continua_siguiente_año: Boolean(formData.continua_siguiente_año),
@@ -474,7 +429,6 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const handleGenerateCronograma = async () => {
     if (!selectedProyecto) return;
     try {
-      setLoading(true);
       await PlantillasAPI.generarCronograma(selectedProyecto.id);
       onNotify?.('Cronograma SENNOVA generado exitosamente', 'success');
       const pActualizado = await ProyectosAPI.get(selectedProyecto.id);
@@ -482,8 +436,6 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       loadData();
     } catch (err) {
       onNotify?.('Error al generar cronograma: ' + err.message, 'error');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -491,7 +443,6 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const handleGenerateCertificates = async () => {
     if (!selectedProyecto) return;
     try {
-      setLoading(true);
       const dataMasiva = await PlantillasAPI.getCertificadosMasivos(selectedProyecto.id);
       
       if (!dataMasiva || dataMasiva.length === 0) {
@@ -509,40 +460,36 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       onNotify?.('Certificados generados exitosamente', 'success');
     } catch (err) {
       onNotify?.('Error al generar certificados: ' + err.message, 'error');
-    } finally {
-      setLoading(false);
     }
   };
 
 
 
-  const handleOpenLiquidation = async (proyectoToOpen = null) => {
+  const handleOpenLiquidation = (proyectoToOpen = null) => {
     const target = proyectoToOpen || selectedProyecto;
     if (!target) return;
-    try {
-      setLoading(true);
-      if (proyectoToOpen) {
-        setSelectedProyecto(proyectoToOpen);
+    requestLeave(async () => {
+      try {
+        if (proyectoToOpen) {
+          setSelectedProyecto(proyectoToOpen);
+        }
+        const data = await ProyectosAPI.checkLiquidacion(target.id);
+        setLiqChecklist(data);
+        setShowLiquidation(true);
+        if (data.auto_finalizado) {
+          onNotify?.('🎉 ¡Proyecto auto-finalizado por cumplimiento del 100% de requisitos institucionales!', 'success');
+          loadData();
+        }
+      } catch (err) {
+        onNotify?.('Error al verificar liquidación: ' + err.message, 'error');
       }
-      const data = await ProyectosAPI.checkLiquidacion(target.id);
-      setLiqChecklist(data);
-      setShowLiquidation(true);
-      if (data.auto_finalizado) {
-        onNotify?.('🎉 ¡Proyecto auto-finalizado por cumplimiento del 100% de requisitos institucionales!', 'success');
-        loadData();
-      }
-    } catch (err) {
-      onNotify?.('Error al verificar liquidación: ' + err.message, 'error');
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const handleOpenElaboracionDiagnostic = async (proyectoToOpen = null) => {
     const target = proyectoToOpen || selectedProyecto;
     if (!target) return;
     try {
-      setLoading(true);
       if (proyectoToOpen) {
         setSelectedProyecto(proyectoToOpen);
       }
@@ -551,14 +498,11 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       setShowElaboracionModal(true);
     } catch (err) {
       onNotify?.('Error al obtener diagnóstico de elaboración: ' + err.message, 'error');
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleFinalizeProject = async () => {
     try {
-      setLoading(true);
       await ProyectosAPI.update(selectedProyecto.id, { estado: 'Finalizado' });
       onNotify?.('Proyecto finalizado y liquidado exitosamente', 'success');
       setShowLiquidation(false);
@@ -566,8 +510,6 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       loadData();
     } catch (err) {
       onNotify?.('Error al finalizar: ' + err.message, 'error');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -582,6 +524,25 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const handleDragEnd = () => setDraggingId(null);
 
   const handleDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+
+  const moveProjectToState = async (id, newState) => {
+    setProyectos(prev => prev.map(p => String(p.id) === id ? { ...p, estado: newState } : p));
+    try {
+      await ProyectosAPI.update(id, { estado: newState });
+      onNotify?.(`Proyecto movido a "${newState}"`, 'success');
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || 'Error al actualizar el estado';
+      onNotify?.(msg, 'error');
+      loadData();
+    }
+  };
+
+  const confirmApproval = () => {
+    const pending = approvalRequest;
+    setApprovalRequest(null);
+    if (pending?.kind === 'form') return handleSave(true);
+    if (pending?.id) return moveProjectToState(pending.id, 'Aprobado');
+  };
 
   const handleDrop = async (e, newState) => {
     e.preventDefault();
@@ -615,16 +576,12 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       return;
     }
 
-    // Optimistic update for kanban move
-    setProyectos(prev => prev.map(p => String(p.id) === id ? { ...p, estado: newState } : p));
-    try {
-      await ProyectosAPI.update(id, { estado: newState });
-      onNotify?.(`Proyecto movido a "${newState}"`, 'success');
-    } catch (err) {
-      const msg = err.response?.data?.detail || err.message || 'Error al actualizar el estado';
-      onNotify?.(msg, 'error');
-      loadData();
-    }
+    const previous = proyectos.find(project => String(project.id) === String(id));
+    if (newState === 'Sin estado' || previous?.estado === newState) return;
+    requestLeave(() => {
+      if (newState === 'Aprobado') setApprovalRequest({ kind: 'move', id });
+      else moveProjectToState(id, newState);
+    });
   };
 
   const patch = (field) => (eventOrValue) => setFormData(prev => ({ ...prev, [field]: controlValue(eventOrValue) }));
@@ -676,8 +633,18 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   const availableYears = [...new Set(proyectos.map(p => p.año || (p.created_at ? new Date(p.created_at).getFullYear() : new Date().getFullYear())).filter(Boolean)), new Date().getFullYear()].sort((a, b) => b - a);
   // Eliminar duplicados si el año actual ya existía
   const uniqueYears = [...new Set(availableYears)];
+  const projectSeedbed = semilleros.find(item => String(item.id) === String(selectedProyecto?.semillero_id));
+  const projectSeedbedMemberIds = new Set([
+    ...(projectSeedbed?.investigadores || []).map(member => String(member.id)),
+    ...(projectSeedbed?.aprendices || []).map(member => String(member.user_id || member.id)),
+  ]);
+  const projectTeamCandidates = usuarios.filter(user =>
+    projectSeedbedMemberIds.has(String(user.id))
+    && String(user.id) !== String(selectedProyecto?.owner_id),
+  );
 
   const byState = (state) => filtered.filter(p => p.estado_normalizado === state);
+  const visibleStates = Array.from(new Set([...STATES, ...proyectos.map(project => normalizeEstado(project.estado))]));
 
   if (loading && proyectos.length === 0) return <Skeleton />;
 
@@ -692,7 +659,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
         </div>
 
         {/* View toggle + CTA */}
-        <div className="flex items-center justify-between md:justify-end gap-2 bg-white p-1 rounded-xl shadow-sm border border-slate-200">
+        <div className="flex min-w-0 flex-wrap items-center justify-between md:justify-end gap-2 bg-white p-1 rounded-xl shadow-sm border border-slate-200">
           <Button 
             variant="ghost" 
             size="sm" 
@@ -805,7 +772,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
             className="flex-1 sm:flex-none px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-colors"
           >
             <option value="">Estados</option>
-            {STATES.map(s => <option key={s} value={s}>{s}</option>)}
+            {visibleStates.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <Badge variant="default" className="flex-shrink-0 text-[10px] md:text-xs">{filtered.length} total</Badge>
         </div>
@@ -814,17 +781,18 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       {/* ── Kanban ── */}
       {viewMode === 'kanban' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 pb-6 min-h-[60vh]">
-          {STATES.map(state => {
+          {visibleStates.map(state => {
             const cards = byState(state);
             const totalBudget = cards.reduce((sum, c) => sum + (Number(c.presupuesto_total) || 0), 0);
             
             const headerThemes = {
+              'En formulación': { border: 'border-amber-300', bg: 'bg-amber-50', badge: 'bg-amber-100 text-amber-950 font-black border border-amber-200', text: 'text-amber-950 font-black', dot: 'bg-amber-600' },
               'Aprobado':     { border: 'border-blue-300', bg: 'bg-blue-50', badge: 'bg-blue-100 text-blue-950 font-black border border-blue-200', text: 'text-blue-950 font-black', dot: 'bg-blue-600' },
               'En ejecución': { border: 'border-emerald-300', bg: 'bg-emerald-50', badge: 'bg-emerald-100 text-emerald-950 font-black border border-emerald-200', text: 'text-emerald-950 font-black', dot: 'bg-emerald-600' },
               'Finalizado':   { border: 'border-slate-300', bg: 'bg-slate-100/80', badge: 'bg-slate-200 text-slate-950 font-black border border-slate-300', text: 'text-slate-950 font-black', dot: 'bg-slate-600' },
               'Referencia':   { border: 'border-indigo-300', bg: 'bg-indigo-50', badge: 'bg-indigo-100 text-indigo-950 font-black border border-indigo-200', text: 'text-indigo-950 font-black', dot: 'bg-indigo-600' },
             };
-            const theme = headerThemes[state] || headerThemes['Aprobado'];
+            const theme = headerThemes[state] || headerThemes['Finalizado'];
 
             return (
               <section key={state} className="flex flex-col gap-3">
@@ -937,6 +905,9 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                         )}
                         <span className="hidden sm:inline text-[10px] text-slate-400 font-medium truncate max-w-[180px]">{p.linea_investigacion}</span>
                       </div>
+                      <p className="mt-1 text-[10px] text-slate-500">
+                        Investigador responsable: {p.owner?.nombre || 'Pendiente de asignación'}
+                      </p>
                     </td>
                     <td className="hidden md:table-cell px-6 py-4 font-mono text-[10px] text-emerald-700 font-bold">{p.codigo_sgps || 'S/C'}</td>
                     <td className="px-4 md:px-6 py-4"><StatusBadge estado={p.estado} className="text-[10px]" /></td>
@@ -1012,16 +983,17 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       <Drawer
         isOpen={isDetailOpen && !!selectedProyecto}
         onClose={() => setIsDetailOpen(false)}
+        protectUnsavedChanges
         size="full"
         allowExpand={false}
         className="project-workspace"
         bodyClassName="project-workspace-body"
         variant="emerald"
-        title={selectedProyecto?.nombre}
-        badge={selectedProyecto && <StatusBadge estado={selectedProyecto.estado} />}
+        title={<span title={selectedProyecto?.nombre}>{selectedProyecto?.nombre_corto || selectedProyecto?.nombre}</span>}
+        badge={selectedProyecto && <StatusBadge estado={selectedProyecto.estado || 'Sin estado'} />}
         headerActions={
           selectedProyecto && (
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -1050,6 +1022,15 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                 <ShieldCheck size={14} />
                 <span className="hidden sm:inline">Requisitos</span> Liquidación
               </Button>
+              {isOwnerOrAdmin(selectedProyecto) && (
+                <>
+                  <Button variant="sena" size="sm" onClick={() => handleEdit(selectedProyecto)}><Edit2 size={14} /> Editar Proyecto</Button>
+                  <details className="rounded-xl border border-slate-200 bg-white text-slate-700">
+                    <summary className="min-h-[42px] cursor-pointer px-3 py-2 text-xs font-bold">Más acciones</summary>
+                    <Button variant="ghost" className="text-rose-700" onClick={() => handleDelete(selectedProyecto.id)}><Trash2 size={14} /> Eliminar Proyecto</Button>
+                  </details>
+                </>
+              )}
             </div>
           )
         }
@@ -1065,16 +1046,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
         onTabChange={setActiveTab}
         footer={
           <div className="project-workspace-footer flex gap-3 w-full justify-end">
-            <Button className="justify-center order-2 sm:order-1" variant="secondary" onClick={() => setIsDetailOpen(false)}>Cerrar</Button>
-            <Button 
-              className="justify-center order-1 sm:order-2"
-              variant="sena"
-              onClick={() => {
-                handleEdit(selectedProyecto);
-              }}
-            >
-              <Edit2 size={16} className="mr-1.5" /> Editar Proyecto
-            </Button>
+            <Button className="justify-center" variant="secondary" onClick={() => requestLeave(() => setIsDetailOpen(false))}>Cerrar</Button>
           </div>
         }
       >
@@ -1207,7 +1179,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col justify-between">
                     <div>
                       <p className="text-[10px] font-black text-slate-700 uppercase mb-1">Semillero Asociado</p>
-                      <p className="text-sm font-bold text-slate-900">{selectedProyecto.semillero_nombre || selectedProyecto.semillero?.nombre || 'Independiente / No asignado'}</p>
+                      <p className="text-sm font-bold text-slate-900">{selectedProyecto.semillero_nombre || selectedProyecto.semillero?.nombre || 'Pendiente de vincular a un semillero'}</p>
                     </div>
                     {isOwnerOrAdmin(selectedProyecto) && (
                       <button
@@ -1234,6 +1206,10 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                     {selectedProyecto.descripcion || 'Sin descripción técnica registrada.'}
                   </p>
                 </div>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  <p className="text-[10px] font-black text-slate-700 uppercase mb-1">Investigador responsable</p>
+                  <p className="text-sm font-bold text-slate-900">{selectedProyecto.owner?.nombre || 'Pendiente de asignación'}</p>
+                </div>
               </div>
             )}
 
@@ -1245,6 +1221,8 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                   onNotify={onNotify}
                   initialOpened={true}
                   workspace={true}
+                  focusDocumentKey={documentationTarget.key}
+                  focusDocumentRequest={documentationTarget.request}
                   key={selectedProyecto.id}
                 />
             </div>
@@ -1260,7 +1238,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               <ProyectoEquipoTab
                 proyecto={selectedProyecto}
                 teamMembers={teamMembers}
-                usuarios={usuarios}
+                usuarios={projectTeamCandidates}
                 currentUser={currentUser}
                 isOwnerOrAdmin={isOwnerOrAdmin}
                 onAddMember={handleAddMember}
@@ -1271,7 +1249,18 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
 
             {activeTab === 'timeline' && (
               <div className="animate-fadeIn">
-                <ProjectTimeline entregables={selectedProyecto.entregables || []} />
+                <ProjectTimelinePanel
+                  projectId={selectedProyecto.id}
+                  refreshVersion={refreshVersion}
+                  onEditPlanning={() => {
+                    setDocumentationTarget(previous => ({ key: '__common__', request: previous.request + 1 }));
+                    setActiveTab('guia');
+                  }}
+                  onOpenForm={key => {
+                    setDocumentationTarget(previous => ({ key, request: previous.request + 1 }));
+                    setActiveTab('guia');
+                  }}
+                />
               </div>
             )}
 
@@ -1294,7 +1283,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
         footer={
           <>
             <Button variant="secondary" onClick={() => { setShowForm(false); setIsEditing(false); setFormulationFile(null); setFormData(EMPTY_FORM); }} disabled={isSavingProject} className="w-full sm:w-auto justify-center">Cancelar</Button>
-            <Button variant="sena" onClick={handleSave} disabled={!formData.nombre?.trim() || isSavingProject} className="w-full sm:w-auto justify-center shadow-lg shadow-emerald-200">
+            <Button variant="sena" onClick={handleSave} disabled={!formData.nombre?.trim() || !formData.semillero_id || !formData.investigador_responsable_id || isSavingProject} className="w-full sm:w-auto justify-center shadow-lg shadow-emerald-200">
               {isSavingProject ? <><Loader2 size={14} className="mr-2 animate-spin" /> Guardando…</> : (isEditing ? 'Guardar Cambios' : 'Crear Proyecto')}
             </Button>
           </>
@@ -1332,28 +1321,58 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                 <Input label="Nombre Corto / Acrónimo" value={formData.nombre_corto} onChange={patch('nombre_corto')} placeholder="Ej: SIGPI, PADGEC..." />
                 <Input label="Código SGPS" value={formData.codigo_sgps} onChange={patch('codigo_sgps')} placeholder="SGPS-XXXX" />
                 <Select label="Tipología" options={TIPOLOGIA_OPTIONS} value={formData.tipologia} onChange={patch('tipologia')} />
-                <div>
-                  <Select 
-                    label="Grupo de Investigación" 
-                    value={formData.grupo_id || ''} 
-                    onChange={patch('grupo_id')} 
-                    options={[
-                      { value: '', label: 'Seleccionar Grupo de Investigación...' },
-                      ...grupos.map(g => ({ value: g.id, label: g.nombre }))
-                    ]}
-                    className="bg-emerald-50/30 border-emerald-100"
-                  />
-                </div>
+                <Select label="Estado" options={Array.from(new Set([...STATES, formData.estado || ''])).map(state => ({ value: state, label: state || 'Sin estado' }))} value={formData.estado || ''} onChange={patch('estado')} />
                 <div className="md:col-span-2">
                   <Select 
-                    label="Semillero de Investigación Vinculado" 
-                    value={formData.semillero_id || ''} 
-                    onChange={patch('semillero_id')} 
+                    label="Semillero de Investigación"
+                    value={formData.semillero_id || ''}
+                    required
+                    onChange={(event) => {
+                      const nextId = controlValue(event);
+                      const target = semilleros.find(item => String(item.id) === String(nextId));
+                      setFormData(previous => {
+                        const currentIsMember = target?.investigadores?.some(
+                          member => (!member.rol || String(member.rol).toLowerCase() === 'investigador')
+                            && String(member.id) === String(previous.investigador_responsable_id),
+                        );
+                        const ownMembership = target?.investigadores?.some(
+                          member => (!member.rol || String(member.rol).toLowerCase() === 'investigador')
+                            && String(member.id) === String(currentUser?.id),
+                        );
+                        return {
+                          ...previous,
+                          semillero_id: nextId,
+                          grupo_id: target?.grupo_id || '',
+                          investigador_responsable_id: currentIsMember
+                            ? previous.investigador_responsable_id
+                            : currentUser?.rol === 'investigador' && ownMembership ? currentUser.id : '',
+                        };
+                      });
+                    }}
                     options={[
-                      { value: '', label: 'Sin semillero vinculado (Iniciativa Directa de Grupo)' },
+                      { value: '', label: 'Seleccionar semillero...' },
                       ...semilleros.map(s => ({ value: s.id, label: `${s.sigla ? s.sigla + ' - ' : ''}${s.nombre}` }))
                     ]}
                     className="bg-emerald-50/30 border-emerald-100"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Grupo institucional: Investigadores CGAO. El proyecto hereda el grupo del semillero.
+                  </p>
+                </div>
+                <div className="md:col-span-2">
+                  <Select
+                    label="Investigador responsable"
+                    value={formData.investigador_responsable_id || ''}
+                    required
+                    onChange={patch('investigador_responsable_id')}
+                    options={[
+                      { value: '', label: 'Seleccionar investigador responsable...' },
+                      ...(semilleros.find(item => String(item.id) === String(formData.semillero_id))?.investigadores || [])
+                        .filter(member => !member.rol || String(member.rol).toLowerCase() === 'investigador')
+                        .filter(member => currentUser?.rol !== 'investigador' || String(member.id) === String(currentUser.id))
+                        .map(member => ({ value: member.id, label: member.nombre })),
+                    ]}
+                    disabled={!formData.semillero_id}
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:col-span-2">
@@ -1380,15 +1399,8 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1.5">
-                      <Clock size={12} className="text-blue-500" /> Vigencia (Meses)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.vigencia}
-                      onChange={patch('vigencia')}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
-                    />
+                    <Input label="Duración confirmada (meses)" type="number" min="1" max="60" step="1" value={formData.vigencia} onChange={patch('vigencia')} placeholder="Pendiente de confirmar" />
+                    <p className="text-xs text-slate-600">Déjala pendiente si aún no conoces la duración.</p>
                   </div>
                 </div>
                 <div className="md:col-span-2 mt-2">
@@ -1682,6 +1694,15 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
       </Modal>
 
       {/* ── Confirm Delete Dialog ── */}
+      <ConfirmDialog
+        isOpen={Boolean(approvalRequest)}
+        onClose={() => setApprovalRequest(null)}
+        onConfirm={confirmApproval}
+        title="Confirmar aprobación del proyecto"
+        variant="info"
+        description="Confirma que cuentas con la aprobación institucional para registrar este proyecto como Aprobado. El diligenciamiento del formulario no concede esa aprobación."
+        confirmText="Confirmar aprobación"
+      />
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         onClose={() => setDeleteConfirm({ isOpen: false, id: null })}

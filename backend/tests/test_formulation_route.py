@@ -20,14 +20,13 @@ from app.auth import get_current_user
 from app.config import get_settings
 from app.database import get_db
 from app.main import app
-from app.models import Base, Producto, Proyecto, User
+from app.models import Base, Proyecto, User
 from app.services.documentation_catalog import COMMON_FIELDS
 from app.services.formulation_route import (
     _blank,
     _budget_warning,
     _cop,
     _project_pending,
-    _section_pending,
     formulation_route,
     project_values,
 )
@@ -95,6 +94,7 @@ def test_formulation_route_helpers():
     assert _blank([]) is True
     assert _blank("valor") is False
     assert _blank([1, 2]) is False
+    assert _blank(" \n\t ") is True
     assert _cop(Decimal(1500000)) == "$ 1.500.000 COP"
 
     class MockProject:
@@ -155,6 +155,60 @@ def test_formulation_route_calculation(formulation_env):
     slot_vigente = {"generable": True, "historial": [{"vigente": True}]}
     route_vig = formulation_route(project, {}, slot_vigente)
     assert route_vig["pasos"][9]["completo"] is True
+
+
+@pytest.mark.parametrize("history,generated,reviewed", [
+    ([], False, False),
+    ([{"vigente": True, "estado": "generado"}], True, False),
+    ([{"vigente": True, "estado": "revisado"}], True, True),
+    ([{"vigente": False, "estado": "revisado"}], False, False),
+])
+def test_route_distinguishes_filled_generated_and_reviewed(formulation_env, history, generated, reviewed):
+    _db, _user, subject, _client = formulation_env
+    route = formulation_route(subject, {}, {"historial": history, "generable": True})
+    assert route["pasos"][0]["estado_diligenciamiento"] == "diligenciado"
+    assert route["pasos"][1]["estado_diligenciamiento"] == "pendiente"
+    assert route["resumen"]["borrador_generado"] is generated
+    assert route["resumen"]["revision_registrada"] is reviewed
+    assert route["resumen"]["revision_pendiente"] is (generated and not reviewed)
+    assert route["siguiente_accion"]
+    assert route["porcentaje"] == round(route["completados"] / route["total"] * 100, 1)
+
+
+def test_whitespace_fields_remain_pending_in_the_formulation_route(formulation_env):
+    _db, _user, subject, _client = formulation_env
+    subject.nombre = "   "
+    subject.objetivo_general = " \n "
+    route = formulation_route(subject, {}, {})
+    assert route["pasos"][0]["completo"] is False
+    assert route["pasos"][3]["completo"] is False
+    assert route["resumen"]["campos_diligenciados"] is False
+
+
+def test_documentation_view_exposes_actionable_relations_without_polluting_snapshot(formulation_env):
+    from app.services.documentation_state import current_snapshot
+    _db, _user, subject, api = formulation_env
+    before = current_snapshot(subject, {"periodo_bimestre": None, "producto_id": None}, {}, {})
+    response = api.get(f"/proyectos/{subject.id}/documentacion")
+    assert response.status_code == 200
+    view = response.json()
+    assert view["opciones_relaciones"]["objetivos"] == subject.objetivos_especificos
+    assert view["opciones_relaciones"]["integrantes"] == ["Investigador Líder"]
+    assert any(item["campo"].startswith("proyecto.objetivos_especificos.") for item in view["revision_coherencia"])
+    assert view["ruta_formulacion"]["resumen"]["pendientes_coherencia"] == len(view["revision_coherencia"])
+    assert current_snapshot(subject, {"periodo_bimestre": None, "producto_id": None}, {}, {}) == before
+    assert "opciones_relaciones" not in before["contexto"]
+
+
+def test_model_default_formulation_preserves_existing_project_state(formulation_env):
+    db, user, subject, _client = formulation_env
+    subject.estado = "Aprobado"
+    created = Proyecto(nombre="Proyecto sin estado propuesto", owner_id=user.id)
+    db.add(created)
+    db.commit()
+    assert created.estado == "En formulación"
+    assert created.vigencia is None
+    assert subject.estado == "Aprobado"
 
 
 def test_formulation_route_follows_the_reference_project_sequence_and_groups_fields(formulation_env):

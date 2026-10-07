@@ -46,6 +46,9 @@ def _build_producto(producto_data: ProductoCreate, current_user: User) -> Produc
     """Build an unverified product entity from the request contract."""
     return Producto(
         tipo=producto_data.tipo,
+        categoria=producto_data.categoria,
+        año_reporte=producto_data.año_reporte,
+        requisitos_cumplidos=producto_data.requisitos_cumplidos,
         nombre=producto_data.nombre,
         descripcion=producto_data.descripcion,
         fecha_publicacion=producto_data.fecha_publicacion,

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.auth import get_current_user, get_current_admin, get_current_staff
-from app.models import Aprendiz, User, Semillero
+from app.models import Aprendiz, User, Semillero, Proyecto
 from app.schemas import AprendizResponse, AprendizUpdate
 
 router = APIRouter(prefix="/aprendices", tags=["Gestión de Aprendices"])
@@ -117,6 +117,15 @@ def delete_aprendiz(
         ).first()
         if not aprendiz:
             raise HTTPException(status_code=404, detail="Aprendiz no encontrado")
+
+        if aprendiz.user_id and db.query(Proyecto).filter(
+            Proyecto.semillero_id == aprendiz.semillero_id,
+            Proyecto.equipo.any(User.id == aprendiz.user_id),
+        ).first() is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Retire primero a la persona del equipo de los proyectos de este semillero.",
+            )
             
         db.delete(aprendiz)
         db.commit()

@@ -205,7 +205,7 @@ describe('comportamientos pendientes de productos e innovación', () => {
     fireEvent.change(within(createForm).getByPlaceholderText('Ej: Prototipo de sensor IoT...'), { target: { value: 'Prototipo de sensores' } });
     fireEvent.change(within(createForm).getByLabelText(/Proyecto Vinculado/), { target: { value: 'p-1' } });
     fireEvent.click(within(createForm).getByRole('button', { name: 'Siguiente' }));
-    expect(within(createForm).getByText(/Requisitos Minciencias para A1/)).toBeVisible();
+    expect(within(createForm).getByText(/Soportes de seguimiento para A1/)).toBeVisible();
     fireEvent.click(within(createForm).getByRole('button', { name: 'Anterior' }));
     expect(within(createForm).getByPlaceholderText('Ej: Prototipo de sensor IoT...')).toHaveValue('Prototipo de sensores');
     fireEvent.click(within(createForm).getByRole('button', { name: 'Cancelar' }));

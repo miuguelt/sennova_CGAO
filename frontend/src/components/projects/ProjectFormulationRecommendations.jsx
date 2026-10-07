@@ -24,6 +24,7 @@ export default function ProjectFormulationRecommendations({ projectId, fields, v
   }, [projectId, request, fields, values]);
   return <Modal isOpen title="Orientaciones metodológicas" onClose={onClose} variant="clean" size="xl" className="documentation-dialog"
     footer={<button type="button" className={documentationButtonClass} onClick={onClose}>Volver al formulario</button>}>
+    <p className="text-sm leading-relaxed text-slate-700">Estas sugerencias se obtienen con reglas locales para cada campo. No certifican la calidad científica, la coherencia entre apartados ni una aprobación institucional.</p>
     {loading && <div role="status" className="animate-pulse space-y-3 text-sm text-slate-700">Consultando orientaciones…<div className="h-20 rounded-xl bg-slate-100" /></div>}
     {!loading && failed && <div role="alert" className="space-y-3 rounded-xl bg-rose-50 p-4 text-sm text-rose-900">
       <p>No fue posible consultar las orientaciones de algunos campos. Puedes seguir escribiendo o reintentar.</p>

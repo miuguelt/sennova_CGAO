@@ -22,7 +22,7 @@ describe('ProyectoEquipoTab, cierres y cancelaciones', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Vincular Primer Investigador/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Vincular primer integrante/i }));
     expect(screen.getByRole('dialog')).toHaveTextContent('2 disponibles');
     const search = screen.getByPlaceholderText('Buscar por nombre, correo o rol...');
     fireEvent.change(search, { target: { value: 'Ana' } });

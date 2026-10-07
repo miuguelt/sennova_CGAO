@@ -1,26 +1,47 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sparkles, ChevronRight, Copy, Check } from 'lucide-react';
+import { checklistStorageKey, checklistFingerprint, readPersonalChecklist, writePersonalChecklist } from './projectFormulationChecklist';
 
-export default function ProjectFormulationGuide({ guide, step, onNotify }) {
+export default function ProjectFormulationGuide({ guide, step, projectId, currentUserId, currentValues = {}, onNotify }) {
   const [guideTab, setGuideTab] = useState('orientacion'); // 'orientacion' | 'checklist' | 'ejemplo'
-  const [checkedItems, setCheckedItems] = useState({});
+  const storageKey = checklistStorageKey(projectId, currentUserId, step.id);
+  const fingerprint = checklistFingerprint(step.campos?.length ? step.campos : Object.keys(currentValues), currentValues, guide.checklist);
+  const [review, setReview] = useState(() => ({ key: storageKey, fingerprint, ...readPersonalChecklist(storageKey, fingerprint) }));
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState('');
+  useEffect(() => {
+    if (review.key !== storageKey || review.fingerprint !== fingerprint) {
+      setReview({ key: storageKey, fingerprint, ...readPersonalChecklist(storageKey, fingerprint) });
+    }
+  }, [storageKey, fingerprint, review.key, review.fingerprint]);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
 
   const toggleCheck = (idx) => {
-    const key = `${step.id}_${idx}`;
-    setCheckedItems(prev => ({ ...prev, [key]: !prev[key] }));
+    const checked = { ...review.checked, [idx]: !review.checked[idx] };
+    const persisted = writePersonalChecklist(storageKey, fingerprint, checked);
+    setReview({ key: storageKey, fingerprint, checked, stale: false, failed: !persisted });
   };
 
-  const completedChecksCount = (guide.checklist || []).filter((_, idx) => !!checkedItems[`${step.id}_${idx}`]).length;
+  const completedChecksCount = (guide.checklist || []).filter((_, idx) => !!review.checked[idx]).length;
   const totalChecks = guide.checklist?.length || 1;
   const checklistPercent = Math.round((completedChecksCount / totalChecks) * 100);
 
-  const handleCopyExample = () => {
+  const handleCopyExample = async () => {
     if (!guide.ejemploModelo?.texto) return;
-    navigator.clipboard?.writeText?.(guide.ejemploModelo.texto);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    onNotify?.('Estructura modelo copiada al portapapeles', 'success');
+    setCopied(false); setCopyError('');
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Portapapeles no disponible');
+      await navigator.clipboard.writeText(guide.ejemploModelo.texto);
+      setCopied(true);
+      onNotify?.('Estructura modelo copiada al portapapeles', 'success');
+    } catch {
+      const message = 'No fue posible copiar el ejemplo. Selecciona el texto y cópialo manualmente.';
+      setCopyError(message); onNotify?.(message, 'error');
+    }
   };
 
   return (
@@ -126,6 +147,9 @@ export default function ProjectFormulationGuide({ guide, step, onNotify }) {
             {/* Contenido de Solapa: Checklist interactiva */}
             {guideTab === 'checklist' && (
               <div className="space-y-3">
+                <p className="text-sm leading-relaxed text-slate-700">Esta es tu revisión personal de este navegador. Sus marcas corresponden al contenido actual y no registran la revisión documental formal ni una aprobación institucional.</p>
+                {review.stale && <p role="status" className="text-sm text-amber-900">Cambió el contenido de esta etapa. Vuelve a revisar los criterios antes de marcarlos.</p>}
+                {review.failed && <p role="alert" className="text-sm text-amber-900">El navegador no pudo guardar tus marcas. Puedes revisar aquí, pero las marcas se perderán al cerrar la guía.</p>}
                 <div className="flex items-center justify-between text-sm font-bold text-slate-700">
                   <span>Aspectos que has revisado</span>
                   <span className="text-emerald-700 font-black">{checklistPercent}%</span>
@@ -138,7 +162,7 @@ export default function ProjectFormulationGuide({ guide, step, onNotify }) {
                 </div>
                 <div className="space-y-2 pt-1">
                   {guide.checklist?.map((item, idx) => {
-                    const isChecked = !!checkedItems[`${step.id}_${idx}`];
+                    const isChecked = !!review.checked[idx];
                     return (
                       <label
                         key={idx}
@@ -182,6 +206,7 @@ export default function ProjectFormulationGuide({ guide, step, onNotify }) {
                 <div className="p-3 bg-white rounded-xl border border-slate-200 text-sm text-slate-700 leading-relaxed  whitespace-pre-line shadow-2xs">
                   {guide.ejemploModelo.texto}
                 </div>
+                {copyError && <p role="alert" className="text-sm text-rose-900">{copyError}</p>}
               </div>
             )}
           </div>

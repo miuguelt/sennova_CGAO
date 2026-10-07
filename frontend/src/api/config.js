@@ -83,10 +83,10 @@ const getErrorMessage = (error, fallback) => {
 
 // Fetch con manejo de errores
 export async function fetchAPI(endpoint, options = {}) {
-  const { responseType, ...fetchOptions } = options;
+  const { responseType, mutates, ...fetchOptions } = options;
   const url = buildApiUrl(endpoint);
   const method = String(options.method || 'GET').toUpperCase();
-  const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+  const isMutation = mutates ?? ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
   
   const headers = {
     ...getHeaders(),

@@ -106,7 +106,7 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
   const [removeConfirm, setRemoveConfirm] = useState(null);
   const [projectToMove, setProjectToMove] = useState(null);
   const [showMoveProjectModal, setShowMoveProjectModal] = useState(false);
-  const [unlinkProjectConfirm, setUnlinkProjectConfirm] = useState(null);
+  const [moveDestinationSemilleroId, setMoveDestinationSemilleroId] = useState('');
   const [selectedProjectToLink, setSelectedProjectToLink] = useState('');
 
   const loadData = async (showLoading = false) => {
@@ -368,13 +368,9 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
 
     if (projectId && (semillero || selectedSemillero)) {
       const targetSem = semillero || selectedSemillero;
-      try {
-        await ProyectosAPI.update(projectId, { semillero_id: targetSem.id });
-        onNotify?.(`Proyecto vinculado al semillero "${targetSem.nombre}" correctamente`, 'success');
-        await loadData(false);
-      } catch (err) {
-        onNotify?.('Error al vincular proyecto: ' + (err.response?.data?.detail || err.message), 'error');
-      }
+      setProjectToMove(proyectos.find(project => String(project.id) === String(projectId)) || null);
+      setMoveDestinationSemilleroId(String(targetSem.id));
+      setShowMoveProjectModal(true);
       return;
     }
 
@@ -987,7 +983,7 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
                       .filter(p => String(p.semillero_id) !== String(selectedSemillero.id))
                       .map(p => {
                         const actualSem = semilleros.find(s => String(s.id) === String(p.semillero_id));
-                        const origen = actualSem ? ` (De: ${actualSem.sigla || actualSem.nombre})` : ' (Sin semillero)';
+                        const origen = actualSem ? ` (De: ${actualSem.sigla || actualSem.nombre})` : ' (Pendiente de vincular)';
                         return (
                           <option key={p.id} value={p.id}>
                             {p.codigo_sgps ? `[${p.codigo_sgps}] ` : ''}{p.nombre_corto || p.nombre}{origen}
@@ -1001,14 +997,9 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
                     disabled={!selectedProjectToLink}
                     onClick={async () => {
                       if (!selectedProjectToLink) return;
-                      try {
-                        await ProyectosAPI.update(selectedProjectToLink, { semillero_id: selectedSemillero.id });
-                        onNotify?.('Proyecto vinculado al semillero con éxito', 'success');
-                        setSelectedProjectToLink('');
-                        await loadData(false);
-                      } catch (err) {
-                        onNotify?.('Error al vincular proyecto: ' + (err.response?.data?.detail || err.message), 'error');
-                      }
+                      setProjectToMove(proyectos.find(project => String(project.id) === String(selectedProjectToLink)) || null);
+                      setMoveDestinationSemilleroId(String(selectedSemillero.id));
+                      setShowMoveProjectModal(true);
                     }}
                     className="h-10 px-5 text-xs font-bold shrink-0 shadow-sm"
                   >
@@ -1057,14 +1048,6 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
                           >
                             <ArrowRightLeft size={13} />
                             <span>Mover</span>
-                          </button>
-                          <button
-                            onClick={() => setUnlinkProjectConfirm(p)}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-rose-600 hover:bg-rose-50 rounded-xl text-[11px] font-bold transition-colors"
-                            title="Desvincular del semillero"
-                          >
-                            <Trash2 size={13} />
-                            <span>Desvincular</span>
                           </button>
                         </div>
                       )}
@@ -1191,35 +1174,19 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
         onClose={() => {
           setShowMoveProjectModal(false);
           setProjectToMove(null);
+          setMoveDestinationSemilleroId('');
         }}
         proyecto={projectToMove}
         semilleros={semilleros}
+        currentUser={currentUser}
+        destinationSemilleroId={moveDestinationSemilleroId}
         onSuccess={async () => {
+          setSelectedProjectToLink('');
           await loadData(false);
         }}
         onNotify={onNotify}
       />
 
-      {/* ── Confirm Desvincular Proyecto Dialog ── */}
-      <ConfirmDialog
-        isOpen={!!unlinkProjectConfirm}
-        onClose={() => setUnlinkProjectConfirm(null)}
-        onConfirm={async () => {
-          if (!unlinkProjectConfirm) return;
-          try {
-            await ProyectosAPI.update(unlinkProjectConfirm.id, { semillero_id: null });
-            onNotify?.(`Proyecto "${unlinkProjectConfirm.nombre_corto || unlinkProjectConfirm.nombre}" desvinculado del semillero`, 'success');
-            setUnlinkProjectConfirm(null);
-            await loadData(false);
-          } catch (err) {
-            onNotify?.('Error al desvincular proyecto: ' + (err.response?.data?.detail || err.message), 'error');
-          }
-        }}
-        title="¿Desvincular Proyecto del Semillero?"
-        description={`¿Estás seguro de desvincular el proyecto "${unlinkProjectConfirm?.nombre_corto || unlinkProjectConfirm?.nombre}" de este semillero? Quedará como iniciativa independiente sin semillero asignado.`}
-        confirmText="Desvincular Proyecto"
-        variant="danger"
-      />
     </div>
   );
 };

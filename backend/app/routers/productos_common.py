@@ -8,6 +8,9 @@ def make_producto_dict(producto: Producto) -> dict:
     return {
         "id": str(producto.id),
         "tipo": producto.tipo,
+        "categoria": producto.categoria,
+        "año_reporte": producto.año_reporte,
+        "requisitos_cumplidos": producto.requisitos_cumplidos,
         "nombre": producto.nombre,
         "descripcion": producto.descripcion,
         "fecha_publicacion": producto.fecha_publicacion,

@@ -2,7 +2,7 @@ import React from 'react';
 import { CheckCircle2, Circle, Clock, FolderOpen } from 'lucide-react';
 
 const SSoT_FOLDERS = [
-  { id: '1ProyectoFormulado', label: '1ProyectoFormulado' },
+  { id: '1ProyectoFomulado', label: '1. Formulación' },
   { id: '2ActadeInicio', label: '2ActadeInicio' },
   { id: '3Productos', label: '3Productos' },
   { id: '4InformesBimensuales', label: '4InformesBimensuales' },
@@ -27,8 +27,7 @@ export default function ProjectTraceabilityPanel({ documentos }) {
 
   documentos?.forEach(doc => {
     const folder = doc.carpeta;
-    let targetFolder = folder;
-    if (folder === '1ProyectoFomulado') targetFolder = '1ProyectoFormulado';
+    let targetFolder = folder === '1ProyectoFormulado' ? '1ProyectoFomulado' : folder;
     
     if (!docsByFolder[targetFolder]) {
       if (!docsByFolder['7Borradoresyvarios']) docsByFolder['7Borradoresyvarios'] = [];

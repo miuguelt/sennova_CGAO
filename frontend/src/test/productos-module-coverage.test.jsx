@@ -55,6 +55,18 @@ describe('catálogo de productos de investigación', () => {
   beforeEach(() => { vi.clearAllMocks(); configureApi(); });
   afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
+  it('distingue el catálogo interno de la clasificación oficial y enlaza el modelo consultado', async () => {
+    render(<ProductosModule currentUser={{ id: 'owner-1', rol: 'investigador' }} />);
+    const catalog = await screen.findByRole('region', { name: 'Alcance del catálogo de productos' });
+    expect(catalog).toHaveTextContent('A1, B1 y los demás identificadores son códigos internos');
+    expect(catalog).toHaveTextContent('no asignan una categoría oficial');
+    expect(within(catalog).getByRole('link', { name: 'Modelo Minciencias 2024' })).toHaveAttribute('href', expect.stringContaining('minciencias.gov.co'));
+    fireEvent.click(screen.getByRole('button', { name: 'Reportar Producto' }));
+    expect(screen.getByText('Familia del catálogo interno')).toBeVisible();
+    expect(screen.queryByText('Categoría Minciencias')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Q1-Q4/)).not.toBeInTheDocument();
+  });
+
   it('filtra el catálogo, muestra el pool y vincula un proyecto mediante arrastre', async () => {
     const onNotify = vi.fn();
     render(<ProductosModule currentUser={{ id: 'owner-1', rol: 'investigador' }} onNotify={onNotify} />);

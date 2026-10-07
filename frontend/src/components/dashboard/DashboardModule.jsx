@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatCalendarDate } from '../../utils/calendarDate';
 import {
   Users, Briefcase, FileText, GraduationCap,
   Trophy, TrendingUp, Calendar, ArrowRight,
@@ -6,7 +7,7 @@ import {
   Clock, AlertCircle, CheckCircle2, User,
   ChevronRight, Sparkles, Target, BarChart3, ArrowUpRight,
   FolderOpen, Award, BookOpen, Shield, Settings,
-  Layers, Lightbulb, HelpCircle, FileSpreadsheet,
+  Layers, Lightbulb, HelpCircle, FileSpreadsheet, FileCheck2,
   Check, Lock, ExternalLink
 } from 'lucide-react';
 import {
@@ -170,7 +171,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
           value={userImpact?.semilleros_count || 1}
           icon={GraduationCap}
           color="bg-emerald-600"
-          subtitle="SITEC / CGAO Vélez"
+          subtitle="CGAO · Subsede Vélez"
           onClick={() => onModuleAction?.({ module: 'semilleros' })}
         />
         <StatCard
@@ -226,7 +227,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                       <p className="text-[10px] text-slate-600 font-bold uppercase tracking-tighter">{task.proyecto}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-black text-emerald-800">{new Date(task.fecha).toLocaleDateString('es-CO')}</p>
+                      <p className="text-xs font-black text-emerald-800">{formatCalendarDate(task.fecha)}</p>
                       <Badge variant="emerald" className="mt-1 text-[8px]">EN CURSO</Badge>
                     </div>
                   </div>
@@ -284,11 +285,11 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
               <div className="space-y-4 text-xs font-medium">
                 <div className="flex justify-between items-center pb-3 border-b border-white/10">
                   <span className="text-slate-300 uppercase text-[10px] font-bold">Documento</span>
-                  <span className="font-mono text-white font-bold">{currentUser?.documento || '1098123001'}</span>
+                  <span className="font-mono text-white font-bold">{currentUser?.documento || 'No registrado'}</span>
                 </div>
                 <div className="flex justify-between items-center pb-3 border-b border-white/10">
                   <span className="text-slate-300 uppercase text-[10px] font-bold">Ficha SENA</span>
-                  <Badge variant="emerald" className="font-mono font-black">{currentUser?.ficha || '2670123'}</Badge>
+                  <Badge variant="emerald" className="font-mono font-black">{currentUser?.ficha || 'No registrada'}</Badge>
                 </div>
                 <div className="flex justify-between items-center pb-3 border-b border-white/10">
                   <span className="text-slate-300 uppercase text-[10px] font-bold">Centro / Sede</span>
@@ -379,7 +380,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             Panel Institucional • {currentUser?.nombre || 'Administrador'}
           </h1>
           <p className="text-slate-600 mt-3 font-medium max-w-xl leading-relaxed text-sm">
-            Supervisión global de convocatorias, productos Minciencias, proyectos en ejecución y talento científico del Centro de Gestión Agroempresarial y del Oriente.
+            Supervisión global de convocatorias, productos Minciencias, proyectos en ejecución y talento científico del Centro de Gestión Agroempresarial del Oriente (CGAO) — Subsede Vélez, Regional Santander.
           </p>
         </div>
 
@@ -423,7 +424,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
           onClick={() => onModuleAction?.({ module: 'proyectos' })}
         />
         <StatCard
-          title="Productos Minciencias"
+          title="Productos de investigación"
           value={stats.productos?.total || 0}
           icon={Trophy}
           color="bg-indigo-600"
@@ -474,7 +475,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             </div>
 
             <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
                 <AreaChart data={evolution}>
                   <defs>
                     <linearGradient id="adminColorPrj" x1="0" y1="0" x2="0" y2="1">
@@ -515,7 +516,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                         <p className="text-xs font-black text-slate-900">{task.titulo}</p>
                         <p className="text-[10px] text-slate-600 font-bold uppercase">{task.proyecto}</p>
                       </div>
-                      <span className="text-[10px] font-black text-rose-700">{new Date(task.fecha).toLocaleDateString('es-CO')}</span>
+                      <span className="text-[10px] font-black text-rose-700">{formatCalendarDate(task.fecha)}</span>
                     </div>
                   ))
                 ) : (
@@ -540,7 +541,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                         <p className="text-xs font-black text-slate-900">{task.titulo}</p>
                         <p className="text-[10px] text-slate-600 font-bold uppercase">{task.proyecto}</p>
                       </div>
-                      <span className="text-[10px] font-black text-emerald-800">{new Date(task.fecha).toLocaleDateString('es-CO')}</span>
+                      <span className="text-[10px] font-black text-emerald-800">{formatCalendarDate(task.fecha)}</span>
                     </div>
                   ))
                 ) : (
@@ -677,6 +678,14 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             <span>Reporte GTH-F-074</span>
           </Button>
           <Button
+            variant="outline"
+            onClick={() => onModuleAction?.({ module: 'proyectos' })}
+            className="px-5 bg-white hover:bg-emerald-50 border-emerald-300 text-emerald-900"
+          >
+            <FileCheck2 size={16} className="mr-2" />
+            <span>Construir documentación</span>
+          </Button>
+          <Button
             variant="sena"
             className="px-6 shadow-xl shadow-emerald-600/20"
             onClick={onNewProject}
@@ -696,7 +705,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
                   <Sparkles size={20} fill="currentColor" />
                 </div>
-                <h3 className="text-xl font-black tracking-tight text-white">Recomendaciones Estratégicas AI</h3>
+                <h3 className="text-xl font-black tracking-tight text-white">Recomendaciones de seguimiento</h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -735,7 +744,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 <div className="p-4 bg-white/10 border border-white/15 rounded-2xl flex gap-4 items-start hover:bg-white/15 transition-colors">
                   <div className="p-2 bg-amber-500/20 text-amber-300 rounded-lg"><BookOpen size={18} /></div>
                   <div>
-                    <p className="text-sm font-bold text-white">Productos Minciencias</p>
+                    <p className="text-sm font-bold text-white">Productos de investigación</p>
                     <p className="text-[10px] text-slate-300 mt-1 leading-relaxed">
                       Registra los artículos, ponencias y software resultantes de tus proyectos aprobados.
                     </p>
@@ -780,7 +789,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
           onClick={() => onModuleAction?.({ module: 'proyectos' })}
         />
         <StatCard
-          title="Mis Productos Minciencias"
+          title="Mis productos de investigación"
           value={stats.productos?.total || 0}
           icon={Trophy}
           color="bg-emerald-600"
@@ -828,7 +837,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
             </div>
 
             <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
                 <AreaChart data={evolution}>
                   <defs>
                     <linearGradient id="colorPrj" x1="0" y1="0" x2="0" y2="1">
@@ -864,7 +873,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                       <p className="text-xs font-black text-slate-900">{task.titulo}</p>
                       <p className="text-[10px] text-slate-600 font-bold uppercase">{task.proyecto}</p>
                     </div>
-                    <span className="text-[10px] font-black text-rose-700">{new Date(task.fecha).toLocaleDateString('es-CO')}</span>
+                    <span className="text-[10px] font-black text-rose-700">{formatCalendarDate(task.fecha)}</span>
                   </div>
                 ))}
                 {(!stats?.tareas_criticas?.vencidas || stats.tareas_criticas.vencidas.length === 0) && (
@@ -945,7 +954,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                   <div className="w-4 h-4 rounded-full bg-indigo-600 shrink-0 z-10" />
                   <div>
                     <p className="text-xs font-black text-slate-900 leading-tight">{task.titulo}</p>
-                    <p className="text-[10px] text-indigo-700 font-bold mt-1 uppercase">{new Date(task.fecha).toLocaleDateString('es-CO')}</p>
+                    <p className="text-[10px] text-indigo-700 font-bold mt-1 uppercase">{formatCalendarDate(task.fecha)}</p>
                   </div>
                 </div>
               ))}

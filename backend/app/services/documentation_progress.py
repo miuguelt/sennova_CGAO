@@ -66,7 +66,7 @@ def current_version_status(project, slot, draft, common, common_revision):
 
 def documentation_progress(project, *, common_row=None, drafts=None):
     """Combina captura (80 %), generación (10 %) y revisión (10 %) sin autoevaluaciones."""
-    from app.services.documentation_state import document_slots
+    from app.services.documentation_state import document_slots, generation_pending
 
     if common_row is None:
         common_row = project.documentacion
@@ -99,7 +99,8 @@ def documentation_progress(project, *, common_row=None, drafts=None):
         is_ready = (all(common_complete[key] for key in definition["required_common"])
                     and all(project_complete[key] for key in project_keys)
                     and all(fields_complete[key] for key in required)
-                    and all(fields_complete.get(key, False) for key in populated))
+                    and all(fields_complete.get(key, False) for key in populated)
+                    and not generation_pending(project, slot, common, data))
         ready += is_ready
         if is_ready:
             is_generated, is_reviewed = current_version_status(project, slot, draft, common, common_revision)

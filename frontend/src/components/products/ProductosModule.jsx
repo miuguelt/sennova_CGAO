@@ -24,10 +24,11 @@ import Drawer from '../ui/Drawer';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
 
-// ─── Tipología Minciencias ──────────────────────────────────────────────────
+// Catálogo interno CGAO v1. Los identificadores existentes se conservan sin
+// atribuirles equivalencia automática con categorías del modelo Minciencias.
 // Categoría A: Generación de Nuevo Conocimiento
 const CATEGORIA_A = [
-  { value: 'A1', label: 'A1 · Artículo en revista indexada (Q1-Q4)', Icon: BookOpen, color: 'text-blue-700',   bg: 'bg-blue-100',   border: 'border-blue-200',
+  { value: 'A1', label: 'A1 · Artículo en revista indexada', Icon: BookOpen, color: 'text-blue-700',   bg: 'bg-blue-100',   border: 'border-blue-200',
     requisitos: ['Publicado en revista con ISSN', 'Indexada en Scopus, WoS o SJR', 'DOI registrado', 'Afiliación institucional SENA visible', 'Acceso abierto o repositorio'] },
   { value: 'A2', label: 'A2 · Libro resultado de investigación', Icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100',
     requisitos: ['ISBN registrado', 'Editorial con comité editorial', 'Proceso de evaluación por pares', 'Afiliación SENA en portada'] },
@@ -419,6 +420,12 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
         </div>
       </div>
 
+      <section aria-label="Alcance del catálogo de productos" className="space-y-2 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
+        <h2 className="font-bold">Catálogo interno CGAO · versión 1</h2>
+        <p>A1, B1 y los demás identificadores son códigos internos; no asignan una categoría oficial ni acreditan reconocimiento de Minciencias. Las listas de soportes orientan el seguimiento, pero no sustituyen los requisitos de la convocatoria aplicable.</p>
+        <p>Referencia consultada: <a className="font-semibold underline underline-offset-2" href="https://minciencias.gov.co/sites/default/files/upload/convocatoria/m601pr04g01_modelo_medicion_grupos_investigacion_tecnologica_o_innovacion_y_reconocimiento_investigadores_-_2024_1.pdf" target="_blank" rel="noopener noreferrer">Modelo Minciencias 2024</a>. Confirma la versión exigida antes de reportar un producto.</p>
+      </section>
+
       {/* ── Stats Summary ── */}
       {!loading && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -632,7 +639,7 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                 <section className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                      <CheckCircle2 size={16} className="text-emerald-500" /> Trazabilidad Requisitos Minciencias
+                      <CheckCircle2 size={16} className="text-emerald-500" /> Seguimiento de soportes
                     </h3>
                     <span className="text-xs font-black text-emerald-700 bg-emerald-100/60 px-2.5 py-0.5 rounded-full">{nCumplidos}/{requisitos.length}</span>
                   </div>
@@ -756,7 +763,7 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
         variant="indigo"
         icon={isEditing ? Edit2 : Zap}
         title={isEditing ? 'Actualizar Producto' : 'Reportar Innovación'}
-        subtitle={`Paso ${formStep} de 2 • ${formStep === 1 ? 'Identidad Minciencias' : 'Evidencia & Descripción'}`}
+        subtitle={`Paso ${formStep} de 2 · ${formStep === 1 ? 'Identificación del producto' : 'Evidencias y descripción'}`}
         footer={
           <div className="flex items-center justify-between w-full">
             <Button 
@@ -795,7 +802,7 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               
               {/* Selector de Categoría Minciencias */}
               <div>
-                <p className="text-xs font-black text-slate-600 uppercase tracking-widest mb-3">Categoría Minciencias</p>
+                <p className="text-xs font-black text-slate-600 uppercase tracking-widest mb-3">Familia del catálogo interno</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                   {CATEGORIAS_MINCIENCIAS.map(cat => (
                     <button
@@ -869,7 +876,7 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                 return (
                   <div>
                     <p className="text-xs font-black text-slate-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                      <CheckCircle2 size={14} className="text-emerald-500" /> Requisitos Minciencias para {formData.tipo}
+                      <CheckCircle2 size={14} className="text-emerald-500" /> Soportes de seguimiento para {formData.tipo}
                     </p>
                     <div className="space-y-2">
                       {tipoInfo.requisitos.map((req, i) => {

@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     
     # App
     APP_NAME: str = os.getenv("APP_NAME", "SENNOVA CGAO API")
+    # Datos institucionales públicos para iniciar proyectos; cada proyecto conserva su copia editable.
+    PROJECT_DEFAULT_CENTRO: str = "Centro de Gestión Agroempresarial del Oriente (CGAO) - Subsede Vélez"
+    PROJECT_DEFAULT_REGIONAL: str = "Santander"
+    PROJECT_DEFAULT_CIUDAD: str = "Vélez"
     # DEBUG es false por defecto para que un despliegue sin configuración
     # explícita aplique las validaciones de producción.
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"

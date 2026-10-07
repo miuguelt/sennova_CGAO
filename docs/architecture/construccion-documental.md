@@ -1,6 +1,6 @@
 # Construcción y versiones de documentación por proyecto
 
-La aplicación recopila información en formularios guiados y produce documentos editables. La ruta de uso es **Proyectos I+D+i → proyecto → Expediente → Construir documentación**. Los datos generales pertenecen al proyecto; los datos comunes se diligencian una vez y cada documento solicita su información específica. Guardar un formulario permite continuar después. Generar exige completar sus campos requeridos. Revisar exige que el archivo y los datos sigan vigentes.
+La aplicación recopila información en formularios guiados y produce documentos editables. La ruta de uso es **Proyectos I+D+i → proyecto → Documentación**; también se puede abrir desde los proyectos del Grupo CGAO. La pestaña Documentación se abre primero y ofrece redacción guiada, documentos y versiones, datos compartidos y descarga conjunta de la carpeta. Los datos generales pertenecen al proyecto; los datos comunes se diligencian una vez y cada documento solicita su información específica. Guardar un formulario permite continuar después. Generar exige completar sus campos requeridos. Revisar exige que el archivo y los datos sigan vigentes.
 
 ## Decisión de almacenamiento
 
@@ -110,3 +110,11 @@ Las previsualizaciones finales están en `C:/Users/Miguel/AppData/Local/Temp/sen
 - Para completar CAP-14 aún se requiere confirmación institucional del código SGPS (si aplica), acta, semillero, fechas, periodos, distribución presupuestal, versión del modelo Minciencias, requisitos de usuarios, pruebas de aceptación, evidencias y aplicabilidad del formato final.
 - Se agregó al paquete de CAP-14 una matriz de trazabilidad para los seis objetivos y un protocolo propuesto de validación con usuarios. El protocolo no reporta resultados; requiere aprobación de perfiles, criterios y ambiente antes de convocar participantes. No se confirmó otra ausencia funcional en los objetivos de proyectos, cronogramas, productos y reportes al inspeccionar el repositorio.
 - Se retiró del modelo de datos la bitácora heredada y los campos de formatos de etapa productiva. La inicialización elimina esos datos de instalaciones existentes; conserva la auditoría general y la documentación de investigación. El [modelo funcional y de datos](modelo-funcional-y-datos.md) y el README describen esta limpieza.
+
+### Verificación final de jerarquía, expediente y cronograma — 5 de octubre de 2026
+
+- Backend: **498 pruebas aprobadas** y compuerta de **488/488 funciones** alcanzadas.
+- Frontend: **672 pruebas aprobadas en 80 archivos** y compuerta de **2401/2401 funciones** alcanzadas. La compilación de producción pasó.
+- Ruff, validación de reglas y revisión de higiene del repositorio pasaron. La revisión de modularidad no reportó errores; mantiene avisos en archivos heredados grandes.
+- La suite de integración PostgreSQL no se ejecutó localmente en esta revisión porque no hay un DSN de pruebas dedicado. GitHub Actions conserva su servicio PostgreSQL aislado.
+- El expediente exportado usa los nombres de carpeta de las referencias CAP aportadas, y las pruebas comparan la estructura exportada con esas fuentes. La función retirada de bitácoras queda limitada a migración y limpieza de datos heredados.

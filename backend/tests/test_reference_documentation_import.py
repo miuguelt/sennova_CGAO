@@ -23,6 +23,12 @@ from app.services.documentation_renderers import render_document
 from app.services.reference_documentation_import import ReferenceImportError, import_reference_data
 
 
+@pytest.mark.parametrize("raw,expected", [("09:00 am", "09:00"), ("8:00 pm", "20:00"), ("12:00 am", "00:00"), ("12:30 pm", "12:30"), ("09:00", "09:00"), ("sin hora", ""), ("25:00", "")])
+def test_source_hours_are_normalized_without_guessing(raw, expected):
+    from app.services.reference_documentation_import import _hour
+    assert _hour(raw) == expected
+
+
 @pytest.fixture()
 def database():
     engine = create_engine("sqlite://")

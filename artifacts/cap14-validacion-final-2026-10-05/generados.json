@@ -1,0 +1,160 @@
+{
+  "codigo_cap": "CAP-14-2026",
+  "alcance": "Escenario de validación preparado para comprobar formularios y generación documental. Las fechas de terminación, metas, distribución de actividades, productos y cierres son propuestas; no acreditan reuniones, gastos, pruebas con usuarios, aceptación ni resultados institucionales. Se conserva la fuente original sin alterarla. El código SGPS, el semillero, la discrepancia CAP-14/CAP-16, la fecha final del 23/12/2026 y la aplicabilidad de GCDTP-F-023 requieren confirmación institucional. El escenario utiliza seis meses desde el 29/05/2026 hasta el 28/11/2026.",
+  "avance_documental": {
+    "porcentaje": 90,
+    "porcentaje_captura": 100,
+    "campos_completados": 159,
+    "campos_totales": 159,
+    "documentos_totales": 13,
+    "documentos_listos": 13,
+    "documentos_generados": 13,
+    "documentos_revisados": 0,
+    "descripcion": "El avance corresponde en un 80 % a los campos obligatorios guardados y válidos, en un 10 % a los documentos generados vigentes y en un 10 % a su revisión vigente. Cada tabla se completa cuando todas sus filas contienen la información obligatoria."
+  },
+  "archivos": [
+    {
+      "documento_id": "7b0db154-cdd1-47c6-91ba-bd065fad4bc2",
+      "version": 2,
+      "nombre_archivo": "formulacion_proyecto_v2.docx",
+      "estado": "borrador",
+      "clave": "formulacion_proyecto",
+      "tipo": "formulacion_proyecto",
+      "titulo": "Formulación del proyecto",
+      "carpeta": "1ProyectoFormulado",
+      "sha256": "93b41c7cb5fe8573f36809a429c069387f38198aa4a8c0f4b68582b553aa9f83"
+    },
+    {
+      "documento_id": "6808d003-32f9-471a-b75c-30f1ab265044",
+      "version": 2,
+      "nombre_archivo": "presentacion_proyecto_v2.pptx",
+      "estado": "borrador",
+      "clave": "presentacion_proyecto",
+      "tipo": "presentacion_proyecto",
+      "titulo": "Presentación del proyecto",
+      "carpeta": "1ProyectoFormulado",
+      "sha256": "738a53fc84fb3c1d981f0af035c4803c007cc452d5818b506434f3079e6917d1"
+    },
+    {
+      "documento_id": "9c56497f-ec0e-4d88-90ad-dd2da983dd77",
+      "version": 2,
+      "nombre_archivo": "acta_inicio_v2.docx",
+      "estado": "borrador",
+      "clave": "acta_inicio",
+      "tipo": "acta_inicio",
+      "titulo": "Acta de inicio del proyecto",
+      "carpeta": "2ActadeInicio",
+      "sha256": "d9b40a521ae2deb167ec2614d8a1e06d3ceba3ccf7e352ae4257befae6ba3bb1"
+    },
+    {
+      "documento_id": "c8613e17-ab52-4846-b498-2753093e70c6",
+      "version": 2,
+      "nombre_archivo": "producto_resultado__pec954a7b-cf2c-51b2-a7d2-4b17b7e0c65c_v2.docx",
+      "estado": "borrador",
+      "clave": "producto_resultado__pec954a7b-cf2c-51b2-a7d2-4b17b7e0c65c",
+      "tipo": "producto_resultado",
+      "titulo": "Informe del producto o resultado · Sistema de gestión de proyectos de investigación CGAO",
+      "carpeta": "3Productos",
+      "sha256": "13fd1fc9eecc32fe2e140368ed99c0c085b43aa27719992af18c425c0ebe818a"
+    },
+    {
+      "documento_id": "431f2b56-9d6f-450a-ad5c-fb0d13bb1919",
+      "version": 2,
+      "nombre_archivo": "producto_resultado__pe89d31f1-205e-52d7-8d24-2fadec33bc27_v2.docx",
+      "estado": "borrador",
+      "clave": "producto_resultado__pe89d31f1-205e-52d7-8d24-2fadec33bc27",
+      "tipo": "producto_resultado",
+      "titulo": "Informe del producto o resultado · Herramienta Excel de indicadores por investigador",
+      "carpeta": "3Productos",
+      "sha256": "f0c17b3cee204bb2709ed301d8bb2d3fd0f0416fb6aa110b7225e849c89511c2"
+    },
+    {
+      "documento_id": "a4d77ce6-48f6-4c82-87df-99b378289d09",
+      "version": 2,
+      "nombre_archivo": "poster_producto__pec954a7b-cf2c-51b2-a7d2-4b17b7e0c65c_v2.pptx",
+      "estado": "borrador",
+      "clave": "poster_producto__pec954a7b-cf2c-51b2-a7d2-4b17b7e0c65c",
+      "tipo": "poster_producto",
+      "titulo": "Póster del producto · Sistema de gestión de proyectos de investigación CGAO",
+      "carpeta": "3Productos",
+      "sha256": "7c65df8e110480715be4a56aaa5d9ecd89ce77c565560b40b6fa203ea32abb37"
+    },
+    {
+      "documento_id": "e6b71042-ad21-463c-8da0-13b5c6397651",
+      "version": 2,
+      "nombre_archivo": "poster_producto__pe89d31f1-205e-52d7-8d24-2fadec33bc27_v2.pptx",
+      "estado": "borrador",
+      "clave": "poster_producto__pe89d31f1-205e-52d7-8d24-2fadec33bc27",
+      "tipo": "poster_producto",
+      "titulo": "Póster del producto · Herramienta Excel de indicadores por investigador",
+      "carpeta": "3Productos",
+      "sha256": "a95231013ff8ed2054e27f72d55fa2505bac70650a5dff0c89f6ee23904f51db"
+    },
+    {
+      "documento_id": "a300e190-7def-4331-b344-35621de4df9e",
+      "version": 2,
+      "nombre_archivo": "informe_bimensual__b1_v2.docx",
+      "estado": "borrador",
+      "clave": "informe_bimensual__b1",
+      "tipo": "informe_bimensual",
+      "titulo": "Informe bimestral del proyecto · Bimestre 1",
+      "carpeta": "4InformesBimensuales",
+      "sha256": "9aa00a8fcc9f6f620f8ed032e10b906583400bf7790f7152cce2f507696efc53"
+    },
+    {
+      "documento_id": "4b36b45b-bcb0-46d4-b8b6-db34ce254ec8",
+      "version": 2,
+      "nombre_archivo": "informe_bimensual__b2_v2.docx",
+      "estado": "borrador",
+      "clave": "informe_bimensual__b2",
+      "tipo": "informe_bimensual",
+      "titulo": "Informe bimestral del proyecto · Bimestre 2",
+      "carpeta": "4InformesBimensuales",
+      "sha256": "bebf210ac8bb2137dc689b2aa529e40eb28ddbfb16ec95579f301e75236ac9dd"
+    },
+    {
+      "documento_id": "e0e7b2df-813f-4346-9f45-2594c9933074",
+      "version": 2,
+      "nombre_archivo": "informe_bimensual__b3_v2.docx",
+      "estado": "borrador",
+      "clave": "informe_bimensual__b3",
+      "tipo": "informe_bimensual",
+      "titulo": "Informe bimestral del proyecto · Bimestre 3",
+      "carpeta": "4InformesBimensuales",
+      "sha256": "fd2675d14dae1296b22a51b596e103f8890357a201bc3f3e051583be2eda8a33"
+    },
+    {
+      "documento_id": "1dcef548-15e3-4aa2-b162-495a1aec7d7c",
+      "version": 2,
+      "nombre_archivo": "acta_cierre_v2.docx",
+      "estado": "borrador",
+      "clave": "acta_cierre",
+      "tipo": "acta_cierre",
+      "titulo": "Acta de cierre del proyecto",
+      "carpeta": "5ActaCierre",
+      "sha256": "2d77101334e141242ac4a05671faaae926bbdbf7096ded0fabf83c9e1673f4aa"
+    },
+    {
+      "documento_id": "26ca1c7e-94d2-44b8-9471-04dcdf54a859",
+      "version": 2,
+      "nombre_archivo": "informe_final_v2.docx",
+      "estado": "borrador",
+      "clave": "informe_final",
+      "tipo": "informe_final",
+      "titulo": "Informe final del proyecto",
+      "carpeta": "5ActaCierre",
+      "sha256": "fe77d5b3384daa2dda2a566f521cdbe818deaf8e4ca73ed6f1b249fcc429679a"
+    },
+    {
+      "documento_id": "42865894-0c21-457a-94f4-02f15ed7e3a0",
+      "version": 2,
+      "nombre_archivo": "registro_evidencias_v2.docx",
+      "estado": "borrador",
+      "clave": "registro_evidencias",
+      "tipo": "registro_evidencias",
+      "titulo": "Registro de evidencias del proyecto",
+      "carpeta": "6EvidenciasFotograficas",
+      "sha256": "0b6981abada433a9479d2a666c67aef7cd5bb4de488d4e62fc9b235e17b5ac96"
+    }
+  ]
+}

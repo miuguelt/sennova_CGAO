@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatCalendarDate } from '../../utils/calendarDate';
 import { 
   Calendar, CheckCircle2, AlertCircle, Clock, Plus, 
   Search, Filter, ChevronRight, MoreVertical, Edit2, 
@@ -278,10 +279,10 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
                     <div className="flex-shrink-0 flex flex-col items-center justify-center w-24 h-24 bg-slate-50 rounded-2xl border border-slate-200 group-hover:bg-indigo-50 transition-colors">
                       <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{e.fase}</p>
                       <p className="text-2xl font-black text-slate-900 tabular-nums">
-                        {new Date(e.fecha_entrega).getDate()}
+                        {formatCalendarDate(e.fecha_entrega, { day: 'numeric' })}
                       </p>
                       <p className="text-[10px] font-bold text-slate-700 uppercase">
-                        {new Date(e.fecha_entrega).toLocaleString('es-CO', { month: 'short' })}
+                        {formatCalendarDate(e.fecha_entrega, { month: 'short' })}
                       </p>
                     </div>
 
@@ -361,7 +362,7 @@ const CronogramaModule = ({ currentUser, onNotify, initialAction, onActionHandle
                              <p className="text-xs font-black text-slate-800">{item.titulo}</p>
                              <Badge variant="default" className="text-[10px]">{item.estado}</Badge>
                            </div>
-                           <p className="text-[10px] text-slate-500 mb-4">{new Date(item.fecha_entrega).toLocaleDateString('es-CO')}</p>
+                           <p className="text-[10px] text-slate-500 mb-4">{formatCalendarDate(item.fecha_entrega)}</p>
                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                              <div 
                                className={`h-full rounded-full ${item.estado === 'aprobado' ? 'bg-emerald-500' : 'bg-indigo-500'}`} 

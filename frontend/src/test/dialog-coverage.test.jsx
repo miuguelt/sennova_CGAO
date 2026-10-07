@@ -5,8 +5,10 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogOverlay,
   DialogPortal,
+  DialogTitle,
   DialogTrigger,
 } from '../components/ui/Dialog';
 
@@ -20,8 +22,8 @@ describe('componentes de diálogo accesible', () => {
         <DialogPortal>
           <DialogOverlay className="fondo-prueba" />
           <DialogContent className="contenido-prueba">
-            <h2>Detalle del proyecto</h2>
-            <p>Información de la convocatoria.</p>
+            <DialogTitle>Detalle del proyecto</DialogTitle>
+            <DialogDescription>Información de la convocatoria.</DialogDescription>
             <DialogClose>Cerrar detalle</DialogClose>
           </DialogContent>
         </DialogPortal>
@@ -29,6 +31,8 @@ describe('componentes de diálogo accesible', () => {
     );
 
     expect(screen.getByRole('dialog')).toHaveTextContent('Detalle del proyecto');
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Detalle del proyecto');
+    expect(screen.getByRole('dialog')).toHaveAccessibleDescription('Información de la convocatoria.');
     expect(screen.getByText('Información de la convocatoria.')).toBeVisible();
     expect(document.querySelector('.fondo-prueba')).toBeInTheDocument();
     expect(screen.getByRole('dialog')).toHaveClass('contenido-prueba');

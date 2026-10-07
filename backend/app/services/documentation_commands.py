@@ -36,10 +36,14 @@ def commit_edit(db):
 
 
 def save_common(project, db, user, revision, data):
+    from app.services.formulation_coherence import relation_options
+    from app.services.source_resolution import validate_source_preservation
+
     normalized = validate_fields(data, COMMON_FIELDS)
     lock_project(project, db)
     row = db.query(ProjectDocumentation).filter_by(proyecto_id=project.id).first()
     expect_revision(row.revision if row else 0, revision)
+    validate_source_preservation(row.datos if row else {}, normalized, relation_options(project, normalized)["integrantes"])
     if row is None:
         row = ProjectDocumentation(proyecto_id=project.id, revision=0, updated_by=user.id)
         db.add(row)

@@ -1,0 +1,332 @@
+{
+  "proyecto_id": "2f8ac792-c560-524c-8962-95a8a3236e0b",
+  "nombre": "CAP-14-2026 Sistema de información para la gestión de proyectos de investigación del CGAO (referencia de validación)",
+  "codigo_sgps": null,
+  "completo": false,
+  "porcentaje_completitud": 0.0,
+  "etapas": [
+    {
+      "id": "formulacion",
+      "carpeta": "1ProyectoFomulado",
+      "titulo": "Proyecto formulado",
+      "tipo_documento": "formulacion_proyecto",
+      "guia": "Adjunte la formulación, la metodología, los objetivos, el presupuesto y el cronograma. Puede agregar la presentación del proyecto.",
+      "completo": false,
+      "faltantes": [
+        "Revise el contenido de la versión generada antes de completar esta etapa.",
+        "Revise el contenido de la versión generada antes de completar esta etapa."
+      ],
+      "documentos": [
+        {
+          "id": "a4d9bdae-c6ab-55a4-b42e-d27ff6c2cecc",
+          "tipo": "presentacion_proyecto",
+          "nombre_archivo": "Presentación propuesta investigacion herramienta de indicadores de investigación Final (1).pptx",
+          "descripcion": "Archivo base de referencia: 1ProyectoFomulado\\Presentación propuesta investigacion herramienta de indicadores de investigación Final (1).pptx",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": null,
+          "observacion_generacion": null
+        },
+        {
+          "id": "a7525709-70bb-532d-bb8c-45dfe0a63076",
+          "tipo": "formulacion_proyecto",
+          "nombre_archivo": "Proyecto CAPSistema Informacion Investigación (2).docx",
+          "descripcion": "Archivo base de referencia: 1ProyectoFomulado\\Proyecto CAPSistema Informacion Investigación (2).docx",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": null,
+          "observacion_generacion": null
+        },
+        {
+          "id": "7b0db154-cdd1-47c6-91ba-bd065fad4bc2",
+          "tipo": "formulacion_proyecto",
+          "nombre_archivo": "formulacion_proyecto_v2.docx",
+          "descripcion": "Formulación del proyecto · Versión 2 generada para revisión",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": "borrador",
+          "observacion_generacion": "Revise el contenido de la versión generada antes de completar esta etapa."
+        },
+        {
+          "id": "6808d003-32f9-471a-b75c-30f1ab265044",
+          "tipo": "presentacion_proyecto",
+          "nombre_archivo": "presentacion_proyecto_v2.pptx",
+          "descripcion": "Presentación del proyecto · Versión 2 generada para revisión",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": "borrador",
+          "observacion_generacion": "Revise el contenido de la versión generada antes de completar esta etapa."
+        }
+      ]
+    },
+    {
+      "id": "inicio",
+      "carpeta": "2ActadeInicio",
+      "titulo": "Acta de inicio",
+      "tipo_documento": "acta_inicio",
+      "guia": "Adjunte el acta de inicio con fecha, equipo, responsabilidades, presupuesto y firmas. Verifique que sus datos coincidan con la formulación.",
+      "completo": false,
+      "faltantes": [
+        "Revise el contenido de la versión generada antes de completar esta etapa."
+      ],
+      "documentos": [
+        {
+          "id": "75b8a239-19c3-5724-93a9-327cc0dbcb36",
+          "tipo": "acta_inicio",
+          "nombre_archivo": "GIC-F-037ActaIniciodeProyectoSistemaInformacionInvestigacion.docx",
+          "descripcion": "Archivo base de referencia: 2ActadeInicio\\GIC-F-037ActaIniciodeProyectoSistemaInformacionInvestigacion.docx",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": null,
+          "observacion_generacion": null
+        },
+        {
+          "id": "9c56497f-ec0e-4d88-90ad-dd2da983dd77",
+          "tipo": "acta_inicio",
+          "nombre_archivo": "acta_inicio_v2.docx",
+          "descripcion": "Acta de inicio del proyecto · Versión 2 generada para revisión",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": "borrador",
+          "observacion_generacion": "Revise el contenido de la versión generada antes de completar esta etapa."
+        }
+      ]
+    },
+    {
+      "id": "productos",
+      "carpeta": "3Productos",
+      "titulo": "Productos",
+      "tipo_documento": "producto_resultado",
+      "guia": "Registre los productos y adjunte el resultado o soporte de cada uno. La revisión del administrador se realiza en el módulo de productos.",
+      "completo": false,
+      "faltantes": [
+        "Revise el contenido de la versión generada antes de completar esta etapa.",
+        "Revise el contenido de la versión generada antes de completar esta etapa.",
+        "Revise el contenido de la versión generada antes de completar esta etapa.",
+        "Revise el contenido de la versión generada antes de completar esta etapa.",
+        "Adjunte un archivo disponible para productos.",
+        "Adjunte el soporte del producto: Sistema de gestión de proyectos de investigación CGAO.",
+        "Adjunte el soporte del producto: Herramienta Excel de indicadores por investigador."
+      ],
+      "documentos": [
+        {
+          "id": "c8613e17-ab52-4846-b498-2753093e70c6",
+          "tipo": "producto_resultado",
+          "nombre_archivo": "producto_resultado__pec954a7b-cf2c-51b2-a7d2-4b17b7e0c65c_v2.docx",
+          "descripcion": "Informe del producto o resultado · Sistema de gestión de proyectos de investigación CGAO · Versión 2 generada para revisión",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": "borrador",
+          "observacion_generacion": "Revise el contenido de la versión generada antes de completar esta etapa."
+        },
+        {
+          "id": "431f2b56-9d6f-450a-ad5c-fb0d13bb1919",
+          "tipo": "producto_resultado",
+          "nombre_archivo": "producto_resultado__pe89d31f1-205e-52d7-8d24-2fadec33bc27_v2.docx",
+          "descripcion": "Informe del producto o resultado · Herramienta Excel de indicadores por investigador · Versión 2 generada para revisión",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": "borrador",
+          "observacion_generacion": "Revise el contenido de la versión generada antes de completar esta etapa."
+        },
+        {
+          "id": "a4d77ce6-48f6-4c82-87df-99b378289d09",
+          "tipo": "poster_producto",
+          "nombre_archivo": "poster_producto__pec954a7b-cf2c-51b2-a7d2-4b17b7e0c65c_v2.pptx",
+          "descripcion": "Póster del producto · Sistema de gestión de proyectos de investigación CGAO · Versión 2 generada para revisión",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": "borrador",
+          "observacion_generacion": "Revise el contenido de la versión generada antes de completar esta etapa."
+        },
+        {
+          "id": "e6b71042-ad21-463c-8da0-13b5c6397651",
+          "tipo": "poster_producto",
+          "nombre_archivo": "poster_producto__pe89d31f1-205e-52d7-8d24-2fadec33bc27_v2.pptx",
+          "descripcion": "Póster del producto · Herramienta Excel de indicadores por investigador · Versión 2 generada para revisión",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": "borrador",
+          "observacion_generacion": "Revise el contenido de la versión generada antes de completar esta etapa."
+        }
+      ],
+      "productos": [
+        {
+          "id": "ec954a7b-cf2c-51b2-a7d2-4b17b7e0c65c",
+          "nombre": "Sistema de gestión de proyectos de investigación CGAO",
+          "soporte_disponible": false
+        },
+        {
+          "id": "e89d31f1-205e-52d7-8d24-2fadec33bc27",
+          "nombre": "Herramienta Excel de indicadores por investigador",
+          "soporte_disponible": false
+        }
+      ]
+    },
+    {
+      "id": "informes",
+      "carpeta": "4InformesBimensuales",
+      "titulo": "Informes bimensuales",
+      "tipo_documento": "informe_bimensual",
+      "guia": "Cargue un informe por cada bimestre de la vigencia. Indique el número de bimestre y describa actividades, avances, dificultades y evidencias.",
+      "completo": false,
+      "faltantes": [
+        "Revise el contenido de la versión generada antes de completar esta etapa.",
+        "Revise el contenido de la versión generada antes de completar esta etapa.",
+        "Revise el contenido de la versión generada antes de completar esta etapa.",
+        "Adjunte el informe del bimestre 2.",
+        "Adjunte el informe del bimestre 3."
+      ],
+      "documentos": [
+        {
+          "id": "4038e1df-399a-5621-b6f0-aa0d24fc1335",
+          "tipo": "informe_bimensual",
+          "nombre_archivo": "Informe bimensual.docx",
+          "descripcion": "Archivo base de referencia: 4InformesBimensuales\\Informe bimensual.docx",
+          "periodo_bimestre": 1,
+          "disponible": true,
+          "estado_generacion": null,
+          "observacion_generacion": null
+        },
+        {
+          "id": "a300e190-7def-4331-b344-35621de4df9e",
+          "tipo": "informe_bimensual",
+          "nombre_archivo": "informe_bimensual__b1_v2.docx",
+          "descripcion": "Informe bimestral del proyecto · Bimestre 1 · Versión 2 generada para revisión",
+          "periodo_bimestre": 1,
+          "disponible": true,
+          "estado_generacion": "borrador",
+          "observacion_generacion": "Revise el contenido de la versión generada antes de completar esta etapa."
+        },
+        {
+          "id": "4b36b45b-bcb0-46d4-b8b6-db34ce254ec8",
+          "tipo": "informe_bimensual",
+          "nombre_archivo": "informe_bimensual__b2_v2.docx",
+          "descripcion": "Informe bimestral del proyecto · Bimestre 2 · Versión 2 generada para revisión",
+          "periodo_bimestre": 2,
+          "disponible": true,
+          "estado_generacion": "borrador",
+          "observacion_generacion": "Revise el contenido de la versión generada antes de completar esta etapa."
+        },
+        {
+          "id": "e0e7b2df-813f-4346-9f45-2594c9933074",
+          "tipo": "informe_bimensual",
+          "nombre_archivo": "informe_bimensual__b3_v2.docx",
+          "descripcion": "Informe bimestral del proyecto · Bimestre 3 · Versión 2 generada para revisión",
+          "periodo_bimestre": 3,
+          "disponible": true,
+          "estado_generacion": "borrador",
+          "observacion_generacion": "Revise el contenido de la versión generada antes de completar esta etapa."
+        }
+      ],
+      "informes_esperados": 3,
+      "bimestres_pendientes": [
+        2,
+        3
+      ]
+    },
+    {
+      "id": "cierre",
+      "carpeta": "5ActaCierre",
+      "titulo": "Acta de cierre",
+      "tipo_documento": "acta_cierre",
+      "guia": "Adjunte el acta de cierre firmada y el informe final técnico. Concilie los resultados, productos y ejecución del presupuesto.",
+      "completo": false,
+      "faltantes": [
+        "Revise el contenido de la versión generada antes de completar esta etapa.",
+        "Revise el contenido de la versión generada antes de completar esta etapa.",
+        "Adjunte el acta de cierre."
+      ],
+      "documentos": [
+        {
+          "id": "40b4803b-0d04-5095-aa6f-338f22ea23a3",
+          "tipo": "informe_final",
+          "nombre_archivo": "GCDTP-F-023_V01_Formato_Informe_Final.docx",
+          "descripcion": "Archivo base de referencia: GCDTP-F-023_V01_Formato_Informe_Final.docx",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": null,
+          "observacion_generacion": null
+        },
+        {
+          "id": "1dcef548-15e3-4aa2-b162-495a1aec7d7c",
+          "tipo": "acta_cierre",
+          "nombre_archivo": "acta_cierre_v2.docx",
+          "descripcion": "Acta de cierre del proyecto · Versión 2 generada para revisión",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": "borrador",
+          "observacion_generacion": "Revise el contenido de la versión generada antes de completar esta etapa."
+        },
+        {
+          "id": "26ca1c7e-94d2-44b8-9471-04dcdf54a859",
+          "tipo": "informe_final",
+          "nombre_archivo": "informe_final_v2.docx",
+          "descripcion": "Informe final del proyecto · Versión 2 generada para revisión",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": "borrador",
+          "observacion_generacion": "Revise el contenido de la versión generada antes de completar esta etapa."
+        }
+      ]
+    },
+    {
+      "id": "evidencias",
+      "carpeta": "6EvidenciasFotograficas",
+      "titulo": "Evidencias fotográficas",
+      "tipo_documento": "evidencia_fotografica",
+      "guia": "Adjunte fotos o videos de las actividades. Describa la fecha, el lugar y su relación con los resultados del proyecto.",
+      "completo": false,
+      "faltantes": [
+        "Revise el contenido de la versión generada antes de completar esta etapa.",
+        "Adjunte un archivo disponible para evidencias fotográficas."
+      ],
+      "documentos": [
+        {
+          "id": "42865894-0c21-457a-94f4-02f15ed7e3a0",
+          "tipo": "registro_evidencias",
+          "nombre_archivo": "registro_evidencias_v2.docx",
+          "descripcion": "Registro de evidencias del proyecto · Versión 2 generada para revisión",
+          "periodo_bimestre": null,
+          "disponible": true,
+          "estado_generacion": "borrador",
+          "observacion_generacion": "Revise el contenido de la versión generada antes de completar esta etapa."
+        }
+      ]
+    },
+    {
+      "id": "borradores",
+      "carpeta": "7Borradoresyvarios",
+      "titulo": "Borradores y varios",
+      "tipo_documento": "borrador_varios",
+      "guia": "Adjunte borradores, actas preliminares, minutas, notas de trabajo o documentos auxiliares del proyecto.",
+      "completo": true,
+      "faltantes": [],
+      "documentos": []
+    }
+  ],
+  "pendientes": [
+    "Revise el contenido de la versión generada antes de completar esta etapa.",
+    "Revise el contenido de la versión generada antes de completar esta etapa.",
+    "Revise el contenido de la versión generada antes de completar esta etapa.",
+    "Revise el contenido de la versión generada antes de completar esta etapa.",
+    "Revise el contenido de la versión generada antes de completar esta etapa.",
+    "Revise el contenido de la versión generada antes de completar esta etapa.",
+    "Revise el contenido de la versión generada antes de completar esta etapa.",
+    "Adjunte un archivo disponible para productos.",
+    "Adjunte el soporte del producto: Sistema de gestión de proyectos de investigación CGAO.",
+    "Adjunte el soporte del producto: Herramienta Excel de indicadores por investigador.",
+    "Revise el contenido de la versión generada antes de completar esta etapa.",
+    "Revise el contenido de la versión generada antes de completar esta etapa.",
+    "Revise el contenido de la versión generada antes de completar esta etapa.",
+    "Adjunte el informe del bimestre 2.",
+    "Adjunte el informe del bimestre 3.",
+    "Revise el contenido de la versión generada antes de completar esta etapa.",
+    "Revise el contenido de la versión generada antes de completar esta etapa.",
+    "Adjunte el acta de cierre.",
+    "Revise el contenido de la versión generada antes de completar esta etapa.",
+    "Adjunte un archivo disponible para evidencias fotográficas."
+  ],
+  "documentos_sin_clasificar": [],
+  "alcance": "La comprobación documental verifica archivos y períodos registrados. La validez del contenido, las firmas y la versión institucional requieren revisión del responsable."
+}

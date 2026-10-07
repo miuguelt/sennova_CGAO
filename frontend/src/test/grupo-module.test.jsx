@@ -12,6 +12,7 @@ import { PlantillasAPI } from '../api/plantillas';
 import { ReportesAPI } from '../api/reportes';
 import { PDFGenerator } from '../utils/pdfGenerator';
 import { ProjectDocumentationAPI } from '../api/projectDocumentation';
+import { UnsavedChangesProvider, useUnsavedChangesGuard } from '../context/UnsavedChangesContext';
 
 vi.mock('recharts', () => {
   const Wrapper = ({ children }) => <div>{children}</div>;
@@ -175,7 +176,13 @@ const mockSemilleros = [
     horas_dedicadas: 40,
     lider_nombre: 'Dra. Marta Rodríguez',
     estado: 'activo',
-    total_aprendices: 4
+    total_aprendices: 4,
+    grupo_id: 'g-1',
+    investigadores: [
+      { id: 'u-1', nombre: 'Dra. Marta Rodríguez', rol: 'investigador' },
+      { id: 'u-3', nombre: 'Carlos Investigador', rol: 'investigador' },
+      { id: 'u-4', nombre: 'Sara Investigadora', rol: 'investigador' },
+    ],
   }
 ];
 
@@ -193,13 +200,16 @@ const mockProyectos = [
     linea_investigacion: 'Agroindustria',
     semillero_nombre: 'ALIMENSA',
     owner: { nombre: 'Dra. Marta Rodríguez' },
-    equipo: [{ id: 'u-1', nombre: 'Dra. Marta Rodríguez', rol_en_proyecto: 'Líder', horas_dedicadas: 20 }]
+    semillero_id: 's-1',
+    equipo: [{ id: 'u-3', nombre: 'Carlos Investigador', rol: 'investigador', rol_en_proyecto: 'Coinvestigador', horas_dedicadas: 20 }]
   }
 ];
 
 const mockUsuarios = [
   { id: 'u-1', nombre: 'Dra. Marta Rodríguez', email: 'marta@sena.edu.co', rol: 'investigador', rol_sennova: 'Investigador Principal', estado_cv_lac: 'Actualizado' },
-  { id: 'u-2', nombre: 'Admin General', email: 'admin@sena.edu.co', rol: 'admin', rol_sennova: 'Director', estado_cv_lac: 'Actualizado' }
+  { id: 'u-2', nombre: 'Admin General', email: 'admin@sena.edu.co', rol: 'admin', rol_sennova: 'Director', estado_cv_lac: 'Actualizado' },
+  { id: 'u-3', nombre: 'Carlos Investigador', email: 'carlos@sena.edu.co', rol: 'investigador' },
+  { id: 'u-4', nombre: 'Sara Investigadora', email: 'sara@sena.edu.co', rol: 'investigador' }
 ];
 
 const mockProductos = [
@@ -209,6 +219,12 @@ const mockProductos = [
 const mockAprendices = [
   { id: 'apr-1', nombre: 'Juan Pérez', documento: '1098765432', ficha: '2561234', programa: 'ADSO', semillero_id: 's-1', estado: 'activo' }
 ];
+
+function PendingProjectChanges({ dirty, save, discard }) {
+  const { registerSession } = useUnsavedChangesGuard();
+  React.useEffect(() => registerSession('test-project-draft', { dirty, save, discard }), [registerSession, dirty, save, discard]);
+  return null;
+}
 
 describe('GrupoModule Integration Tests', () => {
   beforeEach(() => {
@@ -231,7 +247,147 @@ describe('GrupoModule Integration Tests', () => {
     cleanup();
   });
 
-  it('renders Grupo CGAO banner and investigator directory as the initial tab', async () => {
+  it('crea un proyecto en formulación con duración pendiente y conserva la duración confirmada', async () => {
+    render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin' }} onNotify={vi.fn()} />);
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    fireEvent.click(screen.getByRole('button', { name: /Nuevo Proyecto/i }));
+    const form = await screen.findByRole('dialog', { name: 'Nuevo Proyecto de Investigación' });
+    expect(within(form).getByLabelText('Estado')).toHaveValue('En formulación');
+    const duration = within(form).getByLabelText('Duración confirmada (meses)');
+    expect(duration).toHaveValue(null);
+    fireEvent.change(within(form).getByLabelText(/Nombre Completo del Proyecto/), { target: { value: 'Proyecto en construcción' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Crear Proyecto' }));
+    await waitFor(() => expect(ProyectosAPI.create).toHaveBeenCalledWith(expect.objectContaining({ estado: 'En formulación', vigencia: null })));
+
+    fireEvent.click(screen.getByRole('button', { name: /Nuevo Proyecto/i }));
+    fireEvent.change(screen.getByLabelText(/Nombre Completo del Proyecto/), { target: { value: 'Proyecto con duración' } });
+    fireEvent.change(screen.getByLabelText('Duración confirmada (meses)'), { target: { value: '6' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear Proyecto' }));
+    await waitFor(() => expect(ProyectosAPI.create).toHaveBeenLastCalledWith(expect.objectContaining({ estado: 'En formulación', vigencia: 6 })));
+  });
+
+  it('refresca los datos del proyecto sin desmontar la documentación ni cambiar la pestaña del grupo', async () => {
+    const currentUser = { id: 'u-2', rol: 'admin' };
+    const { rerender } = render(<GrupoModule currentUser={currentUser} refreshVersion={0} />);
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    fireEvent.click(screen.getByText('Pectina Guayaba').closest('.cursor-pointer'));
+    const workspace = await screen.findByRole('region', { name: 'Construcción de documentación' });
+    fireEvent.click(within(workspace).getByText('Datos comunes'));
+    fireEvent.change(within(workspace).getByLabelText('Centro de formación'), { target: { value: 'CGAO: trabajo sin guardar' } });
+    const previousCalls = ProjectDocumentationAPI.get.mock.calls.length;
+    GruposAPI.getProyectos.mockResolvedValue([{ ...mockProyectos[0], nombre_corto: 'Pectina actualizada' }]);
+    rerender(<GrupoModule currentUser={currentUser} refreshVersion={1} />);
+    await waitFor(() => expect(GruposAPI.getProyectos).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('region', { name: 'Construcción de documentación' })).toBe(workspace);
+    expect(ProjectDocumentationAPI.get).toHaveBeenCalledTimes(previousCalls);
+    expect(within(workspace).getByLabelText('Centro de formación')).toHaveValue('CGAO: trabajo sin guardar');
+    expect(screen.getByRole('tab', { name: /Proyectos y documentación/ })).toHaveAttribute('aria-selected', 'true');
+    expect(within(screen.getByRole('dialog')).getByRole('heading', { name: 'Pectina actualizada' })).toBeVisible();
+  });
+
+  it('protege el cierre del pie del proyecto y permite guardar antes de salir', async () => {
+    const save = vi.fn().mockResolvedValue(true);
+    const discard = vi.fn();
+    const currentUser = { id: 'u-2', rol: 'admin' };
+    const content = dirty => <UnsavedChangesProvider><PendingProjectChanges dirty={dirty} save={save} discard={discard} /><GrupoModule currentUser={currentUser} /></UnsavedChangesProvider>;
+    const { rerender } = render(content(false));
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    fireEvent.click(screen.getByText('Pectina Guayaba').closest('.cursor-pointer'));
+    const drawer = await screen.findByRole('dialog', { name: 'Pectina Guayaba' });
+    rerender(content(true));
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Cerrar' }));
+    const guard = await screen.findByRole('dialog', { name: 'Cambios pendientes por guardar' });
+    fireEvent.click(within(guard).getByRole('button', { name: 'Seguir editando' }));
+    expect(drawer).toBeVisible();
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Cerrar' }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Cambios pendientes por guardar' })).getByRole('button', { name: 'Guardar y salir' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Pectina Guayaba' })).not.toBeInTheDocument());
+    expect(save).toHaveBeenCalledOnce();
+    expect(discard).not.toHaveBeenCalled();
+  });
+
+  it('protege edición y eliminación antes de abrir sus acciones secundarias', async () => {
+    const save = vi.fn().mockResolvedValue(true);
+    const discard = vi.fn();
+    const currentUser = { id: 'u-2', rol: 'admin' };
+    const content = dirty => <UnsavedChangesProvider><PendingProjectChanges dirty={dirty} save={save} discard={discard} /><GrupoModule currentUser={currentUser} /></UnsavedChangesProvider>;
+    const { rerender } = render(content(false));
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    fireEvent.click(screen.getByText('Pectina Guayaba').closest('.cursor-pointer'));
+    const drawer = await screen.findByRole('dialog', { name: 'Pectina Guayaba' });
+    expect(within(drawer).getByRole('button', { name: 'Eliminar Proyecto' })).not.toBeVisible();
+    rerender(content(true));
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Editar' }));
+    const guard = await screen.findByRole('dialog', { name: 'Cambios pendientes por guardar' });
+    expect(screen.queryByRole('dialog', { name: 'Editar Proyecto de Investigación' })).not.toBeInTheDocument();
+    fireEvent.click(within(guard).getByRole('button', { name: 'Descartar y salir' }));
+    expect(await screen.findByRole('dialog', { name: 'Editar Proyecto de Investigación' })).toBeVisible();
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Editar Proyecto de Investigación' })).getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(within(drawer).getByText('Más acciones'));
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Eliminar Proyecto' }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Cambios pendientes por guardar' })).getByRole('button', { name: 'Seguir editando' }));
+    expect(screen.queryByRole('dialog', { name: '¿Eliminar Proyecto de Investigación?' })).not.toBeInTheDocument();
+    expect(discard).toHaveBeenCalledOnce();
+    expect(ProyectosAPI.delete).not.toHaveBeenCalled();
+  });
+
+  it('exige confirmación expresa al aprobar un proyecto y deja el formulario intacto al cancelar', async () => {
+    render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin' }} onNotify={vi.fn()} />);
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    fireEvent.click(screen.getByRole('button', { name: /Nuevo Proyecto/i }));
+    fireEvent.change(await screen.findByLabelText(/Nombre Completo del Proyecto/), { target: { value: 'Proyecto aprobado expresamente' } });
+    fireEvent.change(screen.getByLabelText('Estado'), { target: { value: 'Aprobado' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear Proyecto' }));
+    const confirmation = await screen.findByRole('dialog', { name: 'Confirmar aprobación del proyecto' });
+    expect(ProyectosAPI.create).not.toHaveBeenCalled();
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.getByLabelText(/Nombre Completo del Proyecto/)).toHaveValue('Proyecto aprobado expresamente');
+    fireEvent.click(screen.getByRole('button', { name: 'Crear Proyecto' }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Confirmar aprobación del proyecto' })).getByRole('button', { name: 'Confirmar aprobación' }));
+    await waitFor(() => expect(ProyectosAPI.create).toHaveBeenCalledWith(expect.objectContaining({ estado: 'Aprobado' })));
+  });
+
+  it.each(['0', '61', '1.5'])('rechaza una duración inválida de %s meses al guardar desde Grupos', async (value) => {
+    const notify = vi.fn();
+    render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin' }} onNotify={notify} />);
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    fireEvent.click(screen.getByRole('button', { name: /Nuevo Proyecto/i }));
+    fireEvent.change(await screen.findByLabelText(/Nombre Completo del Proyecto/), { target: { value: 'Proyecto para validar' } });
+    fireEvent.change(screen.getByLabelText('Duración confirmada (meses)'), { target: { value } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear Proyecto' }));
+    expect(ProyectosAPI.create).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith('Registra una duración entre 1 y 60 meses, sin decimales, o déjala pendiente.', 'error');
+  });
+
+  it('filtra los proyectos en formulación, sin estado y con un estado heredado sin reclasificarlos', async () => {
+    GruposAPI.getProyectos.mockResolvedValue([
+      { ...mockProyectos[0], estado: 'En formulación' },
+      { ...mockProyectos[0], id: 'missing', nombre_corto: 'Proyecto sin estado', estado: null },
+      { ...mockProyectos[0], id: 'legacy', nombre_corto: 'Proyecto enviado', estado: 'Enviado' },
+    ]);
+    render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin' }} />);
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    fireEvent.change(screen.getByLabelText('Filtrar proyectos por estado'), { target: { value: 'en formulación' } });
+    expect(screen.getByText('Pectina Guayaba')).toBeVisible();
+    expect(screen.queryByText('Proyecto enviado')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Filtrar proyectos por estado'), { target: { value: 'sin estado' } });
+    expect(screen.getByText('Proyecto sin estado')).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Filtrar proyectos por estado'), { target: { value: 'enviado' } });
+    expect(screen.getByText('Proyecto enviado')).toBeVisible();
+    fireEvent.click(screen.getByText('Proyecto enviado').closest('.cursor-pointer'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }));
+    expect(screen.getByLabelText('Estado')).toHaveValue('Enviado');
+    expect(screen.getByLabelText('Duración confirmada (meses)')).toHaveValue(null);
+  });
+
+  it('opens on the Grupo CGAO impact dashboard as the initial tab', async () => {
     render(
       <GrupoModule
         currentUser={{ id: 'u-2', rol: 'admin', nombre: 'Admin General' }}
@@ -245,7 +401,18 @@ describe('GrupoModule Integration Tests', () => {
 
     expect(screen.getByText(/Centro de Gestión Agroempresarial del Oriente/)).toBeDefined();
     expect(screen.getByRole('tab', { name: /Estadísticas e Indicadores/i })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByText('Tablero de Impacto Científico & Formativo CGAO')).toBeDefined();
+    expect(screen.getByRole('heading', { name: /Tablero de Impacto Científico & Formativo CGAO/i })).toBeVisible();
+    expect(screen.queryByText(/Monitoreo y Control GrupLAC/i)).not.toBeInTheDocument();
+  });
+
+  it('presenta como pendientes la clasificación y el código que no están registrados', async () => {
+    GruposAPI.list.mockResolvedValue([{ ...mockGrupo, codigo_gruplac: null, clasificacion: null }]);
+    render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin', nombre: 'Admin General' }} onNotify={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('tab', { name: /Control GrupLAC \/ CvLAC/i }));
+    expect(await screen.findByText('Clasificación no registrada')).toBeVisible();
+    expect(screen.getByText('No registrado')).toBeVisible();
+    expect(screen.queryByText('COL000000')).not.toBeInTheDocument();
+    expect(screen.queryByText('En Proceso de Medición')).not.toBeInTheDocument();
   });
 
   it('limits apprentices to their linked semilleros and projects', async () => {
@@ -385,6 +552,29 @@ describe('GrupoModule Integration Tests', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Construir documentación' }));
     expect(await screen.findByRole('dialog', { name: 'Pectina Guayaba' })).toBeVisible();
     expect(screen.getByRole('tab', { name: 'Documentación' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('consulta el detalle autorizado y respeta la fase guardada al abrir el cronograma desde Grupos', async () => {
+    const form = { clave: 'informe_final', tipo: 'informe_final', titulo: 'Informe final', formato: 'docx', carpeta: '5InformeFinal', datos: {}, campos: [], faltantes: [], historial: [], revision: 1, generable: false };
+    ProjectDocumentationAPI.get.mockResolvedValue({ proyecto: mockProyectos[0], revision: 1, comunes: {}, campos_comunes: [], documentos: [form] });
+    ProyectosAPI.get.mockResolvedValue({ ...mockProyectos[0], entregables: [{ id: 'e-final', titulo: 'Entrega de cierre documentada', fase: 'Fase Final', fecha_entrega: '2026-12-23', estado: 'pendiente' }], cronograma_documental: [] });
+    render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin' }} />);
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    fireEvent.click(screen.getByRole('button', { name: 'Construir documentación' }));
+    const drawer = await screen.findByRole('dialog', { name: 'Pectina Guayaba' });
+    fireEvent.click(within(drawer).getByRole('tab', { name: 'Línea de Tiempo' }));
+    const phase = await within(drawer).findByRole('region', { name: 'Fase Final' });
+    expect(within(phase).getByText('Entrega de cierre documentada')).toBeVisible();
+    expect(ProyectosAPI.get).toHaveBeenCalledWith('p-1');
+    expect(within(drawer).getByRole('region', { name: 'Fase I' })).not.toHaveTextContent('Entrega de cierre documentada');
+    fireEvent.click(within(phase).getByRole('button', { name: 'Abrir formulario: Informe final' }));
+    expect(within(drawer).getByRole('tab', { name: 'Documentación' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(drawer).getByRole('region', { name: 'Informe final' }).querySelector('details')).toHaveAttribute('open');
+    fireEvent.click(within(drawer).getByRole('tab', { name: 'Línea de Tiempo' }));
+    await within(drawer).findByRole('region', { name: 'Fase Final' });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Completar fase, fechas y lugar en Documentación' }));
+    expect(within(drawer).getByRole('tab', { name: 'Documentación' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('abre el mismo espacio documental desde los proyectos asociados a un semillero del grupo', async () => {
@@ -641,8 +831,10 @@ describe('GrupoModule Integration Tests', () => {
     fireEvent.change(await screen.findByLabelText(/Nombre Completo del Proyecto/), { target: { value: 'Proyecto nuevo' } });
     fireEvent.change(screen.getByLabelText('Nombre Corto / Sigla'), { target: { value: 'PN' } });
     fireEvent.change(screen.getByLabelText('Código SGPS'), { target: { value: 'SGPS-555' } });
+    expect(screen.getByLabelText('Semillero de Investigación')).toHaveValue('s-1');
+    expect(screen.getByLabelText('Investigador responsable')).toHaveValue('u-1');
     fireEvent.click(screen.getByRole('button', { name: 'Crear Proyecto' }));
-    await waitFor(() => expect(ProyectosAPI.create).toHaveBeenCalledWith(expect.objectContaining({ nombre: 'Proyecto nuevo', grupo_id: 'g-1' })));
+    await waitFor(() => expect(ProyectosAPI.create).toHaveBeenCalledWith(expect.objectContaining({ nombre: 'Proyecto nuevo', grupo_id: 'g-1', semillero_id: 's-1', investigador_responsable_id: 'u-1' })));
 
     fireEvent.click(screen.getByText('Pectina Guayaba').closest('.cursor-pointer'));
     fireEvent.click(await screen.findByRole('tab', { name: 'Resumen & Presupuesto' }));
@@ -655,10 +847,34 @@ describe('GrupoModule Integration Tests', () => {
     expect(screen.getByText(/Línea de Tiempo/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
     fireEvent.change(await screen.findByLabelText(/Nombre Completo del Proyecto/), { target: { value: 'Proyecto editado' } });
+    fireEvent.change(screen.getByLabelText('Semillero de Investigación'), { target: { value: 's-1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar Proyecto' }));
     await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-1', expect.objectContaining({ nombre: 'Proyecto editado' })));
     fireEvent.click(screen.getByRole('button', { name: /Módulo Proyectos Completo/i }));
     expect(onNavigate).toHaveBeenCalledWith('proyectos');
+  });
+
+  it('guarda el investigador responsable que administración selecciona entre los vinculados al semillero', async () => {
+    const alternative = { id: 'u-3', nombre: 'Carlos Investigador', rol: 'investigador', email: 'carlos@example.com' };
+    SemillerosAPI.list.mockResolvedValue([{ ...mockSemilleros[0], investigadores: [mockUsuarios[0], alternative] }]);
+    UsuariosAPI.list.mockResolvedValue([...mockUsuarios, alternative]);
+    const onNotify = vi.fn();
+    render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin' }} onNotify={onNotify} />);
+    await screen.findByText('GRUPO CGAO');
+    fireEvent.click(document.getElementById('tab-proyectos'));
+    fireEvent.click(screen.getByRole('button', { name: /Nuevo Proyecto/i }));
+    const form = await screen.findByRole('dialog', { name: 'Nuevo Proyecto de Investigación' });
+    fireEvent.change(within(form).getByLabelText(/Nombre Completo del Proyecto/), { target: { value: 'Monitoreo de cultivos' } });
+    const responsible = within(form).getByLabelText('Investigador responsable');
+    expect(responsible).toHaveValue('u-1');
+    expect(within(responsible).queryByRole('option', { name: 'Admin General' })).not.toBeInTheDocument();
+    fireEvent.change(responsible, { target: { value: alternative.id } });
+    expect(responsible).toHaveValue(alternative.id);
+    fireEvent.click(within(form).getByRole('button', { name: 'Crear Proyecto' }));
+    await waitFor(() => expect(ProyectosAPI.create).toHaveBeenCalledWith(expect.objectContaining({
+      nombre: 'Monitoreo de cultivos', semillero_id: 's-1', grupo_id: 'g-1', investigador_responsable_id: alternative.id,
+    })));
+    expect(onNotify).toHaveBeenCalledWith('Proyecto creado y vinculado al grupo exitosamente', 'success');
   });
 
   it('lista proyectos del semillero y actualiza su asociación al moverlo', async () => {
@@ -667,7 +883,7 @@ describe('GrupoModule Integration Tests', () => {
     ProyectosAPI.update.mockResolvedValue({ id: 'p-1', semillero_id: 's-2' });
     SemillerosAPI.list.mockResolvedValue([
       ...mockSemilleros,
-      { id: 's-2', owner_id: 'u-1', nombre: 'Semillero Digital', sigla: 'DIGI', estado: 'activo' },
+      { id: 's-2', owner_id: 'u-1', grupo_id: 'g-1', nombre: 'Semillero Digital', sigla: 'DIGI', estado: 'activo', investigadores: [mockUsuarios[0], mockUsuarios[2]] },
     ]);
 
     render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin' }} onNotify={onNotify} />);
@@ -682,7 +898,7 @@ describe('GrupoModule Integration Tests', () => {
     fireEvent.change(screen.getByLabelText('Semillero de Destino'), { target: { value: 's-2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar Traslado' }));
 
-    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-1', { semillero_id: 's-2' }));
+    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-1', { semillero_id: 's-2', investigador_responsable_id: 'u-1' }));
     await waitFor(() => expect(GruposAPI.getProyectos).toHaveBeenCalledTimes(2));
     expect(onNotify).toHaveBeenCalledWith('Proyecto movido a "Semillero Digital" correctamente', 'success');
   });
@@ -695,15 +911,16 @@ describe('GrupoModule Integration Tests', () => {
     fireEvent.click(document.getElementById('tab-proyectos'));
     fireEvent.click(screen.getByText('Pectina Guayaba').closest('.cursor-pointer'));
     fireEvent.click(await screen.findByRole('tab', { name: 'Equipo' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Vincular Investigador' }));
-    fireEvent.change(await screen.findByPlaceholderText('Buscar por nombre, correo o rol...'), { target: { value: 'Admin' } });
-    fireEvent.click(await screen.findByText('Admin General'));
+    fireEvent.click(screen.getByRole('button', { name: 'Vincular integrante' }));
+    fireEvent.change(await screen.findByPlaceholderText('Buscar por nombre, correo o rol...'), { target: { value: 'Sara' } });
+    fireEvent.click(await screen.findByText('Sara Investigadora'));
     fireEvent.click(screen.getByRole('button', { name: 'Vincular al Proyecto' }));
-    await waitFor(() => expect(ProyectosAPI.addEquipo).toHaveBeenCalledWith('p-1', 'u-2', 'Investigador', 20));
+    await waitFor(() => expect(ProyectosAPI.addEquipo).toHaveBeenCalledWith('p-1', 'u-4', 'Investigador de apoyo', 20));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Desvincular a Dra. Marta Rodríguez' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Desvincular a Carlos Investigador' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Desvincular' }));
-    await waitFor(() => expect(ProyectosAPI.removeEquipo).toHaveBeenCalledWith('p-1', 'u-1'));
+    await waitFor(() => expect(ProyectosAPI.removeEquipo).toHaveBeenCalledWith('p-1', 'u-3'));
+    fireEvent.click(screen.getByText('Más acciones'));
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar Proyecto' }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Eliminar Proyecto' }).at(-1));
     await waitFor(() => expect(ProyectosAPI.delete).toHaveBeenCalledWith('p-1'));
@@ -711,6 +928,7 @@ describe('GrupoModule Integration Tests', () => {
 
   it('creates and edits a semillero and exercises its project, tutor and apprentice actions', async () => {
     const onNotify = vi.fn();
+    GruposAPI.getProyectos.mockResolvedValue([{ ...mockProyectos[0], semillero_id: null }]);
     render(<GrupoModule currentUser={{ id: 'u-2', rol: 'admin' }} onNotify={onNotify} />);
     await screen.findByText('GRUPO CGAO');
     fireEvent.click(document.getElementById('tab-semilleros'));
@@ -732,7 +950,11 @@ describe('GrupoModule Integration Tests', () => {
     const projectLinkSelect = screen.getAllByRole('combobox').find(select => Array.from(select.options).some(option => option.value === 'p-1'));
     fireEvent.change(projectLinkSelect, { target: { value: 'p-1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Vincular' }));
-    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-1', { semillero_id: 's-1' }));
+    const linkProjectDialog = await screen.findByRole('dialog', { name: 'Mover Proyecto a Semillero' });
+    expect(within(linkProjectDialog).getByLabelText('Semillero de Destino')).toHaveValue('s-1');
+    expect(within(linkProjectDialog).getByLabelText('Investigador responsable')).toHaveValue('u-1');
+    fireEvent.click(within(linkProjectDialog).getByRole('button', { name: 'Confirmar Traslado' }));
+    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-1', { semillero_id: 's-1', investigador_responsable_id: 'u-1' }));
     fireEvent.click(screen.getByRole('tab', { name: /Aprendices Vinculados/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Vincular Aprendiz' }));
     fireEvent.change(screen.getByLabelText('Seleccione un Aprendiz del Centro'), { target: { value: 'apr-1' } });

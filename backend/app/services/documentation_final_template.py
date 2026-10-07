@@ -5,12 +5,13 @@ from pathlib import Path
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Cm, Pt
+from docx.shared import Cm, Pt, RGBColor
 from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 from PIL import Image
 
-from app.services.documentation_catalog import DOCUMENT_DEFINITIONS
-from app.services.documentation_rendering_values import PENDING, format_value
+from app.services.documentation_catalog import COMMON_FIELDS, DOCUMENT_DEFINITIONS
+from app.services.documentation_rendering_values import PENDING, field_text, format_value
 
 TEMPLATE_NAME = "GCDTP-F-023_V01_Formato_Informe_Final.docx"
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -183,17 +184,63 @@ def _remove_instructions(document):
         body.remove(element)
 
 
+def _simplify_table_of_contents(document):
+    """Conserva enlaces del índice sin paginación almacenada de la plantilla."""
+    indexes = document.element.body.xpath(
+        ".//w:sdt[w:sdtPr/w:docPartObj/w:docPartGallery[@w:val='Table of Contents']]",
+    )
+    removed_tags = {qn("w:fldChar"), qn("w:instrText"), qn("w:webHidden")}
+    for index in indexes:
+        for run in list(index.iter(qn("w:r"))):
+            if any(element.tag in removed_tags for element in run.iter()):
+                run.getparent().remove(run)
+
+
+def _keep_table_rows_together(document):
+    """Evita repartir una etiqueta o registro de tabla entre dos páginas."""
+    for table in document.tables:
+        for row in table.rows:
+            if not row._tr.xpath("./w:trPr/w:cantSplit"):
+                row._tr.get_or_add_trPr().append(OxmlElement("w:cantSplit"))
+
+
+def _supplementary_heading(document, text, level):
+    """Añade encabezados negros sin modificar los estilos del formato fuente."""
+    heading = document.add_heading(text, level=level)
+    heading.paragraph_format.keep_with_next = True
+    for run in heading.runs:
+        run.font.color.rgb = RGBColor(0, 0, 0)
+
+
 def _append_photos(document, photos):
     """Incluye imágenes reales recibidas como anexos fotográficos del informe."""
     if not photos:
         return
-    document.add_heading("Registro fotográfico", level=1)
+    _supplementary_heading(document, "Registro fotográfico", level=1)
     for content, caption in photos:
         with Image.open(io.BytesIO(content)) as image:
             width = min(Cm(15), int(Cm(16) * image.width / image.height))
         document.add_picture(io.BytesIO(content), width=width)
         document.paragraphs[-1].paragraph_format.keep_with_next = True
         document.add_paragraph(caption, style="Caption")
+
+
+def _append_common_details(document, common):
+    """Conserva contexto formativo, planeación y advertencias fuera de la ficha base."""
+    captured = {"centro", "regional", "ciudad", "responsable", "fecha_inicio", "fecha_fin", "codigo_cap"}
+    details = [field for field in COMMON_FIELDS if field["key"] not in captured
+               and common.get(field["key"]) not in (None, "", [])]
+    if not details:
+        return
+    _supplementary_heading(document, "Información complementaria del proyecto", level=1)
+    for field in details:
+        public_field = dict(field)
+        if field["type"] == "rows":
+            public_field["columns"] = [column for column in field["columns"] if not column.get("optional_detail")]
+        _supplementary_heading(document, field["label"], level=2)
+        for line in field_text(public_field, common).splitlines():
+            if line.strip():
+                document.add_paragraph(line)
 
 
 def render_final_report(context, common, data, photos):
@@ -234,8 +281,11 @@ def render_final_report(context, common, data, photos):
     _replace_paragraph(_paragraph_after(document, "4.2 Objetivos Específicos"), specific_text)
     _add_draft_status(document, context)
     _remove_instructions(document)
+    _simplify_table_of_contents(document)
     _insert_results_table(document, _paragraph_after(document, "8. Resultados obtenidos"), fields, data)
+    _append_common_details(document, common)
     _append_photos(document, photos)
+    _keep_table_rows_together(document)
     document.core_properties.title = "GCDTP-F-023 V01 - Informe final de proyecto"
     document.core_properties.author = "SENNOVA"
     document.core_properties.last_modified_by = "SENNOVA"

@@ -20,7 +20,7 @@ os.environ["JWT_SECRET"] = "testsecretkey_long_enough_for_security_compliance_32
 
 from app.database import Base, get_db
 from app.main import app
-from app.models import User
+from app.models import Grupo, Semillero, User
 from app.auth import get_current_user
 
 engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
@@ -49,18 +49,39 @@ def override_get_current_user():
 
 @pytest.fixture(autouse=True)
 def setup_overrides():
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    with TestingSessionLocal() as db:
+        investigador = User(
+            nombre="Investigadora de robótica", email="robotica@example.com",
+            password_hash="example", rol="investigador", is_active=True,
+        )
+        db.add(investigador)
+        db.commit()
+        investigador_id = str(investigador.id)
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
-    yield
+    yield investigador_id
     app.dependency_overrides.clear()
 
 client = TestClient(app)
 
 
-def test_proyecto_crud_and_temporal_fields():
+def test_proyecto_crud_and_temporal_fields(setup_overrides):
+    with TestingSessionLocal() as db:
+        grupo = Grupo(nombre="Investigadores CGAO", owner_id=setup_overrides)
+        db.add(grupo)
+        db.flush()
+        semillero = Semillero(nombre="Robótica aplicada al agro", grupo_id=grupo.id, owner_id=setup_overrides)
+        semillero.investigadores.append(db.get(User, setup_overrides))
+        db.add(semillero)
+        db.commit()
+        semillero_id = str(semillero.id)
     # 1. Create a project
     payload = {
         "nombre": "Proyecto Innovación Robótica SENNOVA",
+        "semillero_id": semillero_id,
+        "investigador_responsable_id": setup_overrides,
         "nombre_corto": "PIR-SENNOVA",
         "codigo_sgps": "SGPS-2026-999",
         "estado": "Formulación",
@@ -120,7 +141,7 @@ def test_proyecto_crud_and_temporal_fields():
     ]
 
 
-def test_proyecto_move_and_reassign_semillero():
+def test_proyecto_move_and_reassign_semillero(setup_overrides):
     # 0. Create Grupo
     g_payload = {
         "nombre": "Grupo de Investigación SENNOVA CGAO",
@@ -155,6 +176,13 @@ def test_proyecto_move_and_reassign_semillero():
     assert r_s2.status_code == 201, r_s2.text
     sem2_id = r_s2.json()["id"]
 
+    with TestingSessionLocal() as db:
+        responsable = db.get(User, setup_overrides)
+        for semillero_id in (sem1_id, sem2_id):
+            semillero = db.get(Semillero, semillero_id)
+            semillero.investigadores.append(responsable)
+        db.commit()
+
     # 3. Create Project assigned to Semillero 1
     proy_payload = {
         "nombre": "Dron Autónomo para Monitoreo de Cultivos",
@@ -163,7 +191,8 @@ def test_proyecto_move_and_reassign_semillero():
         "estado": "Formulación",
         "vigencia": 12,
         "presupuesto_total": 30000000,
-        "semillero_id": sem1_id
+        "semillero_id": sem1_id,
+        "investigador_responsable_id": setup_overrides,
     }
     r_p = client.post("/proyectos", json=proy_payload)
     assert r_p.status_code == 201, r_p.text
@@ -180,12 +209,11 @@ def test_proyecto_move_and_reassign_semillero():
     assert r_detail.status_code == 200
     assert r_detail.json()["semillero_id"] == sem2_id
 
-    # 6. Unlink project from any semillero (set semillero_id to None/null)
+    # 6. El proyecto debe conservar un semillero al intentar desvincularlo.
     r_unlink = client.put(f"/proyectos/{proy_id}", json={"semillero_id": None})
-    assert r_unlink.status_code == 200, r_unlink.text
-    assert r_unlink.json()["semillero_id"] is None
+    assert r_unlink.status_code == 422, r_unlink.text
 
-    # 7. Verify unlinked state
+    # 7. El rechazo conserva el vínculo previo.
     r_detail2 = client.get(f"/proyectos/{proy_id}")
     assert r_detail2.status_code == 200
-    assert r_detail2.json()["semillero_id"] is None
+    assert r_detail2.json()["semillero_id"] == sem2_id

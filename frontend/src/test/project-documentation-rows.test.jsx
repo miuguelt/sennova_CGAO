@@ -29,6 +29,25 @@ const apply = () => fireEvent.click(screen.getByRole('button', { name: 'Aplicar 
 afterEach(cleanup);
 
 describe('Registros de documentación en ventanas', () => {
+  it('distingue una aclaración parcial del registro con todos sus datos sin impedir guardar el borrador', () => {
+    const field = { key: 'aclaraciones_fuente', label: 'Aclaraciones de la fuente', type: 'rows', columns: [
+      { key: 'inconsistencia', label: 'Pendiente original', required: false }, { key: 'valor_confirmado', label: 'Dato confirmado', required: false },
+      { key: 'soporte', label: 'Soporte', required: false }, { key: 'responsable', label: 'Persona que verificó', required: false }, { key: 'fecha', label: 'Fecha', type: 'date', required: false },
+    ] };
+    render(<RowsHarness field={field} initial={[{ inconsistencia: 'Confirmar duración' }]} />);
+    expect(screen.getByText('4 campos por completar')).toBeVisible();
+    expect(screen.queryByText('Campos completos')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Editar registro 1 de Aclaraciones de la fuente' }));
+    expect(screen.getByText('Por completar: Dato confirmado, Soporte, Persona que verificó, Fecha.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Aplicar al formulario' })).toBeEnabled();
+    fireEvent.change(screen.getByLabelText('Dato confirmado'), { target: { value: '6 meses' } });
+    fireEvent.change(screen.getByLabelText('Soporte'), { target: { value: 'Acta 1, página 2' } });
+    fireEvent.change(screen.getByLabelText('Persona que verificó'), { target: { value: 'Responsable del proyecto' } });
+    fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-10-06' } });
+    apply();
+    expect(screen.getByText('Datos de aclaración diligenciados')).toBeVisible();
+    expect(screen.queryByText('4 campos por completar')).not.toBeInTheDocument();
+  });
   it('mantiene el formulario despejado y abrir o cancelar no agrega una fila vacía', () => {
     const changed = vi.fn();
     render(<RowsHarness onChange={changed} />);

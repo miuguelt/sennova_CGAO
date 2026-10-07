@@ -1,0 +1,94 @@
+{
+  "proyecto_id": "2f8ac792-c560-524c-8962-95a8a3236e0b",
+  "avance": {
+    "porcentaje": 90,
+    "porcentaje_captura": 100,
+    "campos_completados": 159,
+    "campos_totales": 159,
+    "documentos_totales": 13,
+    "documentos_listos": 13,
+    "documentos_generados": 13,
+    "documentos_revisados": 0,
+    "descripcion": "El avance corresponde en un 80 % a los campos obligatorios guardados y válidos, en un 10 % a los documentos generados vigentes y en un 10 % a su revisión vigente. Cada tabla se completa cuando todas sus filas contienen la información obligatoria."
+  },
+  "archivos": [
+    {
+      "archivo": "formulacion_proyecto_v1.docx",
+      "tipo": "formulacion_proyecto",
+      "sha256": "322cb38e3ecd092bd5f5b3e8808b10f535ef7670297a421463db2f3d28b7126d",
+      "estado": "borrador"
+    },
+    {
+      "archivo": "presentacion_proyecto_v1.pptx",
+      "tipo": "presentacion_proyecto",
+      "sha256": "e232e78b8e9edfacb597d49aa5c080719f0d34881d662b02f8c7804ac6497c7a",
+      "estado": "borrador"
+    },
+    {
+      "archivo": "acta_inicio_v1.docx",
+      "tipo": "acta_inicio",
+      "sha256": "7eaf129fa433bbcccec76541ad37bb26277bad1696076dbdde53f03d89ea7d1d",
+      "estado": "borrador"
+    },
+    {
+      "archivo": "producto_resultado__pec954a7b-cf2c-51b2-a7d2-4b17b7e0c65c_v1.docx",
+      "tipo": "producto_resultado",
+      "sha256": "6906c71520dda1a09cf0552280448e7acb977cb3b73ec496ba069727cd22a9de",
+      "estado": "borrador"
+    },
+    {
+      "archivo": "producto_resultado__pe89d31f1-205e-52d7-8d24-2fadec33bc27_v1.docx",
+      "tipo": "producto_resultado",
+      "sha256": "c3e1e2cfca6adc9f3667e6c483a169cc49d106d339b857da47bc12c1b789251a",
+      "estado": "borrador"
+    },
+    {
+      "archivo": "poster_producto__pec954a7b-cf2c-51b2-a7d2-4b17b7e0c65c_v1.pptx",
+      "tipo": "poster_producto",
+      "sha256": "e367d58a60ff6f76e9f9e149eecc3023eeac3e518b0dedd70e1f51e4d0e1a5b3",
+      "estado": "borrador"
+    },
+    {
+      "archivo": "poster_producto__pe89d31f1-205e-52d7-8d24-2fadec33bc27_v1.pptx",
+      "tipo": "poster_producto",
+      "sha256": "d1b540fac86722b3e024db7ee58b1730e4f0e757bd54f654abf1d09ded6b1d4a",
+      "estado": "borrador"
+    },
+    {
+      "archivo": "informe_bimensual__b1_v1.docx",
+      "tipo": "informe_bimensual",
+      "sha256": "cfec12bfc7b1e13a4252484ad1f613242b26f9a38857121c546fba6cf3067ff6",
+      "estado": "borrador"
+    },
+    {
+      "archivo": "informe_bimensual__b2_v1.docx",
+      "tipo": "informe_bimensual",
+      "sha256": "470d88eeae497d8763a182023edc325b85f477a6a4370b33dea348c631507b17",
+      "estado": "borrador"
+    },
+    {
+      "archivo": "informe_bimensual__b3_v1.docx",
+      "tipo": "informe_bimensual",
+      "sha256": "8e5861148bc21ccbc3e2154b8fb1d8e2489ce070d9f773d64cf474e92c932633",
+      "estado": "borrador"
+    },
+    {
+      "archivo": "acta_cierre_v1.docx",
+      "tipo": "acta_cierre",
+      "sha256": "953c50f746327daf4af61622b0ef1e4f23c8e93818c2c4194c9ec9d2eb6bbbc5",
+      "estado": "borrador"
+    },
+    {
+      "archivo": "informe_final_v1.docx",
+      "tipo": "informe_final",
+      "sha256": "5f5863a0124d4d129b6cb138c5b0bc4c8ecd0bd714ccbd7fc671011dbff9c050",
+      "estado": "borrador"
+    },
+    {
+      "archivo": "registro_evidencias_v1.docx",
+      "tipo": "registro_evidencias",
+      "sha256": "9dff56831b2fa603e33ffeea7e29dcf3ef4a35756e86d18b7d70ed79a343672d",
+      "estado": "borrador"
+    }
+  ]
+}

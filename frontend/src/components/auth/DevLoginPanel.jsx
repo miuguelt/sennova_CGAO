@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Briefcase, GraduationCap, BookOpen } from 'lucide-react';
+import { Shield, Briefcase, GraduationCap } from 'lucide-react';
 
 const DevLoginPanel = ({ onSelect }) => {
   const users = [
@@ -12,20 +12,20 @@ const DevLoginPanel = ({ onSelect }) => {
       badgeColor: 'bg-rose-50 text-rose-900 border-rose-300' 
     },
     { 
-      role: 'Investigador', 
+      role: 'Investigador',
       name: 'Dra. Marta Rodríguez', 
       email: 'm.rodriguez@sena.edu.co', 
       pass: '123456', 
       icon: Briefcase,
-      badgeColor: 'bg-indigo-50 text-indigo-900 border-indigo-300' 
+      badgeColor: 'bg-indigo-50 text-indigo-900 border-indigo-300'
     },
     { 
-      role: 'Instructor', 
+      role: 'Investigador',
       name: 'Mag. Clara López', 
       email: 'c.lopez@sena.edu.co', 
       pass: '123456', 
-      icon: BookOpen,
-      badgeColor: 'bg-amber-50 text-amber-950 border-amber-300' 
+      icon: Briefcase,
+      badgeColor: 'bg-indigo-50 text-indigo-900 border-indigo-300'
     },
     { 
       role: 'Aprendiz', 
@@ -47,6 +47,9 @@ const DevLoginPanel = ({ onSelect }) => {
           DEV MODE
         </span>
       </div>
+      <p className="text-[11px] leading-relaxed text-slate-600">
+        Los accesos rápidos y el proyecto CAP-14 usan datos preparados para aprender; no contienen registros reales.
+      </p>
       <div className="grid grid-cols-1 gap-2">
         {users.map(u => {
           const Icon = u.icon;

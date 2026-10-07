@@ -42,16 +42,38 @@ COMMON_FIELDS = (
         _field("rubro", "Rubro", help="Identifica la categoría del gasto según el presupuesto del proyecto. Ejemplos ilustrativos: personal o materiales; usa únicamente las categorías que correspondan."),
         _field("valor_planeado", "Valor planeado", "number", unit="COP", help="Registra el monto previsto en pesos colombianos según su soporte. Este campo no representa el gasto ejecutado; no completes valores ausentes con estimaciones sin respaldo."),
         _field("uso", "Descripción de su uso", "textarea", help="Explica qué se financiará, para qué actividad se necesita y cómo contribuye al proyecto. Identifica el soporte de la estimación cuando exista."),
+        _field("actividad_relacionada", "Actividad relacionada", required=False, relation="actividades", help="Selecciona una actividad ya registrada en el cronograma o conserva la relación pendiente. No inventes actividades para completar el rubro."),
         _field("fecha_ejecucion", "Fecha de ejecución", help="Indica cuándo se prevé utilizar el recurso: una fecha confirmada o un período. Ejemplo ilustrativo: Mes 1; no conviertas un período de la fuente en una fecha inventada."),
     ], required=False, help="Desglosa los rubros, sus valores planeados, usos y períodos de ejecución con soporte. La suma debe coincidir con el presupuesto total confirmado del proyecto; identifica cualquier diferencia pendiente."),
     _rows("cronograma", "Descripción de actividades", [
+        _field("fase", "Fase del proyecto", "select", required=False, optional_detail=True, options=[
+            {"value": "Fase I", "label": "Fase I · Planeación"},
+            {"value": "Fase II", "label": "Fase II · Ejecución Inicial"},
+            {"value": "Fase III", "label": "Fase III · Desarrollo Técnico"},
+            {"value": "Fase Final", "label": "Fase Final · Cierre"},
+        ], help="Asigna la fase metodológica aprobada para esta actividad. No la deduzcas solo por el nombre de la tarea."),
         _field("actividad", "Actividad", "textarea", help="Describe una acción concreta vinculada a un objetivo, su alcance y el trabajo necesario. Ejemplo ilustrativo: clasificar una serie documental; adapta la acción a tu proyecto."),
-        _field("encargado", "Encargado", help="Identifica al integrante o equipo responsable de ejecutar y reportar esta actividad. Debe corresponder a las responsabilidades acordadas en el equipo."),
-        _field("fecha_textual", "Fecha o período", help="Conserva el período planeado, por ejemplo Mes 1 a Mes 2, o escribe la fecha real."),
+        _field("objetivo_especifico", "Objetivo específico relacionado", required=False, relation="objetivos", help="Selecciona el objetivo específico al que aporta esta actividad. Si todavía no está definido, conserva la relación pendiente."),
+        _field("encargado", "Encargado", relation="integrantes", help="Identifica al integrante o equipo responsable de ejecutar y reportar esta actividad. Debe corresponder a las responsabilidades acordadas en el equipo."),
+        _field("fecha_textual", "Fecha o período descriptivo", required=False, help="Conserva el período de la fuente, por ejemplo Mes 1 a Mes 2. El diagrama usa las fechas calendario cuando se completan."),
+        _field("fecha_inicio", "Fecha planeada de inicio", "date", required=False, optional_detail=True, help="Registra el día de inicio del período planeado cuando esté definido. El diagrama de Gantt utiliza esta fecha sin convertir períodos como Mes 1 en fechas calendario."),
+        _field("hora_inicio", "Hora planeada de inicio", "time", required=False, optional_detail=True, help="Registra la hora local del lugar de la actividad cuando aplique. Usa el formato de 24 horas."),
+        _field("fecha_fin", "Fecha planeada de finalización", "date", required=False, optional_detail=True, help="Registra el último día previsto para la actividad. Debe ser igual o posterior a la fecha de inicio."),
+        _field("hora_fin", "Hora planeada de finalización", "time", required=False, optional_detail=True, help="Registra la hora local de finalización cuando la actividad tenga una duración definida."),
+        _field("lugar", "Lugar o modalidad", required=False, optional_detail=True, help="Indica el sitio de trabajo o la modalidad virtual y la plataforma cuando corresponda. No deduzcas el lugar de la ciudad del proyecto."),
         _field("resultado", "Entregable o resultado", "textarea", help="Define el producto verificable que debe dejar la actividad y cómo se comprobará. Un entregable planeado no debe presentarse como un resultado ya obtenido."),
-    ], required=False, help="Ordena las actividades por períodos y relaciona cada una con su encargado y entregable previsto. Conserva los períodos de la fuente y distingue planeación de ejecución real."),
+    ], required=False, help="Ordena las actividades por períodos, fase, encargado, lugar y entregable previsto. Completa las fechas calendario para ubicarlas en el diagrama de Gantt. Conserva la planeación separada de la ejecución real.",
+       details_label="Fase, fechas y lugar para el diagrama de Gantt (opcionales)",
+       details_help="Abre esta sección para ubicar la actividad en una fase, un intervalo de fechas y un lugar. El diagrama no asigna fechas a expresiones como Mes 1 a Mes 2."),
     _field("inconsistencias_fuente", "Datos de la fuente pendientes de aclaración", "textarea", required=False,
            help="Describe códigos, fechas, duraciones o valores contradictorios y el soporte necesario para confirmarlos. No los corrijas sin evidencia."),
+    _rows("aclaraciones_fuente", "Aclaraciones de la fuente", [
+        _field("inconsistencia", "Pendiente original", "textarea", required=False, help="Copia el texto completo de Datos de la fuente pendientes de aclaración. La aclaración debe corresponder al pendiente vigente y conservar su descripción original."),
+        _field("valor_confirmado", "Dato y valor confirmados", "textarea", required=False, help="Explica qué dato se confirmó, cuál es el valor respaldado y cómo se conciliaron las diferencias de la fuente."),
+        _field("soporte", "Soporte consultado y ubicación", "textarea", required=False, help="Identifica el acta, documento o fuente consultada y su ubicación, página o apartado. Registrar la referencia no certifica automáticamente su autenticidad."),
+        _field("responsable", "Persona que verificó", required=False, relation="integrantes", help="Selecciona a la persona vinculada al proyecto que contrastó la información con el soporte. No atribuyas una verificación que no realizó."),
+        _field("fecha", "Fecha de verificación", "date", required=False, help="Registra la fecha en que la persona consultó el soporte y confirmó el dato."),
+    ], required=False, help="Conserva el texto original de la discrepancia y registra su aclaración en una fila con los cinco datos completos. Una fila parcial mantiene la revisión pendiente; los borradores pueden seguir preparándose."),
 )
 
 MEETING_FIELDS = (
@@ -109,6 +131,7 @@ FORMULATION_FIELDS = (
     _field("fases", "Fases del proyecto", "textarea", help="Organiza el procedimiento en fases con actividades, responsables, períodos y entregables. Explica la secuencia y relación con los objetivos, y conserva su coherencia con el cronograma."),
     _rows("resultados_esperados", "Resultados esperados", [
         _field("resultado", "Resultado", help="Define el producto o cambio que se espera obtener y su relación con un objetivo. Expresa una expectativa verificable, sin presentarla como un logro ya alcanzado."),
+        _field("objetivo_especifico", "Objetivo específico relacionado", required=False, relation="objetivos", help="Selecciona el objetivo específico cuyo cumplimiento permitirá comprobar este resultado. Conserva la relación pendiente si no puedes confirmarla."),
         _field("indicador", "Indicador", help="Indica qué variable o cantidad permitirá evaluar este resultado y cómo se medirá. Debe permitir una comparación clara con la meta prevista."),
         _field("meta", "Meta", "number", help="Registra la cantidad planeada para el indicador al final del período definido. Justifica su factibilidad y úsala con la unidad de medida seleccionada."),
         _field("unidad", "Unidad", help="Especifica la unidad en que se medirá la meta. Ejemplos ilustrativos: documentos o participantes; evita unidades ambiguas o mezcladas."),
@@ -121,11 +144,11 @@ FORMULATION_FIELDS = (
 
 DOCUMENT_DEFINITIONS = {
     "formulacion_proyecto": {
-        "title": "Formulación del proyecto", "folder": "1ProyectoFormulado", "format": "docx",
+        "title": "Formulación del proyecto", "folder": "1ProyectoFomulado", "format": "docx",
         "required_common": PROJECT_REQUIRED + ["equipo", "presupuesto", "cronograma"], "fields": list(FORMULATION_FIELDS),
     },
     "presentacion_proyecto": {
-        "title": "Presentación del proyecto", "folder": "1ProyectoFormulado", "format": "pptx",
+        "title": "Presentación del proyecto", "folder": "1ProyectoFomulado", "format": "pptx",
         "required_common": PROJECT_REQUIRED + ["equipo", "presupuesto", "cronograma"], "fields": list(FORMULATION_FIELDS),
     },
     "acta_inicio": {

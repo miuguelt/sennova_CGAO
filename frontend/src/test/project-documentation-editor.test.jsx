@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ProjectDocumentationEditor from '../components/projects/ProjectDocumentationEditor';
 import { ProjectDocumentationAPI } from '../api/projectDocumentation';
 import { DocumentosAPI } from '../api/documentos';
+import { ProyectosAPI } from '../api/proyectos';
 import { emitDataRefresh } from '../utils/dataRefresh';
 vi.mock('../api/projectDocumentation', () => ({ ProjectDocumentationAPI: {
   get: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock('../api/projectDocumentation', () => ({ ProjectDocumentationAPI: {
 } }));
 
 vi.mock('../api/documentos', () => ({ DocumentosAPI: { download: vi.fn() } }));
+vi.mock('../api/proyectos', () => ({ ProyectosAPI: { downloadExpediente: vi.fn() } }));
 const fixture = () => ({ proyecto: { id: 'p-1', nombre: 'Proyecto agrícola' }, revision: 1, comunes: { centro: 'CGAO', fecha: '', presupuesto: 0, equipo: [] }, campos_comunes: [
   { key: 'centro', label: 'Centro de formación', type: 'text', required: true, help: 'Escriba el nombre oficial del centro.' },
   { key: 'fecha', label: 'Fecha de inicio', type: 'date', help: 'Use la fecha aprobada.' },
@@ -46,6 +48,78 @@ async function open(expandDocument = true, expandCommon = true) {
 }
 
 describe('Construcción guiada de documentación', () => {
+  it('descarga el ZIP del proyecto desde el constructor con los archivos guardados', async () => {
+    const archive = new Blob(['contenido del expediente'], { type: 'application/zip' });
+    ProyectosAPI.downloadExpediente.mockResolvedValue(archive);
+    let filename;
+    vi.mocked(HTMLAnchorElement.prototype.click).mockImplementation(function () { filename = this.download; });
+    mount({ initialOpened: true, workspace: true, currentUser: { rol: 'aprendiz' } });
+    const button = await screen.findByRole('button', { name: 'Descargar carpeta del proyecto (ZIP)' });
+    fireEvent.click(button);
+    await waitFor(() => expect(ProyectosAPI.downloadExpediente).toHaveBeenCalledWith('p-1'));
+    expect(URL.createObjectURL).toHaveBeenCalledWith(archive);
+    expect(filename).toBe('expediente-p-1.zip');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:documento');
+    expect(await screen.findByRole('status')).toHaveTextContent('Descarga de la carpeta iniciada');
+    expect(ProjectDocumentationAPI.generate).not.toHaveBeenCalled();
+  });
+
+  it('bloquea la descarga conjunta mientras hay cambios sin guardar y la habilita después de guardarlos', async () => {
+    mount(); const common = await open(false);
+    const button = screen.getByRole('button', { name: 'Descargar carpeta del proyecto (ZIP)' });
+    expect(button).toBeEnabled();
+    fireEvent.change(within(common).getByLabelText('Centro de formación *'), { target: { value: 'Centro actualizado' } });
+    expect(button).toBeDisabled();
+    expect(screen.getByText('Guarda los cambios pendientes antes de descargar la carpeta.')).toBeVisible();
+    fireEvent.click(within(common).getByRole('button', { name: 'Guardar datos comunes' }));
+    await waitFor(() => expect(button).toBeEnabled());
+    expect(screen.queryByText('Guarda los cambios pendientes antes de descargar la carpeta.')).not.toBeInTheDocument();
+  });
+
+  it('conserva el editor y permite reintentar la descarga cuando la API falla', async () => {
+    ProyectosAPI.downloadExpediente.mockRejectedValueOnce(new Error('No tiene acceso al expediente.'));
+    ProyectosAPI.downloadExpediente.mockResolvedValueOnce(new Blob(['zip'], { type: 'application/zip' }));
+    mount({ initialOpened: true, workspace: true });
+    const button = await screen.findByRole('button', { name: 'Descargar carpeta del proyecto (ZIP)' });
+    fireEvent.click(button);
+    expect(await screen.findByRole('alert')).toHaveTextContent('No tiene acceso al expediente.');
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    expect(await screen.findByRole('status')).toHaveTextContent('Descarga de la carpeta iniciada');
+    expect(ProyectosAPI.downloadExpediente).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('completa datos generales sin sustituir los campos guardados y los persiste al guardar', async () => {
+    data.datos_iniciales = { centro: 'Centro de base', regional: 'Santander', ciudad: 'Vélez', responsable: 'Investigadora asignada' };
+    data.campos_comunes.push(...['regional', 'ciudad', 'responsable'].map(key => ({ key, label: key, type: 'text' })));
+    mount();
+    const common = await open(false);
+    fireEvent.click(within(common).getByRole('button', { name: 'Completar campos vacíos' }));
+    expect(within(common).getByLabelText('Centro de formación *')).toHaveValue('CGAO');
+    expect(within(common).getByLabelText('regional')).toHaveValue('Santander');
+    expect(within(common).getByLabelText('ciudad')).toHaveValue('Vélez');
+    expect(ProjectDocumentationAPI.saveCommon).not.toHaveBeenCalled();
+    fireEvent.click(within(common).getByRole('button', { name: 'Guardar datos comunes' }));
+    await waitFor(() => expect(ProjectDocumentationAPI.saveCommon).toHaveBeenCalledWith('p-1', 1, {
+      centro: 'CGAO', fecha: '', presupuesto: 0, equipo: [], regional: 'Santander', ciudad: 'Vélez', responsable: 'Investigadora asignada',
+    }));
+    expect(await screen.findByText('Datos comunes guardados.')).toBeInTheDocument();
+  });
+  it('abre desde la línea de tiempo el formulario indicado y expande su ficha', async () => {
+    data.ruta_formulacion = {
+      pasos: [{ id: 'identificacion', numero: 1, titulo: 'Identificación y objetivos', fuente: 'proyecto', campos: ['nombre'], faltantes: [], advertencias: [] }],
+      total: 1, completados: 0, porcentaje: 0, siguiente_paso: 'identificacion',
+      campos_proyecto: [{ key: 'nombre', label: 'Título del proyecto', type: 'text' }], valores_proyecto: { nombre: 'Proyecto agrícola' },
+    };
+    mount({ initialOpened: true, workspace: true, focusDocumentKey: 'informe:1' });
+    const card = await screen.findByRole('region', { name: 'Informe bimensual 1' });
+    expect(screen.getByRole('button', { name: 'Documentos y versiones' })).toHaveAttribute('aria-pressed', 'true');
+    expect(card.querySelector('details')).toHaveAttribute('open');
+    expect(within(card).getByLabelText('Avance y resultados *')).toBeVisible();
+  });
+
   it('abre el espacio de escritura y conserva borradores al consultar documentos y datos compartidos', async () => {
     data.avance_documental = { porcentaje: 16, campos_completados: 2, campos_totales: 10, documentos_totales: 1, documentos_generados: 0, documentos_revisados: 0, descripcion: 'El avance usa información guardada y versiones vigentes.' };
     data.documentos[0].generable = true;
@@ -209,7 +283,42 @@ describe('Construcción guiada de documentación', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Recargar y conservar mis cambios' }));
     await waitFor(() => expect(ProjectDocumentationAPI.get).toHaveBeenCalledTimes(2));
     expect(screen.getByLabelText('Centro de formación *')).toHaveValue('Cambios que debo conservar');
+    expect(screen.getByRole('button', { name: 'Guardar datos comunes' })).toBeDisabled();
+    expect(screen.getByRole('region', { name: 'Cambios simultáneos por resolver' })).toHaveTextContent('Versión de otro investigador');
+    fireEvent.click(screen.getByRole('button', { name: 'Conservar mis valores en conflicto' }));
     expect(screen.getByRole('button', { name: 'Guardar datos comunes' })).toBeEnabled();
+  });
+
+  it('concilia los campos no editados al recibir una revisión nueva sin sobrescribir cambios ajenos', async () => {
+    data.comunes.ciudad = 'Vélez';
+    data.campos_comunes.push({ key: 'ciudad', label: 'Ciudad', type: 'text' });
+    mount(); const common = await open(false);
+    fireEvent.change(within(common).getByLabelText('Centro de formación *'), { target: { value: 'Mi centro' } });
+    data.revision = 4; data.comunes.ciudad = 'Bogotá';
+    act(() => emitDataRefresh({ endpoint: '/proyectos/p-1/documentacion', method: 'PUT' }));
+    await waitFor(() => expect(screen.getByLabelText('Ciudad')).toHaveValue('Bogotá'));
+    expect(screen.getByLabelText('Centro de formación *')).toHaveValue('Mi centro');
+    fireEvent.click(within(common).getByRole('button', { name: 'Guardar datos comunes' }));
+    await waitFor(() => expect(ProjectDocumentationAPI.saveCommon).toHaveBeenCalledWith('p-1', 4, expect.objectContaining({ centro: 'Mi centro', ciudad: 'Bogotá' })));
+  });
+
+  it('detecta conflictos en el borrador y permite usar los campos del servidor antes de guardar', async () => {
+    data.documentos[0].datos = { avance: 'Base', observacion: 'Sin observaciones' };
+    data.documentos[0].campos.push({ key: 'observacion', label: 'Observación', type: 'text' });
+    mount(); await open();
+    fireEvent.change(screen.getByLabelText('Avance y resultados *'), { target: { value: 'Mi avance' } });
+    data.documentos[0].revision = 3;
+    data.documentos[0].datos = { avance: 'Avance actualizado por otra persona', observacion: 'Observación actualizada' };
+    act(() => emitDataRefresh({ endpoint: '/documentos', method: 'POST' }));
+    const conflicts = await screen.findByRole('region', { name: 'Cambios simultáneos por resolver' });
+    expect(conflicts).toHaveTextContent('Mi avance');
+    expect(conflicts).toHaveTextContent('Avance actualizado por otra persona');
+    expect(screen.getByLabelText('Observación')).toHaveValue('Observación actualizada');
+    expect(screen.getByRole('button', { name: 'Guardar Informe bimensual 1' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Usar los valores guardados en conflicto' }));
+    expect(screen.getByLabelText('Avance y resultados *')).toHaveValue('Avance actualizado por otra persona');
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar Informe bimensual 1' }));
+    await waitFor(() => expect(ProjectDocumentationAPI.saveDraft).toHaveBeenCalledWith('p-1', 'informe:1', 3, { avance: 'Avance actualizado por otra persona', observacion: 'Observación actualizada' }));
   });
 
   it('descarga cada versión y registra la revisión sin certificar las firmas', async () => {

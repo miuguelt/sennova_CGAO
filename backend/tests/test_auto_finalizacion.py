@@ -1,4 +1,5 @@
 import os
+import secrets
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -20,7 +21,7 @@ os.environ["JWT_SECRET"] = "testsecretkey_long_enough_for_security_compliance_32
 
 from app.database import Base, get_db
 from app.main import app
-from app.models import User, Documento
+from app.models import User
 from app.auth import get_current_user
 
 engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
@@ -62,10 +63,21 @@ def test_auto_finalizacion_flow_and_elaboracion_diagnostic(tmp_path, monkeypatch
     from app.routers import documentos
     monkeypatch.setattr(get_settings(), "STORAGE_DIR", str(tmp_path))
     monkeypatch.setattr(documentos, "STORAGE_DIR", tmp_path)
+    group = client.post("/grupos", json={"nombre": "Grupo de prueba de liquidación", "clasificacion": "A1"})
+    assert group.status_code == 201, group.text
+    semillero = client.post("/semilleros", json={"nombre": "Semillero de prueba de liquidación", "grupo_id": group.json()["id"]})
+    assert semillero.status_code == 201, semillero.text
+    registered = client.post("/auth/users", json={"nombre": "Investigador de prueba de liquidación", "email": "liquidacion@example.com", "password": secrets.token_urlsafe(24), "rol": "investigador"})
+    assert registered.status_code == 201, registered.text
+    researcher = registered.json().get("user") or registered.json()
+    linked = client.post(f"/semilleros/{semillero.json()['id']}/investigadores", json={"user_id": researcher["id"]})
+    assert linked.status_code == 200, linked.text
     # 1. Crear un proyecto
     res_proj = client.post("/proyectos", json={
         "nombre": "Proyecto SENNOVA Automatización Robotizada",
         "nombre_corto": "SENNOVA-Auto",
+        "semillero_id": semillero.json()["id"],
+        "investigador_responsable_id": researcher["id"],
         "codigo_sgps": "SGPS-2026-777",
         "estado": "En ejecución",
         "vigencia": 12,

@@ -174,7 +174,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
           items: [
             { id: 'proyectos',     label: 'Proyectos I+D+i',       icon: FolderOpen },
             { id: 'cronograma',    label: 'Cronograma Entregables', icon: Calendar },
-            { id: 'productos',     label: 'Productos Minciencias', icon: Award },
+            { id: 'productos',     label: 'Productos de investigación', icon: Award },
             { id: 'retos',         label: 'Banco de Retos',        icon: Lightbulb },
             { id: 'convocatorias', label: 'Convocatorias',         icon: Calendar },
           ]
@@ -240,7 +240,7 @@ const Navbar = ({ currentUser, onLogout, onNavigate, onModuleAction, currentModu
         label: 'I+D+i',
         items: [
           { id: 'proyectos',     label: 'Proyectos I+D+i',         icon: FolderOpen },
-          { id: 'productos',     label: 'Productos Minciencias',   icon: Award },
+          { id: 'productos',     label: 'Productos de investigación',   icon: Award },
           { id: 'cronograma',    label: 'Cronograma Entregables',  icon: Calendar },
           { id: 'retos',         label: 'Banco de Retos',          icon: Lightbulb },
           { id: 'convocatorias', label: 'Convocatorias',           icon: Calendar },

@@ -31,6 +31,8 @@ from app.services.project_access import can_access_project
 from app.services.entity_document_cleanup import delete_entity_documents, cleanup_document_files
 from app.services.documentation_progress import documentation_progress
 from app.services.documentation_statistics import documentation_loading_options
+from app.services.project_timeline import project_timeline_data
+from app.services.project_general_data import initialize_project_documentation
 
 router = APIRouter(prefix="/proyectos", tags=["Proyectos"])
 FORMULATION_STORAGE_DIR = Path(get_settings().STORAGE_DIR) / "documentos"
@@ -82,8 +84,8 @@ def _resolve_project_links(values: dict, db: Session) -> dict:
     return resolved
 
 
-def _get_project_team_member(db: Session, user_id) -> User:
-    """Restringe los equipos a investigadores y aprendices existentes."""
+def _get_project_team_member(db: Session, user_id, semillero_id=None) -> User:
+    """Valida que el integrante pertenezca al semillero del proyecto."""
     member = db.query(User).filter(
         User.id == _database_identifier(db, user_id)
     ).first()
@@ -94,6 +96,22 @@ def _get_project_team_member(db: Session, user_id) -> User:
             status_code=422,
             detail="Un proyecto solo puede incluir investigadores y aprendices.",
         )
+    if semillero_id is not None:
+        if member.rol == "investigador":
+            belongs_to_seedbed = db.query(Semillero).filter(
+                Semillero.id == _database_identifier(db, semillero_id),
+                Semillero.investigadores.any(User.id == member.id),
+            ).first() is not None
+        else:
+            belongs_to_seedbed = db.query(Aprendiz).filter(
+                Aprendiz.user_id == member.id,
+                Aprendiz.semillero_id == _database_identifier(db, semillero_id),
+            ).first() is not None
+        if not belongs_to_seedbed:
+            raise HTTPException(
+                status_code=422,
+                detail="El investigador responsable y los apoyos deben pertenecer al semillero del proyecto.",
+            )
     return member
 
 
@@ -104,6 +122,23 @@ def _build_proyecto_record(proyecto_data: ProyectoCreate, current_user: User, db
     links = _resolve_project_links(proyecto_data.model_dump(), db)
     grupo_id = links["grupo_id"]
     semillero_id = links["semillero_id"]
+    if semillero_id is None:
+        raise HTTPException(status_code=422, detail="Seleccione el semillero al que pertenece el proyecto.")
+
+    responsible_id = proyecto_data.investigador_responsable_id
+    if responsible_id is None:
+        if current_user.rol != "investigador":
+            raise HTTPException(
+                status_code=422,
+                detail="Seleccione un investigador responsable vinculado al semillero.",
+            )
+        responsible_id = current_user.id
+    elif current_user.rol == "investigador" and str(responsible_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Solo un administrador puede asignar otro investigador responsable.")
+
+    responsible = _get_project_team_member(db, responsible_id, semillero_id)
+    if responsible.rol != "investigador":
+        raise HTTPException(status_code=422, detail="El responsable del proyecto debe ser un investigador.")
 
     proyecto = Proyecto(
         nombre=proyecto_data.nombre,
@@ -128,15 +163,20 @@ def _build_proyecto_record(proyecto_data: ProyectoCreate, current_user: User, db
         semillero_id=_database_identifier(db, semillero_id),
         grupo_id=_database_identifier(db, grupo_id),
         convocatoria_id=_database_identifier(db, proyecto_data.convocatoria_id),
-        owner_id=_database_identifier(db, current_user.id),
+        owner_id=_database_identifier(db, responsible.id),
     )
     db.add(proyecto)
     db.flush()
     if proyecto_data.equipo:
         assigned_members = set()
         for member_data in proyecto_data.equipo:
-            member = _get_project_team_member(db, member_data.user_id)
+            member = _get_project_team_member(db, member_data.user_id, semillero_id)
             member_id = str(member.id)
+            if member_id == str(responsible.id):
+                raise HTTPException(
+                    status_code=422,
+                    detail="El investigador responsable se registra por separado y no se agrega como apoyo del equipo.",
+                )
             if member_id in assigned_members:
                 raise HTTPException(status_code=422, detail="El equipo contiene integrantes repetidos.")
             assigned_members.add(member_id)
@@ -146,6 +186,7 @@ def _build_proyecto_record(proyecto_data: ProyectoCreate, current_user: User, db
                 rol_en_proyecto=member_data.rol_en_proyecto,
                 horas_dedicadas=member_data.horas_dedicadas,
             ))
+    initialize_project_documentation(proyecto, db, current_user)
     return proyecto
 
 
@@ -375,19 +416,18 @@ def get_proyecto(
     equipo_res = db.execute(stmt).fetchall()
     equipo_map = {str(row.user_id): row for row in equipo_res}
 
-    # Entregables del proyecto
     entregables_list = list(proyecto.entregables or [])
     e_info = {
         "total": len(entregables_list),
         "aprobados": sum(1 for e in entregables_list if e.estado == 'aprobado')
     }
 
-    return _format_proyecto_dict(
+    return dict(_format_proyecto_dict(
         proyecto,
         equipo_map=equipo_map,
         entregables_info=e_info,
         aprendiz_view=current_user.rol == "aprendiz",
-    )
+    ), **project_timeline_data(proyecto))
 
 
 @router.post("", status_code=201)
@@ -548,11 +588,37 @@ def update_proyecto(
                 )
     link_fields = ("grupo_id", "semillero_id", "convocatoria_id", "reto_origen_id")
     if any(field in update_data for field in link_fields):
+        if "semillero_id" in update_data and update_data["semillero_id"] is None:
+            raise HTTPException(status_code=422, detail="Un proyecto debe permanecer vinculado a un semillero.")
         values = {field: update_data.get(field, getattr(proyecto, field)) for field in link_fields}
         if "semillero_id" in update_data and "grupo_id" not in update_data:
             values["grupo_id"] = None
         resolved = _resolve_project_links(values, db)
         update_data.update({field: resolved[field] for field in link_fields if field in update_data or field == "grupo_id"})
+
+    if "semillero_id" in update_data or "investigador_responsable_id" in update_data:
+        target_semillero_id = update_data.get("semillero_id", proyecto.semillero_id)
+        if target_semillero_id is None:
+            raise HTTPException(status_code=422, detail="Un proyecto debe permanecer vinculado a un semillero.")
+        responsible_id = update_data.get("investigador_responsable_id", proyecto.owner_id)
+        if current_user.rol == "investigador" and str(responsible_id) != str(current_user.id):
+            raise HTTPException(status_code=403, detail="Solo un administrador puede cambiar el investigador responsable.")
+        responsible = _get_project_team_member(db, responsible_id, target_semillero_id)
+        if responsible.rol != "investigador":
+            raise HTTPException(status_code=422, detail="El responsable del proyecto debe ser un investigador.")
+        project_team = list(proyecto.equipo)
+        for member in project_team:
+            _get_project_team_member(db, member.id, target_semillero_id)
+        if any(str(member.id) == str(responsible.id) for member in project_team):
+            db.execute(
+                proyecto_equipo.delete().where(
+                    proyecto_equipo.c.proyecto_id == proyecto.id,
+                    proyecto_equipo.c.user_id == responsible.id,
+                )
+            )
+            db.expire(proyecto, ["equipo"])
+        update_data["owner_id"] = responsible.id
+        update_data.pop("investigador_responsable_id", None)
     
     for field, value in update_data.items():
         if field != "equipo":  # Equipo se maneja separado
@@ -725,7 +791,12 @@ def add_proyecto_miembro(
         if str(m.id) == str(miembro_data.user_id):
             raise HTTPException(status_code=400, detail="El usuario ya es miembro del proyecto")
 
-    member = _get_project_team_member(db, miembro_data.user_id)
+    member = _get_project_team_member(db, miembro_data.user_id, proyecto.semillero_id)
+    if str(member.id) == str(proyecto.owner_id):
+        raise HTTPException(
+            status_code=422,
+            detail="El investigador responsable se registra por separado y no se agrega como apoyo del equipo.",
+        )
     
     try:
         # Añadir a la tabla de asociación

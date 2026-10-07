@@ -7,7 +7,7 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Semillero, Grupo, User, Aprendiz
+from app.models import Semillero, Grupo, User, Aprendiz, Proyecto
 from app.schemas import SemilleroCreate, SemilleroUpdate, AprendizCreate, AprendizUpdate
 from app.utils import log_actividad, is_valid_uuid
 
@@ -519,6 +519,15 @@ def update_aprendiz(
         raise HTTPException(status_code=403, detail="Los aprendices no tienen permiso para modificar semilleros")
     if current_user.rol != "admin" and str(aprendiz.semillero.owner_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sin permiso")
+
+    if aprendiz.user_id and db.query(Proyecto).filter(
+        Proyecto.semillero_id == aprendiz.semillero_id,
+        Proyecto.equipo.any(User.id == aprendiz.user_id),
+    ).first() is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Retire primero a la persona del equipo de los proyectos de este semillero.",
+        )
     
     update_data = aprendiz_data.model_dump(exclude_unset=True) if hasattr(aprendiz_data, 'model_dump') else aprendiz_data.dict(exclude_unset=True)
     for field, value in update_data.items():
@@ -679,6 +688,16 @@ def remove_investigador_semillero(
     # No permitir remover al owner
     if str(semillero.owner_id) == user_id:
         raise HTTPException(status_code=400, detail="No se puede remover al líder/propietario del semillero")
+
+    project_uses_researcher = db.query(Proyecto).filter(
+        Proyecto.semillero_id == semillero.id,
+        (Proyecto.owner_id == str(user_id)) | Proyecto.equipo.any(User.id == str(user_id)),
+    ).first() is not None
+    if project_uses_researcher:
+        raise HTTPException(
+            status_code=409,
+            detail="Reasigne primero los proyectos y retire a la persona de sus equipos.",
+        )
     
     from app.models import semillero_investigadores
     try:

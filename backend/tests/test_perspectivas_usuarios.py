@@ -80,11 +80,20 @@ def setup_test_environment():
     db.add(grupo)
     db.commit()
 
+    semillero = Semillero(
+        nombre="Biotecnología agroindustrial", grupo_id=grupo.id, owner_id=str(instructor.id),
+    )
+    semillero.investigadores.extend([instructor, investigador])
+    db.add(semillero)
+    db.flush()
+
     # Proyecto base
     proy = Proyecto(
         nombre="Sistema de Trazabilidad Agropecuaria SENNOVA",
         linea_investigacion="Biotecnología",
         owner_id=str(instructor.id),
+        semillero_id=str(semillero.id),
+        grupo_id=str(grupo.id),
         estado="En ejecución"
     )
     db.add(proy)
@@ -192,17 +201,23 @@ def test_perspectiva_investigador_alcances_y_restricciones():
     token = get_auth_token(client, "investigador_test@sena.edu.co")
     headers = {"Authorization": f"Bearer {token}"}
 
+    with TestingSessionLocal() as db:
+        semillero_id = str(db.query(Semillero).filter_by(nombre="Biotecnología agroindustrial").one().id)
+
     # 1. Crear Proyecto
     res_proy = client.post("/proyectos", json={
         "nombre": "Estudio de Rendimiento en Cultivos Biofortificados",
+        "semillero_id": semillero_id,
         "linea_investigacion": "Biotecnología",
         "estado": "En formulación",
-        "vigencia": 2026,
+        "vigencia": 12,
         "presupuesto_total": 45000000.0,
         "año": 2026,
         "tipologia": "I+D Aplicada"
     }, headers=headers)
     assert res_proy.status_code == 201
+    assert res_proy.json()["vigencia"] == 12
+    assert res_proy.json()["año"] == 2026
     assert res_proy.json()["nombre"] == "Estudio de Rendimiento en Cultivos Biofortificados"
 
     # 2. Restricción: Bloqueo de Auditoría (403 Forbidden)
@@ -224,11 +239,13 @@ def test_perspectiva_aprendiz_alcances_formativos_y_bloqueos():
     db = TestingSessionLocal()
     grupo = db.query(Grupo).first()
     grupo_id = str(grupo.id)
+    semillero_id = str(db.query(Semillero).filter_by(nombre="Biotecnología agroindustrial").one().id)
     db.close()
 
     # 1. Restricción: Aprendiz NO puede crear proyectos (403)
     res_proy_block = client.post("/proyectos", json={
         "nombre": "Proyecto No Permitido por Aprendiz",
+        "semillero_id": semillero_id,
         "linea_investigacion": "Software"
     }, headers=headers)
     assert res_proy_block.status_code == 403

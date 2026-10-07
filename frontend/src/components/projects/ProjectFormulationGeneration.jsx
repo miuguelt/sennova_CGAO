@@ -5,6 +5,7 @@ import { documentationButtonClass } from './ProjectDocumentationFields';
 export default function ProjectFormulationGeneration({ formulationDoc, presentationDoc, canEdit, busy, onGenerate, onDownload }) {
   return (
             <div className="space-y-5 pt-2">
+              <p className="text-sm leading-relaxed text-slate-700">Generar un borrador conserva una versión para revisar. Registra la revisión desde Documentos y versiones; la generación no acredita aprobación institucional.</p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 shadow-xs">
                   <div className="flex items-center gap-2 font-bold text-emerald-950 text-sm">

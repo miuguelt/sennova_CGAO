@@ -158,10 +158,16 @@ def test_postgres_removes_retired_bitacora_schema_and_preserves_project_audit(po
     assert remove_retired_stage_productivity_schema(engine) == {
         "table_removed": True,
         "columns_removed": ("formato_bitacora_path", "formato_seguimiento_path"),
+        "documents_removed": 0,
+        "notifications_removed": 0,
+        "files_removed": 0,
     }
     assert remove_retired_stage_productivity_schema(engine) == {
         "table_removed": False,
         "columns_removed": (),
+        "documents_removed": 0,
+        "notifications_removed": 0,
+        "files_removed": 0,
     }
 
     inspector = inspect(engine)
@@ -319,7 +325,7 @@ def prepare_generated_forms(postgres_context, keys):
     project.objetivos_especificos = ["Diagnosticar el archivo", "Clasificar los documentos"]
     db.commit()
     common = {field["key"]: field_value(field) for field in COMMON_FIELDS
-              if field["key"] != "inconsistencias_fuente"}
+              if field["key"] not in {"inconsistencias_fuente", "aclaraciones_fuente"}}
     saved = save_common(project, db, owner, 0, common)
     assert saved["revision"] == 1
     common = saved["datos"]
@@ -402,14 +408,52 @@ def test_postgres_reference_import_is_private_idempotent_and_preserves_edits_and
     assert next(draft for draft in drafts if draft.tipo == "acta_cierre").datos["tipo_cierre"] == "parcial"
     assert db.query(User).count() == 1 and db.query(Producto).count() == 0
     assert db.query(Documento).count() == 0 and db.query(ProjectDocumentVersion).count() == 0
-    assert save_common(reference, db, owner, 0, {"centro": "Edición conservada"})["revision"] == 1
+    edited_common = dict(row.datos, centro="Edición conservada")
+    assert save_common(reference, db, owner, 0, edited_common)["revision"] == 1
     assert save_draft(reference, db, owner, "acta_inicio", 0, {"lugar": "Edición conservada"})["revision"] == 1
     repeated = import_reference_data(db, owner, payload)
     assert repeated["proyecto_id"] == imported["proyecto_id"] and repeated["creado"] is False
     assert db.query(Proyecto).count() == 2 and db.query(ProjectDocumentDraft).count() == 6
-    assert db.get(ProjectDocumentation, reference.id).datos == {"centro": "Edición conservada"}
+    assert db.get(ProjectDocumentation, reference.id).datos == edited_common
+    assert "Código de inicio distinto" in db.get(ProjectDocumentation, reference.id).datos["inconsistencias_fuente"]
     assert db.get(ProjectDocumentation, reference.id).fuente_snapshot == payload
     assert db.query(ProjectDocumentDraft).filter_by(proyecto_id=reference.id, clave="acta_inicio").one().datos == {"lugar": "Edición conservada"}
+
+
+def test_postgres_source_clarification_preserves_original_and_reactivates_new_pending(postgres_context):
+    _, db, owner, project, *_ = postgres_context
+    original = "Las fuentes registran dos fechas de inicio; consulte el acta firmada."
+    common = {"inconsistencias_fuente": original}
+    assert save_common(project, db, owner, 0, common)["revision"] == 1
+    with pytest.raises(HTTPException) as erased:
+        save_common(project, db, owner, 1, {"inconsistencias_fuente": ""})
+    assert erased.value.status_code == 422
+    db.rollback()
+    assert db.get(ProjectDocumentation, project.id).datos == common
+    clarification = {"inconsistencia": original, "valor_confirmado": "La fecha respaldada es el 1 de marzo de 2026.",
+                     "soporte": "Acta de inicio firmada, apartado 3, expediente del proyecto.",
+                     "responsable": "Persona ajena al proyecto", "fecha": "2026-06-30"}
+    with pytest.raises(HTTPException) as unauthorized:
+        save_common(project, db, owner, 1, dict(common, aclaraciones_fuente=[clarification]))
+    assert unauthorized.value.status_code == 422
+    db.rollback()
+    clarification["responsable"] = owner.nombre
+    resolved = dict(common, aclaraciones_fuente=[clarification])
+    saved = save_common(project, db, owner, 1, resolved)
+    assert saved["revision"] == 2 and saved["datos"] == resolved
+    db.expire_all()
+    view = documentation_view(project, db)
+    assert not view["advertencias"]
+    assert not any(item["campo"] in {"comunes.inconsistencias_fuente", "comunes.aclaraciones_fuente"} for item in view["revision_coherencia"])
+    assert view["opciones_relaciones"]["integrantes"] == [owner.nombre]
+    assert "opciones_relaciones" not in view["proyecto"]
+    unresolved = dict(resolved, inconsistencias_fuente=original + "\nLa duración también requiere soporte.")
+    assert save_common(project, db, owner, 2, unresolved)["revision"] == 3
+    after = documentation_view(project, db)
+    assert after["comunes"]["inconsistencias_fuente"].startswith(original)
+    assert after["comunes"]["aclaraciones_fuente"] == [clarification]
+    assert after["advertencias"]
+    assert any(item["campo"] == "comunes.aclaraciones_fuente" for item in after["revision_coherencia"])
 
 
 def test_postgres_generation_persists_real_docx_pptx_immutable_snapshots_hash_and_zip(postgres_context):

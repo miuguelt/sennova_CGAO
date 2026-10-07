@@ -223,7 +223,7 @@ const AuditoriaModule = ({ onNotify }) => {
                         ))
                       ) : (
                         filteredData.map((item, idx) => (
-                          <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group">
+                          <tr key={`${item.id}-${idx}`} className="hover:bg-slate-50/80 transition-colors group">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${idx % 2 === 0 ? 'bg-indigo-100 text-indigo-900' : 'bg-emerald-100 text-emerald-900'}`}>
@@ -284,7 +284,7 @@ const AuditoriaModule = ({ onNotify }) => {
                 [1,2,3].map(i => <div key={i} className="h-32 bg-slate-100 rounded-3xl animate-pulse" />)
               ) : (
                 filteredData.map((item, idx) => (
-                  <Card key={item.id} className="p-5 border-0 shadow-md bg-white space-y-4">
+                  <Card key={`${item.id}-${idx}`} className="p-5 border-0 shadow-md bg-white space-y-4">
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-3">
                         <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black ${idx % 2 === 0 ? 'bg-indigo-100 text-indigo-900' : 'bg-emerald-100 text-emerald-900'}`}>

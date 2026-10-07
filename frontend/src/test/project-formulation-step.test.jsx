@@ -153,6 +153,15 @@ describe('ProjectFormulationStep', () => {
     expect(screen.getByText('Completa estos datos si el proyecto o la convocatoria los solicita.')).toBeInTheDocument();
   });
 
+  it('mantiene accesibles los campos nuevos de una etapa aunque aún no estén agrupados', () => {
+    const step = { ...mockStep, bloques: [{ id: 'general', titulo: 'Propósito', campos: ['objetivo_general'] }] };
+    render(<ProjectFormulationStep {...defaultProps} step={step} />);
+    fireEvent.click(screen.getByRole('button', { name: '2. Otros datos de esta etapa' }));
+    expect(screen.getByLabelText('Justificación')).toHaveValue(mockDraftValues.justificacion);
+    fireEvent.change(screen.getByLabelText('Justificación'), { target: { value: 'Justificación completa' } });
+    expect(defaultProps.onDraftChange).toHaveBeenCalledWith('justificacion', 'Justificación completa');
+  });
+
   it('mantiene los datos personales de autoría opcionales y cerrados por defecto', () => {
     const teamField = {
       key: 'equipo',
@@ -248,7 +257,7 @@ describe('ProjectFormulationStep', () => {
     expect(screen.getByText('0%')).toBeInTheDocument();
   });
 
-  it('copia el ejemplo, informa el resultado y restablece el botón después de dos segundos', () => {
+  it('copia el ejemplo, informa el resultado y restablece el botón después de dos segundos', async () => {
     vi.useFakeTimers();
     const writeTextMock = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, {
@@ -262,7 +271,7 @@ describe('ProjectFormulationStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Ejemplo$/i }));
     const copyButton = screen.getByRole('button', { name: /Copiar/i });
-    fireEvent.click(copyButton);
+    await act(async () => fireEvent.click(copyButton));
 
     expect(writeTextMock).toHaveBeenCalledWith(expect.any(String));
     expect(defaultProps.onNotify).toHaveBeenCalledWith('Estructura modelo copiada al portapapeles', 'success');

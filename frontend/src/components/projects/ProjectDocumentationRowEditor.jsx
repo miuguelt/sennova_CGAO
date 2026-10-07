@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import ProjectDocumentationModal from './ProjectDocumentationModal';
+import { getDocumentationErrors } from './projectDocumentationValidation';
 
 export default function ProjectDocumentationRowEditor({ field, row, index, isNew, disabled, onApply, onClose, FieldsComponent, buttonClass }) {
   const [draft, setDraft] = useState(() => ({ ...row }));
   const [discarding, setDiscarding] = useState(false);
   const regularColumns = field.columns.filter(column => !column.optional_detail);
   const detailColumns = field.columns.filter(column => column.optional_detail);
-  const missing = regularColumns.filter(column => column.required && (draft[column.key] == null || String(draft[column.key]).trim() === ''));
+  const missing = regularColumns.filter(column => (column.required || field.key === 'aclaraciones_fuente') && (draft[column.key] == null || String(draft[column.key]).trim() === ''));
   const dirty = JSON.stringify(draft) !== JSON.stringify(row);
+  const errors = getDocumentationErrors(field.columns, draft);
+  const invalid = Object.keys(errors).length > 0;
   function change(key, value) { setDraft(previous => ({ ...previous, [key]: value })); }
   function close() {
     if (dirty && !disabled) setDiscarding(true);
@@ -20,7 +23,7 @@ export default function ProjectDocumentationRowEditor({ field, row, index, isNew
     <ProjectDocumentationModal isOpen onClose={close} title={title} subtitle={field.label} variant="clean" size="xl"
       className="documentation-dialog" bodyClassName="documentation-row-editor" footer={<>
         <button type="button" className={buttonClass} onClick={close}>{disabled ? 'Volver al formulario' : 'Cancelar'}</button>
-        {!disabled && <button type="button" className={`${buttonClass} documentation-save-button`} onClick={() => onApply(draft)}>Aplicar al formulario</button>}
+        {!disabled && <button type="button" className={`${buttonClass} documentation-save-button`} disabled={invalid} onClick={() => onApply(draft)}>Aplicar al formulario</button>}
       </>}>
       {!disabled && <p className="documentation-row-editor-note">Completa lo que ya conoces. Aplica el registro al formulario y luego guarda la etapa para conservarlo en el proyecto.</p>}
       <FieldsComponent {...fieldProps} fields={regularColumns} />
@@ -30,6 +33,7 @@ export default function ProjectDocumentationRowEditor({ field, row, index, isNew
         <FieldsComponent {...fieldProps} fields={detailColumns} />
       </details>}
       {missing.length > 0 && <p className="documentation-row-pending">Por completar: {missing.map(column => column.label).join(', ')}.</p>}
+      {invalid && <div role="alert" className="space-y-2 text-sm text-rose-900"><p>Corrige los valores antes de aplicar el registro.</p><ul className="list-disc pl-5">{field.columns.filter(column => errors[column.key]).map(column => <li key={column.key}>{column.label}: {errors[column.key]}</li>)}</ul></div>}
     </ProjectDocumentationModal>
     {discarding && <ProjectDocumentationModal isOpen onClose={() => setDiscarding(false)} title="Descartar cambios del registro"
       variant="clean" size="md" className="documentation-dialog" footer={<>

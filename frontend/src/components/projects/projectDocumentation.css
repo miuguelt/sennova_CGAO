@@ -1,6 +1,9 @@
 /* Material Design 3: superficies sobrias y espacio de escritura como prioridad. */
-.project-workspace { width: 100vw !important; max-width: 100vw !important; border: 0; }
-.project-workspace > div:first-child { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: center; padding: 1rem clamp(1rem, 2.3vw, 3rem); background: #fff; }
+.project-workspace { width: 100vw !important; max-width: 100vw !important; border: 0; container-type: inline-size; container-name: project-workspace; }
+.project-workspace > div:first-child { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; align-items: center; padding: 1rem clamp(1rem, 2.3vw, 3rem); background: #fff; }
+@container project-workspace (min-width: 1100px) {
+  .project-workspace > div:first-child { grid-template-columns: minmax(0, 1fr) auto; }
+}
 .project-workspace > div:first-child > div:first-child { order: 2; margin-bottom: 0; }
 .project-workspace > div:first-child > div:last-child { order: 1; min-width: 0; }
 .project-workspace > div:first-child h2 { font-size: clamp(1.1rem, 1.6vw, 1.6rem); line-height: 1.35; }
@@ -208,4 +211,90 @@
   .formulation-sections nav button { flex: 0 0 190px; }
   .formulation-modes { flex: 1 1 100%; }
   .formulation-bottom-actions > span { order: -1; width: 100%; text-align: center; }
+}
+.project-general-data {
+  min-width: 0;
+  border: 1px solid #c9dfd5;
+  border-radius: 12px;
+  padding: clamp(12px, 2vw, 20px);
+  background: #f3f9f6;
+  color: #132d27;
+}
+.project-general-data__header {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.project-general-data__header > div { flex: 1 1 340px; min-width: 0; }
+.project-general-data h5 { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.project-general-data h5 svg { flex-shrink: 0; }
+.project-general-data p { width: 100%; margin-top: 8px; font-size: 14px; line-height: 1.6; }
+.project-general-data button { min-height: 44px; white-space: normal; }
+.project-general-data summary { cursor: pointer; min-height: 44px; padding: 12px 0; font-size: 14px; font-weight: 600; }
+.project-general-data__values { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px 20px; }
+.project-general-data__values > div { min-width: 0; }
+.project-general-data dt { color: #47665b; font-size: 12px; }
+.project-general-data dd { font-size: 14px; line-height: 1.6; margin-top: 4px; }
+.project-general-data .project-general-data__note { color: #47665b; font-size: 13px; }
+.project-general-data [role='status'] { color: #126346; font-weight: 600; }
+
+/* El espacio del proyecto prioriza el campo activo y las acciones de escritura. */
+.project-workspace .project-workspace-body { padding: .75rem clamp(.75rem, 1.5vw, 1.5rem) !important; }
+.project-workspace .documentation-editor--workspace { --tw-space-y-reverse: 0; }
+.project-workspace .documentation-editor--workspace > :not([hidden]) ~ :not([hidden]) { margin-top: .65rem; }
+.project-workspace .documentation-heading > div:first-child { display: none; }
+.project-workspace .documentation-heading .documentation-progress { gap: .2rem .75rem; padding: .5rem .75rem; }
+.project-workspace .documentation-heading .documentation-progress-heading strong { font-size: 1rem; }
+.project-workspace .documentation-heading .documentation-progress-stats { font-size: .78rem; }
+.project-workspace .documentation-heading .documentation-progress details { grid-column: 1 / -1; }
+.project-workspace .documentation-heading .documentation-progress details summary { padding: .2rem 0; }
+.project-workspace .documentation-heading .documentation-progress--disclosure { display: block; padding: 0 .65rem; }
+.project-workspace .documentation-progress-toggle { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; min-height: 44px; cursor: pointer; font-size: .8rem; font-weight: 600; list-style: none; }
+.project-workspace .documentation-progress-toggle::-webkit-details-marker { display: none; }
+.project-workspace .documentation-progress-toggle::before { content: '▸'; color: #157556; }
+.project-workspace .documentation-progress--disclosure details[open] > .documentation-progress-toggle::before { content: '▾'; }
+.project-workspace .documentation-progress-toggle > progress { width: min(100%, 9rem); height: .4rem; margin: 0; flex: 0 0 auto; }
+.project-workspace .documentation-progress-toggle:focus-visible { outline: 2px solid #157556; outline-offset: 3px; }
+.project-workspace .documentation-progress-detail { padding: .4rem 0 .65rem; display: grid; gap: .4rem; }
+.project-workspace .documentation-progress-detail > p { font-size: .78rem; line-height: 1.5; margin-top: 0; }
+.project-workspace .documentation-warnings { padding: .45rem .65rem; gap: .25rem .6rem; align-items: center; }
+.project-workspace .documentation-warnings > details { flex: 1 1 340px; min-width: 0; }
+.project-workspace .documentation-warnings summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; }
+.project-workspace .documentation-warnings button { padding: .4rem .65rem; }
+.project-workspace .documentation-warnings > h4 { font-size: .8rem; }
+.project-workspace .documentation-warnings > div { flex: 1 1 520px; width: auto; }
+.project-workspace .documentation-warnings > ul { flex-basis: 380px; font-size: .8rem; }
+.project-workspace .documentation-warnings .documentation-source-detail { flex: 1 1 220px; min-width: 0; font-size: .8rem; }
+.project-workspace .documentation-workspace-tabs { padding-bottom: 0; gap: .25rem; }
+.project-workspace .documentation-workspace-tabs button { padding: .5rem .75rem; }
+.project-workspace .formulation-workspace > :not([hidden]) ~ :not([hidden]) { margin-top: .6rem; }
+.project-workspace .formulation-toolbar--compact { padding-bottom: .4rem; gap: .4rem .75rem; }
+.project-workspace .formulation-route-summary { gap: .25rem .65rem; }
+.project-workspace .formulation-reference-note summary { padding: .35rem 0; }
+.project-workspace .formulation-step { padding: .85rem clamp(.85rem, 1.3cqi, 1.2rem); gap: .65rem; }
+.project-workspace .formulation-step-heading { gap: .4rem .75rem; }
+.project-workspace .formulation-step-heading h4 { font-size: clamp(1.1rem, 1.7cqi, 1.35rem); line-height: 1.35; }
+.project-workspace .formulation-block-nav { padding-bottom: .35rem; gap: .2rem; }
+.project-workspace .formulation-block-nav button { padding: .45rem .65rem; }
+.project-workspace .formulation-field-group { padding: 0; }
+.project-workspace .formulation-field-group__heading { margin-bottom: .5rem; }
+.project-workspace .formulation-field-group__heading p { line-height: 1.5; }
+.project-workspace .formulation-field-groups { gap: .6rem; }
+.project-workspace .formulation-bottom-actions { position: sticky; bottom: 0; z-index: 6; padding: .55rem .75rem; border: 1px solid #cbded4; border-radius: .75rem; background: #fff; box-shadow: 0 -3px 12px #18352b0d; }
+.project-workspace .formulation-bottom-actions .documentation-save-button { margin-left: auto; }
+.project-workspace .formulation-bottom-actions .documentation-save-button { background: #157556; color: #fff; border-color: #157556; }
+.formulation-writing-instruction { font-size: .875rem; line-height: 1.55; color: #43584e; }
+.formulation-review-summary { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; font-size: .8rem; color: #43584e; }
+.formulation-review-summary > span { padding: .25rem .5rem; border-radius: .5rem; background: #edf6f0; }
+.formulation-review-summary > p { flex: 1 1 350px; line-height: 1.5; }
+@media (max-width: 639px) {
+  .project-workspace .formulation-bottom-actions { position: static; gap: .4rem; padding: .5rem; }
+  .project-workspace .formulation-bottom-actions > span { display: none; }
+  .project-workspace .formulation-bottom-actions button { flex: 1 1 130px; padding: .45rem .5rem; }
+  .project-workspace .formulation-bottom-actions .documentation-save-button { flex-basis: 100%; order: -1; }
+  .project-workspace > div:first-child h2 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+}
+@media (min-width: 768px) {
+  .project-workspace > div:first-child h2 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
 }

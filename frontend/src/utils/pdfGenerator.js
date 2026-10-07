@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { formatCalendarDate } from './calendarDate';
 import autoTable, { applyPlugin } from 'jspdf-autotable';
 
 // Registrar e inicializar el plugin en jsPDF para soporte completo en Vite/ESM
@@ -28,11 +29,12 @@ const sanitizeFileName = (str) => (str || 'documento')
   .substring(0, 60);
 
 const formatCurrency = (val) => `$${(Number(val) || 0).toLocaleString('es-CO')} COP`;
+const formatHours = (value) => value == null || value === '' ? 'No registrada' : `${value} hrs/sem`;
+const formatDuration = (value) => value == null || value === '' ? 'No registrada' : `${value} meses`;
 
 const formatDate = (d) => {
   if (!d) return new Date().toLocaleDateString('es-CO');
-  const dateObj = new Date(d);
-  return isNaN(dateObj.getTime()) ? String(d) : dateObj.toLocaleDateString('es-CO');
+  return formatCalendarDate(d, {}, String(d));
 };
 
 /**
@@ -71,9 +73,9 @@ export const PDFGenerator = {
     const programa = aprendiz.programa || aprendiz.programa_formacion || data.programa || data.programa_formacion || '';
     
     const nombreSemillero = semillero.nombre || data.semillero_nombre || 'Semillero de Investigación SENNOVA';
-    const fechaIngreso = semillero.fecha_ingreso ? formatDate(semillero.fecha_ingreso) : (data.fecha_ingreso ? formatDate(data.fecha_ingreso) : 'Vigencia actual');
-    const horas = semillero.horas || data.horas_dedicadas || data.horas || 80;
-    const centro = data.centro || data.entidad || 'Centro de Gestión Agroempresarial y Oriente - Regional Santander';
+    const fechaIngreso = semillero.fecha_ingreso ? formatDate(semillero.fecha_ingreso) : (data.fecha_ingreso ? formatDate(data.fecha_ingreso) : 'No registrada');
+    const horas = semillero.horas ?? data.horas_dedicadas ?? data.horas;
+    const centro = data.centro || data.entidad || 'Centro de Gestión Agroempresarial del Oriente (CGAO) - Subsede Vélez, Regional Santander';
     const fechaEmision = data.fecha_emision || new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
 
     const firmas = Array.isArray(data.firmas) && data.firmas.length > 0 ? data.firmas : [];
@@ -91,7 +93,7 @@ export const PDFGenerator = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(22);
     doc.setTextColor(...COLORS.navyDark);
-    doc.text('CERTIFICADO DE PARTICIPACIÓN', 148.5, 38, { align: 'center' });
+    doc.text('BORRADOR DE CERTIFICADO DE PARTICIPACIÓN', 148.5, 38, { align: 'center' });
     
     doc.setFontSize(13);
     doc.setTextColor(...COLORS.textMuted);
@@ -101,7 +103,8 @@ export const PDFGenerator = {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(15);
     doc.setTextColor(51, 65, 85);
-    doc.text('El Sistema de Investigación, Innovación y Desarrollo Tecnológico - SENNOVA, certifica que:', 148.5, 72, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text('Sistema de Investigación, Desarrollo Tecnológico e Innovación - SENNOVA: datos para revisión.', 148.5, 72, { align: 'center' });
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(26);
@@ -124,7 +127,7 @@ export const PDFGenerator = {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(15);
     doc.setTextColor(51, 65, 85);
-    doc.text('Por su destacada vinculación y participación activa en el semillero:', 148.5, 124, { align: 'center' });
+    doc.text('Participación registrada en el semillero, pendiente de contrastar con los soportes:', 148.5, 124, { align: 'center' });
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
@@ -134,12 +137,14 @@ export const PDFGenerator = {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     doc.setTextColor(...COLORS.textMuted);
-    doc.text(`Vinculación desde: ${fechaIngreso} | Intensidad: ${horas} horas de investigación formativa`, 148.5, 148, { align: 'center' });
+    doc.text(`Vinculación desde: ${fechaIngreso} | Intensidad: ${horas == null || horas === '' ? 'No registrada' : `${horas} horas de investigación formativa`}`, 148.5, 148, { align: 'center' });
 
     // Fecha de expedición
     doc.setFontSize(10);
     doc.setTextColor(71, 85, 105);
-    doc.text(`Expedido en Vélez, Santander el día ${fechaEmision}`, 148.5, 166, { align: 'center' });
+    doc.text(`Preparado para revisión en Vélez, Santander el día ${fechaEmision}`, 148.5, 162, { align: 'center' });
+    doc.setFontSize(9);
+    doc.text('Requiere soportes, revisión y firmas autorizadas; no acredita participación por sí solo.', 148.5, 168, { align: 'center' });
 
     // Firmas
     doc.setDrawColor(200, 200, 200);
@@ -190,7 +195,7 @@ export const PDFGenerator = {
     doc.text('REPORTE MENSUAL DE ACTIVIDADES', 105, 18, { align: 'center' });
     doc.setFontSize(9);
     doc.text('SISTEMA DE INVESTIGACIÓN, INNOVACIÓN Y DESARROLLO TECNOLÓGICO - SENNOVA', 105, 26, { align: 'center' });
-    doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE - REGIONAL SANTANDER', 105, 31, { align: 'center' });
+    doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL DEL ORIENTE - REGIONAL SANTANDER', 105, 31, { align: 'center' });
 
     // Info General
     doc.setFontSize(10);
@@ -282,11 +287,11 @@ export const PDFGenerator = {
     const rolUsuario = user.rol || user.rol_en_proyecto || data.rol || 'Investigador';
     
     const nombreProyecto = proj.nombre || data.nombre_proyecto || 'Proyecto de Investigación SENNOVA';
-    const codigoProyecto = proj.codigo || proj.codigo_sgps || data.codigo_sgps || 'SGPS-2026';
-    const vigencia = proj.vigencia || data.vigencia || 12;
+    const codigoProyecto = proj.codigo || proj.codigo_sgps || data.codigo_sgps || 'No registrado';
+    const vigencia = formatDuration(proj.vigencia ?? data.vigencia);
     const linea = proj.linea || proj.linea_programatica || proj.linea_investigacion || data.linea || 'I+D';
 
-    const centro = data.centro || 'Centro de Gestión Agroempresarial y Oriente - Regional Santander';
+    const centro = data.centro || 'Centro de Gestión Agroempresarial del Oriente (CGAO) - Subsede Vélez, Regional Santander';
     const fechaEmision = data.fecha_emision || new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
 
     const firmas = Array.isArray(data.firmas) && data.firmas.length > 0 ? data.firmas : [];
@@ -304,7 +309,8 @@ export const PDFGenerator = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(22);
     doc.setTextColor(...COLORS.navyDark);
-    doc.text('CERTIFICADO DE PARTICIPACIÓN EN PROYECTO', 148.5, 38, { align: 'center' });
+    doc.setFontSize(18);
+    doc.text('BORRADOR DE CERTIFICADO DE PARTICIPACIÓN EN PROYECTO', 148.5, 38, { align: 'center' });
     
     doc.setFontSize(13);
     doc.setTextColor(...COLORS.textMuted);
@@ -314,7 +320,8 @@ export const PDFGenerator = {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(15);
     doc.setTextColor(51, 65, 85);
-    doc.text('El Sistema de Investigación, Innovación y Desarrollo Tecnológico - SENNOVA, otorga el presente reconocimiento a:', 148.5, 72, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text('Sistema de Investigación, Desarrollo Tecnológico e Innovación - SENNOVA: datos para revisión.', 148.5, 72, { align: 'center' });
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(26);
@@ -327,7 +334,7 @@ export const PDFGenerator = {
     doc.text(`Identificado(a) con documento No. ${docUsuario}`, 148.5, 100, { align: 'center' });
 
     doc.setFontSize(15);
-    doc.text(`Por su valiosa contribución como ${rolUsuario.toUpperCase()} en el proyecto de investigación:`, 148.5, 118, { align: 'center' });
+    doc.text(`Rol registrado: ${rolUsuario.toUpperCase()}. Participación por contrastar con los soportes del proyecto:`, 148.5, 118, { align: 'center' });
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(17);
@@ -339,12 +346,14 @@ export const PDFGenerator = {
     doc.setFontSize(11);
     doc.setTextColor(...COLORS.textMuted);
     const yInfo = 132 + (splitTitle.length * 5) + 4;
-    doc.text(`Código SGPS: ${codigoProyecto} | Vigencia: ${vigencia} meses | Línea: ${linea}`, 148.5, yInfo, { align: 'center' });
+    doc.text(`Código SGPS: ${codigoProyecto} | Vigencia: ${vigencia} | Línea: ${linea}`, 148.5, yInfo, { align: 'center' });
 
     // Fecha
     doc.setFontSize(10);
     doc.setTextColor(71, 85, 105);
-    doc.text(`Expedido en la Regional Santander el día ${fechaEmision}`, 148.5, 166, { align: 'center' });
+    doc.text(`Preparado para revisión en la Regional Santander el día ${fechaEmision}`, 148.5, 162, { align: 'center' });
+    doc.setFontSize(9);
+    doc.text('Requiere soportes, revisión y firmas autorizadas; no acredita participación por sí solo.', 148.5, 168, { align: 'center' });
 
     // Firmas
     doc.setDrawColor(200, 200, 200);
@@ -396,7 +405,7 @@ export const PDFGenerator = {
     doc.text('INFORME FINANCIERO DE PROYECTO', 105, 18, { align: 'center' });
     doc.setFontSize(9);
     doc.text('SISTEMA DE INVESTIGACIÓN, INNOVACIÓN Y DESARROLLO TECNOLÓGICO - SENNOVA', 105, 26, { align: 'center' });
-    doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE - REGIONAL SANTANDER', 105, 31, { align: 'center' });
+    doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL DEL ORIENTE - REGIONAL SANTANDER', 105, 31, { align: 'center' });
 
     // Info del Proyecto
     doc.setTextColor(...COLORS.navyDark);
@@ -411,7 +420,7 @@ export const PDFGenerator = {
     doc.text(`Proyecto: ${proyecto.nombre || 'Sin nombre'}`, 20, 58);
     doc.text(`Código SGPS: ${proyecto.codigo || proyecto.codigo_sgps || 'N/A'}`, 20, 65);
     doc.text(`Investigador Principal: ${proyecto.investigador || proyecto.owner?.nombre || 'Investigador Principal'}`, 20, 72);
-    doc.text(`Vigencia: ${proyecto.vigencia || 12} meses`, 20, 79);
+    doc.text(`Vigencia: ${formatDuration(proyecto.vigencia)}`, 20, 79);
 
     // Resumen Financiero
     doc.setFont('helvetica', 'bold');
@@ -501,7 +510,7 @@ export const PDFGenerator = {
     doc.setTextColor(...COLORS.white);
     doc.text('ACTA DE INICIO Y SOCIALIZACIÓN I+D+i', 105, 17, { align: 'center' });
     doc.setFontSize(8.5);
-    doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL Y DEL ORIENTE - REGIONAL SANTANDER', 105, 25, { align: 'center' });
+    doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL DEL ORIENTE - REGIONAL SANTANDER', 105, 25, { align: 'center' });
     doc.text('SISTEMA DE INVESTIGACIÓN, INNOVACIÓN Y DESARROLLO TECNOLÓGICO - SENNOVA', 105, 30, { align: 'center' });
     addReferenceNotice(doc);
 
@@ -536,7 +545,7 @@ export const PDFGenerator = {
     doc.setFont('helvetica', 'bold');
     doc.text('Vigencia de Ejecución:', 110, 80);
     doc.setFont('helvetica', 'normal');
-    doc.text(`${proyecto.vigencia || 12} meses`, 148, 80);
+    doc.text(formatDuration(proyecto.vigencia), 148, 80);
 
     // Objetivo General
     doc.setFont('helvetica', 'bold');
@@ -564,8 +573,8 @@ export const PDFGenerator = {
     const bodyEquipo = equipo.length > 0 ? equipo.map(m => [
       m.nombre || m.user?.nombre || 'Integrante de Investigación',
       m.rol || m.rol_en_proyecto || m.pivot?.rol_en_proyecto || 'Investigador',
-      `${m.horas_dedicadas || m.pivot?.horas_dedicadas || m.horas || 20} hrs/sem`
-    ]) : [['Sin equipo de investigación registrado', 'Investigador Principal', '20 hrs/sem']];
+      formatHours(m.horas_dedicadas ?? m.pivot?.horas_dedicadas ?? m.horas)
+    ]) : [['Sin equipo de investigación registrado', 'No registrado', 'No registrada']];
 
     doc.autoTable({
       startY: nextY + 6,
@@ -615,7 +624,7 @@ export const PDFGenerator = {
     doc.text('SUBDIRECTOR / LÍDER SENNOVA', 152.5, firmaY + 5, { align: 'center' });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
-    doc.text('Centro de Gestión Agroempresarial y Oriente', 152.5, firmaY + 9, { align: 'center' });
+    doc.text('Centro de Gestión Agroempresarial del Oriente (CGAO) - Subsede Vélez', 152.5, firmaY + 9, { align: 'center' });
 
     // Pie de página
     doc.setFontSize(7.5);
@@ -639,7 +648,7 @@ export const PDFGenerator = {
     doc.setTextColor(...COLORS.white);
     doc.text('FICHA TÉCNICA DE REFERENCIA', 105, 18, { align: 'center' });
     doc.setFontSize(9);
-    doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL Y ORIENTE - REGIONAL SANTANDER', 105, 26, { align: 'center' });
+    doc.text('CENTRO DE GESTIÓN AGROEMPRESARIAL DEL ORIENTE - REGIONAL SANTANDER', 105, 26, { align: 'center' });
     doc.text('SISTEMA DE INVESTIGACIÓN, INNOVACIÓN Y DESARROLLO TECNOLÓGICO - SENNOVA', 105, 31, { align: 'center' });
     addReferenceNotice(doc);
 
@@ -685,7 +694,7 @@ export const PDFGenerator = {
     doc.setFont('helvetica', 'bold');
     doc.text('Vigencia:', 120, 88);
     doc.setFont('helvetica', 'normal');
-    doc.text(`${proyecto.vigencia || 12} meses`, 140, 88);
+    doc.text(formatDuration(proyecto.vigencia), 140, 88);
 
     // Objetivo General
     doc.setFont('helvetica', 'bold');
@@ -717,8 +726,8 @@ export const PDFGenerator = {
       m.nombre || m.user?.nombre || 'Sin nombre',
       m.email || m.user?.email || 'N/A',
       m.rol || m.rol_en_proyecto || m.pivot?.rol_en_proyecto || 'Investigador',
-      `${m.horas_dedicadas || m.pivot?.horas_dedicadas || m.horas || 20} hrs/sem`
-    ]) : [['Sin investigadores vinculados registrados', 'N/A', 'Investigador', '20 hrs/sem']];
+      formatHours(m.horas_dedicadas ?? m.pivot?.horas_dedicadas ?? m.horas)
+    ]) : [['Sin investigadores vinculados registrados', 'N/A', 'No registrado', 'No registrada']];
 
     doc.autoTable({
       startY: currentY + 6,

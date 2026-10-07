@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { calendarDaysUntil } from '../../utils/calendarDate';
 import { 
   Calendar, MapPin, FileText, CheckCircle, 
   Clock, Plus, Search, Filter, ArrowUpRight,
@@ -137,8 +138,7 @@ const ConvocatoriaCard = ({
 
   const daysLeft = () => {
     if (!convocatoria.fecha_cierre) return null;
-    const diff = new Date(convocatoria.fecha_cierre) - new Date();
-    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return calendarDaysUntil(convocatoria.fecha_cierre);
   };
 
   const dl = daysLeft();
@@ -532,8 +532,8 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
   const presupuestoTotalAcumulado = proyectos.filter(p => p.convocatoria_id).reduce((sum, p) => sum + (p.presupuesto_total || 0), 0);
   const convocatoriasPorVencer = convocatorias.filter(c => {
     if (!c.fecha_cierre) return false;
-    const diff = Math.ceil((new Date(c.fecha_cierre) - new Date()) / (1000 * 60 * 60 * 24));
-    return diff > 0 && diff <= 15;
+    const diff = calendarDaysUntil(c.fecha_cierre);
+    return diff !== null && diff >= 0 && diff <= 15;
   }).length;
 
   if (loading && convocatorias.length === 0) {
@@ -907,7 +907,7 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
                 </div>
                 {selectedConvocatoria.fecha_cierre && (
                   <Badge variant="amber" className="font-black">
-                    {Math.ceil((new Date(selectedConvocatoria.fecha_cierre) - new Date()) / (1000 * 60 * 60 * 24))} días restantes
+                    {calendarDaysUntil(selectedConvocatoria.fecha_cierre) ?? 'Sin fecha'} días restantes
                   </Badge>
                 )}
               </div>

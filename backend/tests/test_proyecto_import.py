@@ -31,6 +31,7 @@ current_user = User(
     rol="investigador",
     is_active=True,
 )
+IMPORT_SEEDBED_ID = "dddddddd-dddd-dddd-dddd-dddddddddddd"
 
 
 def make_docx(rows):
@@ -107,9 +108,24 @@ def override_dependencies(tmp_path, monkeypatch):
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = lambda: current_user
     monkeypatch.setattr(proyectos_router, "FORMULATION_STORAGE_DIR", tmp_path / "documentos", raising=False)
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
-    db.query(Documento).delete()
-    db.query(Proyecto).delete()
+    investigator = User(
+        id=current_user.id, nombre=current_user.nombre, email=current_user.email,
+        password_hash="example", rol="investigador", is_active=True,
+    )
+    db.add(investigator)
+    db.flush()
+    group = Grupo(nombre="Investigadores CGAO", owner_id=investigator.id)
+    db.add(group)
+    db.flush()
+    seedbed = Semillero(
+        id=IMPORT_SEEDBED_ID, nombre="Gestión de proyectos", grupo_id=group.id,
+        owner_id=investigator.id,
+    )
+    seedbed.investigadores.append(investigator)
+    db.add(seedbed)
     db.commit()
     db.close()
     yield
@@ -203,6 +219,7 @@ def test_import_creates_project_and_keeps_original_docx_linked(tmp_path):
 
     payload = {
         "nombre": "Proyecto CAP revisado",
+        "semillero_id": IMPORT_SEEDBED_ID,
         "estado": "Aprobado",
         "tipologia": "Investigación",
         "objetivo_general": "Objetivo corregido por el instructor.",
@@ -245,15 +262,12 @@ def test_semillero_apprentice_can_read_source_document_for_accessible_project(tm
         rol="aprendiz",
         is_active=True,
     )
-    group = Grupo(
-        id=str(uuid4()),
-        nombre="Grupo de prueba",
-        owner_id=current_user.id,
-    )
+    with TestingSessionLocal() as db:
+        group_id = str(db.query(Grupo).one().id)
     seedbed = Semillero(
         id=str(uuid4()),
         nombre="Semillero de prueba",
-        grupo_id=group.id,
+        grupo_id=group_id,
         owner_id=current_user.id,
     )
     project = Proyecto(
@@ -276,7 +290,7 @@ def test_semillero_apprentice_can_read_source_document_for_accessible_project(tm
     )
     db = TestingSessionLocal()
     try:
-        db.add_all([apprentice, group, seedbed, project, document])
+        db.add_all([apprentice, seedbed, project, document])
         db.add(Aprendiz(id=str(uuid4()), semillero_id=seedbed.id, user_id=apprentice.id))
         db.commit()
         db.refresh(apprentice)
@@ -340,7 +354,7 @@ def test_import_rolls_back_project_when_storage_cannot_be_created(tmp_path, monk
     occupied_path = tmp_path / "not-a-directory"
     occupied_path.write_text("occupied", encoding="utf-8")
     monkeypatch.setattr(proyectos_router, "FORMULATION_STORAGE_DIR", occupied_path)
-    payload = {"nombre": "Proyecto que debe revertirse"}
+    payload = {"nombre": "Proyecto que debe revertirse", "semillero_id": IMPORT_SEEDBED_ID}
 
     response = client.post(
         "/proyectos/importar-formulacion",

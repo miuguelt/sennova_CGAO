@@ -3,11 +3,48 @@ import jsPDF from 'jspdf';
 import { PDFGenerator } from '../utils/pdfGenerator';
 
 describe('PDFGenerator Suite Completa', () => {
+  it.each([undefined, 0, 12])('no inventa horas en certificados cuando el valor es %s', (hours) => {
+    let pdf;
+    vi.spyOn(jsPDF.API, 'save').mockImplementation(function () { pdf = this; });
+    PDFGenerator.generateCertificate({ datos_semillero: { horas: hours } });
+    const text = pdf.output();
+    expect(text).toContain('BORRADOR DE CERTIFICADO');
+    expect(text).not.toContain('SENNOVA, certifica que:');
+    expect(text).toContain(hours === undefined ? 'Intensidad: No registrada' : `Intensidad: ${hours} horas`);
+    expect(text).toContain('Requiere soportes, revisión y firmas autorizadas');
+  });
+
+  it.each(['generateProjectPDF', 'generateActaInicio'])('conserva horas cero y señala las desconocidas en %s', (method) => {
+    let pdf;
+    vi.spyOn(jsPDF.API, 'save').mockImplementation(function () { pdf = this; });
+    PDFGenerator[method]({ equipo: [{ nombre: 'Integrante sin dedicación', horas_dedicadas: 0 }, { nombre: 'Integrante por completar' }] });
+    expect(pdf.output()).toContain('0 hrs/sem');
+    expect(pdf.output()).toContain('No registrada');
+    expect(pdf.output()).not.toContain('20 hrs/sem');
+    PDFGenerator[method]({});
+    expect(pdf.output()).toContain('No registrada');
+    expect(pdf.output()).not.toContain('20 hrs/sem');
+    expect(pdf.output()).not.toContain('12 meses');
+  });
+
   beforeEach(() => {
     if (jsPDF.API && jsPDF.API.save) {
       vi.spyOn(jsPDF.API, 'save').mockImplementation(() => {});
     } else {
       jsPDF.API.save = vi.fn();
+    }
+  });
+
+  it.each(['generateCertificate', 'generateMonthlyReport', 'generateProjectCertificate', 'generateBudgetReport', 'generateActaInicio', 'generateProjectPDF'])('conserva los nombres oficiales en %s', (method) => {
+    let generatedPdf;
+    vi.spyOn(jsPDF.API, 'save').mockImplementation(function () { generatedPdf = this; });
+    PDFGenerator[method]({});
+    const text = generatedPdf.output();
+    expect(text).not.toMatch(/AGROEMPRESARIAL Y (DEL )?ORIENTE|Agroempresarial y (del )?Oriente/);
+    expect(text).not.toContain('Sistema de Investigación, Innovación y Desarrollo Tecnológico');
+    expect(text).toMatch(/AGROEMPRESARIAL DEL ORIENTE|Agroempresarial del Oriente/);
+    if (['generateCertificate', 'generateProjectCertificate'].includes(method)) {
+      expect(text).toContain('Sistema de Investigación, Desarrollo Tecnológico e Innovación');
     }
   });
 
@@ -117,6 +154,24 @@ describe('PDFGenerator Suite Completa', () => {
     it('genera certificado de proyecto con datos parciales', () => {
       expect(() => PDFGenerator.generateProjectCertificate({})).not.toThrow();
       expect(jsPDF.API.save).toHaveBeenCalled();
+    });
+
+    it('usa el nombre institucional oficial cuando el certificado no recibe centro', () => {
+      let generatedPdf;
+      const saveSpy = vi.spyOn(jsPDF.API, 'save').mockImplementation(function () {
+        generatedPdf = this;
+      });
+      saveSpy.mockClear();
+
+      try {
+        PDFGenerator.generateProjectCertificate({});
+
+        const generatedText = generatedPdf.output();
+        expect(generatedText).toContain('Centro de Gestión Agroempresarial del Oriente');
+        expect(generatedText).not.toContain('Centro de Gestión Agroempresarial y Oriente');
+      } finally {
+        saveSpy.mockRestore();
+      }
     });
   });
 

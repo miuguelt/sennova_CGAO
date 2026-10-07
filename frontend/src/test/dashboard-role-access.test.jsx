@@ -77,6 +77,22 @@ describe('Acceso a datos del panel principal por rol', () => {
     expect(screen.queryByText('Analítica no disponible')).not.toBeInTheDocument();
   });
 
+  it('ofrece una entrada directa a la construcción documental sin inventar datos personales', async () => {
+    DashboardAPI.getStats.mockResolvedValue(null);
+    DashboardAPI.getAnalyticsEvolucion.mockResolvedValue([]);
+    DashboardAPI.getUserImpact.mockResolvedValue(null);
+    const onModuleAction = vi.fn();
+
+    render(<DashboardModule currentUser={{ id: 'researcher-1', nombre: 'Investigadora', rol: 'investigador' }} onModuleAction={onModuleAction} />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Construir documentación/i })).toBeVisible());
+    expect(document.body.textContent).not.toContain('1098123001');
+    expect(document.body.textContent).not.toContain('2670123');
+    expect(screen.getByRole('button', { name: /Construir documentación/i })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /Construir documentación/i }));
+    expect(onModuleAction).toHaveBeenCalledWith({ module: 'proyectos' });
+  });
+
   it('muestra el panel administrativo y sus accesos a reportes', async () => {
     DashboardAPI.getStats.mockResolvedValue({});
     DashboardAPI.getAnalyticsEvolucion.mockResolvedValue([]);
@@ -89,5 +105,6 @@ describe('Acceso a datos del panel principal por rol', () => {
     );
 
     await waitFor(() => expect(document.body.textContent).toContain('Panel Institucional • Administradora'));
+    expect(document.body.textContent).toContain('Centro de Gestión Agroempresarial del Oriente (CGAO)');
   });
 });

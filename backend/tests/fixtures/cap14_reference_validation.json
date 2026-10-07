@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "source_directory": "docs/CAP-14-2026 Sistemade Información Investigación",
+  "source_blocks": [
+    {
+      "path": "docs/CAP-14-2026 Sistemade Información Investigación/2ActadeInicio/acta-prueba.docx",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "parts": [{"text": "Referencia preparada para pruebas automatizadas; no contiene registros institucionales reales."}]
+    }
+  ],
+  "observations": [{"id": "fecha_final", "description": "La fecha de terminación difiere de los seis meses declarados."}],
+  "examples": {
+    "acta_inicio": {
+      "nombre_proyecto": "CAP-14-2026 Proyecto de prueba de gestión de investigación",
+      "codigo_cap": "CAP-14-2026",
+      "objetivo_general": "Organizar proyectos, actividades y productos mediante información trazable.",
+      "valor_total_cop": 10000000,
+      "duracion_meses_declarada": 6,
+      "centro": "Centro de prueba",
+      "regional": "Regional de prueba",
+      "responsable": "Equipo de prueba",
+      "ciudad": "Vélez",
+      "fecha_inicio_textual": "29/05/2026",
+      "fecha_fin_textual": "23/12/2026",
+      "fecha_reunion_textual": "09/06/2026",
+      "hora_inicio": "09:00 am",
+      "hora_fin": "10:00 am",
+      "lugar": "Sala de prueba",
+      "objetivos_reunion": "Revisar la planeación del escenario.",
+      "temas": ["Alcance", "Actividades"],
+      "equipo": [{"nombre": "Integrante de prueba", "rol": "Coordinación", "actividades_a_liderar": "Revisar requisitos", "programa": "Todos"}],
+      "presupuesto": [{"rubro": "Personal", "valor_planeado_textual": "$10.000.000", "descripcion_uso": "Dedicación prevista", "fecha_ejecucion_textual": "Meses 1 a 6"}],
+      "actividades": [{"actividad": "Revisar requisitos", "encargado": "Equipo de prueba", "fecha_textual": "Mes 1"}],
+      "asistentes": [],
+      "invitados": []
+    },
+    "presentacion_proyecto": {
+      "objetivos_especificos": ["Modelar los requisitos y las relaciones entre proyectos, actividades y productos."]
+    }
+  }
+}

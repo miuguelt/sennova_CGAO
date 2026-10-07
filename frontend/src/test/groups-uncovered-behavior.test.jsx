@@ -28,18 +28,6 @@ vi.mock('../api/reportes', () => ({ ReportesAPI: { descargarConsolidadoGrupos: v
 vi.mock('../utils/pdfGenerator', () => ({ PDFGenerator: {
   generateBudgetReport: vi.fn(), generateProjectPDF: vi.fn(), generateCertificate: vi.fn(),
 } }));
-vi.mock('../components/projects/MoverProyectoSemilleroModal', () => ({ default: ({ isOpen, onClose, onSuccess, proyecto }) => (
-  isOpen ? (
-    <div role="dialog" aria-label="Mover Proyecto a Semillero">
-      <p>{proyecto?.nombre}</p>
-      <button onClick={onClose}>Cancelar movimiento</button>
-      <button onClick={() => {
-        onSuccess({ id: proyecto?.id, semillero_id: 's-2', semillero_nombre: 'Semillero de destino' });
-        onClose();
-      }}>Confirmar Traslado</button>
-    </div>
-  ) : null
-)}));
 vi.mock('../components/users/UserInsightPanel', () => ({ default: ({ user, isOpen, onClose }) => (
   user && isOpen ? <section role="dialog" aria-label="Resumen 360"><h2>Resumen 360</h2><p>{user.nombre}</p><p>{user.email}</p><button onClick={onClose}>Cerrar resumen</button></section> : null
 ) }));
@@ -62,11 +50,19 @@ const grupo = {
 const semillero = {
   id: 's-1', owner_id: 'u-owner', nombre: 'Semillero Agro', sigla: 'SA', codigo: 'SA-01',
   linea_investigacion: 'Agroindustria', estado: 'activo', lider_nombre: 'Marta Líder', total_aprendices: 1,
+  grupo_id: 'g-1',
+  investigadores: [
+    { id: 'u-owner', nombre: 'Marta Líder', rol: 'investigador' },
+    { id: 'u-investigator', nombre: 'Carlos Investigador', rol: 'investigador' },
+    { id: 'u-support-candidate', nombre: 'Sara Investigadora', rol: 'investigador' },
+  ],
+  aprendices: [{ id: 'aprendiz-registro', user_id: 'a-1' }],
 };
 const proyecto = {
   id: 'p-1', owner_id: 'u-owner', nombre: 'Proyecto de Pectina', nombre_corto: 'Pectina', codigo_sgps: 'SGPS-01',
   estado: 'En ejecución', presupuesto_total: 1200000, avance_porcentaje: 70, linea_investigacion: 'Agroindustria',
-  semillero_id: 's-1', semillero_nombre: 'Semillero Agro', equipo: [{ id: 'u-owner', nombre: 'Marta Líder', rol_en_proyecto: 'Líder', horas_dedicadas: 20 }],
+  semillero_id: 's-1', semillero_nombre: 'Semillero Agro',
+  equipo: [{ id: 'u-investigator', nombre: 'Carlos Investigador', rol: 'investigador', rol_en_proyecto: 'Investigador de apoyo', horas_dedicadas: 20 }],
 };
 const aprendiz = { id: 'a-1', user_id: 'a-1', nombre: 'Ana Aprendiz', documento: '1001', ficha: 'ADSO-01', programa: 'ADSO', semillero_id: 's-1', estado: 'activo' };
 
@@ -91,6 +87,7 @@ function configureApis() {
   UsuariosAPI.list.mockResolvedValue([
     { id: 'u-owner', nombre: 'Marta Líder', email: 'marta@sena.edu.co', rol: 'investigador', rol_sennova: 'Investigador Principal' },
     { id: 'u-investigator', nombre: 'Carlos Investigador', email: 'carlos@sena.edu.co', rol: 'investigador' },
+    { id: 'u-support-candidate', nombre: 'Sara Investigadora', email: 'sara@sena.edu.co', rol: 'investigador' },
     { id: 'u-admin', nombre: 'Admin CGAO', email: 'admin@sena.edu.co', rol: 'admin' },
     { id: 'a-1', nombre: 'Ana Aprendiz', email: 'ana@soy.sena.edu.co', rol: 'aprendiz', ficha: 'ADSO-01' },
   ]);
@@ -178,27 +175,26 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     fireEvent.click(document.getElementById('tab-proyectos'));
     fireEvent.click((await screen.findByText('Pectina')).closest('.cursor-pointer'));
     fireEvent.click(await screen.findByRole('tab', { name: 'Equipo' }));
-    expect(await screen.findByText('Investigadores Vinculados')).toBeVisible();
-    expect(screen.getByText('Marta Líder')).toBeVisible();
+    expect(await screen.findByText('Equipo del proyecto')).toBeVisible();
+    expect(screen.getByText('Carlos Investigador')).toBeVisible();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Vincular Investigador' }));
-    const addDialog = await screen.findByRole('dialog', { name: 'Vincular Investigador' });
-    fireEvent.click(within(addDialog).getByRole('button', { name: /Admin CGAO/ }));
-    fireEvent.change(within(addDialog).getByRole('combobox'), { target: { value: 'Investigador Principal' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Vincular integrante' }));
+    const addDialog = await screen.findByRole('dialog', { name: 'Vincular persona al equipo' });
+    fireEvent.click(within(addDialog).getByRole('button', { name: /Sara Investigadora/ }));
     fireEvent.change(within(addDialog).getByRole('spinbutton'), { target: { value: '32' } });
     fireEvent.click(within(addDialog).getByRole('button', { name: 'Vincular al Proyecto' }));
-    await waitFor(() => expect(ProyectosAPI.addEquipo).toHaveBeenCalledWith('p-1', 'u-admin', 'Investigador Principal', 32));
+    await waitFor(() => expect(ProyectosAPI.addEquipo).toHaveBeenCalledWith('p-1', 'u-support-candidate', 'Investigador de apoyo', 32));
     expect(ProyectosAPI.get).toHaveBeenCalledWith('p-1');
-    expect(notify).toHaveBeenCalledWith('Investigador vinculado al proyecto', 'success');
+    expect(notify).toHaveBeenCalledWith('Integrante vinculado al proyecto', 'success');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Desvincular a Marta Líder' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Desvincular a Carlos Investigador' }));
     const removeDialog = screen.getByRole('alertdialog', { name: '¿Desvincular Investigador?' });
     fireEvent.click(within(removeDialog).getByRole('button', { name: 'Desvincular' }));
-    await waitFor(() => expect(ProyectosAPI.removeEquipo).toHaveBeenCalledWith('p-1', 'u-owner'));
-    expect(notify).toHaveBeenCalledWith('Investigador desvinculado del proyecto', 'success');
+    await waitFor(() => expect(ProyectosAPI.removeEquipo).toHaveBeenCalledWith('p-1', 'u-investigator'));
+    expect(notify).toHaveBeenCalledWith('Integrante desvinculado del proyecto', 'success');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Línea de Tiempo' }));
-    expect(screen.getByText('Fase I (Planeación)')).toBeVisible();
+    expect(await screen.findByText('Fase I (Planeación)')).toBeVisible();
     fireEvent.click(screen.getByRole('tab', { name: 'Resumen & Presupuesto' }));
     fireEvent.click(screen.getByRole('button', { name: 'Ficha Técnica PDF' }));
     expect(PDFGenerator.generateProjectPDF).toHaveBeenCalledWith(proyecto, proyecto.equipo);
@@ -242,8 +238,11 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     const projectSelector = within(getDrawer()).getByRole('combobox');
     fireEvent.change(projectSelector, { target: { value: projectWithoutSemillero.id } });
     fireEvent.click(within(getDrawer()).getByRole('button', { name: 'Vincular' }));
-    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith(projectWithoutSemillero.id, { semillero_id: semillero.id }));
-    expect(notify).toHaveBeenCalledWith('Proyecto vinculado al semillero con éxito', 'success');
+    const linkProjectDialog = await screen.findByRole('dialog', { name: 'Mover Proyecto a Semillero' });
+    expect(within(linkProjectDialog).getByLabelText('Semillero de Destino')).toHaveValue(semillero.id);
+    fireEvent.click(within(linkProjectDialog).getByRole('button', { name: 'Confirmar Traslado' }));
+    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith(projectWithoutSemillero.id, { semillero_id: semillero.id, investigador_responsable_id: 'u-owner' }));
+    expect(notify).toHaveBeenCalledWith('Proyecto movido a "Semillero Agro" correctamente', 'success');
     fireEvent.click(within(getDrawer()).getByText('Pectina'));
     const linkedProjectDrawer = await screen.findByRole('dialog', { name: /Pectina/ });
     fireEvent.click(within(linkedProjectDrawer).getByRole('button', { name: 'Cerrar panel' }));
@@ -572,8 +571,10 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     fireEvent.change(within(createDialog).getByLabelText('Estado'), { target: { value: 'En ejecución' } });
     fireEvent.change(within(createDialog).getByLabelText('Tipología'), { target: { value: 'Investigación' } });
     fireEvent.change(within(createDialog).getByLabelText('Presupuesto Total (COP)'), { target: { value: '2500000' } });
+    fireEvent.change(within(createDialog).getByLabelText('Duración confirmada (meses)'), { target: { value: '12' } });
     fireEvent.change(within(createDialog).getByLabelText('Línea de Investigación'), { target: { value: 'Desarrollo de Software' } });
-    fireEvent.change(within(createDialog).getByLabelText('Semillero Asociado'), { target: { value: 's-1' } });
+    fireEvent.change(within(createDialog).getByLabelText('Semillero de Investigación'), { target: { value: 's-1' } });
+    expect(within(createDialog).getByLabelText('Investigador responsable')).toHaveValue('u-owner');
     fireEvent.change(within(createDialog).getByLabelText('Objetivo General'), { target: { value: 'Optimizar la producción' } });
     fireEvent.change(within(createDialog).getByLabelText('Descripción / Resumen Ejecutivo'), { target: { value: 'Proyecto de prueba de campo' } });
     fireEvent.click(within(createDialog).getByRole('button', { name: 'Crear Proyecto' }));
@@ -581,6 +582,7 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
       nombre: 'Proyecto de agricultura de precisión', nombre_corto: 'AgroPrecisión', codigo_sgps: 'SGPS-2026-09',
       estado: 'En ejecución', tipologia: 'Investigación', presupuesto_total: 2500000, vigencia: 12,
       linea_investigacion: 'Desarrollo de Software', semillero_id: 's-1', grupo_id: 'g-1',
+      investigador_responsable_id: 'u-owner',
       objetivo_general: 'Optimizar la producción', descripcion: 'Proyecto de prueba de campo',
     })));
     expect(notify).toHaveBeenCalledWith('Proyecto creado y vinculado al grupo exitosamente', 'success');
@@ -598,6 +600,7 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     expect(notify).toHaveBeenCalledWith('Proyecto actualizado exitosamente', 'success');
 
     const refreshedDrawer = await screen.findByRole('dialog', { name: /Pectina/ });
+    fireEvent.click(within(refreshedDrawer).getByText('Más acciones'));
     fireEvent.click(within(refreshedDrawer).getByRole('button', { name: 'Eliminar Proyecto' }));
     const deleteDialog = await screen.findByRole('dialog', { name: '¿Eliminar Proyecto de Investigación?' });
     fireEvent.click(within(deleteDialog).getByRole('button', { name: 'Cancelar' }));
@@ -607,6 +610,8 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     expect(screen.queryByRole('dialog', { name: /Pectina/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByText('Pectina').closest('.cursor-pointer'));
     const reopenedDrawer = await screen.findByRole('dialog', { name: /Pectina/ });
+    const moreActions = within(reopenedDrawer).getByText('Más acciones');
+    if (!moreActions.closest('details').open) fireEvent.click(moreActions);
     fireEvent.click(within(reopenedDrawer).getByRole('button', { name: 'Eliminar Proyecto' }));
     fireEvent.click(within(await screen.findByRole('dialog', { name: '¿Eliminar Proyecto de Investigación?' })).getByRole('button', { name: 'Eliminar Proyecto' }));
     await waitFor(() => expect(ProyectosAPI.delete).toHaveBeenCalledWith('p-1'));
@@ -735,6 +740,7 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
   });
 
   it('calcula rubros presupuestales desde los conceptos y muestra hitos con entregables', async () => {
+    SemillerosAPI.list.mockResolvedValue([semillero, { ...semillero, id: 's-2', nombre: 'Semillero de destino' }]);
     const projectWithBudgetAndMilestones = {
       ...proyecto,
       presupuesto_detallado: { items: [
@@ -753,6 +759,7 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     GruposAPI.getStats.mockResolvedValue({ avance_promedio: 70, presupuesto_total: 0, presupuesto_ejecutado: 0, total_productos: 1 });
     ProyectosAPI.list.mockResolvedValue([projectWithBudgetAndMilestones]);
     ProyectosAPI.get.mockResolvedValue(projectWithBudgetAndMilestones);
+    ProyectosAPI.update.mockResolvedValue({ ...projectWithBudgetAndMilestones, semillero_id: 's-2', semillero_nombre: 'Semillero de destino' });
     render(<GrupoModule currentUser={admin} onNotify={vi.fn()} />);
     await screen.findByText('GIDTA');
     fireEvent.click(document.getElementById('tab-proyectos'));
@@ -766,16 +773,19 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     expect(within(drawer).getByText('$300.000 (25.0%)')).toBeVisible();
     expect(within(drawer).getByText('$150.000 (12.5%)')).toBeVisible();
     fireEvent.click(within(drawer).getByRole('tab', { name: 'Línea de Tiempo' }));
-    expect(within(drawer).getByText('Protocolo de campo')).toBeVisible();
+    expect(await within(drawer).findByText('Protocolo de campo')).toBeVisible();
     expect(within(drawer).getByText('Informe de avance')).toBeVisible();
     fireEvent.click(within(drawer).getByRole('tab', { name: 'Resumen & Presupuesto' }));
     fireEvent.click(within(drawer).getByRole('button', { name: /Cambiar \/ Mover Semillero/i }));
     const moveDialog = await screen.findByRole('dialog', { name: 'Mover Proyecto a Semillero' });
     expect(within(moveDialog).getByText('Proyecto de Pectina')).toBeVisible();
+    fireEvent.change(within(moveDialog).getByLabelText('Semillero de Destino'), { target: { value: 's-2' } });
     const projectQueriesBeforeMove = GruposAPI.getProyectos.mock.calls.length;
+    GruposAPI.getProyectos.mockResolvedValue([{ ...projectWithBudgetAndMilestones, semillero_id: 's-2', semillero_nombre: 'Semillero de destino' }]);
     fireEvent.click(within(moveDialog).getByRole('button', { name: 'Confirmar Traslado' }));
+    await waitFor(() => expect(ProyectosAPI.update).toHaveBeenCalledWith('p-1', { semillero_id: 's-2', investigador_responsable_id: 'u-owner' }));
     await waitFor(() => expect(GruposAPI.getProyectos.mock.calls.length).toBeGreaterThan(projectQueriesBeforeMove));
-    expect(await screen.findByText('Semillero de destino')).toBeVisible();
+    expect(await within(screen.getByRole('dialog', { name: /Pectina/ })).findByText('Semillero de destino')).toBeVisible();
     fireEvent.click(within(screen.getByRole('dialog', { name: /Pectina/ })).getByRole('button', { name: 'Cerrar' }));
     expect(screen.queryByRole('dialog', { name: /Pectina/ })).not.toBeInTheDocument();
   });
@@ -947,8 +957,8 @@ describe('comportamientos pendientes de los módulos de grupos', () => {
     GruposAPI.list.mockRejectedValueOnce(new Error('grupo temporalmente no disponible'));
     render(<GrupoModule currentUser={admin} onNotify={vi.fn()} />);
     fireEvent.click(await screen.findByRole('tab', { name: /Control GrupLAC/i }));
-    expect(await screen.findByText('En Proceso de Medición')).toBeVisible();
-    expect(screen.getByText(/Código Minciencias:/).parentElement).toHaveTextContent('COL000000');
+    expect(await screen.findByText('Clasificación no registrada')).toBeVisible();
+    expect(screen.getByText(/Código Minciencias:/).parentElement).toHaveTextContent('No registrado');
     expect(GruposAPI.list).toHaveBeenCalledOnce();
   });
 

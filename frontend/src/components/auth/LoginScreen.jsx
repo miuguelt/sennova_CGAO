@@ -113,7 +113,7 @@ const LoginScreen = ({ onLogin, onRegister, apiError: externalApiError }) => {
               <span className="text-emerald-600">Investigación</span>
             </h1>
             <p className="text-lg text-slate-500 font-medium max-w-md leading-relaxed">
-              Plataforma integral para la gestión de proyectos, semilleros y producción científica del Centro de Operaciones CGAO.
+              Plataforma integral para gestionar proyectos, semilleros y producción científica del Centro de Gestión Agroempresarial del Oriente.
             </p>
           </div>
 

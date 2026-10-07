@@ -2,6 +2,8 @@ import React, { useId, useState } from 'react';
 import { Expand, CircleHelp } from 'lucide-react';
 import ProjectDocumentationFieldDialog from './ProjectDocumentationFieldDialog';
 import ProjectDocumentationRows from './ProjectDocumentationRows';
+import { getDocumentationErrors } from './projectDocumentationValidation';
+import { useFormulationRelations } from './FormulationRelationsContext';
 
 export const documentationButtonClass = 'inline-flex min-h-[44px] max-w-full items-center justify-center rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:opacity-50';
 const inputClass = 'min-h-[44px] w-full min-w-0 rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:bg-slate-50';
@@ -33,19 +35,27 @@ function DocumentationRows({ field, value, disabled, onChange, compact }) {
   </fieldset>;
 }
 
-function DocumentationField({ field, value, onChange, disabled, scope, compact, writingNote }) {
+function DocumentationField({ field, value, onChange, disabled, scope, compact, writingNote, error }) {
   const id = useId();
+  const relations = useFormulationRelations();
+  const suggestions = relations[field.relation] || [];
   const [dialog, setDialog] = useState(null);
   const label = `${field.label}${scope ? ` · ${scope}` : ''}${field.required ? ' *' : ''}`;
   function change(event) {
     const next = event.target.value;
     onChange(field.type === 'number' && next !== '' ? Number(next) : next);
   }
-  const props = { id, value: value ?? '', disabled, onChange: change, placeholder: field.placeholder, min: field.min, max: field.max, step: field.step, 'aria-required': field.required || undefined, 'aria-describedby': field.help && !compact ? `${id}-help` : undefined, className: inputClass };
-  if (field.type === 'rows') return compact
-    ? <ProjectDocumentationRows field={field} value={value} disabled={disabled} onChange={onChange} FieldsComponent={ProjectDocumentationFields} buttonClass={documentationButtonClass} />
-    : <DocumentationRows field={field} value={value} disabled={disabled} onChange={onChange} compact={compact} />;
-  return <div className={`documentation-field min-w-0 space-y-2 ${field.type === 'textarea' ? 'documentation-field--writing' : ''}`}>
+  const description = [field.help && !compact ? `${id}-help` : '', error ? `${id}-error` : ''].filter(Boolean).join(' ') || undefined;
+  const props = { id, value: value ?? '', disabled, onChange: change, placeholder: field.placeholder,
+    min: field.min ?? (field.type === 'number' ? 0 : undefined), max: field.max,
+    step: field.step ?? (field.type === 'number' ? 'any' : undefined), maxLength: field.maxLength ?? (field.type === 'textarea' ? 20000 : 2000),
+    'aria-required': field.required || undefined, 'aria-invalid': error ? true : undefined, 'aria-describedby': description, className: inputClass };
+  if (field.type === 'rows') return <div data-documentation-field={field.key} className="min-w-0 space-y-2">
+    {compact ? <ProjectDocumentationRows field={field} value={value} disabled={disabled} onChange={onChange} FieldsComponent={ProjectDocumentationFields} buttonClass={documentationButtonClass} />
+      : <DocumentationRows field={field} value={value} disabled={disabled} onChange={onChange} compact={compact} />}
+    {error && <p role="alert" className="w-full text-sm text-rose-900">{field.label}: {error}</p>}
+  </div>;
+  return <div data-documentation-field={field.key} className={`documentation-field min-w-0 space-y-2 ${field.type === 'textarea' ? 'documentation-field--writing' : ''}`}>
     <div className="documentation-field-heading">
       <label htmlFor={id} className="block text-sm font-semibold text-slate-900">{label}</label>
       <div className="documentation-field-tools">
@@ -59,13 +69,16 @@ function DocumentationField({ field, value, onChange, disabled, scope, compact, 
     </div>
     {field.type === 'textarea' ? <textarea {...props} rows={8} /> : field.type === 'select' ? <select {...props} title={field.label} className={`${inputClass} pr-10`}>
       <option value="">Selecciona una opción</option>{field.options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-    </select> : <input {...props} type={field.type || 'text'} />}
+    </select> : <input {...props} type={field.type || 'text'} list={suggestions.length ? `${id}-relations` : undefined} />}
+    {suggestions.length > 0 && <><datalist id={`${id}-relations`}>{suggestions.map(option => <option key={option} value={option}>{option}</option>)}</datalist><p className="text-sm text-slate-600">Puedes elegir un dato guardado del proyecto o escribir otro. Guarda las relaciones para actualizar la revisión de coherencia.</p></>}
     {field.help && !compact && <p id={`${id}-help`} className="w-full text-sm leading-relaxed text-slate-700">{field.help}</p>}
+    {error && <p id={`${id}-error`} role="alert" className="w-full text-sm text-rose-900">{error}</p>}
     {field.type === 'number' && /valor|monto|presupuesto|costo|aporte/.test(field.key) && value !== '' && value != null && <p className="w-full font-mono text-sm tabular-nums text-emerald-900">{new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(value))}</p>}
     {dialog && <ProjectDocumentationFieldDialog mode={dialog} field={field} value={value} disabled={disabled} writingNote={writingNote} onChange={onChange} onClose={() => setDialog(null)} />}
   </div>;
 }
 
 export default function ProjectDocumentationFields({ fields = [], values = {}, onChange, disabled, scope = '', compact = false, writingNote }) {
-  return <div className={`documentation-fields-grid ${compact ? 'documentation-fields-grid--compact' : ''}`}>{fields.map(field => <DocumentationField key={field.key} field={field} value={values[field.key]} scope={scope} disabled={disabled} compact={compact} writingNote={writingNote} onChange={value => onChange(field.key, value)} />)}</div>;
+  const errors = getDocumentationErrors(fields, values);
+  return <div className={`documentation-fields-grid ${compact ? 'documentation-fields-grid--compact' : ''}`}>{fields.map(field => <DocumentationField key={field.key} field={field} value={values[field.key]} error={errors[field.key]} scope={scope} disabled={disabled} compact={compact} writingNote={writingNote} onChange={value => onChange(field.key, value)} />)}</div>;
 }

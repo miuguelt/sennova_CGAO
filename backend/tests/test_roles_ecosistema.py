@@ -71,10 +71,19 @@ def setup_db():
     db.add(grupo)
     db.commit()
 
+    semillero = Semillero(
+        nombre="Automatización agroindustrial", grupo_id=grupo.id, owner_id=str(instructor.id),
+    )
+    semillero.investigadores.extend([instructor, investigador])
+    db.add(semillero)
+    db.flush()
+
     proy = Proyecto(
         nombre="Proyecto Automatización Agroindustrial",
         linea_investigacion="Agroindustria",
         owner_id=str(instructor.id),
+        semillero_id=str(semillero.id),
+        grupo_id=str(grupo.id),
         estado="En ejecución"
     )
     db.add(proy)
@@ -217,6 +226,7 @@ def test_aprendiz_cannot_create_semillero_or_project():
     db = TestingSessionLocal()
     grupo = db.query(Grupo).first()
     grupo_id = str(grupo.id)
+    semillero_id = str(db.query(Semillero).filter_by(nombre="Automatización agroindustrial").one().id)
     db.close()
 
     # Intentar crear semillero (debe fallar 403)
@@ -230,6 +240,7 @@ def test_aprendiz_cannot_create_semillero_or_project():
     # Intentar crear proyecto (debe fallar 403)
     res_proy = client.post("/proyectos", json={
         "nombre": "Proyecto No Autorizado",
+        "semillero_id": semillero_id,
         "linea_investigacion": "Test"
     }, headers=headers_apr)
     assert res_proy.status_code == 403
