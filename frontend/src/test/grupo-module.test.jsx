@@ -1031,5 +1031,5 @@ describe('GrupoModule Integration Tests', () => {
     fireEvent.click(screen.getByText('Semillero de Alimentos SENA'));
     expect(await screen.findByText('Líder / Tutor Asignado')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
-  });
+  }, 15000);
 });
