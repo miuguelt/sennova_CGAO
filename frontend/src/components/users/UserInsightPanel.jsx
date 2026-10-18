@@ -1255,7 +1255,20 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
                 {stats?.productos_lista?.length > 0 ? (
                   <div className="grid grid-cols-1 gap-3">
                     {stats.productos_lista.map(prod => (
-                      <div key={prod.id} className="p-4 border border-slate-100 rounded-2xl flex items-center justify-between hover:border-blue-300 hover:bg-blue-50/40 cursor-pointer transition-all group shadow-sm bg-white" onClick={() => setNestedDetail({ type: 'producto', data: prod })}>
+                      <div
+                        key={prod.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Ver detalles de producto ${prod.nombre}`}
+                        className="p-4 border border-slate-100 rounded-2xl flex items-center justify-between hover:border-blue-300 hover:bg-blue-50/40 cursor-pointer transition-all group shadow-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                        onClick={() => setNestedDetail({ type: 'producto', data: prod })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setNestedDetail({ type: 'producto', data: prod });
+                          }
+                        }}
+                      >
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                             <Package size={20} />
@@ -1379,7 +1392,20 @@ const UserInsightPanel = ({ user, isOpen, onClose, onNotify }) => {
                   {stats?.semilleros_lista?.length > 0 ? (
                     <div className="grid grid-cols-1 gap-3">
                       {stats.semilleros_lista.map((sem, i) => (
-                        <div key={i} className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-100 hover:border-indigo-300 hover:bg-indigo-50/20 cursor-pointer transition-all group shadow-sm" onClick={() => setNestedDetail({ type: 'semillero', data: sem })}>
+                        <div
+                          key={i}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Ver detalles de semillero ${sem.nombre}`}
+                          className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-100 hover:border-indigo-300 hover:bg-indigo-50/20 cursor-pointer transition-all group shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                          onClick={() => setNestedDetail({ type: 'semillero', data: sem })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setNestedDetail({ type: 'semillero', data: sem });
+                            }
+                          }}
+                        >
                           <div className="flex items-center gap-3.5">
                             <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xs group-hover:scale-110 transition-transform">
                               {i+1}

@@ -35,6 +35,16 @@
     color: #0f172a !important;
   }
 
+  /* Accessible focus defaults (WCAG 2.2 AA - 2.4.7 / 2.4.11) */
+  :focus-visible {
+    outline: 2px solid #16a34a;
+    outline-offset: 2px;
+  }
+
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
   /* Global contrast safeguard for muted text on light backgrounds */
   .text-slate-400 {
     color: #475569;
@@ -50,6 +60,17 @@
 
   .text-gray-500 {
     color: #334155;
+  }
+
+  /* Global contrast safeguard for warning / amber / orange text on light backgrounds */
+  .text-amber-500,
+  .text-amber-600 {
+    color: #92400e;
+  }
+
+  .text-orange-500,
+  .text-orange-600 {
+    color: #9a3412;
   }
 
   /* Text on dark backgrounds / cards / gradients */
@@ -176,6 +197,27 @@
 /* Module transitions */
 .module-enter { animation: slideUp 0.2s ease-out; }
 .gantt-bar    { transition: width 0.3s ease; }
+
+/* Accessible reduced motion (WCAG 2.2 AA - 2.3.3) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-fadeIn,
+  .animate-slideUp,
+  .animate-scaleIn,
+  .animate-slideInRight,
+  .animate-slideInLeft,
+  .module-enter {
+    animation: none !important;
+    transform: none !important;
+  }
+}
 
 /* Print Styles */
 @media print {

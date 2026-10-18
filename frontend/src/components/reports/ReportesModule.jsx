@@ -20,6 +20,7 @@ import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 import Select from '../ui/Select';
+import ErrorBanner from '../ui/ErrorBanner';
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 const CATALOG = [
@@ -110,6 +111,7 @@ const MetricCard = ({ label, value, trend, icon: Icon, colorCls }) => (
 const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
   const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' or 'catalog'
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [año, setAño] = useState(new Date().getFullYear());
   const [stats, setStats] = useState(null);
   const [analytics, setAnalytics] = useState(null);
@@ -122,6 +124,7 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [s, a, p] = await Promise.all([
         ReportesAPI.getEstadisticasResumen(),
@@ -133,6 +136,7 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
       setProjectsData(p || []);
     } catch (err) {
       console.error('Error cargando analíticas:', err);
+      setError('No fue posible cargar las analíticas consolidadas del centro.');
     }
     setLoading(false);
   };
@@ -232,6 +236,16 @@ const ReportesModule = ({ currentUser, onNotify, onNavigate }) => {
           </Button>
         </div>
       </div>
+
+      {error && (
+        <ErrorBanner
+          title="Error al sincronizar analíticas"
+          message={error}
+          onRetry={loadData}
+          retryText="Reintentar carga"
+          className="no-print mb-4"
+        />
+      )}
 
       {/* ── Print-only Header ── */}
       <div className="hidden print:block mb-10 border-b-4 border-emerald-600 pb-6">

@@ -18,6 +18,7 @@ import {
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
+import ErrorBanner from '../ui/ErrorBanner';
 import { DashboardAPI } from '../../api/dashboard';
 import { PlantillasAPI } from '../../api/plantillas';
 import { PDFGenerator } from '../../utils/pdfGenerator';
@@ -63,6 +64,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
   const [selectedUser, setSelectedUser] = useState(null);
   const [userImpact, setUserImpact] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   const rol = currentUser?.rol || 'investigador';
   const isAprendiz = rol === 'aprendiz';
@@ -76,9 +78,13 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
 
   const loadDashboardData = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [statsData, evoData] = await Promise.all([
-        DashboardAPI.getStats().catch(() => null),
+        DashboardAPI.getStats().catch((err) => {
+          console.error(err);
+          return null;
+        }),
         isAprendiz ? Promise.resolve([]) : DashboardAPI.getAnalyticsEvolucion(12).catch(() => [])
       ]);
       if (statsData) setStats(statsData);
@@ -90,6 +96,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
       }
     } catch (err) {
       console.error('Error cargando datos del dashboard:', err);
+      setLoadError('No fue posible sincronizar las estadísticas del sistema en este momento.');
     } finally {
       setLoading(false);
     }
@@ -970,6 +977,15 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
 
   return (
     <div className="space-y-8 pb-20 animate-fadeIn">
+      {loadError && (
+        <ErrorBanner
+          title="Sincronización del Panel"
+          message={loadError}
+          onRetry={loadDashboardData}
+          retryText="Reintentar carga"
+          className="mb-4"
+        />
+      )}
       {isAprendiz ? <ApprenticeDashboard /> : isAdmin ? <AdminDashboard /> : <ResearcherDashboard />}
 
       <UserInsightPanel

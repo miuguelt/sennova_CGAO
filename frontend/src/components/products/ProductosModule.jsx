@@ -213,6 +213,10 @@ const ProductosModule = ({ currentUser, onNotify, initialAction, onActionHandled
   };
 
   const handleSubmit = async () => {
+    if (formData.url && !/^https?:\/\/.+/i.test(formData.url.trim())) {
+      onNotify?.('La URL debe comenzar con http:// o https://', 'error');
+      return;
+    }
     try {
       if (isEditing) {
         await ProductosAPI.update(formData.id, formData);

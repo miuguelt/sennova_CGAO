@@ -709,7 +709,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
             <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest flex items-center gap-2">
               <Target size={14} /> Banco de Retos Disponibles
             </p>
-            <span className="text-[9px] text-amber-600 font-bold uppercase italic">Arrastra un reto hacia un proyecto para vincularlo</span>
+            <span className="text-xs text-amber-900 font-bold uppercase tracking-wider">Arrastra un reto hacia un proyecto para vincularlo</span>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
             {retosDisponibles.filter(r => r.estado !== 'resuelto').map(r => (
@@ -724,7 +724,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               </div>
             ))}
             {retosDisponibles.length === 0 && (
-              <p className="text-xs text-amber-600/60 font-medium italic py-2">No hay retos disponibles en este momento.</p>
+              <p className="text-xs text-amber-900 font-medium italic py-2">No hay retos disponibles en este momento.</p>
             )}
           </div>
         </div>
@@ -967,7 +967,7 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-20 text-center">
+                    <td colSpan={6} className="px-6 py-20 text-center">
                       <FolderOpen size={40} className="mx-auto text-slate-200 mb-3" />
                       <p className="text-sm text-slate-400 font-bold uppercase tracking-wide">No hay coincidencias</p>
                     </td>

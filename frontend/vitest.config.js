@@ -15,6 +15,7 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.js'],
     include: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
     exclude: ['**/node_modules/**', '**/dist/**'],
+    testTimeout: 15000,
     css: false,
     coverage: {
       provider: 'v8',

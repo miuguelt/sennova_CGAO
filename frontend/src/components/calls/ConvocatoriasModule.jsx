@@ -232,7 +232,7 @@ const ConvocatoriaCard = ({
             <span className="text-slate-500 flex items-center gap-1">
               <Clock size={12} className="text-slate-400" /> Cierre
             </span>
-            <span className={dl !== null && dl > 0 && dl <= 15 ? 'text-amber-600 font-black' : 'text-slate-700 font-bold'}>
+            <span className={dl !== null && dl > 0 && dl <= 15 ? 'text-amber-900 font-black' : 'text-slate-700 font-bold'}>
               {convocatoria.fecha_cierre || 'No definida'}
             </span>
           </div>

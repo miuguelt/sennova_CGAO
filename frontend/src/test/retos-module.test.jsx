@@ -234,4 +234,23 @@ describe('banco de retos de innovación', () => {
     fireEvent.click(confirmation.querySelector('[aria-label="Cerrar ventana modal"]'));
     expect(screen.queryByRole('dialog', { name: '¿Eliminar Reto del Banco?' })).not.toBeInTheDocument();
   });
+
+  it('valida preventivamente el formato del correo de contacto antes de enviar', async () => {
+    const onNotify = vi.fn();
+    render(<RetosModule currentUser={{ id: 'admin', rol: 'admin' }} onNotify={onNotify} />);
+    await screen.findByText('Aprovechar residuos de café');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar Reto' }));
+    expect(await screen.findByRole('dialog', { name: 'Publicar Nuevo Reto' })).toBeVisible();
+
+    fireEvent.change(screen.getByPlaceholderText(/Nombre de la empresa/), { target: { value: 'Empresa Test' } });
+    fireEvent.change(screen.getByPlaceholderText(/Análisis de eficiencia/), { target: { value: 'Reto de prueba' } });
+    fireEvent.change(screen.getByPlaceholderText(/Detalla el problema/), { target: { value: 'Descripción de prueba' } });
+    fireEvent.change(screen.getByPlaceholderText(/ejemplo@empresa.com/), { target: { value: 'correo-invalido' } });
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Publicar Reto' }).at(-1));
+
+    expect(onNotify).toHaveBeenCalledWith('El formato del correo de contacto no es válido', 'error');
+    expect(RetosAPI.create).not.toHaveBeenCalled();
+  });
 });

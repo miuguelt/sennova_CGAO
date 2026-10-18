@@ -67,7 +67,7 @@ function DocumentationField({ field, value, onChange, disabled, scope, compact, 
         </button>}
       </div>
     </div>
-    {field.type === 'textarea' ? <textarea {...props} rows={8} /> : field.type === 'select' ? <select {...props} title={field.label} className={`${inputClass} pr-10`}>
+    {field.type === 'textarea' ? <textarea {...props} rows={8}></textarea> : field.type === 'select' ? <select {...props} title={field.label} className={`${inputClass} pr-10`}>
       <option value="">Selecciona una opción</option>{field.options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
     </select> : <input {...props} type={field.type || 'text'} list={suggestions.length ? `${id}-relations` : undefined} />}
     {suggestions.length > 0 && <><datalist id={`${id}-relations`}>{suggestions.map(option => <option key={option} value={option}>{option}</option>)}</datalist><p className="text-sm text-slate-600">Puedes elegir un dato guardado del proyecto o escribir otro. Guarda las relaciones para actualizar la revisión de coherencia.</p></>}

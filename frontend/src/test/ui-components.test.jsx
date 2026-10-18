@@ -37,6 +37,66 @@ describe('Button', () => {
     render(<Button disabled>Disabled</Button>);
     expect(screen.getByText('Disabled')).toBeDisabled();
   });
+
+  it('disables button and applies aria-busy when loading is true', () => {
+    render(<Button loading>Guardar</Button>);
+    const button = screen.getByRole('button', { name: /guardar/i });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('renders accessible rotating spinner when loading is true', () => {
+    render(<Button loading>Guardar</Button>);
+    const button = screen.getByRole('button', { name: /guardar/i });
+    const spinner = button.querySelector('.animate-spin');
+    expect(spinner).toBeInTheDocument();
+    expect(spinner).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('Guardar')).toBeInTheDocument();
+  });
+
+  it('prevents click handler execution while loading', () => {
+    let clicked = false;
+    render(<Button loading onClick={() => { clicked = true; }}>Enviar</Button>);
+    const button = screen.getByRole('button', { name: /enviar/i });
+    fireEvent.click(button);
+    expect(clicked).toBe(false);
+  });
+
+  it('replaces content with spinner when size is icon and loading is true', () => {
+    render(
+      <Button size="icon" loading aria-label="Eliminar">
+        <span data-testid="icon-child">Icon</span>
+      </Button>
+    );
+    const button = screen.getByRole('button', { name: /eliminar/i });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    expect(button.querySelector('.animate-spin')).toBeInTheDocument();
+    expect(screen.queryByTestId('icon-child')).not.toBeInTheDocument();
+  });
+
+  it('swaps icon prop with spinner when loading is true', () => {
+    render(
+      <Button icon={<span data-testid="custom-icon">Icono</span>} loading>
+        Registrar
+      </Button>
+    );
+    const button = screen.getByRole('button', { name: /registrar/i });
+    expect(screen.queryByTestId('custom-icon')).not.toBeInTheDocument();
+    expect(button.querySelector('.animate-spin')).toBeInTheDocument();
+    expect(screen.getByText('Registrar')).toBeInTheDocument();
+  });
+
+  it('renders icon prop without spinner when loading is false', () => {
+    render(
+      <Button icon={<span data-testid="custom-icon">Icono</span>}>
+        Registrar
+      </Button>
+    );
+    expect(screen.getByTestId('custom-icon')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /registrar/i }).querySelector('.animate-spin')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /registrar/i })).not.toHaveAttribute('aria-busy');
+  });
 });
 
 describe('Card', () => {

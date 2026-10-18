@@ -408,4 +408,30 @@ describe('UserInsightPanel Component', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Editar' })[1]);
     fireEvent.click(screen.getByLabelText('Cerrar ventana modal'));
   });
+
+  it('permite abrir detalles de productos y semilleros mediante teclado (Enter y Espacio)', async () => {
+    const stats = {
+      proyectos_count: 1,
+      productos_count: 1,
+      semilleros_count: 1,
+      productos_lista: [{ id: 'prod-k', nombre: 'Producto Accesible', tipo: 'Software', estado_registro: 'Aprobado' }],
+      semilleros_lista: [{ id: 'sem-k', nombre: 'Semillero Accesible', estudiantes: 5, sede: 'Vélez', lineas: ['TIC'] }]
+    };
+    StatsAPI.getUserImpact.mockResolvedValue(stats);
+    render(<UserInsightPanel user={mockUser} isOpen onClose={vi.fn()} onNotify={vi.fn()} />);
+
+    fireEvent.click(screen.getByTitle('Producción'));
+    const prodItem = (await screen.findByText('Producto Accesible')).closest('[role="button"]');
+    expect(prodItem).toBeInTheDocument();
+    fireEvent.keyDown(prodItem, { key: 'Enter' });
+    expect(await screen.findByRole('dialog', { name: 'Producto Accesible' })).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Cerrar'));
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Documentos' }));
+    const semItem = (await screen.findByText('Semillero Accesible')).closest('[role="button"]');
+    expect(semItem).toBeInTheDocument();
+    fireEvent.keyDown(semItem, { key: ' ' });
+    expect(await screen.findByRole('dialog', { name: 'Semillero Accesible' })).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Cerrar'));
+  });
 });

@@ -124,6 +124,10 @@ const RetosModule = ({ currentUser, onNotify, onModuleAction, initialAction, onA
   };
 
   const handleSubmit = async () => {
+    if (formData.contacto_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contacto_email.trim())) {
+      onNotify('El formato del correo de contacto no es válido', 'error');
+      return;
+    }
     try {
       if (isEditing) {
         await RetosAPI.update(formData.id, formData);

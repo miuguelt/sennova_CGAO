@@ -192,4 +192,21 @@ describe('catálogo de productos de investigación', () => {
     await waitFor(() => expect(ProductosAPI.generarDesdePlantilla).toHaveBeenCalledWith('p-3'));
     expect(onNotify).toHaveBeenCalledWith('Productos proyectados generados exitosamente', 'success');
   });
+
+  it('valida que la URL del producto comience con http:// o https:// antes de registrar', async () => {
+    const onNotify = vi.fn();
+    render(<ProductosModule currentUser={{ id: 'owner-1', rol: 'investigador' }} onNotify={onNotify} />);
+    await screen.findByRole('heading', { name: 'Productos e Innovación' });
+    fireEvent.click(screen.getByRole('button', { name: 'Reportar Producto' }));
+    fireEvent.change(screen.getByLabelText(/Nombre del Producto/), { target: { value: 'Producto con URL inválida' } });
+    fireEvent.click(screen.getByRole('button', { name: /B — Desarrollo Tecnológico/ }));
+    fireEvent.click(screen.getByRole('button', { name: /B1 · Software/ }));
+    fireEvent.change(screen.getByLabelText(/Proyecto Vinculado/), { target: { value: 'p-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    fireEvent.change(screen.getByLabelText('URL de Repositorio o Publicación'), { target: { value: 'ftp://servidor.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar Producto' }));
+
+    expect(onNotify).toHaveBeenCalledWith('La URL debe comenzar con http:// o https://', 'error');
+    expect(ProductosAPI.create).not.toHaveBeenCalled();
+  });
 });
