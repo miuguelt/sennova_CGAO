@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FolderOpen } from 'lucide-react';
+import Button from '../ui/Button';
 
 export const evidenceButtonClass = 'inline-flex min-h-[44px] items-center justify-center rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:opacity-50';
 const fieldClass = 'min-h-[44px] w-full min-w-0 rounded-xl border border-slate-300 bg-white p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600';
@@ -43,7 +44,7 @@ export default function ProjectEvidenceStage({ stage, canUpload, busy, onUpload,
           {doc.descripcion && <p className="w-full text-sm text-slate-700">{doc.descripcion}</p>}
           {doc.periodo_bimestre && <p className="text-sm text-slate-700">Bimestre {doc.periodo_bimestre}</p>}
           {!doc.disponible && <p className="text-sm text-rose-800">Archivo no disponible. Adjunte una copia.</p>}
-          <button type="button" className={evidenceButtonClass} disabled={busy || !doc.disponible} onClick={() => onDownload(doc)} aria-label={`Descargar ${doc.nombre_archivo}`}>Descargar archivo</button>
+          <Button type="button" variant="outline" size="sm" disabled={busy || !doc.disponible} onClick={() => onDownload(doc)} aria-label={`Descargar ${doc.nombre_archivo}`}>Descargar archivo</Button>
         </div>
       ))}</div> : <p className="w-full rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Aún no hay documentos en esta carpeta. Revise la guía y adjunte la evidencia correspondiente.</p>}
       {canUpload && <form onSubmit={submit} className="space-y-3 border-t border-slate-200 pt-4">
@@ -69,7 +70,7 @@ export default function ProjectEvidenceStage({ stage, canUpload, busy, onUpload,
           <input type="number" value={period} min="1" max={stage.informes_esperados || undefined} disabled={busy} onChange={event => setPeriod(event.target.value)} className={fieldClass} />
         </label>}
         <p className="w-full text-xs text-slate-600">PDF, DOCX, XLSX, PPTX, JPG, PNG o MP4. Tamaño máximo: 10 MB.</p>
-        <button type="submit" disabled={busy} className={evidenceButtonClass}>{busy ? 'Procesando…' : 'Adjuntar documento'}</button>
+        <Button type="submit" disabled={busy} loading={busy} variant="sena">{busy ? 'Procesando…' : 'Adjuntar documento'}</Button>
       </form>}
     </section>
   );

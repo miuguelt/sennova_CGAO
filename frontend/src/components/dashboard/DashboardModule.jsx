@@ -19,6 +19,7 @@ import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import ErrorBanner from '../ui/ErrorBanner';
+import EmptyState from '../ui/EmptyState';
 import { DashboardAPI } from '../../api/dashboard';
 import { PlantillasAPI } from '../../api/plantillas';
 import { PDFGenerator } from '../../utils/pdfGenerator';
@@ -79,15 +80,23 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
   const loadDashboardData = async () => {
     setLoading(true);
     setLoadError(null);
+    let hadStatsError = false;
     try {
       const [statsData, evoData] = await Promise.all([
         DashboardAPI.getStats().catch((err) => {
-          console.error(err);
+          console.error('Error al consultar estadísticas del dashboard:', err);
+          hadStatsError = true;
           return null;
         }),
         isAprendiz ? Promise.resolve([]) : DashboardAPI.getAnalyticsEvolucion(12).catch(() => [])
       ]);
-      if (statsData) setStats(statsData);
+
+      if (statsData) {
+        setStats(statsData);
+      } else if (hadStatsError) {
+        setLoadError('No fue posible sincronizar las estadísticas del sistema.');
+      }
+
       if (Array.isArray(evoData)) setEvolution(evoData);
 
       if (currentUser?.id) {
@@ -96,7 +105,7 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
       }
     } catch (err) {
       console.error('Error cargando datos del dashboard:', err);
-      setLoadError('No fue posible sincronizar las estadísticas del sistema en este momento.');
+      setLoadError('No fue posible sincronizar las estadísticas del sistema.');
     } finally {
       setLoading(false);
     }
@@ -527,7 +536,12 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                     </div>
                   ))
                 ) : (
-                  <p className="p-6 text-center text-xs text-slate-600 font-semibold italic">No hay entregables vencidos reportados en el centro.</p>
+                  <EmptyState
+                    icon={CheckCircle2}
+                    title="Sin entregables vencidos"
+                    description="No hay entregables vencidos reportados en el centro."
+                    className="py-8 border-none bg-transparent"
+                  />
                 )}
               </div>
             </Card>
@@ -633,7 +647,12 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 </div>
               ))}
               {(!stats.historial_reciente || stats.historial_reciente.length === 0) && (
-                <p className="p-6 text-center text-xs text-slate-600 font-semibold italic">No hay registros de actividad recientes.</p>
+                <EmptyState
+                  icon={Activity}
+                  title="Sin actividad reciente"
+                  description="No hay registros de actividad recientes en el centro."
+                  className="py-8 border-none bg-transparent"
+                />
               )}
             </div>
           </Card>
@@ -966,7 +985,12 @@ const DashboardModule = ({ currentUser, onOpenSearch, onNewProject, onNotify, on
                 </div>
               ))}
               {(!stats.tareas_criticas?.proximas || stats.tareas_criticas.proximas.length === 0) && (
-                <p className="text-center text-xs text-slate-600 font-semibold italic">No hay vencimientos próximos.</p>
+                <EmptyState
+                  icon={Calendar}
+                  title="Sin vencimientos próximos"
+                  description="No hay entregables programados para los próximos días."
+                  className="py-6 border-none bg-transparent"
+                />
               )}
             </div>
           </Card>

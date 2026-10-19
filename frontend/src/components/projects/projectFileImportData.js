@@ -34,3 +34,40 @@ export function importValueText(value) {
   if (typeof value === 'object') return Object.entries(value).map(([key, item]) => `${importFieldLabel(key)}: ${importValueText(item)}`).join('\n');
   return String(value);
 }
+
+export function formatFileSize(bytes) {
+  if (bytes == null || isNaN(bytes) || bytes < 0) return '0 B';
+  const formatNumber = (val, maxFraction = 1) =>
+    new Intl.NumberFormat('es-CO', { maximumFractionDigits: maxFraction }).format(val);
+  if (bytes < 1024) return `${formatNumber(bytes, 0)} B`;
+  if (bytes < 1024 * 1024) return `${formatNumber(bytes / 1024, 1)} KB`;
+  return `${formatNumber(bytes / (1024 * 1024), 1)} MB`;
+}
+
+export function getDeliverableCategory(tipo) {
+  const map = {
+    formulacion_proyecto: { label: 'Gestión formal', variant: 'primary' },
+    acta_inicio: { label: 'Gestión formal', variant: 'primary' },
+    acta_cierre: { label: 'Gestión formal', variant: 'primary' },
+    informe_bimensual: { label: 'Informe de avance', variant: 'sena' },
+    informe_final: { label: 'Informe de avance', variant: 'sena' },
+    producto_resultado: { label: 'Producto o resultado', variant: 'purple' },
+    poster_producto: { label: 'Producto o resultado', variant: 'purple' },
+    soporte_minciencias: { label: 'Soporte Minciencias', variant: 'indigo' },
+    presentacion_proyecto: { label: 'Divulgación', variant: 'blue' },
+    evidencia_fotografica: { label: 'Evidencia de campo', variant: 'info' },
+    evidencia_video: { label: 'Evidencia de campo', variant: 'info' },
+    registro_evidencias: { label: 'Evidencia de campo', variant: 'info' },
+    borrador_varios: { label: 'Borrador', variant: 'warning' },
+    nota_trabajo: { label: 'Nota de trabajo', variant: 'warning' },
+    documento_apoyo: { label: 'Documento de apoyo', variant: 'default' },
+  };
+  const category = map[tipo] || { label: 'Documento de apoyo', variant: 'default' };
+  return {
+    ...category,
+    toString() {
+      return this.label;
+    },
+  };
+}
+

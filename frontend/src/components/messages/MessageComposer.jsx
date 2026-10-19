@@ -1,5 +1,5 @@
 import React from 'react';
-import { Send, RefreshCw } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { AttachmentTray, AttachmentButton } from './AttachmentTray';
 import Button from '../ui/Button';
 
@@ -73,10 +73,11 @@ export default function MessageComposer({
           <Button
             type="submit"
             disabled={sinContenido || enviando || adjuntos.subiendo}
+            loading={enviando}
+            icon={<Send size={18} />}
+            aria-label="Enviar mensaje"
             className="h-11 w-11 p-0 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {enviando ? <RefreshCw size={18} className="animate-spin" /> : <Send size={18} />}
-          </Button>
+          />
         </form>
       </div>
     </>

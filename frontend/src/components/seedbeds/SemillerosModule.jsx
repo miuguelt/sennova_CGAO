@@ -22,6 +22,7 @@ import Select from '../ui/Select';
 import Modal from '../ui/Modal';
 import Drawer from '../ui/Drawer';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import ErrorBanner from '../ui/ErrorBanner';
 import SemilleroCard, { ESTADOS } from './SemilleroCard';
 import MoverProyectoSemilleroModal from '../projects/MoverProyectoSemilleroModal';
 import ProjectDocumentationProgress from '../projects/ProjectDocumentationProgress';
@@ -108,9 +109,11 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
   const [showMoveProjectModal, setShowMoveProjectModal] = useState(false);
   const [moveDestinationSemilleroId, setMoveDestinationSemilleroId] = useState('');
   const [selectedProjectToLink, setSelectedProjectToLink] = useState('');
+  const [loadError, setLoadError] = useState(null);
 
-  const loadData = async (showLoading = false) => {
+  const loadSemilleros = async (showLoading = false) => {
     if (showLoading) setLoading(true);
+    setLoadError(null);
     try {
       const [s, g, u, p] = await Promise.all([
         SemillerosAPI.list(), 
@@ -131,11 +134,14 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
         return updated ? { ...prev, ...updated } : prev;
       });
     } catch (err) {
+      console.error('Error al sincronizar semilleros:', err);
+      setLoadError('No fue posible sincronizar los semilleros de investigación.');
       onNotify?.('Error al sincronizar semilleros', 'error');
     } finally {
       if (showLoading) setLoading(false);
     }
   };
+  const loadData = loadSemilleros;
 
   useEffect(() => {
     loadData(true);
@@ -463,7 +469,7 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
     .filter(u => !aprendices.some(a => a.user_id === u.id) && !investigadores.some(inv => inv.id === u.id))
     .filter(u => isApprenticeTab ? u.rol === 'aprendiz' : u.rol !== 'aprendiz');
 
-  if (loading && semilleros.length === 0) {
+  if (loading && semilleros.length === 0 && !loadError) {
     return (
       <div className="flex flex-col gap-6 animate-pulse">
         <div className="h-40 bg-slate-100 rounded-3xl w-full"></div>
@@ -476,6 +482,15 @@ const SemillerosModule = ({ currentUser, onNotify, initialAction, onActionHandle
 
   return (
     <div className="space-y-6 animate-fadeIn pb-20">
+      {loadError && (
+        <ErrorBanner
+          title="Error de sincronización de semilleros"
+          message={loadError}
+          onRetry={loadSemilleros}
+          retryText="Reintentar sincronización"
+          className="mb-4"
+        />
+      )}
       
       {/* ── Header ── */}
       <div className="bg-white/40 backdrop-blur-md p-8 rounded-3xl border border-white shadow-sm overflow-hidden relative">

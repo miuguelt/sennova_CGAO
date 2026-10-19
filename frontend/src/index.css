@@ -12,7 +12,42 @@
     color: #0f172a;
     background-color: #f8fafc;
   }
-  :root { color-scheme: light; }
+  :root {
+    color-scheme: light;
+
+    /* ─── Tokens de Enfoque Accesible (WCAG 2.2 - 2.4.7 / 2.4.11) ─── */
+    --color-focus-ring: #1e6800;         /* Verde Institucional SENNOVA (6.4:1 sobre blanco) */
+    --color-focus-ring-dark: #34d399;    /* Esmeralda Claro (10.2:1 sobre fondos oscuros) */
+    --focus-ring-offset: 2px;
+    --focus-ring-width: 2px;
+
+    /* ─── Tokens Semánticos de Contraste Accesible (WCAG 2.2 AA) ─── */
+    --color-text-main: #0f172a;          /* Slate 900 (15.8:1) */
+    --color-text-body: #1e293b;          /* Slate 800 (12.6:1) */
+    --color-text-muted: #475569;         /* Slate 600 (5.5:1) */
+
+    --color-warning-text: #92400e;       /* Amber 800 (5.92:1 sobre blanco) */
+    --color-warning-bg: #fef3c7;         /* Amber 100 */
+    --color-warning-border: #fcd34d;     /* Amber 300 */
+
+    --color-danger-text: #991b1b;        /* Red 800 (7.0:1 sobre blanco) */
+    --color-danger-bg: #fee2e2;          /* Red 100 */
+    --color-danger-border: #fca5a5;      /* Red 300 */
+
+    --color-success-text: #14532d;       /* Green 900 (9.1:1 sobre blanco) */
+    --color-success-bg: #dcfce7;         /* Green 100 */
+    --color-success-border: #86efac;     /* Green 300 */
+
+    --color-info-text: #1e3a8a;          /* Blue 900 (10.5:1 sobre blanco) */
+    --color-info-bg: #dbeafe;            /* Blue 100 */
+    --color-info-border: #93c5fd;        /* Blue 300 */
+
+    /* ─── Tokens de Duración y Easing de Movimiento ─── */
+    --dur-fast: 120ms;
+    --dur-base: 200ms;
+    --dur-slow: 320ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
 
   /* Accessible base defaults */
   th {
@@ -35,14 +70,33 @@
     color: #0f172a !important;
   }
 
-  /* Accessible focus defaults (WCAG 2.2 AA - 2.4.7 / 2.4.11) */
+  /* Indicador de foco visible global para navegación con teclado */
   :focus-visible {
-    outline: 2px solid #16a34a;
-    outline-offset: 2px;
+    outline: var(--focus-ring-width, 2px) solid var(--color-focus-ring, #1e6800);
+    outline-offset: var(--focus-ring-offset, 2px);
   }
 
+  /* Prevenir outline en interacción con mouse o puntero cuando no hay navegación por teclado */
   :focus:not(:focus-visible) {
     outline: none;
+  }
+
+  /* Indicador de foco sobre fondos oscuros o tarjetas de alto contraste */
+  .bg-slate-900 :focus-visible,
+  .bg-slate-950 :focus-visible,
+  .bg-slate-800 :focus-visible,
+  .bg-emerald-950 :focus-visible,
+  .bg-emerald-900 :focus-visible,
+  .bg-indigo-950 :focus-visible,
+  .bg-indigo-900 :focus-visible,
+  [class*="bg-slate-900"] :focus-visible,
+  [class*="bg-slate-950"] :focus-visible,
+  [class*="bg-slate-800"] :focus-visible,
+  [class*="bg-emerald-900"] :focus-visible,
+  [class*="bg-indigo-900"] :focus-visible,
+  [class*="from-slate-900"] :focus-visible,
+  [class*="from-indigo-900"] :focus-visible {
+    outline-color: var(--color-focus-ring-dark, #34d399);
   }
 
   /* Global contrast safeguard for muted text on light backgrounds */
@@ -62,15 +116,33 @@
     color: #334155;
   }
 
-  /* Global contrast safeguard for warning / amber / orange text on light backgrounds */
+  /* Salvaguarda global de contraste para textos ámbar, naranja y amarillo sobre fondos claros */
   .text-amber-500,
   .text-amber-600 {
-    color: #92400e;
+    color: #92400e !important; /* Sustituye ratio 2.98:1 por ratio 5.92:1 (WCAG AA) */
   }
 
   .text-orange-500,
   .text-orange-600 {
-    color: #9a3412;
+    color: #9a3412 !important; /* Sustituye ratio 3.25:1 por ratio 6.84:1 (WCAG AA) */
+  }
+
+  .text-yellow-600 {
+    color: #854d0e !important; /* Sustituye ratio 2.37:1 por ratio 5.21:1 (WCAG AA) */
+  }
+
+  /* Textos ámbar y naranja sobre fondos oscuros */
+  .bg-slate-900 .text-amber-500,
+  .bg-slate-950 .text-amber-500,
+  .bg-slate-800 .text-amber-500,
+  .bg-slate-900 .text-amber-600,
+  .bg-slate-950 .text-amber-600,
+  .bg-slate-800 .text-amber-600,
+  [class*="bg-slate-900"] .text-amber-600,
+  [class*="bg-slate-950"] .text-amber-600,
+  [class*="bg-slate-800"] .text-amber-600,
+  [class*="from-slate-900"] .text-amber-600 {
+    color: #fcd34d !important; /* Ratio > 10:1 sobre fondos oscuros */
   }
 
   /* Text on dark backgrounds / cards / gradients */
@@ -167,6 +239,12 @@
   .animate-scaleIn      { animation: scaleIn      0.20s cubic-bezier(0.16, 1, 0.3, 1); }
   .animate-slideInRight { animation: slideInRight 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
   .animate-slideInLeft  { animation: slideInLeft  0.28s cubic-bezier(0.16, 1, 0.3, 1); }
+
+  /* Utilidad explícita para forzar contorno de enfoque accesible */
+  .focus-ring-accessible {
+    outline: var(--focus-ring-width, 2px) solid var(--color-focus-ring, #1e6800);
+    outline-offset: var(--focus-ring-offset, 2px);
+  }
 }
 
 @keyframes fadeIn {
@@ -216,6 +294,10 @@
   .module-enter {
     animation: none !important;
     transform: none !important;
+  }
+
+  .gantt-bar {
+    transition: none !important;
   }
 }
 

@@ -94,4 +94,65 @@ describe('ErrorBanner — Componente de Error Accesible (Contrato C1)', () => {
 
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
+
+  it('usa texto predeterminado "Reintentar" en el botón si retryText no se proporciona', () => {
+    const handleRetry = vi.fn();
+    render(
+      <ErrorBanner
+        message="Fallo temporal del servicio"
+        onRetry={handleRetry}
+      />
+    );
+
+    const button = screen.getByRole('button', { name: /Reintentar/i });
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute('aria-label', 'Reintentar: No fue posible cargar la información');
+  });
+
+  it('oculta el elemento h4 de título si title es cadena vacía', () => {
+    render(<ErrorBanner title="" message="Solo mensaje informativo de error" />);
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+    expect(screen.getByText('Solo mensaje informativo de error')).toBeInTheDocument();
+  });
+
+  it('renderiza icono con atributo aria-hidden="true" en variante danger', () => {
+    const { container } = render(<ErrorBanner message="Fallo crítico" variant="danger" />);
+    const icon = container.querySelector('svg.text-rose-700');
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('renderiza icono con atributo aria-hidden="true" en variante warning', () => {
+    const { container } = render(<ErrorBanner message="Advertencia preventiva" variant="warning" />);
+    const icon = container.querySelector('svg.text-amber-800');
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('incluye clases accesibles de enfoque en el botón de reintento', () => {
+    render(<ErrorBanner message="Fallo reintentable" onRetry={() => {}} />);
+    const button = screen.getByRole('button', { name: /Reintentar/i });
+    expect(button.className).toContain('focus-visible:outline-none');
+    expect(button.className).toContain('focus-visible:ring-2');
+    expect(button.className).toContain('cursor-pointer');
+  });
+
+  it('aplica las clases semánticas de color para la variante warning', () => {
+    render(
+      <ErrorBanner
+        title="Atención requerida"
+        message="Conexión lenta detectada"
+        variant="warning"
+      />
+    );
+    const alert = screen.getByRole('alert');
+    expect(alert.className).toContain('bg-amber-50');
+    expect(alert.className).toContain('border-amber-200');
+    expect(screen.getByText('Atención requerida').className).toContain('text-amber-950');
+  });
+
+  it('no muestra el botón de reintento si onRetry es explícitamente null', () => {
+    render(<ErrorBanner message="Sin acción ejecutable" onRetry={null} />);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
 });

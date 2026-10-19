@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, Trash2, Info, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertTriangle, Trash2, Info, CheckCircle2 } from 'lucide-react';
 import Modal from './Modal';
 import Button from './Button';
 
@@ -61,15 +61,9 @@ export const ConfirmDialog = ({
       <Button
         className={`w-full sm:w-auto ${VARIANT_BUTTONS[variant] || VARIANT_BUTTONS.danger}`}
         onClick={handleConfirm}
-        disabled={isLoading}
+        loading={isLoading}
       >
-        {isLoading ? (
-          <span className="flex items-center gap-2">
-            <Loader2 size={16} className="animate-spin" /> Procesando...
-          </span>
-        ) : (
-          confirmText
-        )}
+        {isLoading ? 'Procesando...' : confirmText}
       </Button>
     </>
   );

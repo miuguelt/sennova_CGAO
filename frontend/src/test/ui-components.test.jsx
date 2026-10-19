@@ -97,6 +97,50 @@ describe('Button', () => {
     expect(screen.getByRole('button', { name: /registrar/i }).querySelector('.animate-spin')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /registrar/i })).not.toHaveAttribute('aria-busy');
   });
+
+  it('renders spinner with sm size classes when size is sm and loading is true', () => {
+    render(<Button size="sm" loading>Pequeño</Button>);
+    const spinner = screen.getByRole('button', { name: /pequeño/i }).querySelector('.animate-spin');
+    expect(spinner).toHaveClass('h-3.5');
+    expect(spinner).toHaveClass('w-3.5');
+  });
+
+  it('renders spinner with lg size classes when size is lg and loading is true', () => {
+    render(<Button size="lg" loading>Grande</Button>);
+    const spinner = screen.getByRole('button', { name: /grande/i }).querySelector('.animate-spin');
+    expect(spinner).toHaveClass('h-5');
+    expect(spinner).toHaveClass('w-5');
+  });
+
+  it('renders spinner with md size classes when size is md and loading is true', () => {
+    render(<Button size="md" loading>Medio</Button>);
+    const spinner = screen.getByRole('button', { name: /medio/i }).querySelector('.animate-spin');
+    expect(spinner).toHaveClass('h-4');
+    expect(spinner).toHaveClass('w-4');
+  });
+
+  it('renders spinner with icon size classes when size is icon and loading is true', () => {
+    render(<Button size="icon" loading aria-label="Cargando">X</Button>);
+    const spinner = screen.getByRole('button', { name: /cargando/i }).querySelector('.animate-spin');
+    expect(spinner).toHaveClass('h-5');
+    expect(spinner).toHaveClass('w-5');
+  });
+
+  it('preserves native button type attribute like submit', () => {
+    render(<Button type="submit">Enviar Formulario</Button>);
+    expect(screen.getByRole('button', { name: /enviar formulario/i })).toHaveAttribute('type', 'submit');
+  });
+
+  it('forwards ref to the underlying HTML button element', () => {
+    const ref = React.createRef();
+    render(<Button ref={ref}>Con Ref</Button>);
+    expect(ref.current).toBeInstanceOf(HTMLButtonElement);
+  });
+
+  it('renders sena variant with custom gradient classes', () => {
+    const { container } = render(<Button variant="sena">SENA</Button>);
+    expect(container.querySelector('button').className).toContain('from-[#175200]');
+  });
 });
 
 describe('Card', () => {

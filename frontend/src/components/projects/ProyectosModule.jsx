@@ -29,6 +29,7 @@ import Modal from '../ui/Modal';
 import Drawer from '../ui/Drawer';
 import ScrollableTabs from '../ui/ScrollableTabs';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import EmptyState from '../ui/EmptyState';
 import useClickOutside from '../../hooks/useClickOutside';
 import { PDFGenerator } from '../../utils/pdfGenerator';
 import ProyectoEquipoTab from './ProyectoEquipoTab';
@@ -856,11 +857,12 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                     </div>
                   ))}
                   {cards.length === 0 && (
-                    <div className="py-20 text-center flex flex-col items-center justify-center text-slate-400">
-                      <FolderOpen size={32} className="mb-2 text-slate-300 stroke-1" />
-                      <p className="text-xs font-bold uppercase tracking-wider">Sin proyectos</p>
-                      <p className="text-[10px] text-slate-400 mt-1">Arrastra o crea un proyecto en esta etapa</p>
-                    </div>
+                    <EmptyState
+                      icon={FolderOpen}
+                      title="Sin proyectos"
+                      description="Arrastra o crea un proyecto en esta etapa"
+                      className="py-12 border-dashed border bg-transparent rounded-2xl"
+                    />
                   )}
                 </div>
               </section>
@@ -967,9 +969,24 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-20 text-center">
-                      <FolderOpen size={40} className="mx-auto text-slate-200 mb-3" />
-                      <p className="text-sm text-slate-400 font-bold uppercase tracking-wide">No hay coincidencias</p>
+                    <td colSpan={6} className="px-6 py-8">
+                      <EmptyState
+                        icon={FolderOpen}
+                        title="No hay proyectos que coincidan"
+                        description="Prueba ajustando los filtros de búsqueda o registra un nuevo proyecto."
+                        action={
+                          isAprendiz ? undefined : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onModuleAction?.({ module: 'proyectos', form: 'create' })}
+                            >
+                              Crear Proyecto
+                            </Button>
+                          )
+                        }
+                        className="py-10 border-0 bg-transparent"
+                      />
                     </td>
                   </tr>
                 )}
@@ -1554,9 +1571,10 @@ const ProyectosModule = ({ currentUser, onNotify, initialAction, onActionHandled
               variant="primary" 
               className="flex-1" 
               disabled={!liqChecklist?.can_liquidate || loading}
+              loading={loading}
               onClick={handleFinalizeProject}
             >
-              {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : 'Finalizar Proyecto'}
+              Finalizar Proyecto
             </Button>
           </div>
         }

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, Download, FolderOpen } from 'lucide-react';
+import { Download, FolderOpen } from 'lucide-react';
 import { ProyectosAPI } from '../../api/proyectos';
 import { DocumentosAPI } from '../../api/documentos';
 import { subscribeToDataRefresh } from '../../utils/dataRefresh';
+import Button from '../ui/Button';
+import ErrorBanner from '../ui/ErrorBanner';
 import ProjectEvidenceStage, { evidenceButtonClass } from './ProjectEvidenceStage';
 import ProjectDocumentationEditor from './ProjectDocumentationEditor';
 import ProjectFileImport from './ProjectFileImport';
@@ -112,18 +114,30 @@ export default function ProjectEvidenceFile({ projectId, currentUser, onNotify, 
         {data && <>
           <p className="w-full text-sm font-semibold text-emerald-950">{data.completo ? 'Expediente completo' : 'Expediente en construcción'} · {data.porcentaje_completitud}% de requisitos cumplidos.</p>
           <progress aria-label="Completitud del expediente" aria-valuenow={data.porcentaje_completitud} max="100" value={data.porcentaje_completitud} className="h-3 w-full accent-emerald-700" />
-          <button type="button" disabled={busy} onClick={() => download()} className={`${evidenceButtonClass} gap-2`}><Download size={16} aria-hidden="true" />{data.completo ? 'Descargar expediente (ZIP)' : 'Descargar expediente parcial (ZIP)'}</button>
+          <Button type="button" disabled={busy} loading={busy} onClick={() => download()} variant="sena" className="gap-2" icon={<Download size={16} aria-hidden="true" />}>{data.completo ? 'Descargar expediente (ZIP)' : 'Descargar expediente parcial (ZIP)'}</Button>
           {!data.completo && <p className="w-full text-sm text-emerald-950">La descarga conserva las carpetas normalizadas e incluye el reporte de pendientes. Un paquete parcial requiere completar y revisar sus evidencias.</p>}
           {data.alcance && <p className="w-full text-sm text-emerald-950">{data.alcance}</p>}
         </>}
       </div>
       {success && <p role="status" className="w-full rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">{success}</p>}
-      {error && <div role="alert" className="space-y-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900">
-        <p className="flex w-full items-start gap-2 text-sm"><AlertCircle size={18} aria-hidden="true" className="shrink-0" />{error}</p>
-        <button type="button" className={evidenceButtonClass} onClick={() => setRevision(value => value + 1)}>Reintentar consulta</button>
-      </div>}
+      {error && (
+        <div className="space-y-3">
+          <ErrorBanner title="No fue posible consultar el expediente" message={error} variant="danger" />
+          <Button type="button" variant="outline" onClick={() => setRevision(value => value + 1)}>Reintentar consulta</Button>
+        </div>
+      )}
       {showConstructor && <ProjectDocumentationEditor projectId={projectId} currentUser={currentUser} onNotify={onNotify} />}
-      {canUpload && <ProjectFileImport key={projectId} projectId={projectId} projectName={data?.proyecto_id === projectId ? data.nombre : undefined} maxPeriods={data?.proyecto_id === projectId ? data.etapas.find(stage => stage.id === 'informes')?.informes_esperados : undefined} onNotify={onNotify} onImported={() => setRevision(value => value + 1)} />}
+      {canUpload && (
+        <ProjectFileImport
+          key={projectId}
+          projectId={projectId}
+          projectName={data?.proyecto_id === projectId ? data.nombre : undefined}
+          maxPeriods={data?.proyecto_id === projectId ? data.etapas.find(stage => stage.id === 'informes')?.informes_esperados : undefined}
+          onNotify={onNotify}
+          onImported={() => setRevision(value => value + 1)}
+          confirmClear={true}
+        />
+      )}
       {loading && <div role="status" className="animate-pulse space-y-3 rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">Consultando expediente…<div className="h-16 rounded-xl bg-slate-100" /><div className="h-16 rounded-xl bg-slate-100" /></div>}
       {!loading && data && <>
         {data.pendientes?.length > 0 && <div className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-4"><h4 className="font-bold text-amber-950">Pendientes por resolver</h4><ul className="w-full list-disc space-y-1 pl-5 text-sm text-amber-950">{data.pendientes.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}

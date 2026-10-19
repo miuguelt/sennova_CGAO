@@ -24,7 +24,12 @@ const mockRecord = {
       tipo: 'formulacion_proyecto',
       titulo: 'Formulación del proyecto',
       generable: true,
-      campos: [{ key: 'introduccion', label: 'Introducción', tipo: 'texto_largo', help: 'Contexto e introducción' }],
+      campos: [
+        { key: 'introduccion', label: 'Introducción', tipo: 'texto_largo', help: 'Contexto e introducción' },
+        { key: 'contexto', label: 'Contexto', tipo: 'texto_largo', help: 'Contexto regional' },
+        { key: 'planteamiento_problema', label: 'Planteamiento del problema', tipo: 'texto_largo', help: 'Descripción de la problemática' },
+        { key: 'justificacion', label: 'Justificación', tipo: 'texto_largo', help: 'Justificación del proyecto' },
+      ],
 
       historial: [{ documento_id: 'doc-v1', version: 1, nombre_archivo: 'formulacion_v1.docx', estado: 'borrador', vigente: true, disponible: true }],
     },
@@ -301,5 +306,72 @@ describe('Asistente de formulación (ProjectFormulationWizard)', () => {
       expect(screen.getByText('Tip 2')).toBeInTheDocument();
     });
   });
+
+  it('muestra el stepper horizontal integrado y permite saltar directamente entre etapas con un clic', () => {
+    render(<ProjectFormulationWizard projectId="p-1" record={mockRecord} drafts={{ comunes: {}, formulacion_proyecto: {} }} dirty={{}} canEdit={true} busy={false} />);
+    const stepperNav = screen.getByRole('navigation', { name: 'Etapas de formulación' });
+    expect(stepperNav).toBeInTheDocument();
+
+    const step1Btn = screen.getByRole('button', { name: /1.*identificación/i });
+    expect(step1Btn).toHaveAttribute('aria-current', 'step');
+
+    const step4Btn = screen.getByRole('button', { name: /4.*objetivos/i });
+    fireEvent.click(step4Btn);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText('Objetivos del proyecto')).toBeInTheDocument();
+    expect(step4Btn).toHaveAttribute('aria-current', 'step');
+  });
+
+  it('muestra el indicador de estado de guardado dinámico reflejando cambios en tiempo real', () => {
+    const { rerender } = render(
+      <ProjectFormulationWizard projectId="p-1" record={mockRecord} drafts={{ comunes: {}, formulacion_proyecto: {} }} dirty={{}} canEdit={true} busy={false} />
+    );
+
+    expect(screen.getByText('Borrador guardado')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Título del proyecto/i), { target: { value: 'Nuevo proyecto en formulación' } });
+    expect(screen.getAllByText('Cambios pendientes por guardar').length).toBeGreaterThanOrEqual(1);
+
+    rerender(
+      <ProjectFormulationWizard projectId="p-1" record={mockRecord} drafts={{ comunes: {}, formulacion_proyecto: {} }} dirty={{}} canEdit={true} busy={true} />
+    );
+    expect(screen.getByText(/Guardando borrador/i)).toBeInTheDocument();
+  });
+
+  it('presenta la orientación didáctica contextual institucional SENA CGAO en la etapa activa', () => {
+    render(<ProjectFormulationWizard projectId="p-1" record={mockRecord} drafts={{ comunes: {}, formulacion_proyecto: {} }} dirty={{}} canEdit={true} busy={false} />);
+
+    expect(screen.getByRole('region', { name: 'Orientación didáctica institucional' })).toBeInTheDocument();
+    expect(screen.getByText(/Centro de Gestión Agroempresarial del Oriente \(Vélez, Santander\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Capacidad Instalada \(CAP\), Investigación Aplicada \(I\+D\+i\) o Semilleros formativos/i)).toBeInTheDocument();
+  });
+
+  it('muestra alertas preventivas de presupuesto, vigencia y problema en la formulación', () => {
+    render(
+      <ProjectFormulationWizard
+        projectId="p-1"
+        record={mockRecord}
+        drafts={{ comunes: {}, formulacion_proyecto: { planteamiento_problema: 'Brecha de productividad local' } }}
+        dirty={{}}
+        canEdit={true}
+        busy={false}
+      />
+    );
+
+    // Alerta preventiva de presupuesto cuando es <= 0
+    fireEvent.change(screen.getByLabelText(/Presupuesto total/i), { target: { value: '0' } });
+    expect(screen.getByText(/Orientación SENNOVA: Registra el presupuesto estimado del proyecto en pesos colombianos \(COP\)/i)).toBeInTheDocument();
+
+    // Alerta preventiva de vigencia cuando supera 12 meses
+    fireEvent.change(screen.getByLabelText(/Duración en meses/i), { target: { value: '18' } });
+    expect(screen.getByText(/Verificación de duración: Las convocatorias SENNOVA CGAO suelen contemplar vigencias de hasta 12 meses/i)).toBeInTheDocument();
+
+    // Navegar a la etapa 3 (Problema) y verificar consejo pedagógico por brevedad (<50 caracteres)
+    const step3Btn = screen.getByRole('button', { name: /3.*problema/i });
+    fireEvent.click(step3Btn);
+    expect(screen.getByText(/Consejo pedagógico: Describe con suficiente detalle la necesidad o brecha productiva/i)).toBeInTheDocument();
+  });
 });
+
 

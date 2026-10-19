@@ -17,6 +17,8 @@ import Select from '../ui/Select';
 import Modal from '../ui/Modal';
 import Drawer from '../ui/Drawer';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import EmptyState from '../ui/EmptyState';
+import ErrorBanner from '../ui/ErrorBanner';
 import { useAsyncSave } from '../../hooks/useAsyncSave';
 import { ConvocatoriasAPI } from '../../api/convocatorias';
 import { ProyectosAPI } from '../../api/proyectos';
@@ -339,9 +341,17 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
   const [postularModalOpen, setPostularModalOpen] = useState(false);
   const [targetConvocatoria, setTargetConvocatoria] = useState(null);
   const [selectedProyectoToLink, setSelectedProyectoToLink] = useState('');
+  const [loadError, setLoadError] = useState(null);
 
-  const loadData = async (showLoading = false) => {
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilterEstado('');
+    setFilterLinea('Todas las líneas');
+  };
+
+  const loadConvocatorias = async (showLoading = false) => {
     if (showLoading) setLoading(true);
+    setLoadError(null);
     try {
       const [convData, proyData] = await Promise.all([
         ConvocatoriasAPI.list(),
@@ -356,11 +366,14 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
         return updated ? { ...prev, ...updated } : prev;
       });
     } catch (err) {
+      console.error('Error al cargar convocatorias y proyectos:', err);
+      setLoadError('No fue posible sincronizar el listado de convocatorias.');
       onNotify?.('Error al cargar convocatorias y proyectos', 'error');
     } finally {
       if (showLoading) setLoading(false);
     }
   };
+  const loadData = loadConvocatorias;
 
   useEffect(() => {
     loadData(true);
@@ -536,7 +549,7 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
     return diff !== null && diff >= 0 && diff <= 15;
   }).length;
 
-  if (loading && convocatorias.length === 0) {
+  if (loading && convocatorias.length === 0 && !loadError) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-4">
@@ -549,6 +562,15 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
+      {loadError && (
+        <ErrorBanner
+          title="Error de sincronización de convocatorias"
+          message={loadError}
+          onRetry={loadConvocatorias}
+          retryText="Reintentar carga"
+          className="mb-4"
+        />
+      )}
       {/* ── HEADER Y MÉTRICAS CGAO ── */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -744,16 +766,16 @@ const ConvocatoriasModule = ({ currentUser, onNotify, onModuleAction, onNavigate
           })}
         </div>
       ) : (
-        <Card className="p-12 text-center border-dashed border-2 border-slate-200 bg-slate-50/50">
-          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm mx-auto mb-4 border border-slate-100">
-            <Filter size={32} className="text-slate-300" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-900">No se encontraron convocatorias</h3>
-          <p className="text-slate-500 mt-1 max-w-xs mx-auto text-sm">Prueba ajustando los filtros o el término de búsqueda.</p>
-          <Button variant="outline" className="mt-6" onClick={() => { setSearchTerm(''); setFilterEstado(''); setFilterLinea('Todas las líneas'); }}>
-            Limpiar filtros
-          </Button>
-        </Card>
+        <EmptyState
+          icon={Filter}
+          title="No se encontraron convocatorias"
+          description="Prueba ajustando los filtros o el término de búsqueda."
+          action={
+            <Button variant="outline" onClick={clearFilters}>
+              Limpiar filtros
+            </Button>
+          }
+        />
       )}
 
       {/* ── DETALLE SIDE-OVER (Drawer Estandarizado en Pila) ── */}

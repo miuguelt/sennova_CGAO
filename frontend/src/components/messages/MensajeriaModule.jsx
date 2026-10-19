@@ -15,6 +15,8 @@ import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import Card from '../ui/Card';
 import Modal from '../ui/Modal';
+import EmptyState from '../ui/EmptyState';
+import ErrorBanner from '../ui/ErrorBanner';
 
 // Con el canal SSE abierto los cambios llegan como eventos; el sondeo periódico
 // solo actúa como respaldo mientras el canal está caído o reconectando.
@@ -91,6 +93,8 @@ export default function MensajeriaModule({
   const [mensajes, setMensajes] = useState([]);
   const [loadingConversaciones, setLoadingConversaciones] = useState(true);
   const [loadingMensajes, setLoadingMensajes] = useState(false);
+  const [conversacionesError, setConversacionesError] = useState(null);
+  const [mensajesError, setMensajesError] = useState(null);
   const [sending, setSending] = useState(false);
   const [nuevoMensajeTexto, setNuevoMensajeTexto] = useState('');
   
@@ -161,11 +165,13 @@ export default function MensajeriaModule({
 
   const loadConversaciones = useCallback(async (showLoader = false) => {
     if (showLoader) setLoadingConversaciones(true);
+    setConversacionesError(null);
     try {
       const data = await MensajesAPI.getConversaciones();
       setConversaciones(data || []);
     } catch (err) {
       console.error('Error al cargar conversaciones:', err);
+      setConversacionesError('No fue posible sincronizar las conversaciones.');
     } finally {
       if (showLoader) setLoadingConversaciones(false);
     }
@@ -173,10 +179,13 @@ export default function MensajeriaModule({
 
   const loadMensajes = useCallback(async (otroUsuarioId) => {
     setLoadingMensajes(true);
+    setMensajesError(null);
     try {
       const data = await MensajesAPI.getConversacion(otroUsuarioId);
       setMensajes(data || []);
     } catch (err) {
+      console.error('Error al cargar mensajes de la conversación:', err);
+      setMensajesError('No fue posible cargar los mensajes de esta conversación.');
       onNotify?.('Error al cargar mensajes de la conversación', 'error');
     } finally {
       setLoadingMensajes(false);
@@ -653,30 +662,41 @@ export default function MensajeriaModule({
 
           {/* Listado de Conversaciones */}
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+            {conversacionesError && (
+              <div className="p-3">
+                <ErrorBanner
+                  title="Error al cargar conversaciones"
+                  message={conversacionesError}
+                  onRetry={() => loadConversaciones(true)}
+                  retryText="Reintentar"
+                />
+              </div>
+            )}
             {loadingConversaciones ? (
               <div className="p-8 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
                 <RefreshCw size={22} className="animate-spin text-emerald-600" />
                 <span>Cargando conversaciones...</span>
               </div>
             ) : filteredConversaciones.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 flex flex-col items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-300">
-                  <MessageSquare size={24} />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-700">No hay conversaciones</p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {searchTerm ? 'No hay resultados con esa búsqueda.' : 'Inicia una conversación con cualquier colega o aprendiz.'}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={openNewChatModal}
-                  className="text-xs mt-2 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
-                >
-                  Iniciar conversación
-                </Button>
-              </div>
+              <EmptyState
+                icon={MessageSquare}
+                title="No hay conversaciones"
+                description={
+                  searchTerm
+                    ? 'No hay resultados con esa búsqueda.'
+                    : 'Inicia una conversación con cualquier colega o aprendiz.'
+                }
+                action={
+                  <Button
+                    variant="outline"
+                    onClick={openNewChatModal}
+                    className="text-xs mt-2 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                  >
+                    Iniciar conversación
+                  </Button>
+                }
+                className="py-10 border-0 bg-transparent"
+              />
             ) : (
               filteredConversaciones.map((conv) => {
                 const partner = conv.otro_usuario;
@@ -819,6 +839,15 @@ export default function MensajeriaModule({
 
               {/* Cuerpo del Chat: Burbujas de Mensajes */}
               <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-[#F8FAFC]">
+                {mensajesError && (
+                  <ErrorBanner
+                    title="Error al cargar mensajes"
+                    message={mensajesError}
+                    onRetry={() => loadMensajes(selectedUser.id)}
+                    retryText="Reintentar"
+                    className="mb-4"
+                  />
+                )}
                 {loadingMensajes ? (
                   <div className="h-full flex items-center justify-center text-slate-400 text-xs">
                     <RefreshCw size={24} className="animate-spin text-emerald-600 mb-2" />
@@ -909,21 +938,22 @@ export default function MensajeriaModule({
             </>
           ) : (
             /* Estado Vacío cuando no hay chat seleccionado */
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-slate-400 bg-slate-50/50">
-              <div className="w-16 h-16 rounded-3xl bg-white border border-slate-200 shadow-md flex items-center justify-center text-emerald-600 mb-4">
-                <MessageSquare size={32} />
-              </div>
-              <h3 className="text-base font-black text-slate-800">Centro de Mensajería SENNOVA</h3>
-              <p className="text-xs text-slate-500 max-w-sm mt-1 mb-6 leading-relaxed">
-                Selecciona una conversación del panel lateral o inicia un nuevo chat para coordinar proyectos y actividades de investigación con confirmación en tiempo real.
-              </p>
-              <Button
-                onClick={openNewChatModal}
-                className="flex items-center gap-2 bg-[#39A900] hover:bg-[#2d8000] text-white shadow-md shadow-emerald-100"
-              >
-                <Plus size={16} />
-                <span>Iniciar nueva conversación</span>
-              </Button>
+            <div className="flex-1 flex flex-col items-center justify-center p-12 bg-slate-50/50">
+              <EmptyState
+                icon={MessageSquare}
+                title="Centro de Mensajería SENNOVA"
+                description="Selecciona una conversación del panel lateral o inicia un nuevo chat para coordinar proyectos y actividades de investigación con confirmación en tiempo real."
+                action={
+                  <Button
+                    onClick={openNewChatModal}
+                    className="flex items-center gap-2 bg-[#39A900] hover:bg-[#2d8000] text-white shadow-md shadow-emerald-100"
+                  >
+                    <Plus size={16} />
+                    <span>Iniciar nueva conversación</span>
+                  </Button>
+                }
+                className="border-none bg-transparent py-0"
+              />
             </div>
           )}
         </div>

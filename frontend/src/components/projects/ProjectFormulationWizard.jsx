@@ -1,9 +1,10 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, FileUp, ListOrdered } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, FileUp, ListOrdered, Loader2 } from 'lucide-react';
 import Modal from './ProjectDocumentationModal';
 import ProjectFormulationUpload from './ProjectFormulationUpload';
 import ProjectFormulationStep from './ProjectFormulationStep';
 import ProjectFormulationNavigation from './ProjectFormulationNavigation';
+import ProjectFormulationStepper from './ProjectFormulationStepper';
 import { ProjectDocumentationAPI } from '../../api/projectDocumentation';
 import { documentationButtonClass } from './ProjectDocumentationFields';
 import { getDocumentationErrors } from './projectDocumentationValidation';
@@ -105,12 +106,31 @@ export default forwardRef(function ProjectFormulationWizard({
         <span>{ruta.completados} de {ruta.total} etapas diligenciadas o con borrador generado</span>
         <progress aria-label="Avance de diligenciamiento y generación" aria-valuenow={ruta.porcentaje} max="100" value={ruta.porcentaje} />
         <span>{ruta.porcentaje}% de diligenciamiento y generación</span>
+        <div className="formulation-save-badge inline-flex items-center">
+          {busy || saving ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+              <Loader2 className="animate-spin" size={14} aria-hidden="true" />
+              Guardando borrador...
+            </span>
+          ) : hasUnsavedChanges || projectDirty ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+              <AlertCircle size={14} aria-hidden="true" />
+              Cambios pendientes por guardar
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+              <CheckCircle2 size={14} aria-hidden="true" />
+              Borrador guardado
+            </span>
+          )}
+        </div>
       </div>
       <div className="formulation-toolbar-actions">
         <button type="button" className={documentationButtonClass} aria-haspopup="dialog" onClick={() => setDialog('route')}><ListOrdered size={17} aria-hidden="true" />Ver etapas</button>
         <button type="button" className={documentationButtonClass} aria-haspopup="dialog" onClick={() => setDialog('upload')}><FileUp size={17} aria-hidden="true" />Cargar formato (.docx)</button>
       </div>
     </div>
+    <ProjectFormulationStepper steps={ruta.pasos} activeStepId={activeStep.id} onSelectStep={selectStep} />
     {(reviewSummary.campos_diligenciados || reviewSummary.borrador_generado) && <div className="formulation-review-summary" aria-label="Estado de generación y revisión">
       <span>{reviewSummary.borrador_generado ? 'Borrador generado' : 'Borrador por generar'}</span>
       <span>{reviewSummary.revision_registrada ? 'Revisión registrada' : 'Revisión pendiente'}</span>
